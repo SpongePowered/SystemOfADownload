@@ -24,12 +24,40 @@
  */
 package org.spongepowered.downloads;
 
+import com.google.gson.Gson;
+import graphql.ExecutionInput;
+import graphql.GraphQL;
+import graphql.schema.GraphQLSchema;
+import org.spongepowered.downloads.graphql.GraphQLRequest;
+import spark.Spark;
+
 public class App {
-    public String getGreeting() {
-        return "Hello world.";
+    private final Gson gson;
+
+    App() {
+        this.gson = new Gson();
     }
 
-    public static void main(String[] args) {
-        System.out.println(new App().getGreeting());
+    /**
+     * Entrypoint for the app. Does
+     *
+     * @param args entrypoint args
+     */
+    public static void main(final String[] args) {
+        final App app = new App();
+        Spark.post("/graphql", (request, response) -> {
+            response.type("application/json");
+            final String body = request.body();
+            final GraphQLRequest graphQLRequest = app.gson.fromJson(body, GraphQLRequest.class);
+            final GraphQLSchema.Builder schemaBuilder = GraphQLSchema.newSchema();
+            final GraphQLSchema schema = schemaBuilder.build();
+            final GraphQL graphQL = GraphQL.newGraphQL(schema).build();
+
+            final ExecutionInput.Builder builder = ExecutionInput.newExecutionInput()
+                .query(graphQLRequest.getQuery());
+            graphQLRequest.getVariables().ifPresent(builder::variables);
+            graphQLRequest.getOperationName().ifPresent(builder::operationName);
+            return graphQL.execute(builder);
+        });
     }
 }
