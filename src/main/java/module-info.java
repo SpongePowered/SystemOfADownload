@@ -1,6 +1,7 @@
 module SystemOfADownload.main {
     requires graphql.java;
-    requires spark.core;
-    requires com.google.gson;
+    requires io.vavr;
+    requires org.eclipse.jgit;
     requires org.checkerframework.checker.qual;
+    requires spark.core;
 }

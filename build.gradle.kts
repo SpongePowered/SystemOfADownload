@@ -18,18 +18,36 @@ tasks.test {
     useJUnitPlatform()
 }
 dependencies {
-    implementation("com.google.guava:guava:28.0-jre")
-    implementation("com.graphql-java:graphql-java:15.0")
-    implementation("com.sparkjava:spark-core:2.8.0")
-    implementation("com.google.code.gson:gson:2.8.6")
 
+    // Bootstrapper - literally just make this a webapp already...
+    implementation("com.sparkjava:spark-core:2.8.0")
+
+    // Language helpful features
+    implementation("io.vavr:vavr:0.10.3")
+    implementation("org.checkerframework:checker-qual:3.4.1")
+
+    // GraphQL Requirements
+    implementation("com.graphql-java:graphql-java:15.0")
+    implementation("com.fasterxml.jackson.core:jackson-core:2.11.3")
+    implementation("com.fasterxml.jackson.core:jackson-annotations:2.11.3")
+    // And the vavr jackson compat module
+    implementation("io.vavr:vavr-jackson:0.10.3")
+
+    // JGit
+    implementation("org.eclipse.jgit:org.eclipse.jgit:5.9.0.202009080501-r")
+
+    // our database
+    implementation("org.postgresql:postgresql:42.2.18")
+
+    // TESTING!!!
     testImplementation(platform("org.junit:junit-bom:5.7.0"))
-    testImplementation("org.mockito:mockito-core:3.3.3")
+    testImplementation("org.mockito:mockito-core:3.5.13")
 }
 
 java {
-    targetCompatibility = JavaVersion.VERSION_15
-    sourceCompatibility = JavaVersion.VERSION_15
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(15))
+    }
 }
 
 application {
