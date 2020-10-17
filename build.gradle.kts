@@ -44,12 +44,12 @@ dependencies {
 }
 
 java {
-    /*toolchain {
-        languageVersion.set(JavaLanguageVersion.of(15))
-    }*/
+    //toolchain {
+    //    languageVersion.set(JavaLanguageVersion.of(15))
+    //}
     // We need to specify these so that we can use the preview features
-    sourceCompatibility = JavaVersion.VERSION_15
-    targetCompatibility = JavaVersion.VERSION_15
+    // sourceCompatibility = JavaVersion.VERSION_15
+    // targetCompatibility = JavaVersion.VERSION_15
 
     modularity.inferModulePath.set(true)
 }
@@ -82,6 +82,8 @@ tasks {
     // https://stackoverflow.com/a/63457166/3032166
     withType<JavaCompile> {
         doFirst {
+            options.compilerArgs.add("-source")
+            options.compilerArgs.add("15")
             options.compilerArgs.add("--module-path")
             options.compilerArgs.add(classpath.asPath)
             options.compilerArgs.add("--enable-preview")
