@@ -14,20 +14,22 @@ repositories {
     // You can declare any Maven/Ivy/file repository here.
     jcenter()
 }
-
+tasks.test {
+    useJUnitPlatform()
+}
 dependencies {
     implementation("com.google.guava:guava:28.0-jre")
     implementation("com.graphql-java:graphql-java:15.0")
     implementation("com.sparkjava:spark-core:2.8.0")
     implementation("com.google.code.gson:gson:2.8.6")
 
-    testImplementation("junit:junit:4.12")
+    testImplementation(platform("org.junit:junit-bom:5.7.0"))
     testImplementation("org.mockito:mockito-core:3.3.3")
 }
 
 java {
-    targetCompatibility = JavaVersion.VERSION_11
-    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_15
+    sourceCompatibility = JavaVersion.VERSION_15
 }
 
 application {
