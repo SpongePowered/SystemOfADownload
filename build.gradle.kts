@@ -1,7 +1,6 @@
-
 plugins {
     // Apply the java plugin to add support for Java
-    java
+    `java-library`
 
     // Apply the application plugin to add support for building a CLI application.
     application
@@ -14,9 +13,7 @@ repositories {
     // You can declare any Maven/Ivy/file repository here.
     jcenter()
 }
-tasks.test {
-    useJUnitPlatform()
-}
+
 dependencies {
 
     // Bootstrapper - literally just make this a webapp already...
@@ -28,6 +25,7 @@ dependencies {
 
     // GraphQL Requirements
     implementation("com.graphql-java:graphql-java:15.0")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.11.3")
     implementation("com.fasterxml.jackson.core:jackson-core:2.11.3")
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.11.3")
     // And the vavr jackson compat module
@@ -38,6 +36,7 @@ dependencies {
 
     // our database
     implementation("org.postgresql:postgresql:42.2.18")
+    implementation("org.junit.jupiter:junit-jupiter:5.4.2")
 
     // TESTING!!!
     testImplementation(platform("org.junit:junit-bom:5.7.0"))
@@ -45,9 +44,14 @@ dependencies {
 }
 
 java {
-    toolchain {
+    /*toolchain {
         languageVersion.set(JavaLanguageVersion.of(15))
-    }
+    }*/
+    // We need to specify these so that we can use the preview features
+    sourceCompatibility = JavaVersion.VERSION_15
+    targetCompatibility = JavaVersion.VERSION_15
+
+    modularity.inferModulePath.set(true)
 }
 
 application {
@@ -56,7 +60,9 @@ application {
 }
 
 checkstyle {
-
+    toolVersion = "8.36.2"
+    configProperties["severity"] = "warning"
+    configDirectory.set(project.projectDir.resolve("config").resolve("checkstyle"))
 }
 val organization: String by project
 val url: String by project
@@ -69,4 +75,28 @@ license {
         this["url"] = url
     }
     newLine = false
+}
+
+tasks {
+
+    // https://stackoverflow.com/a/63457166/3032166
+    withType<JavaCompile> {
+        doFirst {
+            options.compilerArgs.add("--module-path")
+            options.compilerArgs.add(classpath.asPath)
+            options.compilerArgs.add("--enable-preview")
+        }
+    }
+
+    withType<JavaExec> {
+        jvmArgs("--enable-preview")
+    }
+
+    withType<Test> {
+        jvmArgs("--enable-preview")
+    }
+
+    test {
+        useJUnitPlatform()
+    }
 }

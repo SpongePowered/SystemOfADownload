@@ -24,19 +24,16 @@
  */
 package org.spongepowered.downloads;
 
-import com.google.gson.Gson;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import graphql.ExecutionInput;
 import graphql.GraphQL;
 import graphql.schema.GraphQLSchema;
 import org.spongepowered.downloads.graphql.GraphQLRequest;
 import spark.Spark;
 
-public class App {
-    private final Gson gson;
+public final class App {
 
-    App() {
-        this.gson = new Gson();
-    }
+    final ObjectMapper jacksonObjectMapper = new ObjectMapper();
 
     /**
      * Entrypoint for the app. Does
@@ -48,7 +45,7 @@ public class App {
         Spark.post("/graphql", (request, response) -> {
             response.type("application/json");
             final String body = request.body();
-            final GraphQLRequest graphQLRequest = app.gson.fromJson(body, GraphQLRequest.class);
+            final GraphQLRequest graphQLRequest =  app.jacksonObjectMapper.readValue(body, GraphQLRequest.class);
             final GraphQLSchema.Builder schemaBuilder = GraphQLSchema.newSchema();
             final GraphQLSchema schema = schemaBuilder.build();
             final GraphQL graphQL = GraphQL.newGraphQL(schema).build();

@@ -51,4 +51,9 @@
         <property name="ignorePattern" value="^ *\* *[^ ]+$"/>
         <property name="fileExtensions" value="java"/>
     </module>
+    <!-- Suppresses checks for the module-info.java file -->
+    <!-- because that fails with a NoViableAltException  -->
+    <module name="BeforeExecutionExclusionFileFilter">
+        <property name="fileNamePattern" value="module\-info\.java$"/>
+    </module>
 </module>
