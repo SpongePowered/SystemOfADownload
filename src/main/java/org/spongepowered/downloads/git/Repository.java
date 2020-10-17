@@ -24,12 +24,47 @@
  */
 package org.spongepowered.downloads.git;
 
+import java.util.Objects;
+import java.util.StringJoiner;
 import java.util.UUID;
 
-public record Repository(
-    UUID entityId,
-    String name,
-    String url
-) {
+public final class Repository {
+    public final UUID entityId;
+    public final String name;
+    public final String url;
 
+
+    public Repository(final UUID entityId, final String name, final String url) {
+        this.entityId = entityId;
+        this.name = name;
+        this.url = url;
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || this.getClass() != o.getClass()) {
+            return false;
+        }
+        final Repository that = (Repository) o;
+        return Objects.equals(this.entityId, that.entityId) &&
+            Objects.equals(this.name, that.name) &&
+            Objects.equals(this.url, that.url);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.entityId, this.name, this.url);
+    }
+
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", Repository.class.getSimpleName() + "[", "]")
+            .add("entityId=" + this.entityId)
+            .add("name='" + this.name + "'")
+            .add("url='" + this.url + "'")
+            .toString();
+    }
 }

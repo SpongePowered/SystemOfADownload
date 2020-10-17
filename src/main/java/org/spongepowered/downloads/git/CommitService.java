@@ -27,7 +27,6 @@ package org.spongepowered.downloads.git;
 import io.vavr.collection.List;
 import io.vavr.control.Either;
 import org.eclipse.jgit.lib.ObjectId;
-import org.spongepowered.downloads.maven.Repository;
 
 public interface CommitService {
 

@@ -24,9 +24,42 @@
  */
 package org.spongepowered.downloads.git;
 
-public record SubmoduleCommit(
-    Commit parent,
-    Commit child
-) {
+import java.util.Objects;
+import java.util.StringJoiner;
 
+public final class SubmoduleCommit {
+
+    public final Commit parent;
+    public final Commit child;
+
+    public SubmoduleCommit(final Commit parent, final Commit child) {
+        this.parent = parent;
+        this.child = child;
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || this.getClass() != o.getClass()) {
+            return false;
+        }
+        final SubmoduleCommit that = (SubmoduleCommit) o;
+        return Objects.equals(this.parent, that.parent) &&
+            Objects.equals(this.child, that.child);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.parent, this.child);
+    }
+
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", SubmoduleCommit.class.getSimpleName() + "[", "]")
+            .add("parent=" + this.parent)
+            .add("child=" + this.child)
+            .toString();
+    }
 }

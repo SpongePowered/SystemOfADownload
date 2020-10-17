@@ -26,11 +26,42 @@ package org.spongepowered.downloads.git;
 
 import io.vavr.collection.List;
 
-import java.time.ZonedDateTime;
+import java.util.Objects;
+import java.util.StringJoiner;
 
-public final record Artifact(
-    String artifactId,
-    List<Commit> commits
-) {
+public final class Artifact {
 
+    public final String artifactId;
+    public final List<Commit> commits;
+
+    public Artifact(final String artifactId, final List<Commit> commits) {
+        this.artifactId = artifactId;
+        this.commits = commits;
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || this.getClass() != o.getClass()) {
+            return false;
+        }
+        final Artifact artifact = (Artifact) o;
+        return Objects.equals(this.artifactId, artifact.artifactId) &&
+            Objects.equals(this.commits, artifact.commits);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.artifactId, this.commits);
+    }
+
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", Artifact.class.getSimpleName() + "[", "]")
+            .add("artifactId='" + this.artifactId + "'")
+            .add("commits=" + this.commits)
+            .toString();
+    }
 }

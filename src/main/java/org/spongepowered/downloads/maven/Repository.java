@@ -24,10 +24,46 @@
  */
 package org.spongepowered.downloads.maven;
 
+import java.util.Objects;
+import java.util.StringJoiner;
 import java.util.UUID;
 
-public record Repository(
-    UUID repoId,
-    String url,
-    String name) {
+public final class Repository {
+    public final UUID repoId;
+    public final String url;
+    public final String name;
+
+    public Repository(final UUID repoId, final String url, final String name) {
+        this.repoId = repoId;
+        this.url = url;
+        this.name = name;
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || this.getClass() != o.getClass()) {
+            return false;
+        }
+        final Repository that = (Repository) o;
+        return Objects.equals(this.repoId, that.repoId) &&
+            Objects.equals(this.url, that.url) &&
+            Objects.equals(this.name, that.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.repoId, this.url, this.name);
+    }
+
+    @Override
+    public String toString() {
+        return new StringJoiner(", ", Repository.class.getSimpleName() + "[", "]")
+            .add("repoId=" + this.repoId)
+            .add("url='" + this.url + "'")
+            .add("name='" + this.name + "'")
+            .toString();
+    }
 }

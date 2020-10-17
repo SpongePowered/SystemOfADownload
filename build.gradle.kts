@@ -6,6 +6,7 @@ plugins {
     application
     id("net.minecrell.licenser") version "0.4.1"
     checkstyle
+    idea
 }
 
 repositories {
@@ -36,22 +37,17 @@ dependencies {
 
     // our database
     implementation("org.postgresql:postgresql:42.2.18")
-    implementation("org.junit.jupiter:junit-jupiter:5.4.2")
 
     // TESTING!!!
     testImplementation(platform("org.junit:junit-bom:5.7.0"))
+    testImplementation("org.junit.jupiter:junit-jupiter:5.4.2")
     testImplementation("org.mockito:mockito-core:3.5.13")
 }
 
 java {
-    //toolchain {
-    //    languageVersion.set(JavaLanguageVersion.of(15))
-    //}
-    // We need to specify these so that we can use the preview features
-    // sourceCompatibility = JavaVersion.VERSION_15
-    // targetCompatibility = JavaVersion.VERSION_15
-
-    modularity.inferModulePath.set(true)
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(15))
+    }
 }
 
 application {
@@ -82,20 +78,9 @@ tasks {
     // https://stackoverflow.com/a/63457166/3032166
     withType<JavaCompile> {
         doFirst {
-            options.compilerArgs.add("-source")
-            options.compilerArgs.add("15")
             options.compilerArgs.add("--module-path")
             options.compilerArgs.add(classpath.asPath)
-            options.compilerArgs.add("--enable-preview")
         }
-    }
-
-    withType<JavaExec> {
-        jvmArgs("--enable-preview")
-    }
-
-    withType<Test> {
-        jvmArgs("--enable-preview")
     }
 
     test {
