@@ -23,11 +23,34 @@
  * THE SOFTWARE.
  */
 module SystemOfADownload.main {
-    requires graphql.java;
+    // Language features
     requires io.vavr;
-    requires org.eclipse.jgit;
     requires org.checkerframework.checker.qual;
-    requires spark.core;
+
+    // Git
+    requires org.eclipse.jgit;
+
+    // GraphQL
+    requires graphql.java;
+
+
+    // Axon
+    requires org.axonframework.config;
+    requires org.axonframework.connector.axonserver;
+    requires org.axonframework.disruptor;
+    requires org.axonframework.eventsourcing;
+    requires org.axonframework.messaging;
+    requires org.axonframework.modelling;
+    requires org.axonframework.spring;
+    requires org.axonframework.springboot;
+    requires axon.spring.boot.starter;
+    // Spring
+    requires spring.beans;
+    requires spring.boot;
+    requires spring.boot.autoconfigure;
+    requires spring.boot.starter.aop;
+
+    // Jackson (Json)
     requires com.fasterxml.jackson.core;
     requires com.fasterxml.jackson.annotation;
     requires com.fasterxml.jackson.databind;

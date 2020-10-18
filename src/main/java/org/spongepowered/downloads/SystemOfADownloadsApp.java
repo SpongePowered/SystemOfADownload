@@ -24,16 +24,11 @@
  */
 package org.spongepowered.downloads;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import graphql.ExecutionInput;
-import graphql.GraphQL;
-import graphql.schema.GraphQLSchema;
-import org.spongepowered.downloads.graphql.GraphQLRequest;
-import spark.Spark;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-public final class App {
-
-    final ObjectMapper jacksonObjectMapper = new ObjectMapper();
+@SpringBootApplication
+public class SystemOfADownloadsApp {
 
     /**
      * Entrypoint for the app. Does
@@ -41,20 +36,6 @@ public final class App {
      * @param args entrypoint args
      */
     public static void main(final String[] args) {
-        final App app = new App();
-        Spark.post("/graphql", (request, response) -> {
-            response.type("application/json");
-            final String body = request.body();
-            final GraphQLRequest graphQLRequest =  app.jacksonObjectMapper.readValue(body, GraphQLRequest.class);
-            final GraphQLSchema.Builder schemaBuilder = GraphQLSchema.newSchema();
-            final GraphQLSchema schema = schemaBuilder.build();
-            final GraphQL graphQL = GraphQL.newGraphQL(schema).build();
-
-            final ExecutionInput.Builder builder = ExecutionInput.newExecutionInput()
-                .query(graphQLRequest.getQuery());
-            graphQLRequest.getVariables().ifPresent(builder::variables);
-            graphQLRequest.getOperationName().ifPresent(builder::operationName);
-            return graphQL.execute(builder);
-        });
+        SpringApplication.run(SystemOfADownloadsApp.class, args);
     }
 }

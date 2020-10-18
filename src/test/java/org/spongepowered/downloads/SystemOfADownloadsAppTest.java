@@ -29,10 +29,10 @@ package org.spongepowered.downloads;
 
 import org.junit.jupiter.api.Test;
 
-public class AppTest {
+public class SystemOfADownloadsAppTest {
     @Test
     public void testAppHasAGreeting() {
-        final App classUnderTest = new App();
+        final SystemOfADownloadsApp classUnderTest = new SystemOfADownloadsApp();
         // assertNotNull("app should have a greeting", classUnderTest.getGreeting());
     }
 }

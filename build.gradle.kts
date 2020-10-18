@@ -1,13 +1,16 @@
 plugins {
     // Apply the java plugin to add support for Java
-    `java-library`
+    java
 
     // Apply the application plugin to add support for building a CLI application.
     application
     id("net.minecrell.licenser") version "0.4.1"
     checkstyle
     idea
+    id("org.springframework.boot") version "2.3.4.RELEASE"
+
 }
+apply(plugin = "io.spring.dependency-management")
 
 repositories {
     // Use jcenter for resolving dependencies.
@@ -15,14 +18,23 @@ repositories {
     jcenter()
 }
 
+val axonVersion: String by project
+
 dependencies {
 
     // Bootstrapper - literally just make this a webapp already...
-    implementation("com.sparkjava:spark-core:2.8.0")
+    implementation("org.axonframework:axon-spring-boot-starter:$axonVersion")
+    implementation(platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES))
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 
     // Language helpful features
     implementation("io.vavr:vavr:0.10.3")
-    implementation("org.checkerframework:checker-qual:3.4.1")
+    implementation("org.checkerframework:checker-qual:3.4.1") {
+        version {
+            strictly("3.4.1")
+        }
+    }
 
     // GraphQL Requirements
     implementation("com.graphql-java:graphql-java:15.0")
@@ -36,12 +48,13 @@ dependencies {
     implementation("org.eclipse.jgit:org.eclipse.jgit:5.9.0.202009080501-r")
 
     // our database
-    implementation("org.postgresql:postgresql:42.2.18")
+    // TODO - determine if Axon will work well with cassandra or some other nosql db.
 
     // TESTING!!!
     testImplementation(platform("org.junit:junit-bom:5.7.0"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.4.2")
     testImplementation("org.mockito:mockito-core:3.5.13")
+    testImplementation("org.axonframework:axon-test:$axonVersion")
 }
 
 java {
