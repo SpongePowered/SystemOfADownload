@@ -9,13 +9,21 @@ import java.util.StringJoiner;
 @JsonDeserialize
 public class Author {
 
-    public final String email;
-    public final String name;
+    private final String email;
+    private final String name;
 
     @JsonCreator
     public Author(final String email, final String name) {
         this.email = email;
         this.name = name;
+    }
+
+    public String getEmail() {
+        return this.email;
+    }
+
+    public String getName() {
+        return this.name;
     }
 
     @Override

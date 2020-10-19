@@ -38,9 +38,8 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.vavr.collection.List;
-import jdk.jfr.ContentType;
-import org.spongepowered.downloads.git.api.Commit;
-import org.spongepowered.downloads.git.api.CommitDiff;
+
+import java.util.Optional;
 
 @OpenAPIDefinition(
     info = @Info(
@@ -70,14 +69,20 @@ public interface CommitService extends Service {
             )
         )
     )
-    ServiceCall<CommitDiff, List<Commit>> getGitDiff();
+    ServiceCall<CommitDiff, List<Commit>> getGitDiff(String repo);
+
+    ServiceCall<RepositoryRegistration, NotUsed> registerRepository();
+
+    ServiceCall<NotUsed, Optional<Commit>> getCommit(String repo, String commit);
 
 
     @Override
     default Descriptor descriptor() {
         return Service.named("commit")
             .withCalls(
-                Service.restCall(Method.POST, "/api/commit/diff", this::getGitDiff)
+                Service.restCall(Method.POST, "/api/repository/:repo/commit/diff", this::getGitDiff),
+                Service.restCall(Method.GET, "/api/repository/:repo/:commit", this::getCommit),
+                Service.restCall(Method.POST, "/api/repository/register", this::registerRepository)
             )
             .withAutoAcl(true);
     }
