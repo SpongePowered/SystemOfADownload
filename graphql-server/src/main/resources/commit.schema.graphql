@@ -1,0 +1,33 @@
+
+scalar CommitSha
+scalar DateTime
+scalar ID
+
+interface Node {
+    id: ID!
+    rawId: String!
+}
+
+type Author implements Node {
+    id: ID!
+    rawId: String!
+    name: String!
+    email: String!
+}
+
+type GitRepo implements Node {
+    id: ID!
+    rawId: String!
+    website: String!
+    scmUrl: String!
+    branches: [String!]!
+}
+
+type Commit implements Node {
+    id: ID!
+    rawId: String!
+    author: Author!
+    sha: CommitSha!
+    date: DateTime!
+}
+
