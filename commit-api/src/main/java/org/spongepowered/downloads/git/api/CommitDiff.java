@@ -8,10 +8,10 @@ import java.util.StringJoiner;
 public class CommitDiff {
 
     public final String repository;
-    public final String fromSha;
-    public final String toSha;
+    public final CommitSha fromSha;
+    public final CommitSha toSha;
 
-    public CommitDiff(final String repository, final String fromSha, final String toSha) {
+    public CommitDiff(final String repository, final CommitSha fromSha, final CommitSha toSha) {
         this.repository = repository;
         this.fromSha = fromSha;
         this.toSha = toSha;

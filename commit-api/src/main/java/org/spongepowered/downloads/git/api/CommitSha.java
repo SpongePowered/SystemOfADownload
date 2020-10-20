@@ -1,6 +1,8 @@
 package org.spongepowered.downloads.git.api;
 
 import javax.annotation.concurrent.Immutable;
+import java.util.Objects;
+import java.util.StringJoiner;
 
 /**
  * A Git commit is 160-bit id, which means that it can be composed of
@@ -32,4 +34,36 @@ public final class CommitSha {
         this.shaPart3 = shaPart3;
     }
 
+    public String toHexString() {
+        return Long.toHexString(this.shaPart1)
+            + Long.toHexString(this.shaPart2)
+            + Integer.toHexString(this.shaPart3);
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || this.getClass() != o.getClass()) {
+            return false;
+        }
+        final CommitSha commitSha = (CommitSha) o;
+        return this.shaPart1 == commitSha.shaPart1 &&
+            this.shaPart2 == commitSha.shaPart2 &&
+            this.shaPart3 == commitSha.shaPart3;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.shaPart1, this.shaPart2, this.shaPart3);
+    }
+
+    @Override
+    public String toString() {
+        return new StringJoiner(
+            ", ", CommitSha.class.getSimpleName() + "[", "]")
+            .add("sha=" + this.toHexString())
+            .toString();
+    }
 }
