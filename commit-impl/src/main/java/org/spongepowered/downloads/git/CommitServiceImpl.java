@@ -11,6 +11,7 @@ import org.spongepowered.downloads.git.api.CommitService;
 import org.spongepowered.downloads.git.api.RepositoryRegistration;
 
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 public class CommitServiceImpl implements CommitService {
 
@@ -26,7 +27,9 @@ public class CommitServiceImpl implements CommitService {
 
     @Override
     public ServiceCall<CommitDiff, List<Commit>> getGitDiff(final String repo) {
-        return null;
+        return (diff) -> {
+            return CompletableFuture.supplyAsync(() -> List.empty());
+        };
     }
 
     @Override

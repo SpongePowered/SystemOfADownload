@@ -9,7 +9,7 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>commit-impl</artifactId>
+    <artifactId>commit-event</artifactId>
 
     <packaging>jar</packaging>
 
@@ -18,17 +18,6 @@
             <groupId>${project.groupId}</groupId>
             <artifactId>commit-api</artifactId>
             <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>commit-event</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <!-- JGit - or how I learned to love git again in Java... -->
-        <dependency>
-            <groupId>org.eclipse.jgit</groupId>
-            <artifactId>org.eclipse.jgit</artifactId>
-            <version>5.9.0.202009080501-r</version>
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
