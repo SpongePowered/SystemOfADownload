@@ -16,6 +16,7 @@
         <module>changelog-api</module>
         <module>changelog-impl</module>
         <module>artifact-api</module>
+        <module>artifact-event</module>
         <module>artifact-impl</module>
         <module>graphql-server</module>
         <module>integration-tests</module>

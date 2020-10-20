@@ -9,19 +9,14 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>artifact-impl</artifactId>
+    <artifactId>artifact-event</artifactId>
 
     <packaging>jar</packaging>
 
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>commit-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>artifact-event</artifactId>
+            <artifactId>artifact-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -55,6 +50,7 @@
             <artifactId>lagom-javadsl-persistence-cassandra_${scala.binary.version}</artifactId>
             <version>${lagom.version}</version>
         </dependency>
+
         <!-- Language Features -->
         <dependency>
             <groupId>io.vavr</groupId>
