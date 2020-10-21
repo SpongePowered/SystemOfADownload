@@ -71,7 +71,7 @@ public interface CommitService extends Service {
     )
     ServiceCall<CommitDiff, List<Commit>> getGitDiff(String repo);
 
-    ServiceCall<RepositoryRegistration, NotUsed> registerRepository();
+    ServiceCall<RepositoryRegistration, Repository> registerRepository();
 
     ServiceCall<NotUsed, Optional<Commit>> getCommit(String repo, String commit);
 

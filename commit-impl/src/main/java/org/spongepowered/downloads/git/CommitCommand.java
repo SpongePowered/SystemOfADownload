@@ -3,7 +3,9 @@ package org.spongepowered.downloads.git;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntity;
 import com.lightbend.lagom.serialization.Jsonable;
+import io.vavr.collection.List;
 import org.spongepowered.downloads.git.api.Commit;
+import org.spongepowered.downloads.git.api.CommitDiff;
 import org.spongepowered.downloads.git.api.Repository;
 import org.spongepowered.downloads.git.api.RepositoryRegistration;
 
@@ -31,10 +33,24 @@ public interface CommitCommand {
         public final UUID generatedId;
 
         @JsonCreator
-        public RegisterRepositoryCommand(final RepositoryRegistration repositoryRegistration, UUID uuid) {
+        public RegisterRepositoryCommand(final RepositoryRegistration repositoryRegistration, final UUID uuid) {
             this.repositoryRegistration = repositoryRegistration;
             this.generatedId = uuid;
         }
     }
+
+    final class GetCommitsBetween implements CommitCommand, Jsonable, PersistentEntity.ReplyType<List<Commit>> {
+        public final String repo;
+        public final CommitDiff diff;
+
+        public GetCommitsBetween(final String repo, final CommitDiff diff) {
+            this.repo = repo;
+            this.diff = diff;
+        }
+
+
+    }
+
+
 
 }

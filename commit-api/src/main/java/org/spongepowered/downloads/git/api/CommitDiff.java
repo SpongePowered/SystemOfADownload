@@ -7,12 +7,10 @@ import java.util.StringJoiner;
 @Immutable
 public class CommitDiff {
 
-    public final String repository;
     public final CommitSha fromSha;
     public final CommitSha toSha;
 
-    public CommitDiff(final String repository, final CommitSha fromSha, final CommitSha toSha) {
-        this.repository = repository;
+    public CommitDiff(final CommitSha fromSha, final CommitSha toSha) {
         this.fromSha = fromSha;
         this.toSha = toSha;
     }
@@ -26,20 +24,18 @@ public class CommitDiff {
             return false;
         }
         final CommitDiff that = (CommitDiff) o;
-        return Objects.equals(this.repository, that.repository) &&
-            Objects.equals(this.fromSha, that.fromSha) &&
+        return Objects.equals(this.fromSha, that.fromSha) &&
             Objects.equals(this.toSha, that.toSha);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(this.repository, this.fromSha, this.toSha);
+        return Objects.hash(this.fromSha, this.toSha);
     }
 
     @Override
     public String toString() {
         return new StringJoiner(", ", CommitDiff.class.getSimpleName() + "[", "]")
-            .add("repository='" + this.repository + "'")
             .add("fromSha='" + this.fromSha + "'")
             .add("toSha='" + this.toSha + "'")
             .toString();

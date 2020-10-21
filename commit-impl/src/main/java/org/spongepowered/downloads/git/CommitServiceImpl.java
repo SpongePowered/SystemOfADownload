@@ -11,6 +11,7 @@ import org.apache.log4j.Logger;
 import org.spongepowered.downloads.git.api.Commit;
 import org.spongepowered.downloads.git.api.CommitDiff;
 import org.spongepowered.downloads.git.api.CommitService;
+import org.spongepowered.downloads.git.api.Repository;
 import org.spongepowered.downloads.git.api.RepositoryRegistration;
 import org.spongepowered.downloads.utils.UUIDType5;
 
@@ -35,17 +36,16 @@ public class CommitServiceImpl implements CommitService {
 
     @Override
     public ServiceCall<CommitDiff, List<Commit>> getGitDiff(final String repo) {
-        return (diff) -> {
-            return CompletableFuture.supplyAsync(() -> List.empty());
-        };
+        return (diff) -> this.getCommitEntity()
+            .ask(new CommitCommand.GetCommitsBetween(repo, diff));
     }
 
     @Override
-    public ServiceCall<RepositoryRegistration, NotUsed> registerRepository() {
+    public ServiceCall<RepositoryRegistration, Repository> registerRepository() {
         return (registration) -> {
             final UUID uuid = UUIDType5.nameUUIDFromNamespaceAndBytes(UUIDType5.NAMESPACE_OID, registration.name.getBytes());
-            this.getCommitEntity().ask(new CommitCommand.RegisterRepositoryCommand(registration, uuid))
-                .thenApply(repository -> )
+            return this.getCommitEntity()
+                .ask(new CommitCommand.RegisterRepositoryCommand(registration, uuid));
         };
     }
 
@@ -55,7 +55,7 @@ public class CommitServiceImpl implements CommitService {
     }
 
     private PersistentEntityRef<CommitCommand> getCommitEntity() {
-        return this.registry.refFor(CommitEntity.class,
-            CommitServiceImpl.ENTITY_KEY);
+        return this.registry.refFor(CommitEntity.class, CommitServiceImpl.ENTITY_KEY);
     }
+
 }

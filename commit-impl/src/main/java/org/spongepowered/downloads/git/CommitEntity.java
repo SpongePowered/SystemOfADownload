@@ -1,19 +1,18 @@
 package org.spongepowered.downloads.git;
 
 import com.lightbend.lagom.javadsl.persistence.PersistentEntity;
-import io.vavr.collection.HashMap;
 import io.vavr.collection.List;
-import io.vavr.collection.Map;
-import io.vavr.collection.SortedMultimap;
 import io.vavr.collection.TreeMultimap;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import org.spongepowered.downloads.git.api.Commit;
 import org.spongepowered.downloads.git.api.Repository;
-import org.spongepowered.downloads.git.api.RepositoryRegistration;
+import org.spongepowered.downloads.git.utils.JgitCommitToApiCommit;
 
 import java.util.Optional;
 
+@SuppressWarnings("unchecked")
 public class CommitEntity extends PersistentEntity<CommitCommand, CommitEvent, CommitsState> {
     private static final Logger LOGGER = LogManager.getLogger(CommitEntity.class);
 
@@ -22,52 +21,82 @@ public class CommitEntity extends PersistentEntity<CommitCommand, CommitEvent, C
     public Behavior initialBehavior(final Optional<CommitsState> snapshotState) {
         final BehaviorBuilder builder = this.newBehaviorBuilder(
             snapshotState.orElseGet(CommitsState::empty));
-        builder.setCommandHandler(CommitCommand.CreateCommit.class,
-            (create, ctx) -> {
+        // Repository registration
+        builder.setCommandHandler(CommitCommand.RegisterRepositoryCommand.class, this::registerRepository);
+        builder.setEventHandler(CommitEvent.GitRepoRegistered.class, this::handleGitRepoRegistered);
 
-                final List<CommitEvent> events = List.empty();
-                return ctx.thenPersistAll(events.asJava());
-            }
+        // Commit Creation/Management
+        builder.setCommandHandler(CommitCommand.GetCommitsBetween.class, this::calculateDiffBetween);
+        return builder.build();
+    }
+
+    @NotNull
+    private CommitsState handleGitRepoRegistered(final CommitEvent.GitRepoRegistered event) {
+        final CommitsState state = this.state();
+        final var newCommitsMap = state.repositoryCommits.put(
+            event.repository,
+            TreeMultimap.withSeq().empty()
         );
-        builder.setCommandHandler(CommitCommand.RegisterRepositoryCommand.class,
-            (registerRepo, ctx) -> {
-                if (this.state().repositories.containsKey(registerRepo.generatedId)) {
-                    ctx.invalidCommand("Repository already registered");
+
+        final CommitsState.Builder stateBuilder = new CommitsState.Builder()
+            .repositories(newCommitsMap.keySet());
+
+        newCommitsMap.forEach(stateBuilder::repositoryBranchCommits);
+
+        return stateBuilder.build();
+    }
+
+    private Persist<? extends CommitEvent> registerRepository(
+        final CommitCommand.RegisterRepositoryCommand registerRepo,
+        final CommandContext<Repository> ctx
+    ) {
+        if (this.state().repositories.containsKey(registerRepo.generatedId)) {
+            ctx.invalidCommand("Repository already registered");
+            return ctx.done();
+        }
+        LOGGER.debug("Registering Repository");
+        final var registration = registerRepo.repositoryRegistration;
+        final var repository = new Repository.Builder()
+            .setId(registerRepo.generatedId)
+            .setName(registration.name)
+            .setRepoUrl(registration.gitUrl)
+            .setWebsite(registration.website)
+            .build();
+
+        final var event = new CommitEvent.GitRepoRegistered(repository);
+        final var events = java.util.List.<CommitEvent>of(event);
+
+        return ctx.thenPersistAll(events, () -> ctx.reply(repository));
+    }
+
+    private Persist<? extends CommitEvent> calculateDiffBetween(
+        final CommitCommand.GetCommitsBetween commitsRequest,
+        final CommandContext<List<Commit>> ctx
+    ) {
+        return this.state().repositoryByName
+            .get(commitsRequest.repo)
+            .map(repo -> {
+                // This does not perform any caching or lookup, this always clones the repository
+                // with a temporary directory. We can do a few things with this: caching in memory
+                // starting with the commit sha(s) joined together by `:` as the string key,
+                // or store the diffs into state, but that may be expensive to do and linearly
+                // increases with different requests.
+                try {
+                    final var createdCommits = JgitCommitToApiCommit.getCommitsFromRepo(commitsRequest, repo);
+                    return ctx.thenPersistAll(
+                        // Events
+                        createdCommits.map(CommitEvent.CommitCreated::new).asJava(),
+                        // And then finally return the commits
+                        () -> ctx.reply(createdCommits)
+                    );
+                } catch (final Exception e) {
+                    ctx.commandFailed(e);
                     return ctx.done();
                 }
-                final var registration = registerRepo.repositoryRegistration;
-                final var repository = new Repository.Builder()
-                    .setId(registerRepo.generatedId)
-                    .setName(registration.name)
-                    .setRepoUrl(registration.gitUrl)
-                    .setWebsite(registration.website)
-                    .build();
-
-                final var event = new CommitEvent.GitRepoRegistered(repository);
-                final var events = java.util.List.of(event);
-                return ctx.thenPersistAll(events, () -> ctx.reply(repository));
-            }
-        );
-        builder.setEventHandler(CommitEvent.CommitCreated.class, event -> {
-            final CommitsState currentState = this.state();
-
-            currentState.repositoryCommits.get(event.commit.getRepo())
-        });
-        builder.setEventHandler(CommitEvent.GitRepoRegistered.class, event -> {
-            final CommitsState state = this.state();
-            final var newCommitsMap = state.repositoryCommits.put(
-                event.repository,
-                TreeMultimap.withSeq().empty()
-            );
-
-            final CommitsState.Builder stateBuilder = new CommitsState.Builder()
-                .repositories(newCommitsMap.keySet());
-
-            newCommitsMap.forEach(stateBuilder::repositoryBranchCommits);
-
-            return stateBuilder.build();
-        });
-        return builder.build();
+            }).getOrElse(() -> {
+                ctx.invalidCommand("Repository is not registered");
+                return ctx.done();
+            });
     }
 
 }
