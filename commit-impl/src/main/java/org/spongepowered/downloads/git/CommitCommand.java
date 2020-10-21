@@ -4,6 +4,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntity;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.git.api.Commit;
+import org.spongepowered.downloads.git.api.Repository;
+import org.spongepowered.downloads.git.api.RepositoryRegistration;
+
+import java.util.UUID;
 
 public interface CommitCommand {
 
@@ -16,6 +20,20 @@ public interface CommitCommand {
         @JsonCreator
         public CreateCommit(final Commit commit) {
             this.commit = commit;
+        }
+    }
+
+    public final class RegisterRepositoryCommand
+    implements CommitCommand, Jsonable,
+        PersistentEntity.ReplyType<Repository> {
+
+        public final RepositoryRegistration repositoryRegistration;
+        public final UUID generatedId;
+
+        @JsonCreator
+        public RegisterRepositoryCommand(final RepositoryRegistration repositoryRegistration, UUID uuid) {
+            this.repositoryRegistration = repositoryRegistration;
+            this.generatedId = uuid;
         }
     }
 

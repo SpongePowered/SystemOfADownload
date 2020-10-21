@@ -10,6 +10,7 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>utils</module>
         <module>commit-api</module>
         <module>commit-event</module>
         <module>commit-impl</module>
@@ -91,6 +92,21 @@
                 <artifactId>vavr</artifactId>
                 <version>0.10.3</version>
             </dependency>
+            <dependency>
+                <groupId>org.pac4j</groupId>
+                <artifactId>lagom-pac4j_${scala.binary.version}</artifactId>
+                <version>${lagom.pac4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.pac4j</groupId>
+                <artifactId>pac4j-http</artifactId>
+                <version>${pac4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.pac4j</groupId>
+                <artifactId>pac4j-jwt</artifactId>
+                <version>${pac4j.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -101,5 +117,7 @@
 
         <lagom.openapi.version>1.2.2</lagom.openapi.version>
         <lagom.version>1.6.4</lagom.version>
+        <pac4j.version>3.7</pac4j.version>
+        <lagom.pac4j.version>2.1.0</lagom.pac4j.version>
     </properties>
 </project>

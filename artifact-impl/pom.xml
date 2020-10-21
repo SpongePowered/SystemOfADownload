@@ -60,6 +60,11 @@
             <groupId>io.vavr</groupId>
             <artifactId>vavr</artifactId>
         </dependency>
+        <!-- Auth -->
+        <dependency>
+            <groupId>org.pac4j</groupId>
+            <artifactId>lagom-pac4j_${scala.binary.version}</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

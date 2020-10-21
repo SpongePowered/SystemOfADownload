@@ -27,6 +27,13 @@ public final class Repository {
         this.website = website;
     }
 
+    private Repository(Builder builder) {
+        id = builder.id;
+        name = builder.name;
+        repoUrl = builder.repoUrl;
+        website = builder.website;
+    }
+
     public UUID getId() {
         return this.id;
     }
@@ -72,5 +79,41 @@ public final class Repository {
             .add("repoUrl='" + this.repoUrl + "'")
             .add("website='" + this.website + "'")
             .toString();
+    }
+
+    public static final class Builder {
+        private UUID id;
+        private String name;
+        private String repoUrl;
+        private @Nullable String website;
+
+        public Builder() {}
+
+        public Builder setId(final UUID id) {
+            this.id = id;
+            return this;
+        }
+
+        public Builder setName(final String name) {
+            this.name = name;
+            return this;
+        }
+
+        public Builder setRepoUrl(final String repoUrl) {
+            this.repoUrl = repoUrl;
+            return this;
+        }
+
+        public Builder setWebsite(final String website) {
+            this.website = website;
+            return this;
+        }
+
+        public Repository build() {
+            Objects.requireNonNull(this.id, "Repositories must have an id");
+            Objects.requireNonNull(this.name, "Repositories must have a name");
+            Objects.requireNonNull(this.repoUrl, "Repository URL must be set");
+            return new Repository(this);
+        }
     }
 }

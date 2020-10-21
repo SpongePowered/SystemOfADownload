@@ -24,6 +24,11 @@
             <artifactId>commit-event</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>utils</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- JGit - or how I learned to love git again in Java... -->
         <dependency>
             <groupId>org.eclipse.jgit</groupId>

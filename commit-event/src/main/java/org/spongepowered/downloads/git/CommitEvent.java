@@ -6,6 +6,7 @@ import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.git.api.Commit;
+import org.spongepowered.downloads.git.api.Repository;
 
 public interface CommitEvent extends Jsonable, AggregateEvent<CommitEvent> {
 
@@ -22,6 +23,15 @@ public interface CommitEvent extends Jsonable, AggregateEvent<CommitEvent> {
 
         public CommitCreated(final Commit commit) {
             this.commit = commit;
+        }
+    }
+
+    @JsonDeserialize
+    final class GitRepoRegistered implements CommitEvent {
+        public final Repository repository;
+
+        public GitRepoRegistered(final Repository repository) {
+            this.repository = repository;
         }
     }
 
