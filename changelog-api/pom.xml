@@ -25,12 +25,7 @@
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-jackson_2.12</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.swagger.core.v3</groupId>
-            <artifactId>swagger-annotations</artifactId>
-            <version>2.0.7</version>
+            <artifactId>lagom-javadsl-jackson_${scala.binary.version}</artifactId>
         </dependency>
         <!-- Language Features -->
         <dependency>

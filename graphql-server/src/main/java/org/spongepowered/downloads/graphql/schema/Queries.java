@@ -9,7 +9,6 @@ public class Queries {
     private static final GraphQLFieldDefinition COMMIT_NODE = GraphQLFieldDefinition
         .newFieldDefinition()
         .name("field")
-        .arguments()
         .build();
 
 

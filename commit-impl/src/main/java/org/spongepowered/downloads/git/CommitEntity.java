@@ -5,7 +5,6 @@ import io.vavr.collection.List;
 import io.vavr.collection.TreeMultimap;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
 import org.spongepowered.downloads.git.api.Commit;
 import org.spongepowered.downloads.git.api.Repository;
 import org.spongepowered.downloads.git.utils.JgitCommitToApiCommit;
@@ -13,7 +12,7 @@ import org.spongepowered.downloads.git.utils.JgitCommitToApiCommit;
 import java.util.Optional;
 
 @SuppressWarnings("unchecked")
-public class CommitEntity extends PersistentEntity<CommitCommand, CommitEvent, CommitsState> {
+public final class CommitEntity extends PersistentEntity<CommitCommand, CommitEvent, CommitsState> {
     private static final Logger LOGGER = LogManager.getLogger(CommitEntity.class);
 
     @SuppressWarnings("unchecked")
@@ -30,11 +29,10 @@ public class CommitEntity extends PersistentEntity<CommitCommand, CommitEvent, C
         return builder.build();
     }
 
-    @NotNull
     private CommitsState handleGitRepoRegistered(final CommitEvent.GitRepoRegistered event) {
         final CommitsState state = this.state();
         final var newCommitsMap = state.repositoryCommits.put(
-            event.repository,
+            event.repository(),
             TreeMultimap.withSeq().empty()
         );
 
@@ -50,23 +48,21 @@ public class CommitEntity extends PersistentEntity<CommitCommand, CommitEvent, C
         final CommitCommand.RegisterRepositoryCommand registerRepo,
         final CommandContext<Repository> ctx
     ) {
-        if (this.state().repositories.containsKey(registerRepo.generatedId)) {
+        if (this.state().repositories.containsKey(registerRepo.generatedId())) {
             ctx.invalidCommand("Repository already registered");
             return ctx.done();
         }
         LOGGER.debug("Registering Repository");
-        final var registration = registerRepo.repositoryRegistration;
+        final var registration = registerRepo.repositoryRegistration();
         final var repository = new Repository.Builder()
-            .setId(registerRepo.generatedId)
+            .setId(registerRepo.generatedId())
             .setName(registration.name)
             .setRepoUrl(registration.gitUrl)
             .setWebsite(registration.website)
             .build();
 
         final var event = new CommitEvent.GitRepoRegistered(repository);
-        final var events = java.util.List.<CommitEvent>of(event);
-
-        return ctx.thenPersistAll(events, () -> ctx.reply(repository));
+        return ctx.thenPersistAll(java.util.List.of(event), () -> ctx.reply(repository));
     }
 
     private Persist<? extends CommitEvent> calculateDiffBetween(
@@ -74,7 +70,7 @@ public class CommitEntity extends PersistentEntity<CommitCommand, CommitEvent, C
         final CommandContext<List<Commit>> ctx
     ) {
         return this.state().repositoryByName
-            .get(commitsRequest.repo)
+            .get(commitsRequest.repo())
             .map(repo -> {
                 // This does not perform any caching or lookup, this always clones the repository
                 // with a temporary directory. We can do a few things with this: caching in memory

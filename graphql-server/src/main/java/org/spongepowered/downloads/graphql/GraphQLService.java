@@ -1,6 +1,5 @@
 package org.spongepowered.downloads.graphql;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
 import com.lightbend.lagom.javadsl.api.Descriptor;
 import com.lightbend.lagom.javadsl.api.Service;
@@ -29,11 +28,10 @@ public class GraphQLService implements Service {
         this.commitService = commitService;
         this.schema = GraphQLSchema.newSchema()
             .query(Queries.QUERY_TYPE)
-            .mutation()
             .build();
     }
 
-    private ServiceCall<JsonNode, JsonNode> graphql() {
+    private ServiceCall<String, String> graphql() {
         return request -> {
             // This isn't how it'll work, but sure, this is basically where the
             return CompletableFuture.completedFuture(request);
