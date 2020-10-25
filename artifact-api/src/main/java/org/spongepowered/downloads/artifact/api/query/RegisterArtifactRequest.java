@@ -1,4 +1,4 @@
-package org.spongepowered.downloads.artifact.api.registration;
+package org.spongepowered.downloads.artifact.api.query;
 
 public final record RegisterArtifactRequest(
     String artifactId,

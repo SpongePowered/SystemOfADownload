@@ -1,10 +1,12 @@
 package org.spongepowered.downloads.artifact.api;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.spongepowered.downloads.utils.UUIDType5;
 
 import java.net.URL;
 import java.util.Objects;
 import java.util.StringJoiner;
+import java.util.UUID;
 
 @JsonDeserialize
 public final class Group {
@@ -12,12 +14,13 @@ public final class Group {
     private final String groupCoordinates;
     private final String name;
     private final URL website;
-
+    private final UUID groupId;
 
     public Group(final String groupCoordinates, final String name, final URL website) {
         this.groupCoordinates = groupCoordinates;
         this.name = name;
         this.website = website;
+        this.groupId = UUIDType5.nameUUIDFromNamespaceAndString(UUIDType5.NAMESPACE_OID, groupCoordinates);
     }
 
     public String getGroupCoordinates() {
@@ -30,6 +33,10 @@ public final class Group {
 
     public URL getWebsite() {
         return this.website;
+    }
+
+    public UUID getGroupId() {
+        return this.groupId;
     }
 
     @Override

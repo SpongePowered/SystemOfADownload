@@ -15,11 +15,13 @@
         <module>commit-event</module>
         <module>commit-impl</module>
         <module>changelog-api</module>
+        <module>changelog-event</module>
         <module>changelog-impl</module>
         <module>artifact-api</module>
         <module>artifact-event</module>
         <module>artifact-impl</module>
         <module>graphql-server</module>
+        <module>webhooks</module>
         <module>integration-tests</module>
     </modules>
 
@@ -91,7 +93,12 @@
             <dependency>
                 <groupId>io.vavr</groupId>
                 <artifactId>vavr</artifactId>
-                <version>0.10.3</version>
+                <version>${vavr.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.vavr</groupId>
+                <artifactId>vavr-jackson</artifactId>
+                <version>${vavr.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.pac4j</groupId>
@@ -120,5 +127,6 @@
         <lagom.version>1.6.4</lagom.version>
         <pac4j.version>3.7</pac4j.version>
         <lagom.pac4j.version>2.1.0</lagom.pac4j.version>
+        <vavr.version>0.10.3</vavr.version>
     </properties>
 </project>

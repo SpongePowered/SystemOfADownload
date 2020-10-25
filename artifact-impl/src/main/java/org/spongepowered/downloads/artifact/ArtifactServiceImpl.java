@@ -5,16 +5,15 @@ import com.google.inject.Inject;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRef;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
-import io.vavr.collection.List;
+import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
-import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
-import org.spongepowered.downloads.artifact.api.registration.ArtifactRegistrationResponse;
-import org.spongepowered.downloads.artifact.api.registration.GetArtifactsResponse;
-import org.spongepowered.downloads.artifact.api.registration.GroupRegistrationResponse;
-import org.spongepowered.downloads.artifact.api.registration.RegisterArtifactRequest;
-import org.spongepowered.downloads.artifact.api.registration.RegisterGroupRequest;
+import org.spongepowered.downloads.artifact.api.query.ArtifactRegistrationResponse;
+import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
+import org.spongepowered.downloads.artifact.api.query.GroupRegistrationResponse;
+import org.spongepowered.downloads.artifact.api.query.RegisterArtifactRequest;
+import org.spongepowered.downloads.artifact.api.query.RegisterGroupRequest;
 
 public class ArtifactServiceImpl implements ArtifactService {
 
@@ -29,12 +28,12 @@ public class ArtifactServiceImpl implements ArtifactService {
         this.registry.register(ArtifactEntity.class);
     }
 
-
     @Override
     public ServiceCall<NotUsed, GetArtifactsResponse> getArtifacts(final String groupId) {
         return none -> {
+            LOGGER.log(Level.DEBUG, String.format("Requesting artifacts for group id: %s", groupId));
             return this.getArtifactEntity()
-                .ask(new ArtifactCommand.GetArtifact(groupId));
+                .ask(new ArtifactCommand.GetArtifacts(groupId));
         };
     }
 
@@ -42,7 +41,11 @@ public class ArtifactServiceImpl implements ArtifactService {
     public ServiceCall<RegisterArtifactRequest, ArtifactRegistrationResponse> registerArtifact(
         final String groupId
     ) {
-        return null;
+        return request -> {
+            LOGGER.log(Level.DEBUG, String.format("Requesting registration of artifact for group {%s} with info %s", groupId, request));
+            return this.getArtifactEntity()
+                .ask(new ArtifactCommand.RegisterArtifactCommand(groupId, request.artifactId(), request.version()));
+        };
     }
 
     @Override

@@ -10,10 +10,7 @@ import org.spongepowered.downloads.git.api.RepositoryRegistration;
 
 import java.util.UUID;
 
-public sealed interface CommitCommand
-    permits CommitCommand.CreateCommit,
-        CommitCommand.RegisterRepositoryCommand,
-        CommitCommand.GetCommitsBetween {
+public sealed interface CommitCommand {
 
     final record CreateCommit(
         Commit commit

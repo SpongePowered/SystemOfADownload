@@ -1,4 +1,4 @@
-package org.spongepowered.downloads.artifact.api.registration;
+package org.spongepowered.downloads.artifact.api.query;
 
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.Group;

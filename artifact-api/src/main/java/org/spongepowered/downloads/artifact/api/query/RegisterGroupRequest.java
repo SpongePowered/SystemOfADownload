@@ -1,4 +1,4 @@
-package org.spongepowered.downloads.artifact.api.registration;
+package org.spongepowered.downloads.artifact.api.query;
 
 import java.net.URL;
 import java.util.Objects;

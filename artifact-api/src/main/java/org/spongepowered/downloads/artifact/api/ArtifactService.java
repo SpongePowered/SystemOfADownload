@@ -5,12 +5,11 @@ import com.lightbend.lagom.javadsl.api.Descriptor;
 import com.lightbend.lagom.javadsl.api.Service;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.transport.Method;
-import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.registration.ArtifactRegistrationResponse;
-import org.spongepowered.downloads.artifact.api.registration.GetArtifactsResponse;
-import org.spongepowered.downloads.artifact.api.registration.GroupRegistrationResponse;
-import org.spongepowered.downloads.artifact.api.registration.RegisterArtifactRequest;
-import org.spongepowered.downloads.artifact.api.registration.RegisterGroupRequest;
+import org.spongepowered.downloads.artifact.api.query.ArtifactRegistrationResponse;
+import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
+import org.spongepowered.downloads.artifact.api.query.GroupRegistrationResponse;
+import org.spongepowered.downloads.artifact.api.query.RegisterArtifactRequest;
+import org.spongepowered.downloads.artifact.api.query.RegisterGroupRequest;
 
 public interface ArtifactService extends Service {
 
