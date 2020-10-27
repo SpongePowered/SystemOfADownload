@@ -13,10 +13,10 @@ public final class Group {
 
     private final String groupCoordinates;
     private final String name;
-    private final URL website;
+    private final String website;
     private final UUID groupId;
 
-    public Group(final String groupCoordinates, final String name, final URL website) {
+    public Group(final String groupCoordinates, final String name, final String website) {
         this.groupCoordinates = groupCoordinates;
         this.name = name;
         this.website = website;
@@ -32,7 +32,7 @@ public final class Group {
     }
 
     public URL getWebsite() {
-        return this.website;
+        return new URL(this.website);
     }
 
     public UUID getGroupId() {

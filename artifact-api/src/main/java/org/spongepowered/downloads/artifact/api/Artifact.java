@@ -7,8 +7,10 @@ public final record Artifact(
     String variant,
     Group group,
     String artifactId,
-    String version
-) {
+    String version,
+    String downloadUrl,
+    String md5,
+    String sha1) {
 
     public String getFormattedString(final String delimiter) {
         if (Objects.requireNonNull(delimiter, "Delimiter cannot be null!").isEmpty()) {

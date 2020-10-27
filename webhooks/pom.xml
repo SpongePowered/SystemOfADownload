@@ -14,6 +14,7 @@
     <packaging>jar</packaging>
 
     <dependencies>
+        <!-- Project Modules -->
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>systemofadownload-commit-api</artifactId>
@@ -29,6 +30,15 @@
             <artifactId>systemofadownload-artifact-api</artifactId>
             <version>${project.version}</version>
         </dependency>
+
+        <!-- JGit -->
+        <dependency>
+            <groupId>org.eclipse.jgit</groupId>
+            <artifactId>org.eclipse.jgit</artifactId>
+            <version>5.9.0.202009080501-r</version>
+        </dependency>
+
+        <!-- Lagom Dependencies -->
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-log4j2_${scala.binary.version}</artifactId>

@@ -5,6 +5,8 @@ import com.typesafe.config.ConfigException;
 import io.vavr.Function0;
 import io.vavr.control.Try;
 import io.vavr.jackson.datatype.VavrModule;
+import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.ObjectId;
 import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.git.api.CommitSha;
 
@@ -15,11 +17,13 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
-import java.util.regex.Pattern;
 
 public class SonatypeClient {
 
@@ -64,27 +68,47 @@ public class SonatypeClient {
             .mapTry(reader -> this.mapper.readValue(reader, Component.class));
     }
 
-    public Try<CommitSha> generateArtifactFrom(final Component.Asset asset) {
+    private static CommitSha fromObjectId(ObjectId oid) {
+        // Seriously... why can't they just give us the damn 5 ints....
+        final var bytes = new byte[Constants.OBJECT_ID_LENGTH];
+        oid.copyTo(bytes, 0);
+
+        final IntBuffer intBuf =
+            ByteBuffer.wrap(bytes)
+                .order(ByteOrder.BIG_ENDIAN)
+                .asIntBuffer();
+        final int[] array = new int[intBuf.remaining()];
+        intBuf.get(array);
+        final long shaPart1 = array[0] << 16 & array[1];
+        final long shaPart2 = array[2] << 16 & array[3];
+        return new CommitSha(shaPart1, shaPart2, array[4]);
+    }
+
+    public Try<CommitSha> generateArtifactFrom(final Artifact asset) {
         return SonatypeClient.openConnectionTo(asset.downloadUrl())
-            .mapTry(reader -> {
+            .flatMapTry(reader -> {
                 final Path jar = Files.createTempFile("system-of-a-download-files", "jar");
-                try (final BufferedInputStream in = new BufferedInputStream(reader);
-                     final FileOutputStream out = new FileOutputStream(jar.toFile());) {
-                    final var dataBuffer = new byte[1024];
-                    int bytesRead;
-                    while ((bytesRead = in.read(dataBuffer, 0, 1024)) != -1) {
-                        out.write(dataBuffer, 0, bytesRead);
-                    }
-                }
-                return jar;
+                return Try.withResources(
+                    () -> new BufferedInputStream(reader),
+                    () -> new FileOutputStream(jar.toFile())
+                )
+                    .of((bis, fos) -> {
+                        // Download and write 1Kb at a time.
+                        final var dataBuffer = new byte[1024];
+                        int bytesRead;
+                        while ((bytesRead = bis.read(dataBuffer, 0, 1024)) != -1) {
+                            fos.write(dataBuffer, 0, bytesRead);
+                        }
+                        return jar;
+                    });
             })
-            .mapTry(freshJarPath -> {
-                try (final var jarIS = new JarInputStream(new FileInputStream(freshJarPath.toFile()))) {
-                    final var manifest = jarIS.getManifest();
-                    final var commitHash = manifest.getMainAttributes().getValue("Git-Commit");
-                    ObjectId
-                }
-            })
+            .flatMapTry(freshJarPath ->
+                Try.withResources(() -> new JarInputStream(new FileInputStream(freshJarPath.toFile())))
+                    .of(JarInputStream::getManifest)
+                    .map(Manifest::getMainAttributes)
+                    .map(attributes -> attributes.getValue("Git-Commit"))
+                    .mapTry(ObjectId::fromString)
+                    .map(SonatypeClient::fromObjectId));
 
     }
 }

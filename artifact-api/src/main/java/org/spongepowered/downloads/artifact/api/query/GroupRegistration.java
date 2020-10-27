@@ -10,7 +10,7 @@ public final class GroupRegistration {
     public static final record RegisterGroupRequest(
         String groupName,
         String groupCoordinates,
-        URL website
+        String website
     ) { }
 
     public sealed interface Response extends Jsonable {

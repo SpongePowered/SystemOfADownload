@@ -1,7 +1,6 @@
 package org.spongepowered.downloads.webhook;
 
 
-import java.util.StringJoiner;
 import javax.inject.Inject;
 
 import akka.NotUsed;
@@ -15,7 +14,10 @@ import com.lightbend.lagom.javadsl.api.transport.Method;
 import com.lightbend.lagom.javadsl.broker.TopicProducer;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRef;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
+import io.vavr.collection.HashMap;
+import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
+import org.spongepowered.downloads.artifact.api.Group;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.changelog.api.ChangelogService;
 
@@ -43,13 +45,14 @@ public class SonatypeWebhookService implements Service {
         return (webhook) -> {
             if ("CREATED".equals(webhook.action)) {
                 final SonatypeComponent component = webhook.component;
-
-                return this.artifacts.registerArtifact(component.group)
-                    .invoke(new ArtifactRegistration.RegisterArtifactRequest(component.id, component.version))
+                final var collection = new ArtifactCollection(HashMap.empty(), new Group(component.group, component.group, ""), component.id,
+                    component.version);
+                return this.artifacts.registerArtifacts()
+                    .invoke(new ArtifactRegistration.RegisterCollection(collection))
                     .thenCompose(response -> {
                         if (response instanceof ArtifactRegistration.Response.RegisteredArtifact registered) {
                             return this.getProcessingEntity(registered.artifact().getMavenCoordinates())
-                                .ask(new ArtifactProcessingCommand.StartProcessing(webhook, registered.artifact()));
+                                .ask(new ArtifactProcessorEntity.Command.StartProcessing(webhook, registered.artifact()));
                         }
                         return CompletableFuture.completedStage(NotUsed.notUsed());
                     })
@@ -59,10 +62,10 @@ public class SonatypeWebhookService implements Service {
         };
     }
 
-    public Topic<ArtifactProcessingEvent> topic() {
+    public Topic<ArtifactProcessorEntity.Event> topic() {
         return TopicProducer.singleStreamWithOffset(offset ->
             // Load the event stream for the passed in shard tag
-            this.registry.eventStream(ArtifactProcessingEvent.TAG, offset));
+            this.registry.eventStream(ArtifactProcessorEntity.Event.TAG, offset));
     }
 
     @JsonDeserialize
@@ -77,10 +80,10 @@ public class SonatypeWebhookService implements Service {
             )
             .withTopics(
                 Service.topic(TOPIC_NAME, this::topic)
-                .withProperty(KafkaProperties.partitionKeyStrategy(), ArtifactProcessingEvent::mavenCoordinates)
+                .withProperty(KafkaProperties.partitionKeyStrategy(), ArtifactProcessorEntity.Event::mavenCoordinates)
             );
     }
 
-    PersistentEntityRef<ArtifactProcessingCommand> getProcessingEntity(final String mavenCoordinates) {
+    PersistentEntityRef<ArtifactProcessorEntity.Command> getProcessingEntity(final String mavenCoordinates) {
         return this.registry.refFor(ArtifactProcessorEntity.class, mavenCoordinates);
     }}

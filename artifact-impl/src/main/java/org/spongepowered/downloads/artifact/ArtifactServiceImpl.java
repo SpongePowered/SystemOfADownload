@@ -11,46 +11,81 @@ import org.apache.log4j.Logger;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
+import org.spongepowered.downloads.artifact.api.query.GetVersionsResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
+import org.spongepowered.downloads.artifact.collection.ArtifactCollectionEntity;
 import org.spongepowered.downloads.artifact.group.GroupEntity;
+
+import java.util.StringJoiner;
+import java.util.concurrent.CompletableFuture;
 
 public class ArtifactServiceImpl implements ArtifactService {
 
-
-    private static final String ENTITY_KEY = ArtifactServiceImpl.class.getName();
     private static final Logger LOGGER = LogManager.getLogger(ArtifactServiceImpl.class);
     private final PersistentEntityRegistry registry;
 
     @Inject
     public ArtifactServiceImpl(final PersistentEntityRegistry registry) {
         this.registry = registry;
-        this.registry.register(ArtifactEntity.class);
     }
 
     @Override
     public ServiceCall<NotUsed, GetArtifactsResponse> getArtifacts(final String groupId) {
         return none -> {
             LOGGER.log(Level.DEBUG, String.format("Requesting artifacts for group id: %s", groupId));
-            return this.getArtifactEntity()
-                .ask(new ArtifactCommand.GetArtifacts(groupId));
+            return this.getGroupEntity(groupId)
+                .ask(new GroupEntity.GroupCommand.GetArtifacts(groupId));
         };
     }
 
     @Override
-    public ServiceCall<ArtifactRegistration.RegisterArtifactRequest, ArtifactRegistration.Response> registerArtifact(
-        final String groupId
+    public ServiceCall<NotUsed, GetVersionsResponse> getArtifactVersions(
+        final String groupId,
+        final String artifactId
     ) {
-        return request -> {
-            LOGGER.log(Level.DEBUG, String.format("Requesting registration of artifact for group {%s} with info %s", groupId, request));
-            return this.getArtifactEntity()
-                .ask(new ArtifactCommand.RegisterArtifactCommand(groupId, request.artifactId(), request.version()));
+        return notUsed -> {
+            LOGGER.log(Level.DEBUG, String.format("Requesting versions for artifact: %s:%s", groupId, artifactId));
+            return this.getCollection(groupId + ":" + artifactId)
+                .ask(new ArtifactCollectionEntity.Command.GetVersions(groupId, artifactId));
         };
     }
 
     @Override
     public ServiceCall<GroupRegistration.RegisterGroupRequest, GroupRegistration.Response> registerGroup() {
-        return null;
+        return registration -> {
+            final String mavenCoordinates = registration.groupCoordinates();
+            final String name = registration.groupName();
+            final String website = registration.website();
+            return this.getGroupEntity(mavenCoordinates)
+                .ask(new GroupEntity.GroupCommand.RegisterGroup(mavenCoordinates, name, website));
+        };
+    }
+
+    @Override
+    public ServiceCall<ArtifactRegistration.RegisterCollection, ArtifactRegistration.Response> registerArtifacts() {
+        return registration -> {
+            final String mavenCoordinates = registration.collection().getMavenCoordinates();
+            final StringJoiner joiner = new StringJoiner(",", "[", "]");
+            registration.collection().getArtifactComponents().keySet().map(joiner::add);
+            LOGGER.log(
+                Level.DEBUG,
+                String.format("Requesting registration of collection %s with artifacts: %s", mavenCoordinates, joiner)
+            );
+            final String group = registration.collection().getGroup().getGroupCoordinates();
+            final String artifactId = registration.collection().getArtifactId();
+            return this.getGroupEntity(group)
+                .ask(new GroupEntity.GroupCommand.RegisterArtifact(artifactId))
+                .thenCompose(response -> {
+                    if (response instanceof ArtifactRegistration.Response.GroupMissing) {
+                        return CompletableFuture.completedFuture(response);
+                    }
+                    return this.getCollection(group + ":" + artifactId)
+                        .ask(new ArtifactCollectionEntity.Command.RegisterCollection(registration.collection()))
+                        .thenApply(
+                            notUsed -> new ArtifactRegistration.Response.RegisteredArtifact(registration.collection()));
+                });
+        };
     }
 
     @Override
@@ -66,7 +101,8 @@ public class ArtifactServiceImpl implements ArtifactService {
         return this.registry.refFor(GroupEntity.class, groupId);
     }
 
-    private PersistentEntityRef<ArtifactCommand> getArtifactEntity() {
-        return this.registry.refFor(ArtifactEntity.class, ArtifactServiceImpl.ENTITY_KEY);
+    private PersistentEntityRef<ArtifactCollectionEntity.Command> getCollection(final String mavenCoordinates) {
+        return this.registry.refFor(ArtifactCollectionEntity.class, mavenCoordinates);
     }
+
 }
