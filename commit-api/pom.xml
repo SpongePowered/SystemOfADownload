@@ -9,7 +9,7 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>commit-api</artifactId>
+    <artifactId>systemofadownload-commit-api</artifactId>
 
     <packaging>jar</packaging>
 

@@ -1,4 +1,4 @@
-package org.spongepowered.downloads.changelog.client.sonatype;
+package org.spongepowered.downloads.webhook.sonatype;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.typesafe.config.ConfigException;
@@ -6,18 +6,20 @@ import io.vavr.Function0;
 import io.vavr.control.Try;
 import io.vavr.jackson.datatype.VavrModule;
 import org.spongepowered.downloads.artifact.api.Artifact;
-import play.api.Configuration;
+import org.spongepowered.downloads.git.api.CommitSha;
 
 import java.io.BufferedInputStream;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.jar.JarInputStream;
+import java.util.jar.Manifest;
+import java.util.regex.Pattern;
 
 public class SonatypeClient {
 
@@ -28,12 +30,12 @@ public class SonatypeClient {
         this.mapper.registerModule(new VavrModule());
     }
 
-    public static Function0<SonatypeClient> configureClient(final Configuration configuration) {
+    public static Function0<SonatypeClient> configureClient() {
         return Function0.of(() -> {
 
             try {
                 final SonatypeClient client = new SonatypeClient();
-                client.baseUrl = configuration.underlying().getString("sonatype-url");
+                client.baseUrl = System.getenv().get("SONATYPE-URL");
                 return client;
             } catch (final ConfigException.Missing e) {
                 throw new IllegalStateException("Malformed configuration file for sonatype-url", e);
@@ -62,20 +64,26 @@ public class SonatypeClient {
             .mapTry(reader -> this.mapper.readValue(reader, Component.class));
     }
 
-    public Try<Artifact> generateArtifactFrom(final Component.Asset asset) {
+    public Try<CommitSha> generateArtifactFrom(final Component.Asset asset) {
         return SonatypeClient.openConnectionTo(asset.downloadUrl())
             .mapTry(reader -> {
                 final Path jar = Files.createTempFile("system-of-a-download-files", "jar");
                 try (final BufferedInputStream in = new BufferedInputStream(reader);
                      final FileOutputStream out = new FileOutputStream(jar.toFile());) {
-                    final byte[] dataBuffer = new byte[1024];
+                    final var dataBuffer = new byte[1024];
                     int bytesRead;
                     while ((bytesRead = in.read(dataBuffer, 0, 1024)) != -1) {
                         out.write(dataBuffer, 0, bytesRead);
                     }
                 }
-                jar.
-
+                return jar;
+            })
+            .mapTry(freshJarPath -> {
+                try (final var jarIS = new JarInputStream(new FileInputStream(freshJarPath.toFile()))) {
+                    final var manifest = jarIS.getManifest();
+                    final var commitHash = manifest.getMainAttributes().getValue("Git-Commit");
+                    ObjectId
+                }
             })
 
     }

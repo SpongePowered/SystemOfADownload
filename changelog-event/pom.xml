@@ -9,14 +9,14 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>changelog-event</artifactId>
+    <artifactId>systemofadownload-changelog-event</artifactId>
 
     <packaging>jar</packaging>
 
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>changelog-api</artifactId>
+            <artifactId>systemofadownload-changelog-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

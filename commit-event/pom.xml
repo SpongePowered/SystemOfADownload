@@ -9,14 +9,14 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>commit-event</artifactId>
+    <artifactId>systemofadownload-commit-event</artifactId>
 
     <packaging>jar</packaging>
 
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>commit-api</artifactId>
+            <artifactId>systemofadownload-commit-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

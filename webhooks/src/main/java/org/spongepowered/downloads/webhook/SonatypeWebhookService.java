@@ -1,87 +1,55 @@
 package org.spongepowered.downloads.webhook;
 
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.StringJoiner;
 import javax.inject.Inject;
 
 import akka.NotUsed;
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
-import akka.cluster.Cluster;
-import akka.cluster.routing.ClusterRouterGroup;
-import akka.cluster.routing.ClusterRouterGroupSettings;
-import akka.routing.ConsistentHashingGroup;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.javadsl.api.Descriptor;
 import com.lightbend.lagom.javadsl.api.Service;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
+import com.lightbend.lagom.javadsl.api.broker.Topic;
+import com.lightbend.lagom.javadsl.api.broker.kafka.KafkaProperties;
 import com.lightbend.lagom.javadsl.api.transport.Method;
+import com.lightbend.lagom.javadsl.broker.TopicProducer;
+import com.lightbend.lagom.javadsl.persistence.PersistentEntityRef;
+import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
-import org.spongepowered.downloads.artifact.api.query.ArtifactRegistrationResponse;
-import org.spongepowered.downloads.artifact.api.query.RegisterArtifactRequest;
+import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.changelog.api.ChangelogService;
-import org.spongepowered.downloads.changelog.api.query.GenerateChangelogRequest;
-import org.spongepowered.downloads.webhook.worker.Worker;
 
 import java.util.concurrent.CompletableFuture;
 
 public class SonatypeWebhookService implements Service {
 
-    private final ActorRef workerRouter;
+    public static final String TOPIC_NAME = "artifact-changelog-analysis";
     private final ArtifactService artifacts;
     private final ChangelogService changelog;
+    private final PersistentEntityRegistry registry;
 
     @Inject
     public SonatypeWebhookService(
-        final ActorSystem system, final ArtifactService artifacts, final ChangelogService changelog
+        final ArtifactService artifacts, final ChangelogService changelog,
+        final PersistentEntityRegistry registry
     ) {
         this.artifacts = artifacts;
         this.changelog = changelog;
-        if (Cluster.get(system).getSelfRoles().contains("worker-node")) {
-            // start a worker actor on each node that has the "worker-node" role
-            system.actorOf(Worker.props(), "worker");
-        }
-
-        // start a consistent hashing group router,
-        // which will delegate jobs to the workers. It is grouping
-        // the jobs by their task, i.e. jobs with same task will be
-        // delegated to same worker node
-        List<String> paths = Arrays.asList("/user/worker");
-        ConsistentHashingGroup groupConf =
-            new ConsistentHashingGroup(paths)
-                .withHashMapper(
-                    msg -> {
-                        if (msg instanceof Job) {
-                            return ((Job) msg).getTask();
-                        } else {
-                            return null;
-                        }
-                    });
-        Set<String> useRoles = new TreeSet<>();
-        useRoles.add("worker-node");
-
-        Props routerProps =
-            new ClusterRouterGroup(
-                groupConf, new ClusterRouterGroupSettings(1000, paths, true, useRoles))
-                .props();
-        this.workerRouter = system.actorOf(routerProps, "workerRouter");
+        this.registry = registry;
+        registry.register(ArtifactProcessorEntity.class);
     }
 
     ServiceCall<SonatypeData, NotUsed> processSonatypeData() {
         return (webhook) -> {
             if ("CREATED".equals(webhook.action)) {
                 final SonatypeComponent component = webhook.component;
+
                 return this.artifacts.registerArtifact(component.group)
-                    .invoke(new RegisterArtifactRequest(component.id, component.version))
-                    .thenComposeAsync(response -> {
-                        if (response instanceof ArtifactRegistrationResponse.RegisteredArtifact registered) {
-                            final var request = new GenerateChangelogRequest(registered.artifact(), component.componentId);
-                            return this.changelog.generateChangelog().invoke(request)
-                                .thenApply(changelogResponse -> NotUsed.notUsed());
+                    .invoke(new ArtifactRegistration.RegisterArtifactRequest(component.id, component.version))
+                    .thenCompose(response -> {
+                        if (response instanceof ArtifactRegistration.Response.RegisteredArtifact registered) {
+                            return this.getProcessingEntity(registered.artifact().getMavenCoordinates())
+                                .ask(new ArtifactProcessingCommand.StartProcessing(webhook, registered.artifact()));
                         }
                         return CompletableFuture.completedStage(NotUsed.notUsed());
                     })
@@ -89,6 +57,12 @@ public class SonatypeWebhookService implements Service {
             }
             return CompletableFuture.completedStage(NotUsed.notUsed());
         };
+    }
+
+    public Topic<ArtifactProcessingEvent> topic() {
+        return TopicProducer.singleStreamWithOffset(offset ->
+            // Load the event stream for the passed in shard tag
+            this.registry.eventStream(ArtifactProcessingEvent.TAG, offset));
     }
 
     @JsonDeserialize
@@ -100,6 +74,13 @@ public class SonatypeWebhookService implements Service {
         return Service.named("webhooks")
             .withCalls(
                 Service.restCall(Method.POST, "/api/webhook", this::processSonatypeData)
+            )
+            .withTopics(
+                Service.topic(TOPIC_NAME, this::topic)
+                .withProperty(KafkaProperties.partitionKeyStrategy(), ArtifactProcessingEvent::mavenCoordinates)
             );
     }
-}
+
+    PersistentEntityRef<ArtifactProcessingCommand> getProcessingEntity(final String mavenCoordinates) {
+        return this.registry.refFor(ArtifactProcessorEntity.class, mavenCoordinates);
+    }}

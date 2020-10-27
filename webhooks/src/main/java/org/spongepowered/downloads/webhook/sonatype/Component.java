@@ -1,4 +1,4 @@
-package org.spongepowered.downloads.changelog.client.sonatype;
+package org.spongepowered.downloads.webhook.sonatype;
 
 import io.vavr.collection.List;
 

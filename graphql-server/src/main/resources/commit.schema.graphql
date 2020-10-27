@@ -27,7 +27,85 @@ type Commit implements Node {
     id: ID!
     rawId: String!
     author: Author!
+    message: String!
+    body: String
     sha: CommitSha!
     date: DateTime!
+}
+
+type Group implements Node {
+    id: ID!
+    rawId: String!
+    website: String!
+    name: String!
+    mavenCoordinate: String!
+}
+
+type Artifact implements Node {
+    id: ID!
+    rawId: String!
+    name: String!
+    commits: [Commit!]!
+}
+
+type Query {
+    group(name: String!): Group
+    artifacts(mavenGroupId: String, mavenArtifactId: String, count: Int, offset: Int): [Artifact!]!
+}
+input GroupRegistration {
+    name: String!
+    website: String!
+    mavenCoordinate: String!
+}
+type GroupRegistered {
+    group: Group!
+}
+type GroupAlreadyRegistered {
+    message: String!
+    otherGroup: Group!
+}
+type MavenCoordinatesInvalid {
+    coordinates: String!
+}
+union GroupRegistrationResponse = GroupRegistered | GroupAlreadyRegistered | MavenCoordinatesInvalid
+type Mutation {
+    registerGroup(input: GroupRegistration!): GroupRegistrationResponse!
+}
+
+mutation registerSponge {
+    registerGroup(input: { mavenCoordinate: "org.spongepowered", name: "SpongePowered", website: "https://spongepowered.org/"}) {
+        __typename
+        ...on GroupRegistered {
+            group {
+                name
+                mavenCoordinate
+            }
+        }
+        ...on GroupAlreadyRegistered {
+            message
+            otherGroup {
+                name
+                mavenCoordinate
+            }
+        }
+        ...on MavenCoordinatesInvalid {
+            coordinates
+        }
+    }
+}
+query getArtifacts {
+    artifacts(mavenGroupId: "org.spongepowered", mavenArtifactId: "spongeapi", count: 10) {
+        rawId
+        name
+        commits {
+            author {
+                name
+                email
+            }
+            message
+            body
+            date
+        }
+    }
 }
 

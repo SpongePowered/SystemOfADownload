@@ -1,13 +1,15 @@
 package org.spongepowered.downloads.artifact;
 
 import com.lightbend.lagom.javadsl.persistence.PersistentEntity;
+import io.vavr.collection.HashMap;
 import io.vavr.collection.List;
 import io.vavr.collection.Multimap;
 import io.vavr.collection.Traversable;
 import io.vavr.control.Either;
 import org.spongepowered.downloads.artifact.api.Artifact;
+import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.Group;
-import org.spongepowered.downloads.artifact.api.query.ArtifactRegistrationResponse;
+import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
 import org.spongepowered.downloads.artifact.event.ArtifactEvent;
 
@@ -43,10 +45,10 @@ public class ArtifactEntity extends PersistentEntity<ArtifactCommand, ArtifactEv
 
     private Persist<ArtifactEvent> handleRegisterArtifactCommand(
         final ArtifactCommand.RegisterArtifactCommand cmd,
-        final CommandContext<ArtifactRegistrationResponse> ctx
+        final CommandContext<ArtifactRegistration.Response> ctx
     ) {
         ctx.reply(this.state().getGroupByName().get(cmd.groupId())
-            .toEither(() -> (ArtifactRegistrationResponse) new ArtifactRegistrationResponse.GroupMissing(cmd.groupId()))
+            .toEither(() -> (ArtifactRegistration.Response) new ArtifactRegistration.Response.GroupMissing(cmd.groupId()))
             .flatMap(group -> {
                 final Traversable<Artifact> filtered = this.state().getGroupArtifacts()
                     .getOrElse(group, List.empty())
@@ -56,13 +58,12 @@ public class ArtifactEntity extends PersistentEntity<ArtifactCommand, ArtifactEv
                     );
 
                 if (filtered.isEmpty()) {
-                    final Artifact newArtifact = new Artifact(group, cmd.artifactId(), cmd.version());
-
-                    // Aha! We can now register a new artifact to our state!
+                    final Artifact newArtifact = new Artifact(group, cmd.artifactId(), cmd.version(), "");
                     ctx.thenPersist(new ArtifactEvent.ArtifactRegistered(newArtifact));
-                    return Either.right(new ArtifactRegistrationResponse.RegisteredArtifact(newArtifact));
+                    final var collection = new ArtifactCollection(HashMap.empty(), group, cmd.artifactId(), cmd.version());
+                    return Either.right(new ArtifactRegistration.Response.RegisteredArtifact(collection));
                 }
-                return Either.right(new ArtifactRegistrationResponse.ArtifactAlreadyRegistered(
+                return Either.right(new ArtifactRegistration.Response.ArtifactAlreadyRegistered(
                     cmd.artifactId(),
                     group.getGroupCoordinates()
                 ));

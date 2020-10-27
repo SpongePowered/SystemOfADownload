@@ -16,12 +16,12 @@
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>commit-api</artifactId>
+            <artifactId>systemofadownload-commit-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>artifact-api</artifactId>
+            <artifactId>systemofadownload-artifact-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

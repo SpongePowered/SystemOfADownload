@@ -9,11 +9,11 @@ import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
-import org.spongepowered.downloads.artifact.api.query.ArtifactRegistrationResponse;
+import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
-import org.spongepowered.downloads.artifact.api.query.GroupRegistrationResponse;
-import org.spongepowered.downloads.artifact.api.query.RegisterArtifactRequest;
-import org.spongepowered.downloads.artifact.api.query.RegisterGroupRequest;
+import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
+import org.spongepowered.downloads.artifact.api.query.GroupResponse;
+import org.spongepowered.downloads.artifact.group.GroupEntity;
 
 public class ArtifactServiceImpl implements ArtifactService {
 
@@ -38,7 +38,7 @@ public class ArtifactServiceImpl implements ArtifactService {
     }
 
     @Override
-    public ServiceCall<RegisterArtifactRequest, ArtifactRegistrationResponse> registerArtifact(
+    public ServiceCall<ArtifactRegistration.RegisterArtifactRequest, ArtifactRegistration.Response> registerArtifact(
         final String groupId
     ) {
         return request -> {
@@ -49,8 +49,21 @@ public class ArtifactServiceImpl implements ArtifactService {
     }
 
     @Override
-    public ServiceCall<RegisterGroupRequest, GroupRegistrationResponse> registerGroup() {
+    public ServiceCall<GroupRegistration.RegisterGroupRequest, GroupRegistration.Response> registerGroup() {
         return null;
+    }
+
+    @Override
+    public ServiceCall<NotUsed, GroupResponse> getGroup(final String groupId) {
+        return notUsed -> {
+            LOGGER.log(Level.DEBUG, String.format("Requesting group by id: %s", groupId));
+            return this.getGroupEntity(groupId)
+                .ask(new GroupEntity.GroupCommand.GetGroup(groupId));
+        };
+    }
+
+    private PersistentEntityRef<GroupEntity.GroupCommand> getGroupEntity(final String groupId) {
+        return this.registry.refFor(GroupEntity.class, groupId);
     }
 
     private PersistentEntityRef<ArtifactCommand> getArtifactEntity() {

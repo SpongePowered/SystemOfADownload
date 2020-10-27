@@ -9,24 +9,24 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>graphql-server</artifactId>
+    <artifactId>systemofadownload-graphql-server</artifactId>
 
     <packaging>jar</packaging>
 
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>commit-api</artifactId>
+            <artifactId>systemofadownload-commit-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>changelog-api</artifactId>
+            <artifactId>systemofadownload-changelog-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>artifact-api</artifactId>
+            <artifactId>systemofadownload-artifact-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

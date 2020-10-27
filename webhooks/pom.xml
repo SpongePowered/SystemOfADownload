@@ -9,24 +9,24 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>webhooks</artifactId>
+    <artifactId>systemofadownload-webhooks</artifactId>
 
     <packaging>jar</packaging>
 
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>commit-api</artifactId>
+            <artifactId>systemofadownload-commit-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>changelog-api</artifactId>
+            <artifactId>systemofadownload-changelog-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>artifact-api</artifactId>
+            <artifactId>systemofadownload-artifact-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -57,14 +57,23 @@
             <version>${lagom.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.sonatype.nexus</groupId>
-            <artifactId>nexus-httpclient</artifactId>
-            <version>3.28.1-01</version>
+            <groupId>com.lightbend.lagom</groupId>
+            <artifactId>lagom-javadsl-pubsub_${scala.binary.version}</artifactId>
+            <version>${lagom.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.lightbend.lagom</groupId>
+            <artifactId>lagom-javadsl-kafka-broker_${scala.binary.version}</artifactId>
         </dependency>
         <!-- Language Features -->
         <dependency>
             <groupId>io.vavr</groupId>
             <artifactId>vavr</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.vavr</groupId>
+            <artifactId>vavr-jackson</artifactId>
         </dependency>
     </dependencies>
 
