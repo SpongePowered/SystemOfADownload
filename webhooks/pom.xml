@@ -75,6 +75,11 @@
             <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-javadsl-kafka-broker_${scala.binary.version}</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-xml</artifactId>
+            <version>2.10.4</version>
+        </dependency>
         <!-- Language Features -->
         <dependency>
             <groupId>io.vavr</groupId>

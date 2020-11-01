@@ -1,8 +1,10 @@
 package org.spongepowered.downloads.webhook.sonatype;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.typesafe.config.ConfigException;
 import io.vavr.Function0;
+import io.vavr.control.Option;
 import io.vavr.control.Try;
 import io.vavr.jackson.datatype.VavrModule;
 import org.eclipse.jgit.lib.Constants;
@@ -22,6 +24,7 @@ import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
 
@@ -68,6 +71,27 @@ public class SonatypeClient {
             .mapTry(reader -> this.mapper.readValue(reader, Component.class));
     }
 
+    public Try<Option<String>> resolvePomVersion(final Component.Asset asset) {
+        return SonatypeClient.openConnectionTo(asset.downloadUrl())
+            .flatMapTry(reader -> {
+                final Path pom = Files.createTempFile("system-of-a-download-files", "pom");
+                return Try.withResources(() -> new BufferedInputStream(reader),
+                    () -> new FileOutputStream(pom.toFile())
+                    )
+                    .of((bis, file) -> {
+                        final var dataBuffer = new byte[1024];
+                        int bytesRead;
+                        while ((bytesRead = bis.read(dataBuffer, 0, 1024)) != -1) {
+                            file.write(dataBuffer, 0, bytesRead);
+                        }
+                        return pom;
+                    });
+            })
+            .mapTry(pom -> Try.of(() -> new XmlMapper().readValue(pom.toFile(), MavenPom.class))
+                .toOption()
+                .map(MavenPom::version));
+    }
+
     private static CommitSha fromObjectId(ObjectId oid) {
         // Seriously... why can't they just give us the damn 5 ints....
         final var bytes = new byte[Constants.OBJECT_ID_LENGTH];
@@ -107,6 +131,7 @@ public class SonatypeClient {
                     .of(JarInputStream::getManifest)
                     .map(Manifest::getMainAttributes)
                     .map(attributes -> attributes.getValue("Git-Commit"))
+                    .map(Optional::ofNullable)
                     .mapTry(ObjectId::fromString)
                     .map(SonatypeClient::fromObjectId));
 

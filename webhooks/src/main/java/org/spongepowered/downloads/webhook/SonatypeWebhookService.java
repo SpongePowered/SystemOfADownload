@@ -44,15 +44,20 @@ public class SonatypeWebhookService implements Service {
     ServiceCall<SonatypeData, NotUsed> processSonatypeData() {
         return (webhook) -> {
             if ("CREATED".equals(webhook.action)) {
+
                 final SonatypeComponent component = webhook.component;
-                final var collection = new ArtifactCollection(HashMap.empty(), new Group(component.group, component.group, ""), component.id,
-                    component.version);
+                final var collection = new ArtifactCollection(HashMap.empty(),
+                    new Group(component.group, component.group, ""), component.id,
+                    component.version
+                );
                 return this.artifacts.registerArtifacts()
                     .invoke(new ArtifactRegistration.RegisterCollection(collection))
                     .thenCompose(response -> {
                         if (response instanceof ArtifactRegistration.Response.RegisteredArtifact registered) {
                             return this.getProcessingEntity(registered.artifact().getMavenCoordinates())
-                                .ask(new ArtifactProcessorEntity.Command.StartProcessing(webhook, registered.artifact()));
+                                .ask(new ArtifactProcessorEntity.Command.StartProcessing(webhook,
+                                    registered.artifact()
+                                ));
                         }
                         return CompletableFuture.completedStage(NotUsed.notUsed());
                     })
@@ -69,9 +74,15 @@ public class SonatypeWebhookService implements Service {
     }
 
     @JsonDeserialize
-    static record SonatypeData(String timestamp, String nodeId, String initiator, String repositoryName, String action, SonatypeComponent component) {}
+    static record SonatypeData(String timestamp, String nodeId, String initiator, String repositoryName, String action,
+                               SonatypeComponent component) {
+    }
+
     @JsonDeserialize
-    static record SonatypeComponent(String id, String componentId, String format, String name, String group, String version) {}
+    static record SonatypeComponent(String id, String componentId, String format, String name, String group,
+                                    String version) {
+    }
+
     @Override
     public Descriptor descriptor() {
         return Service.named("webhooks")
@@ -80,10 +91,12 @@ public class SonatypeWebhookService implements Service {
             )
             .withTopics(
                 Service.topic(TOPIC_NAME, this::topic)
-                .withProperty(KafkaProperties.partitionKeyStrategy(), ArtifactProcessorEntity.Event::mavenCoordinates)
+                    .withProperty(
+                        KafkaProperties.partitionKeyStrategy(), ArtifactProcessorEntity.Event::mavenCoordinates)
             );
     }
 
     PersistentEntityRef<ArtifactProcessorEntity.Command> getProcessingEntity(final String mavenCoordinates) {
         return this.registry.refFor(ArtifactProcessorEntity.class, mavenCoordinates);
-    }}
+    }
+}

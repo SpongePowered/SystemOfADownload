@@ -43,7 +43,7 @@ public class ChangelogEntity extends PersistentEntity<ChangelogCommand, Changelo
     }
 
     private ChangelogState handleRegisterArtifact(final ChangelogEvent.ArtifactRegistered event) {
-        return new ChangelogState(event.artifact(), List.empty());
+        return new ChangelogState(event.artifact().getFormattedString(":"), List.empty());
     }
 
 }

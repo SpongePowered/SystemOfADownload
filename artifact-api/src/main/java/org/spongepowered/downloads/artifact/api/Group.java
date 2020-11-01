@@ -31,8 +31,8 @@ public final class Group {
         return this.name;
     }
 
-    public URL getWebsite() {
-        return new URL(this.website);
+    public String getWebsite() {
+        return this.website;
     }
 
     public UUID getGroupId() {

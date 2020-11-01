@@ -5,16 +5,19 @@ import com.google.inject.Inject;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRef;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
+import io.vavr.collection.List;
 import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
+import org.spongepowered.downloads.artifact.api.query.GetTaggedArtifacts;
 import org.spongepowered.downloads.artifact.api.query.GetVersionsResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
 import org.spongepowered.downloads.artifact.collection.ArtifactCollectionEntity;
+import org.spongepowered.downloads.artifact.collection.TaggedVersionEntity;
 import org.spongepowered.downloads.artifact.group.GroupEntity;
 
 import java.util.StringJoiner;
@@ -48,6 +51,27 @@ public class ArtifactServiceImpl implements ArtifactService {
             LOGGER.log(Level.DEBUG, String.format("Requesting versions for artifact: %s:%s", groupId, artifactId));
             return this.getCollection(groupId + ":" + artifactId)
                 .ask(new ArtifactCollectionEntity.Command.GetVersions(groupId, artifactId));
+        };
+    }
+
+    @Override
+    public ServiceCall<GetTaggedArtifacts.Request, GetTaggedArtifacts.Response> getTaggedArtifacts(
+        final String groupId,
+        final String artifactId
+    ) {
+        return request -> {
+            if (request instanceof GetTaggedArtifacts.MavenVersion mvn) {
+                final String mavenCoordinates = groupId + ":" + artifactId;
+                final String tagValue = mvn.getTagType() + ":" + mvn.versionPart();
+                return this.getTaggedCollection(mavenCoordinates, tagValue)
+                    .ask(new TaggedVersionEntity.Command.RequestTaggedVersions(-1, -1));
+            } else if (request instanceof GetTaggedArtifacts.SnapshotBuilds snapshot) {
+                final String mavenCoordinates = groupId + ":" + artifactId;
+                final String tagValue = snapshot.getTagType() + ":" + snapshot.mavenVersion();
+                return this.getTaggedCollection(mavenCoordinates, tagValue)
+                    .ask(new TaggedVersionEntity.Command.RequestTaggedVersions(-1, -1));
+            }
+            return CompletableFuture.supplyAsync(() -> new GetTaggedArtifacts.Response.TagUnknown(request.getTagType()));
         };
     }
 
@@ -97,12 +121,41 @@ public class ArtifactServiceImpl implements ArtifactService {
         };
     }
 
+    @Override
+    public ServiceCall<NotUsed, NotUsed> registerTaggedVersion(final String groupAndArtifactId, final String pomVersion) {
+        return notUsed -> {
+            LOGGER.log(Level.DEBUG, String.format("Registering Tagged version: %s with maven artifact %s", pomVersion, groupAndArtifactId));
+            final List<String> versions;
+            final String tagType = pomVersion.endsWith("-SNAPSHOT") ? "snapshot" : "version";
+            if (pomVersion.endsWith("-SNAPSHOT")) {
+                versions = List.of(pomVersion);
+            } else {
+                final String[] split = pomVersion.split("\\.");
+                versions = List.of(
+                    split[0],
+                    split[0] + "." + split[1]
+                );
+            }
+            return versions.map(version ->
+                this.getTaggedCollection(groupAndArtifactId, tagType + ":" + version)
+                    .ask(new TaggedVersionEntity.Command.RegisterTag(pomVersion))
+            )
+                .head();
+        };
+    }
+
     private PersistentEntityRef<GroupEntity.GroupCommand> getGroupEntity(final String groupId) {
         return this.registry.refFor(GroupEntity.class, groupId);
     }
 
     private PersistentEntityRef<ArtifactCollectionEntity.Command> getCollection(final String mavenCoordinates) {
         return this.registry.refFor(ArtifactCollectionEntity.class, mavenCoordinates);
+    }
+
+    private PersistentEntityRef<TaggedVersionEntity.Command> getTaggedCollection(
+        final String mavenGroupAndArtifact, final String tagValue
+    ) {
+        return this.registry.refFor(TaggedVersionEntity.class, mavenGroupAndArtifact + "_" + tagValue);
     }
 
 }

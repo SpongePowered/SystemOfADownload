@@ -15,6 +15,7 @@ import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
+import org.spongepowered.downloads.artifact.api.query.GetTaggedArtifacts;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
 import org.spongepowered.downloads.changelog.api.ChangelogService;
 import org.spongepowered.downloads.webhook.sonatype.Component;
@@ -62,8 +63,12 @@ public class SonatypeArtifactWorkerService implements Service {
         if (event instanceof ArtifactProcessorEntity.Event.AssociatedMavenMetadata association) {
             return this.downloadFileToGrabMetadata(association);
         }
+        if (event instanceof ArtifactProcessorEntity.Event.AssociateCommitSha associatedCommitSha) {
+            return this.requestCommitsForArtifact(associatedCommitSha);
+        }
         return null;
     }
+
 
     private CompletionStage<Done> processInitializationWithGroup(
         final ArtifactProcessorEntity.Event.InitializeArtifactForProcessing event,
@@ -93,11 +98,21 @@ public class SonatypeArtifactWorkerService implements Service {
                 component.id(),
                 component.version()
             );
+            final String tagVersion = component.assets()
+                .filter(asset -> asset.path().endsWith(".pom"))
+                .headOption()
+                .map(client::resolvePomVersion)
+                .flatMap(Try::get)
+                .getOrElse(component::version);
             return this.artifacts.registerArtifacts()
                 .invoke(new ArtifactRegistration.RegisterCollection(collection))
                 .thenCompose(done -> this.webhookService
                     .getProcessingEntity(event.mavenCoordinates())
-                    .ask(new ArtifactProcessorEntity.Command.AssociateMetadataWithCollection(collection, component))
+                    .ask(new ArtifactProcessorEntity.Command.AssociateMetadataWithCollection(collection, component, tagVersion))
+                    .thenApply(notUsed -> Done.done())
+                ).thenCompose(response -> this.artifacts
+                    .registerTaggedVersion(event.mavenCoordinates(), tagVersion)
+                    .invoke()
                     .thenApply(notUsed -> Done.done())
                 );
         });
@@ -123,6 +138,45 @@ public class SonatypeArtifactWorkerService implements Service {
             .fold(Function.identity(), Function.identity())
             .toCompletableFuture()
             .join();
+    }
+
+    private Done requestCommitsForArtifact(final ArtifactProcessorEntity.Event.AssociateCommitSha associatedCommitSha) {
+        /*
+        So, this is where we get a little tricky... We effectively need to "figure out" how many versions are available,
+        and we can do this with a few calls to sonatype with some url generation, as an example:
+        Given (artifactId: "spongeapi", groupId: "org.spongepowered", version: "8.0.0-SNAPSHOT")
+        we can query the sonatype repo for the following:
+        1) https://repo-new.spongepowered.org/repository/maven-snapshots/org/spongepowered/spongeapi/maven-metadata.xml,
+        and with that information, we can verify that for the desired version, there's artifacts that'll exist, so next
+        step is finding out how many "builds" of a particular version exists:
+        2) https://repo-new.spongepowered.org/repository/maven-snapshots/org/spongepowered/spongeapi/8.0.0-SNAPSHOT/maven-metadata.xml
+        With this, we can find out (at time of writing) there's 199 builds that exist, so we can compare the version build
+        counts with what's available locally. Then, effectively, we can do something along the lines of
+        3) https://repo-new.spongepowered.org/service/rest/v1/search/assets
+        ?
+        sort=version
+        &direction=asc
+        &maven.groupId=org.spongepowered
+        &maven.artifactId=spongeapi
+        &maven.baseVersion=8.0.0-SNAPSHOT
+        &maven.extension=jar
+
+        where we have the "maven.baseVersion" as the maven version vs the artifact version,
+        we can specify the direction of objects to get returned in the version order something like this:
+        https://gist.github.com/gabizou/c43d514de7f64cfda3e4659cd6b36ee2
+        The unique aspect of the response is that we may have to specify by the "javadoc" classifier, or filter
+        the artifacts by their path name, to gather the id's/build numbers to determine "ok, we know we've got these
+        artifacts in our local, we may need to figure out which artifact is the 'previous' artifact,
+        4) When we know which artifact is the previous artifact to this build, we can then query the commit service to
+        gather the commits between the two SHAs, which we may end up asking the artifact service to query "hey, do we
+        have the previous artifact?" and if not, we'll kick off an event to wait for the "previous builds committed"
+
+         */
+
+
+        this.artifacts.getTaggedArtifacts(associatedCommitSha.groupId(), associatedCommitSha.artifactId())
+            .invoke(GetTaggedArtifacts.Request)
+        return null;
     }
 
     private List<Artifact> gatherArtifacts(

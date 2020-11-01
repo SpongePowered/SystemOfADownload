@@ -18,7 +18,7 @@ import java.util.Optional;
 
 @SuppressWarnings("unchecked")
 public class ArtifactProcessorEntity
-    extends PersistentEntity<ArtifactProcessorEntity.Command, ArtifactProcessorEntity.Event, ArtifactProcessorEntity.ProcessingState> {
+    extends PersistentEntity<ArtifactProcessorEntity.Command, ArtifactProcessorEntity.Event, ProcessingState> {
 
 
     public sealed interface Event extends AggregateEvent<Event>, Jsonable {
@@ -33,17 +33,29 @@ public class ArtifactProcessorEntity
         String mavenCoordinates();
 
         final record InitializeArtifactForProcessing(
-            ProcessingState.State newState,
             String mavenCoordinates,
-            String componentId) implements Event {
+            String repository,
+            String componentId
+        ) implements Event {
         }
 
         final record AssociatedMavenMetadata(
             ArtifactCollection collection,
             String mavenCoordinates,
-            Map<String, Tuple2<String, String>> artifactPathToSonatypeId
+            String tagVersion, Map<String, Tuple2<String, String>> artifactPathToSonatypeId
         )
             implements Event {
+        }
+
+        final record AssociateCommitSha(
+            ArtifactCollection collection,
+            String mavenCoordinates,
+            String groupId,
+            String artifactId,
+            String version,
+            CommitSha commit
+        ) implements Event {
+
         }
     }
 
@@ -57,7 +69,8 @@ public class ArtifactProcessorEntity
 
         final record AssociateMetadataWithCollection(
             ArtifactCollection collection,
-            Component component
+            Component component,
+            String tagVersion
         ) implements Command, ReplyType<NotUsed> {
         }
 
@@ -75,7 +88,7 @@ public class ArtifactProcessorEntity
     public Behavior initialBehavior(
         final Optional<ProcessingState> snapshotState
     ) {
-        final BehaviorBuilder builder = this.newBehaviorBuilder(ProcessingState.empty());
+        final BehaviorBuilder builder = this.newBehaviorBuilder(ProcessingState.EmptyState.empty());
         builder.setCommandHandler(Command.StartProcessing.class, this::handleStartProcessing);
         builder.setEventHandler(
             Event.InitializeArtifactForProcessing.class, this::initializeFromEvent);
@@ -83,6 +96,8 @@ public class ArtifactProcessorEntity
         builder.setCommandHandler(Command.AssociateMetadataWithCollection.class, this::respondToMetadataAssociation);
         builder.setEventHandler(Event.AssociatedMavenMetadata.class, this::associateSonatypeInformation);
 
+        builder.setCommandHandler(Command.AssociateCommitShaWithArtifact.class, this::respondToAssociatingCommitShaWithArtifact);
+        builder.setEventHandler(Event.AssociateCommitSha.class, this::handleCommitShaAssociation);
         return builder.build();
     }
 
@@ -94,8 +109,7 @@ public class ArtifactProcessorEntity
         final String componentId = cmd.webhook().component().componentId();
         if (!this.state().getCoordinates().equals(mavenCoordinates)) {
             ctx.thenPersist(
-                new Event.InitializeArtifactForProcessing(
-                    ProcessingState.State.EMPTY, mavenCoordinates, componentId),
+                new Event.InitializeArtifactForProcessing(mavenCoordinates, cmd.webhook().repositoryName(), componentId),
                 message -> ctx.reply(Done.done())
             );
         }
@@ -105,90 +119,56 @@ public class ArtifactProcessorEntity
     private ProcessingState initializeFromEvent(
         final Event.InitializeArtifactForProcessing event
     ) {
-        return new ProcessingState(event.newState(), event.mavenCoordinates(), HashMap.empty());
+        return new ProcessingState.MetadataState(event.mavenCoordinates(), event.repository(), HashMap.empty());
     }
 
     private Persist<Event> respondToMetadataAssociation(
         final Command.AssociateMetadataWithCollection cmd, final CommandContext<NotUsed> ctx
     ) {
-        if (this.state().state.hasMetadata()) {
+        if (this.state().hasMetadata()) {
             return ctx.done();
         }
         return ctx.thenPersist(new Event.AssociatedMavenMetadata(
             cmd.collection,
             cmd.collection.getMavenCoordinates(),
+            cmd.tagVersion,
             cmd.component.assets().toMap(Component.Asset::path, asset -> new Tuple2<>(asset.id(), asset.downloadUrl()))
         ));
     }
 
     private ProcessingState associateSonatypeInformation(final Event.AssociatedMavenMetadata event) {
-        return new ProcessingState(
-            ProcessingState.State.MAVEN_COORDINATES_ASSOCIATED,
+        return new ProcessingState.MetadataState(
             event.mavenCoordinates(),
+            this.state().getRepository().get(),
             event.artifactPathToSonatypeId()
         );
     }
 
-    public static class ProcessingState {
-
-        public enum State {
-            EMPTY {
-                @Override
-                public boolean hasStarted() {
-                    return false;
-                }
-
-                @Override
-                public boolean hasMetadata() {
-                    return false;
-                }
-            },
-            MAVEN_COORDINATES_ASSOCIATED {
-                @Override
-                public boolean hasMetadata() {
-                    return false;
-                }
-            },
-            MANIFEST_DOWNLOADED,
-            COMMIT_MISSING,
-            COMMIT_PRESENT,
-            PROCESSED;
-
-            public boolean hasStarted() {
-                return true;
-            }
-
-            public boolean hasMetadata() {
-                return true;
-            }
+    private Persist<Event> respondToAssociatingCommitShaWithArtifact(
+        final Command.AssociateCommitShaWithArtifact cmd,
+        final CommandContext<NotUsed> ctx) {
+        // TODO - build in some better state control
+        if (!this.state().hasCommit()) {
+            ctx.thenPersist(new Event.AssociateCommitSha(
+                cmd.collection,
+                cmd.collection.getMavenCoordinates(),
+                cmd.collection.getGroup().getGroupCoordinates(),
+                cmd.collection.getArtifactId(),
+                cmd.collection.getVersion(),
+                cmd.sha
+            ));
+            return ctx.done();
         }
-
-        private final State state;
-        private final String coordinates;
-        private final Map<String, Tuple2<String, String>> assets;
-
-        public static ProcessingState empty() {
-            return new ProcessingState(ProcessingState.State.EMPTY, "", HashMap.empty());
-        }
-
-        public ProcessingState(
-            final State state, final String coordinates, final Map<String, Tuple2<String, String>> assets
-        ) {
-            this.state = state;
-            this.coordinates = coordinates;
-            this.assets = assets;
-        }
-
-        public State getState() {
-            return this.state;
-        }
-
-        public String getCoordinates() {
-            return this.coordinates;
-        }
-
-        public Map<String, Tuple2<String, String>> getAssetData() {
-            return this.assets;
-        }
+        return ctx.done();
     }
+
+    private ProcessingState handleCommitShaAssociation(final Event.AssociateCommitSha event) {
+        return new ProcessingState.CommittedState(
+            event.mavenCoordinates(),
+            this.state().getRepository().get(),
+            this.state().getArtifacts(),
+            event.commit
+        );
+    }
+
 }

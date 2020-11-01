@@ -31,6 +31,11 @@ type Commit implements Node {
     body: String
     sha: CommitSha!
     date: DateTime!
+    submoduleCommits(limit: Int, offset: Int): [SubmoduleCommit!]!
+}
+type SubmoduleCommit {
+    name: String!
+    commits: [Commit!]!
 }
 
 type Group implements Node {
@@ -45,7 +50,7 @@ type Artifact implements Node {
     id: ID!
     rawId: String!
     name: String!
-    commits: [Commit!]!
+    commits(limit: Int, offset: Int): [Commit!]!
 }
 
 type Query {
@@ -93,18 +98,27 @@ mutation registerSponge {
         }
     }
 }
+fragment defualtCommits on Commit {
+    author {
+        name
+        email
+    }
+    message
+    body
+    date
+}
 query getArtifacts {
     artifacts(mavenGroupId: "org.spongepowered", mavenArtifactId: "spongeapi", count: 10) {
         rawId
         name
-        commits {
-            author {
+        commits(limit: 10, offset: 10) {
+            ...defualtCommits
+            submoduleCommits(limit: 10, offset: 10) {
                 name
-                email
+                commits {
+                    ...defualtCommits
+                }
             }
-            message
-            body
-            date
         }
     }
 }

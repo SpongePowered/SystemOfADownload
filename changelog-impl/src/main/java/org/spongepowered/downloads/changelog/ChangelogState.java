@@ -10,35 +10,20 @@ import java.net.URL;
 
 public class ChangelogState {
 
-    private static final URL DUMMY;
 
-    static {
-        try {
-            DUMMY = new URL("http://example.com/");
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private final Artifact artifact;
     private final String coordinates;
     private final List<Commit> commits; // Can be empty
 
     public ChangelogState(
-        final Artifact artifact,
+        final String mavenCoordinates,
         final List<Commit> commits
     ) {
-        this.artifact = artifact;
-        this.coordinates = artifact.getFormattedString(":");
+        this.coordinates = mavenCoordinates;
         this.commits = commits;
     }
 
     public static ChangelogState empty() {
-        return new ChangelogState(new Artifact(new Group("empty", "empty", new URL("http://example.com"))), List.empty());
-    }
-
-    public Artifact getArtifact() {
-        return this.artifact;
+        return new ChangelogState("", List.empty());
     }
 
     public String getCoordinates() {

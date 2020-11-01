@@ -8,9 +8,12 @@ import com.lightbend.lagom.javadsl.api.transport.Method;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
+import org.spongepowered.downloads.artifact.api.query.GetTaggedArtifacts;
 import org.spongepowered.downloads.artifact.api.query.GetVersionsResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
+
+import java.util.concurrent.CompletionStage;
 
 public interface ArtifactService extends Service {
 
@@ -18,11 +21,14 @@ public interface ArtifactService extends Service {
 
     ServiceCall<NotUsed, GetVersionsResponse> getArtifactVersions(String groupId, String artifactId);
 
+    ServiceCall<GetTaggedArtifacts.Request, GetTaggedArtifacts.Response> getTaggedArtifacts(String groupId, String artifactId);
+
     ServiceCall<ArtifactRegistration.RegisterCollection, ArtifactRegistration.Response> registerArtifacts();
 
     ServiceCall<GroupRegistration.RegisterGroupRequest, GroupRegistration.Response> registerGroup();
 
     ServiceCall<NotUsed, GroupResponse> getGroup(String s);
+    ServiceCall<NotUsed, NotUsed> registerTaggedVersion(String mavenCoordinates, String tagVersion);
 
     @Override
     default Descriptor descriptor() {
