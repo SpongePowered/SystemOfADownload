@@ -11,6 +11,7 @@ public final class ArtifactCollection {
     private final String artifactId;
     private final String version;
     private final String mavenCoordinates;
+    private final String mavenVersion;
 
     public ArtifactCollection(
         final Map<String, Artifact> artifactComponents,
@@ -22,10 +23,30 @@ public final class ArtifactCollection {
         this.group = group;
         this.artifactId = artifactId;
         this.version = version;
+        this.mavenVersion = version;
         this.mavenCoordinates = new StringJoiner(":")
             .add(this.group.getGroupCoordinates())
             .add(this.artifactId)
             .add(this.version)
+            .toString();
+    }
+
+    public ArtifactCollection(
+        final Map<String, Artifact> artifactComponents,
+        final Group group,
+        final String artifactId,
+        final String version,
+        final String mavenVersion
+    ) {
+        this.artifactComponents = artifactComponents;
+        this.group = group;
+        this.artifactId = artifactId;
+        this.version = version;
+        this.mavenVersion = mavenVersion;
+        this.mavenCoordinates = new StringJoiner(":")
+            .add(this.group.getGroupCoordinates())
+            .add(this.artifactId)
+            .add(this.mavenVersion)
             .toString();
     }
 
@@ -43,6 +64,10 @@ public final class ArtifactCollection {
 
     public String getVersion() {
         return this.version;
+    }
+
+    public String getMavenVersion() {
+        return this.mavenVersion;
     }
 
     public String getMavenCoordinates() {

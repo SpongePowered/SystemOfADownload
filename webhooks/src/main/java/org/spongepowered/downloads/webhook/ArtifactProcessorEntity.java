@@ -79,6 +79,9 @@ public class ArtifactProcessorEntity
             CommitSha sha
         ) implements Command, ReplyType<NotUsed> {
         }
+
+        final record RequestArtifactForProcessing(String requested) implements Command, ReplyType<NotUsed> {
+        }
     }
 
     public ArtifactProcessorEntity() {
@@ -107,7 +110,8 @@ public class ArtifactProcessorEntity
     ) {
         final String mavenCoordinates = cmd.artifact().getMavenCoordinates();
         final String componentId = cmd.webhook().component().componentId();
-        if (!this.state().getCoordinates().equals(mavenCoordinates)) {
+
+        if (this.state().getCoordinates().map(coords -> !coords.equals(mavenCoordinates)).orElse(false)) {
             ctx.thenPersist(
                 new Event.InitializeArtifactForProcessing(mavenCoordinates, cmd.webhook().repositoryName(), componentId),
                 message -> ctx.reply(Done.done())
@@ -163,10 +167,13 @@ public class ArtifactProcessorEntity
     }
 
     private ProcessingState handleCommitShaAssociation(final Event.AssociateCommitSha event) {
+        if (this.state().hasCommit()) {
+            return this.state();
+        }
         return new ProcessingState.CommittedState(
             event.mavenCoordinates(),
             this.state().getRepository().get(),
-            this.state().getArtifacts(),
+            this.state().getArtifacts().get(),
             event.commit
         );
     }

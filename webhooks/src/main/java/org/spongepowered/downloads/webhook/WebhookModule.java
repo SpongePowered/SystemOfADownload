@@ -5,7 +5,7 @@ import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.changelog.api.ChangelogService;
 import org.spongepowered.downloads.git.api.CommitService;
-import play.libs.akka.AkkaGuiceSupport;
+import org.spongepowered.downloads.webhook.worker.SonatypeArtifactWorkerService;
 
 public class WebhookModule extends AbstractModule implements ServiceGuiceSupport {
 

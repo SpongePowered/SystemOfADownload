@@ -1,8 +1,6 @@
 package org.spongepowered.downloads.webhook;
 
 
-import javax.inject.Inject;
-
 import akka.NotUsed;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.javadsl.api.Descriptor;
@@ -14,6 +12,8 @@ import com.lightbend.lagom.javadsl.api.transport.Method;
 import com.lightbend.lagom.javadsl.broker.TopicProducer;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRef;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
+import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import io.swagger.v3.oas.annotations.Operation;
 import io.vavr.collection.HashMap;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
@@ -21,8 +21,12 @@ import org.spongepowered.downloads.artifact.api.Group;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.changelog.api.ChangelogService;
 
+import javax.inject.Inject;
 import java.util.concurrent.CompletableFuture;
 
+@OpenAPIDefinition(
+
+)
 public class SonatypeWebhookService implements Service {
 
     public static final String TOPIC_NAME = "artifact-changelog-analysis";
@@ -41,6 +45,9 @@ public class SonatypeWebhookService implements Service {
         registry.register(ArtifactProcessorEntity.class);
     }
 
+    @Operation(
+        tags = "sonatype"
+    )
     ServiceCall<SonatypeData, NotUsed> processSonatypeData() {
         return (webhook) -> {
             if ("CREATED".equals(webhook.action)) {
@@ -96,7 +103,7 @@ public class SonatypeWebhookService implements Service {
             );
     }
 
-    PersistentEntityRef<ArtifactProcessorEntity.Command> getProcessingEntity(final String mavenCoordinates) {
+    public PersistentEntityRef<ArtifactProcessorEntity.Command> getProcessingEntity(final String mavenCoordinates) {
         return this.registry.refFor(ArtifactProcessorEntity.class, mavenCoordinates);
     }
 }

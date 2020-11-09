@@ -118,7 +118,7 @@ sealed interface ProcessingState {
         }
     }
 
-    final record CommittedState(String s, String repository, Optional<Map<String, Tuple2<String, String>>> artifacts, CommitSha commit)
+    final record CommittedState(String s, String repository, Map<String, Tuple2<String, String>> artifacts, CommitSha commit)
         implements ProcessingState {
         @Override
         public boolean hasStarted() {
@@ -152,7 +152,7 @@ sealed interface ProcessingState {
 
         @Override
         public Optional<Map<String, Tuple2<String, String>>> getArtifacts() {
-            return Optional.empty();
+            return Optional.of(this.artifacts);
         }
     }
 

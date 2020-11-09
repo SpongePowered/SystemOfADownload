@@ -1,6 +1,7 @@
 package org.spongepowered.downloads.artifact.api.query;
 
 import io.vavr.collection.Map;
+import io.vavr.collection.TreeMap;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 
 public final class GetTaggedArtifacts {
@@ -12,7 +13,7 @@ public final class GetTaggedArtifacts {
 
     public enum Type { VERSION, SNAPSHOT; }
 
-    public final record MavenVersion(String versionPart) implements Request {
+    public final record MavenVersion(String versionPart, boolean includePrevious) implements Request {
         @Override
         public String getTagType() {
             return Type.VERSION.name();
@@ -23,7 +24,7 @@ public final class GetTaggedArtifacts {
             return Type.VERSION;
         }
     }
-    public final record SnapshotBuilds(String mavenVersion) implements Request {
+    public final record SnapshotBuilds(String mavenVersion, boolean includePrevious) implements Request {
         @Override
         public String getTagType() {
             return Type.SNAPSHOT.name();
@@ -40,7 +41,7 @@ public final class GetTaggedArtifacts {
         final record TagUnknown(String tag) implements Response {
         }
     }
-    public final record VersionsAvailable(Map<String, ArtifactCollection> artifacts) implements Response {}
+    public final record VersionsAvailable(TreeMap<String, > artifacts) implements Response {}
     public final record GroupUnknown(String groupId) implements Response {}
     public final record ArtifactUnknown(String artifactId) implements Response {}
 }
