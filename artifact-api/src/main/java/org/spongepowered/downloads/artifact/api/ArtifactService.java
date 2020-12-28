@@ -5,6 +5,7 @@ import com.lightbend.lagom.javadsl.api.Descriptor;
 import com.lightbend.lagom.javadsl.api.Service;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.transport.Method;
+import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
@@ -15,6 +16,7 @@ import org.spongepowered.downloads.artifact.api.query.GroupResponse;
 
 import java.util.concurrent.CompletionStage;
 
+@OpenAPIDefinition
 public interface ArtifactService extends Service {
 
     ServiceCall<NotUsed, GetArtifactsResponse> getArtifacts(String groupId);

@@ -2,18 +2,11 @@ package org.spongepowered.downloads.webhook;
 
 
 import akka.NotUsed;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.lightbend.lagom.javadsl.api.Descriptor;
-import com.lightbend.lagom.javadsl.api.Service;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.broker.Topic;
-import com.lightbend.lagom.javadsl.api.broker.kafka.KafkaProperties;
-import com.lightbend.lagom.javadsl.api.transport.Method;
 import com.lightbend.lagom.javadsl.broker.TopicProducer;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRef;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
-import io.swagger.v3.oas.annotations.OpenAPIDefinition;
-import io.swagger.v3.oas.annotations.Operation;
 import io.vavr.collection.HashMap;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
@@ -24,10 +17,7 @@ import org.spongepowered.downloads.changelog.api.ChangelogService;
 import javax.inject.Inject;
 import java.util.concurrent.CompletableFuture;
 
-@OpenAPIDefinition(
-
-)
-public class SonatypeWebhookService implements Service {
+public class SonatypeWebhookServiceImpl implements SonatypeWebhookService {
 
     public static final String TOPIC_NAME = "artifact-changelog-analysis";
     private final ArtifactService artifacts;
@@ -35,7 +25,7 @@ public class SonatypeWebhookService implements Service {
     private final PersistentEntityRegistry registry;
 
     @Inject
-    public SonatypeWebhookService(
+    public SonatypeWebhookServiceImpl(
         final ArtifactService artifacts, final ChangelogService changelog,
         final PersistentEntityRegistry registry
     ) {
@@ -45,17 +35,15 @@ public class SonatypeWebhookService implements Service {
         registry.register(ArtifactProcessorEntity.class);
     }
 
-    @Operation(
-        tags = "sonatype"
-    )
-    ServiceCall<SonatypeData, NotUsed> processSonatypeData() {
+    @Override
+    public ServiceCall<SonatypeData, NotUsed> processSonatypeData() {
         return (webhook) -> {
-            if ("CREATED".equals(webhook.action)) {
+            if ("CREATED".equals(webhook.action())) {
 
-                final SonatypeComponent component = webhook.component;
+                final SonatypeComponent component = webhook.component();
                 final var collection = new ArtifactCollection(HashMap.empty(),
-                    new Group(component.group, component.group, ""), component.id,
-                    component.version
+                    new Group(component.group(), component.group(), ""), component.id(),
+                    component.version()
                 );
                 return this.artifacts.registerArtifacts()
                     .invoke(new ArtifactRegistration.RegisterCollection(collection))
@@ -74,34 +62,13 @@ public class SonatypeWebhookService implements Service {
         };
     }
 
-    public Topic<ArtifactProcessorEntity.Event> topic() {
+    @Override
+    public Topic<ScrapedArtifactEvent> topic() {
         return TopicProducer.singleStreamWithOffset(offset ->
             // Load the event stream for the passed in shard tag
-            this.registry.eventStream(ArtifactProcessorEntity.Event.TAG, offset));
+            this.registry.eventStream(ScrapedArtifactEvent.TAG, offset));
     }
 
-    @JsonDeserialize
-    static record SonatypeData(String timestamp, String nodeId, String initiator, String repositoryName, String action,
-                               SonatypeComponent component) {
-    }
-
-    @JsonDeserialize
-    static record SonatypeComponent(String id, String componentId, String format, String name, String group,
-                                    String version) {
-    }
-
-    @Override
-    public Descriptor descriptor() {
-        return Service.named("webhooks")
-            .withCalls(
-                Service.restCall(Method.POST, "/api/webhook", this::processSonatypeData)
-            )
-            .withTopics(
-                Service.topic(TOPIC_NAME, this::topic)
-                    .withProperty(
-                        KafkaProperties.partitionKeyStrategy(), ArtifactProcessorEntity.Event::mavenCoordinates)
-            );
-    }
 
     public PersistentEntityRef<ArtifactProcessorEntity.Command> getProcessingEntity(final String mavenCoordinates) {
         return this.registry.refFor(ArtifactProcessorEntity.class, mavenCoordinates);

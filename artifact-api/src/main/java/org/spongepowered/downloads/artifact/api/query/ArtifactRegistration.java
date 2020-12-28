@@ -6,7 +6,6 @@ import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 
 public final class ArtifactRegistration {
 
-    public static final record RegisterArtifactRequest(String artifactId, String version) {  }
 
     public static final record RegisterCollection(ArtifactCollection collection) {}
 

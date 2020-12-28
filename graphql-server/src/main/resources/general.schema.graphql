@@ -1,0 +1,7 @@
+interface Node {
+    id: ID!
+    rawId: String!
+}
+
+scalar DateTime
+

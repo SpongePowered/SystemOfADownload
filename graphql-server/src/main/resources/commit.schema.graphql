@@ -1,12 +1,6 @@
 
 scalar CommitSha
-scalar DateTime
-scalar ID
 
-interface Node {
-    id: ID!
-    rawId: String!
-}
 
 type Author implements Node {
     id: ID!
@@ -44,13 +38,6 @@ type Group implements Node {
     website: String!
     name: String!
     mavenCoordinate: String!
-}
-
-type Artifact implements Node {
-    id: ID!
-    rawId: String!
-    name: String!
-    commits(limit: Int, offset: Int): [Commit!]!
 }
 
 type Query {

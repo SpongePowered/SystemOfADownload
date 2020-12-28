@@ -41,7 +41,7 @@ public final class GetTaggedArtifacts {
         final record TagUnknown(String tag) implements Response {
         }
     }
-    public final record VersionsAvailable(TreeMap<String, > artifacts) implements Response {}
+    public final record VersionsAvailable(TreeMap<String, String> artifacts) implements Response {}
     public final record GroupUnknown(String groupId) implements Response {}
     public final record ArtifactUnknown(String artifactId) implements Response {}
 }

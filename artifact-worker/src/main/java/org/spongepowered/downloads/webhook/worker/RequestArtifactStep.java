@@ -10,7 +10,7 @@ import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
-import org.spongepowered.downloads.webhook.ArtifactProcessorEntity;
+import org.spongepowered.downloads.webhook.ScrapedArtifactEvent;
 import org.spongepowered.downloads.webhook.sonatype.Component;
 import org.spongepowered.downloads.webhook.sonatype.SonatypeClient;
 
@@ -19,15 +19,15 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-public final record RegisterArtifactsStep()
-    implements WorkerStep<ArtifactProcessorEntity.Event.InitializeArtifactForProcessing> {
-    private static final Marker MARKER = MarkerManager.getMarker("ARTIFACT_REGISTRATION");
+public final record RequestArtifactStep()
+    implements WorkerStep<ScrapedArtifactEvent.ArtifactRequested> {
+    private static final Marker MARKER = MarkerManager.getMarker("ARTIFACT_REQUESTED");
     private static final Pattern filePattern = Pattern.compile("(dev\\b|\\d+|shaded).jar$");
 
     @Override
     public Try<Done> processEvent(
         final SonatypeArtifactWorkerService service,
-        final ArtifactProcessorEntity.Event.InitializeArtifactForProcessing event
+        final ScrapedArtifactEvent.ArtifactRequested event
     ) {
         return Try.of(
             () -> service.artifacts.getGroup(event.mavenCoordinates().split(":")[0])
@@ -49,11 +49,11 @@ public final record RegisterArtifactsStep()
 
     private CompletionStage<Done> processInitializationWithGroup(
         final SonatypeArtifactWorkerService service,
-        final ArtifactProcessorEntity.Event.InitializeArtifactForProcessing event,
+        final ScrapedArtifactEvent.ArtifactRequested event,
         final GroupResponse.Available available
     ) {
         final SonatypeClient client = SonatypeClient.configureClient().apply();
-        final Try<Component> componentTry = client.resolveArtifact(event.componentId());
+        final Try<Component> componentTry = client.resolveMavenArtifactWithComponentVersion(event.mavenGroupId(), event.mavenArtifactId(), event.componentVersion());
         final var newCollection = componentTry.map(component -> {
             final Component.Asset base = component.assets()
                 // First, try "finding" the most appropriate jar
@@ -65,7 +65,7 @@ public final record RegisterArtifactsStep()
                     .sortBy(Component.Asset::path)
                     .head()
                 );
-            final var artifacts = RegisterArtifactsStep.gatherArtifacts(available, component, base);
+            final var artifacts = RequestArtifactStep.gatherArtifacts(available, component, base);
             final Map<String, Artifact> artifactByVariant = artifacts.toMap(
                 Artifact::variant,
                 Function.identity()
@@ -85,11 +85,9 @@ public final record RegisterArtifactsStep()
             );
             return service.artifacts.registerArtifacts()
                 .invoke(new ArtifactRegistration.RegisterCollection(updatedCollection))
-                .thenCompose(done -> service.webhookService
+                .thenCompose(done -> service
                     .getProcessingEntity(event.mavenCoordinates())
-                    .ask(new ArtifactProcessorEntity.Command.AssociateMetadataWithCollection(updatedCollection, component,
-                        tagVersion
-                    ))
+                    .ask(new ScrapedArtifactEntity.Command.AssociateMetadataWithCollection(updatedCollection, component, tagVersion))
                     .thenApply(notUsed -> Done.done())
                 ).thenCompose(response -> service.artifacts
                     .registerTaggedVersion(event.mavenCoordinates(), tagVersion)

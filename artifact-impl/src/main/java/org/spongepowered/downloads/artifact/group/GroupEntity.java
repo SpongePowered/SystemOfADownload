@@ -104,6 +104,7 @@ public class GroupEntity
 
         builder.setEventHandler(GroupEvent.GroupRegistered.class, this::handleRegistration);
         builder.setCommandHandler(GroupCommand.RegisterGroup.class, this::respondToRegisterGroup);
+        builder.setCommandHandler(GroupCommand.RegisterArtifact.class, this::respondToRegisterArtifact);
 
         builder.setReadOnlyCommandHandler(GroupCommand.GetGroup.class, this::respondToGetGroup);
         builder.setReadOnlyCommandHandler(GroupCommand.GetArtifacts.class, this::respondToGetVersions);
@@ -126,6 +127,15 @@ public class GroupEntity
             );
         }
         ctx.reply(new GroupRegistration.Response.GroupAlreadyRegistered(cmd.mavenCoordinates));
+        return ctx.done();
+    }
+
+    private Persist<GroupEvent> respondToRegisterArtifact(
+        final GroupCommand.RegisterArtifact cmd, final CommandContext<ArtifactRegistration.Response> ctx
+    ) {
+        if (this.state().artifacts.contains(cmd.artifact())) {
+            ctx.reply(new ArtifactRegistration.Response.ArtifactAlreadyRegistered(cmd.artifact, this.state().groupCoordinates));
+        }
         return ctx.done();
     }
 

@@ -9,7 +9,7 @@ import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.query.GetVersionsResponse;
-import org.spongepowered.downloads.webhook.ArtifactProcessorEntity;
+import org.spongepowered.downloads.webhook.ScrapedArtifactEvent;
 import org.spongepowered.downloads.webhook.sonatype.SonatypeClient;
 
 import java.util.StringJoiner;
@@ -18,7 +18,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public final record FetchPriorBuildStep() implements WorkerStep<ArtifactProcessorEntity.Event.AssociateCommitSha> {
+public final record FetchPriorBuildStep() implements WorkerStep<ScrapedArtifactEvent.AssociateCommitSha> {
 
     private static final Marker MARKER = MarkerManager.getMarker("FETCH_PRIOR_BUILD");
 
@@ -34,7 +34,7 @@ public final record FetchPriorBuildStep() implements WorkerStep<ArtifactProcesso
     @Override
     public Try<Done> processEvent(
         final SonatypeArtifactWorkerService service,
-        final ArtifactProcessorEntity.Event.AssociateCommitSha event
+        final ScrapedArtifactEvent.AssociateCommitSha event
     ) {
         // Effectively, we can do a few things here:
         /*
@@ -123,11 +123,8 @@ public final record FetchPriorBuildStep() implements WorkerStep<ArtifactProcesso
                             .add(request.artifactId)
                             .add(priorBuildVersion)
                             .toString();
-                        return service.webhookService.getProcessingEntity(
-                            previousBuildCoordinates)
-                            .ask(
-                                new ArtifactProcessorEntity.Command.RequestArtifactForProcessing(
-                                    request.coordinates))
+                        return service.getProcessingEntity(previousBuildCoordinates)
+                            .ask(new ScrapedArtifactEntity.Command.RequestArtifactForProcessing(request.groupId, request.artifactId, priorBuildVersion))
                             .thenApply(notUsed -> Done.done())
                             .toCompletableFuture()
                             .join();

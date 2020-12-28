@@ -104,6 +104,9 @@ public class ArtifactServiceImpl implements ArtifactService {
                     if (response instanceof ArtifactRegistration.Response.GroupMissing) {
                         return CompletableFuture.completedFuture(response);
                     }
+                    if (response instanceof ArtifactRegistration.Response.ArtifactAlreadyRegistered) {
+                        return CompletableFuture.completedFuture(response);
+                    }
                     return this.getCollection(group + ":" + artifactId)
                         .ask(new ArtifactCollectionEntity.Command.RegisterCollection(registration.collection()))
                         .thenApply(

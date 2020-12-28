@@ -1,68 +1,26 @@
 package org.spongepowered.downloads.webhook;
 
-import akka.Done;
 import akka.NotUsed;
-import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntity;
-import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.Tuple2;
 import io.vavr.collection.HashMap;
-import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.git.api.CommitSha;
 import org.spongepowered.downloads.webhook.sonatype.Component;
+import org.spongepowered.downloads.webhook.sonatype.SonatypeClient;
 
 import java.util.Optional;
+import java.util.StringJoiner;
 
 @SuppressWarnings("unchecked")
 public class ArtifactProcessorEntity
-    extends PersistentEntity<ArtifactProcessorEntity.Command, ArtifactProcessorEntity.Event, ProcessingState> {
+    extends PersistentEntity<ArtifactProcessorEntity.Command, ScrapedArtifactEvent, ProcessingState> {
 
-
-    public sealed interface Event extends AggregateEvent<Event>, Jsonable {
-
-        AggregateEventTag<Event> TAG = AggregateEventTag.of(Event.class);
-
-        @Override
-        default AggregateEventTagger<Event> aggregateTag() {
-            return TAG;
-        }
-
-        String mavenCoordinates();
-
-        final record InitializeArtifactForProcessing(
-            String mavenCoordinates,
-            String repository,
-            String componentId
-        ) implements Event {
-        }
-
-        final record AssociatedMavenMetadata(
-            ArtifactCollection collection,
-            String mavenCoordinates,
-            String tagVersion, Map<String, Tuple2<String, String>> artifactPathToSonatypeId
-        )
-            implements Event {
-        }
-
-        final record AssociateCommitSha(
-            ArtifactCollection collection,
-            String mavenCoordinates,
-            String groupId,
-            String artifactId,
-            String version,
-            CommitSha commit
-        ) implements Event {
-
-        }
-    }
 
     public sealed interface Command {
 
         final record StartProcessing(
-            SonatypeWebhookService.SonatypeData webhook,
+            SonatypeData webhook,
             ArtifactCollection artifact
         ) implements Command, ReplyType<NotUsed> {
         }
@@ -74,14 +32,7 @@ public class ArtifactProcessorEntity
         ) implements Command, ReplyType<NotUsed> {
         }
 
-        final record AssociateCommitShaWithArtifact(
-            ArtifactCollection collection,
-            CommitSha sha
-        ) implements Command, ReplyType<NotUsed> {
-        }
 
-        final record RequestArtifactForProcessing(String requested) implements Command, ReplyType<NotUsed> {
-        }
     }
 
     public ArtifactProcessorEntity() {
@@ -93,18 +44,20 @@ public class ArtifactProcessorEntity
     ) {
         final BehaviorBuilder builder = this.newBehaviorBuilder(ProcessingState.EmptyState.empty());
         builder.setCommandHandler(Command.StartProcessing.class, this::handleStartProcessing);
-        builder.setEventHandler(
-            Event.InitializeArtifactForProcessing.class, this::initializeFromEvent);
+        builder.setEventHandler(ScrapedArtifactEvent.InitializeArtifactForProcessing.class, this::initializeFromEvent);
 
         builder.setCommandHandler(Command.AssociateMetadataWithCollection.class, this::respondToMetadataAssociation);
-        builder.setEventHandler(Event.AssociatedMavenMetadata.class, this::associateSonatypeInformation);
+        builder.setEventHandler(ScrapedArtifactEvent.AssociatedMavenMetadata.class, this::associateSonatypeInformation);
 
         builder.setCommandHandler(Command.AssociateCommitShaWithArtifact.class, this::respondToAssociatingCommitShaWithArtifact);
-        builder.setEventHandler(Event.AssociateCommitSha.class, this::handleCommitShaAssociation);
+        builder.setEventHandler(ScrapedArtifactEvent.AssociateCommitSha.class, this::handleCommitShaAssociation);
+
+        builder.setCommandHandler(Command.RequestArtifactForProcessing.class, this::respondRequestArtifactForProcessing);
+        builder.setEventHandler(ScrapedArtifactEvent.ArtifactRequested.class, this::handleArtifactRequested);
         return builder.build();
     }
 
-    private Persist<Event> handleStartProcessing(
+    private Persist<ScrapedArtifactEvent> handleStartProcessing(
         final Command.StartProcessing cmd,
         final CommandContext<NotUsed> ctx
     ) {
@@ -113,26 +66,26 @@ public class ArtifactProcessorEntity
 
         if (this.state().getCoordinates().map(coords -> !coords.equals(mavenCoordinates)).orElse(false)) {
             ctx.thenPersist(
-                new Event.InitializeArtifactForProcessing(mavenCoordinates, cmd.webhook().repositoryName(), componentId),
-                message -> ctx.reply(Done.done())
+                new ScrapedArtifactEvent.InitializeArtifactForProcessing(mavenCoordinates, cmd.webhook().repositoryName(), componentId),
+                message -> ctx.reply(NotUsed.notUsed())
             );
         }
         return ctx.done();
     }
 
     private ProcessingState initializeFromEvent(
-        final Event.InitializeArtifactForProcessing event
+        final ScrapedArtifactEvent.InitializeArtifactForProcessing event
     ) {
         return new ProcessingState.MetadataState(event.mavenCoordinates(), event.repository(), HashMap.empty());
     }
 
-    private Persist<Event> respondToMetadataAssociation(
+    private Persist<ScrapedArtifactEvent> respondToMetadataAssociation(
         final Command.AssociateMetadataWithCollection cmd, final CommandContext<NotUsed> ctx
     ) {
         if (this.state().hasMetadata()) {
             return ctx.done();
         }
-        return ctx.thenPersist(new Event.AssociatedMavenMetadata(
+        return ctx.thenPersist(new ScrapedArtifactEvent.AssociatedMavenMetadata(
             cmd.collection,
             cmd.collection.getMavenCoordinates(),
             cmd.tagVersion,
@@ -140,7 +93,7 @@ public class ArtifactProcessorEntity
         ));
     }
 
-    private ProcessingState associateSonatypeInformation(final Event.AssociatedMavenMetadata event) {
+    private ProcessingState associateSonatypeInformation(final ScrapedArtifactEvent.AssociatedMavenMetadata event) {
         return new ProcessingState.MetadataState(
             event.mavenCoordinates(),
             this.state().getRepository().get(),
@@ -148,12 +101,12 @@ public class ArtifactProcessorEntity
         );
     }
 
-    private Persist<Event> respondToAssociatingCommitShaWithArtifact(
+    private Persist<ScrapedArtifactEvent> respondToAssociatingCommitShaWithArtifact(
         final Command.AssociateCommitShaWithArtifact cmd,
         final CommandContext<NotUsed> ctx) {
         // TODO - build in some better state control
         if (!this.state().hasCommit()) {
-            ctx.thenPersist(new Event.AssociateCommitSha(
+            ctx.thenPersist(new ScrapedArtifactEvent.AssociateCommitSha(
                 cmd.collection,
                 cmd.collection.getMavenCoordinates(),
                 cmd.collection.getGroup().getGroupCoordinates(),
@@ -166,7 +119,29 @@ public class ArtifactProcessorEntity
         return ctx.done();
     }
 
-    private ProcessingState handleCommitShaAssociation(final Event.AssociateCommitSha event) {
+    private Persist<ScrapedArtifactEvent> respondRequestArtifactForProcessing(
+        final Command.RequestArtifactForProcessing cmd,
+        final CommandContext<NotUsed> ctx
+    ) {
+        final String mavenCoordinates = new StringJoiner(":").add(cmd.groupId).add(cmd.artifactId).add(cmd.requested).toString();
+
+        if (this.state().getCoordinates().map(coords -> !coords.equals(mavenCoordinates)).orElse(true)) {
+            ctx.thenPersist(
+                new ScrapedArtifactEvent.ArtifactRequested(cmd.groupId, cmd.artifactId, cmd.requested, mavenCoordinates),
+                message -> ctx.reply(NotUsed.notUsed())
+            );
+        }
+        return ctx.done();
+    }
+
+    private ProcessingState handleArtifactRequested(final ScrapedArtifactEvent.ArtifactRequested event) {
+        if (this.state().getCoordinates().map(coords -> !coords.equals(event.mavenCoordinates())).orElse(true)) {
+            return new ProcessingState.MetadataState(event.mavenCoordinates(), SonatypeClient.getConfig().getPublicRepo(), HashMap.empty());
+        }
+        return this.state();
+    }
+
+    private ProcessingState handleCommitShaAssociation(final ScrapedArtifactEvent.AssociateCommitSha event) {
         if (this.state().hasCommit()) {
             return this.state();
         }
@@ -174,7 +149,7 @@ public class ArtifactProcessorEntity
             event.mavenCoordinates(),
             this.state().getRepository().get(),
             this.state().getArtifacts().get(),
-            event.commit
+            event.commit()
         );
     }
 
