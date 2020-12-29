@@ -56,7 +56,7 @@ import java.util.Objects;
 // JWTs should be short lived anyway.
 public final class AuthModule extends AbstractModule {
 
-    private final String ipAddressWhitelistRegex = Objects.requireNonNullElse(System.getenv("IP_WHITELIST"), "(127.0.0.1|localhost)");;
+    private final String ipAddressWhitelistRegex = Objects.requireNonNullElse(System.getenv("IP_WHITELIST"), "(127\\.0\\.0\\.1|localhost)");
     private final boolean useDummyCredentials = Objects.requireNonNullElse(System.getenv("USE_DUMMY_LDAP"), "false").equalsIgnoreCase("true");
     private final String ldapUrl = Objects.requireNonNullElse(System.getenv("LDAP_URL"), "ldap://localhost:389");
     private final String ldapBaseUserDn = Objects.requireNonNullElse(System.getenv("LDAP_BASE_USER_DN"), "dc=spongepowered,dc=org");
