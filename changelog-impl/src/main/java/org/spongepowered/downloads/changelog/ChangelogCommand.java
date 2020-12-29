@@ -15,7 +15,7 @@ public interface ChangelogCommand {
         implements ChangelogCommand, PersistentEntity.ReplyType<NotUsed> {
         private final Artifact artifact;
 
-        public RegisterArtifact(Artifact artifact) {
+        public RegisterArtifact(final Artifact artifact) {
             this.artifact = artifact;
         }
 
@@ -24,10 +24,10 @@ public interface ChangelogCommand {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (RegisterArtifact) obj;
+            final var that = (RegisterArtifact) obj;
             return Objects.equals(this.artifact, that.artifact);
         }
 
@@ -50,7 +50,7 @@ public interface ChangelogCommand {
         private final String artifactId;
         private final String version;
 
-        public GetChangelogFromCoordinates(String groupId, String artifactId, String version) {
+        public GetChangelogFromCoordinates(final String groupId, final String artifactId, final String version) {
             this.groupId = groupId;
             this.artifactId = artifactId;
             this.version = version;
@@ -69,10 +69,10 @@ public interface ChangelogCommand {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (GetChangelogFromCoordinates) obj;
+            final var that = (GetChangelogFromCoordinates) obj;
             return Objects.equals(this.groupId, that.groupId) &&
                 Objects.equals(this.artifactId, that.artifactId) &&
                 Objects.equals(this.version, that.version);
@@ -97,7 +97,7 @@ public interface ChangelogCommand {
         implements ChangelogCommand, PersistentEntity.ReplyType<ChangelogResponse> {
         private final Artifact artifact;
 
-        public GetChangelog(Artifact artifact) {
+        public GetChangelog(final Artifact artifact) {
             this.artifact = artifact;
         }
 
@@ -106,10 +106,10 @@ public interface ChangelogCommand {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (GetChangelog) obj;
+            final var that = (GetChangelog) obj;
             return Objects.equals(this.artifact, that.artifact);
         }
 

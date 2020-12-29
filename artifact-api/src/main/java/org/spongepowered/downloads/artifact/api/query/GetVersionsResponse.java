@@ -10,7 +10,7 @@ public interface GetVersionsResponse {
     final static class VersionsAvailable implements GetVersionsResponse {
         private final Map<String, ArtifactCollection> artifacts;
 
-        public VersionsAvailable(Map<String, ArtifactCollection> artifacts) {
+        public VersionsAvailable(final Map<String, ArtifactCollection> artifacts) {
             this.artifacts = artifacts;
         }
 
@@ -19,10 +19,10 @@ public interface GetVersionsResponse {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (VersionsAvailable) obj;
+            final var that = (VersionsAvailable) obj;
             return Objects.equals(this.artifacts, that.artifacts);
         }
 
@@ -41,7 +41,7 @@ public interface GetVersionsResponse {
     final static class GroupUnknown implements GetVersionsResponse {
         private final String groupId;
 
-        public GroupUnknown(String groupId) {
+        public GroupUnknown(final String groupId) {
             this.groupId = groupId;
         }
 
@@ -50,10 +50,10 @@ public interface GetVersionsResponse {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (GroupUnknown) obj;
+            final var that = (GroupUnknown) obj;
             return Objects.equals(this.groupId, that.groupId);
         }
 
@@ -72,7 +72,7 @@ public interface GetVersionsResponse {
     final static class ArtifactUnknown implements GetVersionsResponse {
         private final String artifactId;
 
-        public ArtifactUnknown(String artifactId) {
+        public ArtifactUnknown(final String artifactId) {
             this.artifactId = artifactId;
         }
 
@@ -81,10 +81,10 @@ public interface GetVersionsResponse {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (ArtifactUnknown) obj;
+            final var that = (ArtifactUnknown) obj;
             return Objects.equals(this.artifactId, that.artifactId);
         }
 

@@ -22,7 +22,7 @@ public interface ChangelogEvent extends Jsonable, AggregateEvent<ChangelogEvent>
         @Serial private static final long serialVersionUID = 0L;
         private final Artifact artifact;
 
-        public ChangelogCreated(Artifact artifact) {
+        public ChangelogCreated(final Artifact artifact) {
             this.artifact = artifact;
         }
 
@@ -31,10 +31,10 @@ public interface ChangelogEvent extends Jsonable, AggregateEvent<ChangelogEvent>
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (ChangelogCreated) obj;
+            final var that = (ChangelogCreated) obj;
             return Objects.equals(this.artifact, that.artifact);
         }
 
@@ -54,7 +54,7 @@ public interface ChangelogEvent extends Jsonable, AggregateEvent<ChangelogEvent>
         @Serial private static final long serialVersionUID = 0L;
         private final Artifact artifact;
 
-        public ArtifactRegistered(Artifact artifact) {
+        public ArtifactRegistered(final Artifact artifact) {
             this.artifact = artifact;
         }
 
@@ -63,10 +63,10 @@ public interface ChangelogEvent extends Jsonable, AggregateEvent<ChangelogEvent>
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (ArtifactRegistered) obj;
+            final var that = (ArtifactRegistered) obj;
             return Objects.equals(this.artifact, that.artifact);
         }
 

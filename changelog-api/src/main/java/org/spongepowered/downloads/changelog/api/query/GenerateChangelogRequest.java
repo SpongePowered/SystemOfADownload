@@ -8,7 +8,7 @@ public final class GenerateChangelogRequest {
     private final Artifact artifact;
     private final String componentId;
 
-    public GenerateChangelogRequest(Artifact artifact, String componentId) {
+    public GenerateChangelogRequest(final Artifact artifact, final String componentId) {
         this.artifact = artifact;
         this.componentId = componentId;
     }
@@ -22,10 +22,10 @@ public final class GenerateChangelogRequest {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         if (obj == this) return true;
         if (obj == null || obj.getClass() != this.getClass()) return false;
-        var that = (GenerateChangelogRequest) obj;
+        final var that = (GenerateChangelogRequest) obj;
         return Objects.equals(this.artifact, that.artifact) &&
             Objects.equals(this.componentId, that.componentId);
     }

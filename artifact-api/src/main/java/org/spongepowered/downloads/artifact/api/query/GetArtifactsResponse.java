@@ -10,7 +10,7 @@ public interface GetArtifactsResponse {
         private final String groupRequested;
 
         public GroupMissing(
-            String groupRequested
+            final String groupRequested
         ) {
             this.groupRequested = groupRequested;
         }
@@ -20,10 +20,10 @@ public interface GetArtifactsResponse {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (GroupMissing) obj;
+            final var that = (GroupMissing) obj;
             return Objects.equals(this.groupRequested, that.groupRequested);
         }
 
@@ -44,7 +44,7 @@ public interface GetArtifactsResponse {
         private final List<String> artifactIds;
 
         public ArtifactsAvailable(
-            List<String> artifactIds
+            final List<String> artifactIds
         ) {
             this.artifactIds = artifactIds;
         }
@@ -54,10 +54,10 @@ public interface GetArtifactsResponse {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (ArtifactsAvailable) obj;
+            final var that = (ArtifactsAvailable) obj;
             return Objects.equals(this.artifactIds, that.artifactIds);
         }
 

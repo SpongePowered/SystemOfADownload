@@ -26,7 +26,7 @@ public class ArtifactNodes {
         .description("Union type presenting an always available non-null type, whether it's unavailable, missing, etc.")
         .build();
 
-    private static GraphQLFieldDefinition makeStringField(String fieldName, String description) {
+    private static GraphQLFieldDefinition makeStringField(final String fieldName, final String description) {
         return GraphQLFieldDefinition.newFieldDefinition()
             .name(fieldName)
             .description(description)

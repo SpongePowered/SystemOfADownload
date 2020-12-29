@@ -36,17 +36,17 @@ public class CommitNodes {
         .coercing(new Coercing<CommitSha, String>() {
 
             @Override
-            public String serialize(Object o) throws CoercingSerializeException {
+            public String serialize(final Object o) throws CoercingSerializeException {
                 return null;
             }
 
             @Override
-            public CommitSha parseValue(Object o) throws CoercingParseValueException {
+            public CommitSha parseValue(final Object o) throws CoercingParseValueException {
                 return null;
             }
 
             @Override
-            public CommitSha parseLiteral(Object o) throws CoercingParseLiteralException {
+            public CommitSha parseLiteral(final Object o) throws CoercingParseLiteralException {
                 if (o instanceof String) {
 
                 }

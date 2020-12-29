@@ -11,7 +11,7 @@ public interface ChangelogResponse {
         private final String groupId;
         private final String version;
 
-        public ArtifactMissing(String artifactId, String groupId, String version) {
+        public ArtifactMissing(final String artifactId, final String groupId, final String version) {
             this.artifactId = artifactId;
             this.groupId = groupId;
             this.version = version;
@@ -30,10 +30,10 @@ public interface ChangelogResponse {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (ArtifactMissing) obj;
+            final var that = (ArtifactMissing) obj;
             return Objects.equals(this.artifactId, that.artifactId) &&
                 Objects.equals(this.groupId, that.groupId) &&
                 Objects.equals(this.version, that.version);
@@ -56,7 +56,7 @@ public interface ChangelogResponse {
     final static class GroupMissing implements ChangelogResponse {
         private final String groupId;
 
-        public GroupMissing(String groupId) {
+        public GroupMissing(final String groupId) {
             this.groupId = groupId;
         }
 
@@ -65,10 +65,10 @@ public interface ChangelogResponse {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (GroupMissing) obj;
+            final var that = (GroupMissing) obj;
             return Objects.equals(this.groupId, that.groupId);
         }
 
@@ -89,7 +89,7 @@ public interface ChangelogResponse {
         private final String artifactId;
         private final String groupId;
 
-        public VersionMissing(String version, String artifactId, String groupId) {
+        public VersionMissing(final String version, final String artifactId, final String groupId) {
             this.version = version;
             this.artifactId = artifactId;
             this.groupId = groupId;
@@ -108,10 +108,10 @@ public interface ChangelogResponse {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (VersionMissing) obj;
+            final var that = (VersionMissing) obj;
             return Objects.equals(this.version, that.version) &&
                 Objects.equals(this.artifactId, that.artifactId) &&
                 Objects.equals(this.groupId, that.groupId);
@@ -134,7 +134,7 @@ public interface ChangelogResponse {
     final static class VersionedChangelog implements ChangelogResponse {
         private final Changelog changeLog;
 
-        public VersionedChangelog(Changelog changeLog) {
+        public VersionedChangelog(final Changelog changeLog) {
             this.changeLog = changeLog;
         }
 
@@ -143,10 +143,10 @@ public interface ChangelogResponse {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (VersionedChangelog) obj;
+            final var that = (VersionedChangelog) obj;
             return Objects.equals(this.changeLog, that.changeLog);
         }
 

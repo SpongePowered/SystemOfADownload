@@ -23,7 +23,7 @@ public interface ArtifactEvent extends Jsonable, AggregateEvent<ArtifactEvent> {
         @Serial private static final long serialVersionUID = 0L;
         private final Artifact artifact;
 
-        public ArtifactRegistered(Artifact artifact) {
+        public ArtifactRegistered(final Artifact artifact) {
             this.artifact = artifact;
         }
 
@@ -32,10 +32,10 @@ public interface ArtifactEvent extends Jsonable, AggregateEvent<ArtifactEvent> {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (ArtifactRegistered) obj;
+            final var that = (ArtifactRegistered) obj;
             return Objects.equals(this.artifact, that.artifact);
         }
 

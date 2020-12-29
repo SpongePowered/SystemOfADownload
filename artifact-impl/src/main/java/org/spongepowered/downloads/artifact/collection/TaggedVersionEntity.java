@@ -38,8 +38,8 @@ public class TaggedVersionEntity
             private final int offset;
 
             public RequestTaggedVersions(
-                int limit,
-                int offset
+                final int limit,
+                final int offset
             ) {
                 this.limit = limit;
                 this.offset = offset;
@@ -54,10 +54,10 @@ public class TaggedVersionEntity
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (RequestTaggedVersions) obj;
+                final var that = (RequestTaggedVersions) obj;
                 return this.limit == that.limit &&
                     this.offset == that.offset;
             }
@@ -79,7 +79,7 @@ public class TaggedVersionEntity
             private final String tagVersion;
 
             public RegisterTag(
-                String tagVersion
+                final String tagVersion
             ) {
                 this.tagVersion = tagVersion;
             }
@@ -89,10 +89,10 @@ public class TaggedVersionEntity
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (RegisterTag) obj;
+                final var that = (RegisterTag) obj;
                 return Objects.equals(this.tagVersion, that.tagVersion);
             }
 
@@ -117,7 +117,7 @@ public class TaggedVersionEntity
             private final String tag;
             private final String tagValue;
 
-            public CreatedTaggedVersion(String mavenVersion, String tag, String tagValue) {
+            public CreatedTaggedVersion(final String mavenVersion, final String tag, final String tagValue) {
                 this.mavenVersion = mavenVersion;
                 this.tag = tag;
                 this.tagValue = tagValue;
@@ -136,10 +136,10 @@ public class TaggedVersionEntity
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (CreatedTaggedVersion) obj;
+                final var that = (CreatedTaggedVersion) obj;
                 return Objects.equals(this.mavenVersion, that.mavenVersion) &&
                     Objects.equals(this.tag, that.tag) &&
                     Objects.equals(this.tagValue, that.tagValue);
@@ -167,7 +167,7 @@ public class TaggedVersionEntity
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 return obj == this || obj != null && obj.getClass() == this.getClass();
             }
 

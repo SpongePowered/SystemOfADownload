@@ -30,9 +30,9 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
         private final String componentId;
 
         public InitializeArtifactForProcessing(
-            String mavenCoordinates,
-            String repository,
-            String componentId
+            final String mavenCoordinates,
+            final String repository,
+            final String componentId
         ) {
             this.mavenCoordinates = mavenCoordinates;
             this.repository = repository;
@@ -52,10 +52,10 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (InitializeArtifactForProcessing) obj;
+            final var that = (InitializeArtifactForProcessing) obj;
             return Objects.equals(this.mavenCoordinates, that.mavenCoordinates) &&
                 Objects.equals(this.repository, that.repository) &&
                 Objects.equals(this.componentId, that.componentId);
@@ -84,10 +84,10 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
         private final String mavenCoordinates;
 
         public ArtifactRequested(
-            String mavenGroupId,
-            String mavenArtifactId,
-            String componentVersion,
-            String mavenCoordinates
+            final String mavenGroupId,
+            final String mavenArtifactId,
+            final String componentVersion,
+            final String mavenCoordinates
         ) {
             this.mavenGroupId = mavenGroupId;
             this.mavenArtifactId = mavenArtifactId;
@@ -112,10 +112,10 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (ArtifactRequested) obj;
+            final var that = (ArtifactRequested) obj;
             return Objects.equals(this.mavenGroupId, that.mavenGroupId) &&
                 Objects.equals(this.mavenArtifactId, that.mavenArtifactId) &&
                 Objects.equals(this.componentVersion, that.componentVersion) &&
@@ -147,9 +147,9 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
         private final Map<String, Tuple2<String, String>> artifactPathToSonatypeId;
 
         public AssociatedMavenMetadata(
-            ArtifactCollection collection,
-            String mavenCoordinates,
-            String tagVersion, Map<String, Tuple2<String, String>> artifactPathToSonatypeId
+            final ArtifactCollection collection,
+            final String mavenCoordinates,
+            final String tagVersion, final Map<String, Tuple2<String, String>> artifactPathToSonatypeId
         ) {
             this.collection = collection;
             this.mavenCoordinates = mavenCoordinates;
@@ -174,10 +174,10 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (AssociatedMavenMetadata) obj;
+            final var that = (AssociatedMavenMetadata) obj;
             return Objects.equals(this.collection, that.collection) &&
                 Objects.equals(this.mavenCoordinates, that.mavenCoordinates) &&
                 Objects.equals(this.tagVersion, that.tagVersion) &&
@@ -210,12 +210,12 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
         private final CommitSha commit;
 
         public AssociateCommitSha(
-            ArtifactCollection collection,
-            String mavenCoordinates,
-            String groupId,
-            String artifactId,
-            String version,
-            CommitSha commit
+            final ArtifactCollection collection,
+            final String mavenCoordinates,
+            final String groupId,
+            final String artifactId,
+            final String version,
+            final CommitSha commit
         ) {
             this.collection = collection;
             this.mavenCoordinates = mavenCoordinates;
@@ -250,10 +250,10 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (AssociateCommitSha) obj;
+            final var that = (AssociateCommitSha) obj;
             return Objects.equals(this.collection, that.collection) &&
                 Objects.equals(this.mavenCoordinates, that.mavenCoordinates) &&
                 Objects.equals(this.groupId, that.groupId) &&

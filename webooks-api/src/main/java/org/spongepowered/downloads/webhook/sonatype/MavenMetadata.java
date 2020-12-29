@@ -9,7 +9,7 @@ public final class MavenMetadata {
     private final String groupId;
     private final Versioning versioning;
 
-    public MavenMetadata(String groupId, Versioning versioning) {
+    public MavenMetadata(final String groupId, final Versioning versioning) {
         this.groupId = groupId;
         this.versioning = versioning;
     }
@@ -23,10 +23,10 @@ public final class MavenMetadata {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         if (obj == this) return true;
         if (obj == null || obj.getClass() != this.getClass()) return false;
-        var that = (MavenMetadata) obj;
+        final var that = (MavenMetadata) obj;
         return Objects.equals(this.groupId, that.groupId) &&
             Objects.equals(this.versioning, that.versioning);
     }
@@ -53,8 +53,8 @@ public final class MavenMetadata {
         private final VersionMap snapshotVersions;
 
         Versioning(
-            Snapshot snapshot, Optional<String> latest, Optional<String> release, String lastUpdated,
-            List<String> versions, VersionMap snapshotVersions
+            final Snapshot snapshot, final Optional<String> latest, final Optional<String> release, final String lastUpdated,
+            final List<String> versions, final VersionMap snapshotVersions
         ) {
             this.snapshot = snapshot;
             this.latest = latest;
@@ -89,10 +89,10 @@ public final class MavenMetadata {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (Versioning) obj;
+            final var that = (Versioning) obj;
             return Objects.equals(this.snapshot, that.snapshot) &&
                 Objects.equals(this.latest, that.latest) &&
                 Objects.equals(this.release, that.release) &&
@@ -123,7 +123,7 @@ public final class MavenMetadata {
         private final String timestamp;
         private final Integer buildNumber;
 
-        Snapshot(String timestamp, Integer buildNumber) {
+        Snapshot(final String timestamp, final Integer buildNumber) {
             this.timestamp = timestamp;
             this.buildNumber = buildNumber;
         }
@@ -137,10 +137,10 @@ public final class MavenMetadata {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (Snapshot) obj;
+            final var that = (Snapshot) obj;
             return Objects.equals(this.timestamp, that.timestamp) &&
                 Objects.equals(this.buildNumber, that.buildNumber);
         }
@@ -161,7 +161,7 @@ public final class MavenMetadata {
     static final class VersionMap {
         private final List<VersionedAsset> assets;
 
-        VersionMap(List<VersionedAsset> assets) {
+        VersionMap(final List<VersionedAsset> assets) {
             this.assets = assets;
         }
 
@@ -170,10 +170,10 @@ public final class MavenMetadata {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (VersionMap) obj;
+            final var that = (VersionMap) obj;
             return Objects.equals(this.assets, that.assets);
         }
 
@@ -195,7 +195,7 @@ public final class MavenMetadata {
         private final String value;
         private final String updated;
 
-        VersionedAsset(String classifier, String extension, String value, String updated) {
+        VersionedAsset(final String classifier, final String extension, final String value, final String updated) {
             this.classifier = classifier;
             this.extension = extension;
             this.value = value;
@@ -219,10 +219,10 @@ public final class MavenMetadata {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (VersionedAsset) obj;
+            final var that = (VersionedAsset) obj;
             return Objects.equals(this.classifier, that.classifier) &&
                 Objects.equals(this.extension, that.extension) &&
                 Objects.equals(this.value, that.value) &&

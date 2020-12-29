@@ -9,7 +9,7 @@ public interface GroupResponse {
     final static class Missing implements GroupResponse {
         private final String groupId;
 
-        public Missing(String groupId) {
+        public Missing(final String groupId) {
             this.groupId = groupId;
         }
 
@@ -18,10 +18,10 @@ public interface GroupResponse {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (Missing) obj;
+            final var that = (Missing) obj;
             return Objects.equals(this.groupId, that.groupId);
         }
 
@@ -40,7 +40,7 @@ public interface GroupResponse {
     final static class Available implements GroupResponse {
         private final Group group;
 
-        public Available(Group group) {
+        public Available(final Group group) {
             this.group = group;
         }
 
@@ -49,10 +49,10 @@ public interface GroupResponse {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (Available) obj;
+            final var that = (Available) obj;
             return Objects.equals(this.group, that.group);
         }
 

@@ -19,7 +19,7 @@ public class ArtifactReadSideProcessor extends ReadSideProcessor<ArtifactEvent> 
     final ChangelogService changelogService;
 
     @Inject
-    public ArtifactReadSideProcessor(ChangelogService service) {
+    public ArtifactReadSideProcessor(final ChangelogService service) {
         this.changelogService = service;
     }
 

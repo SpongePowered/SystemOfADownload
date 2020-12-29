@@ -15,13 +15,13 @@ public final class Component {
 
     public Component(
 
-        String id,
-        String repository,
-        String format,
-        String group,
-        String name,
-        String version,
-        List<Asset> assets
+        final String id,
+        final String repository,
+        final String format,
+        final String group,
+        final String name,
+        final String version,
+        final List<Asset> assets
     ) {
         this.id = id;
         this.repository = repository;
@@ -61,10 +61,10 @@ public final class Component {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         if (obj == this) return true;
         if (obj == null || obj.getClass() != this.getClass()) return false;
-        var that = (Component) obj;
+        final var that = (Component) obj;
         return Objects.equals(this.id, that.id) &&
             Objects.equals(this.repository, that.repository) &&
             Objects.equals(this.format, that.format) &&
@@ -101,12 +101,12 @@ public final class Component {
         private final Checksum checksum;
 
         public Asset(
-            String downloadUrl,
-            String path,
-            String id,
-            String repository,
-            String format,
-            Checksum checksum
+            final String downloadUrl,
+            final String path,
+            final String id,
+            final String repository,
+            final String format,
+            final Checksum checksum
         ) {
             this.downloadUrl = downloadUrl;
             this.path = path;
@@ -141,10 +141,10 @@ public final class Component {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (Asset) obj;
+            final var that = (Asset) obj;
             return Objects.equals(this.downloadUrl, that.downloadUrl) &&
                 Objects.equals(this.path, that.path) &&
                 Objects.equals(this.id, that.id) &&
@@ -175,8 +175,8 @@ public final class Component {
         private final String md5;
 
         public Checksum(
-            String sha1,
-            String md5
+            final String sha1,
+            final String md5
         ) {
             this.sha1 = sha1;
             this.md5 = md5;
@@ -191,10 +191,10 @@ public final class Component {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (Checksum) obj;
+            final var that = (Checksum) obj;
             return Objects.equals(this.sha1, that.sha1) &&
                 Objects.equals(this.md5, that.md5);
         }

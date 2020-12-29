@@ -27,7 +27,7 @@ public final class Repository {
         this.website = website;
     }
 
-    private Repository(Builder builder) {
+    private Repository(final Builder builder) {
         this.id = builder.id;
         this.name = builder.name;
         this.repoUrl = builder.repoUrl;

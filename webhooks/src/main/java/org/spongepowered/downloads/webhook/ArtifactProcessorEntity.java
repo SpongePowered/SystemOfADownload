@@ -25,8 +25,8 @@ public class ArtifactProcessorEntity
             private final ArtifactCollection artifact;
 
             public StartProcessing(
-                SonatypeData webhook,
-                ArtifactCollection artifact
+                final SonatypeData webhook,
+                final ArtifactCollection artifact
             ) {
                 this.webhook = webhook;
                 this.artifact = artifact;
@@ -41,10 +41,10 @@ public class ArtifactProcessorEntity
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (StartProcessing) obj;
+                final var that = (StartProcessing) obj;
                 return Objects.equals(this.webhook, that.webhook) &&
                     Objects.equals(this.artifact, that.artifact);
             }
@@ -69,9 +69,9 @@ public class ArtifactProcessorEntity
             private final String tagVersion;
 
             public AssociateMetadataWithCollection(
-                ArtifactCollection collection,
-                Component component,
-                String tagVersion
+                final ArtifactCollection collection,
+                final Component component,
+                final String tagVersion
             ) {
                 this.collection = collection;
                 this.component = component;
@@ -91,10 +91,10 @@ public class ArtifactProcessorEntity
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (AssociateMetadataWithCollection) obj;
+                final var that = (AssociateMetadataWithCollection) obj;
                 return Objects.equals(this.collection, that.collection) &&
                     Objects.equals(this.component, that.component) &&
                     Objects.equals(this.tagVersion, that.tagVersion);

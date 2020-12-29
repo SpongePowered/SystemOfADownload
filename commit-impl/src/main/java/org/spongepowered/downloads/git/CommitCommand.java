@@ -19,7 +19,7 @@ public interface CommitCommand {
         private final Commit commit;
 
         public CreateCommit(
-            Commit commit
+            final Commit commit
         ) {
             this.commit = commit;
         }
@@ -29,10 +29,10 @@ public interface CommitCommand {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (CreateCommit) obj;
+            final var that = (CreateCommit) obj;
             return Objects.equals(this.commit, that.commit);
         }
 
@@ -56,8 +56,8 @@ public interface CommitCommand {
         private final UUID generatedId;
 
         public RegisterRepositoryCommand(
-            RepositoryRegistration repositoryRegistration,
-            UUID generatedId
+            final RepositoryRegistration repositoryRegistration,
+            final UUID generatedId
         ) {
             this.repositoryRegistration = repositoryRegistration;
             this.generatedId = generatedId;
@@ -72,10 +72,10 @@ public interface CommitCommand {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (RegisterRepositoryCommand) obj;
+            final var that = (RegisterRepositoryCommand) obj;
             return Objects.equals(this.repositoryRegistration, that.repositoryRegistration) &&
                 Objects.equals(this.generatedId, that.generatedId);
         }
@@ -100,8 +100,8 @@ public interface CommitCommand {
         private final CommitDiff diff;
 
         public GetCommitsBetween(
-            String repo,
-            CommitDiff diff
+            final String repo,
+            final CommitDiff diff
         ) {
             this.repo = repo;
             this.diff = diff;
@@ -116,10 +116,10 @@ public interface CommitCommand {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (GetCommitsBetween) obj;
+            final var that = (GetCommitsBetween) obj;
             return Objects.equals(this.repo, that.repo) &&
                 Objects.equals(this.diff, that.diff);
         }

@@ -34,9 +34,9 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
             private final String tagVersion;
 
             public AssociateMetadataWithCollection(
-                ArtifactCollection collection,
-                Component component,
-                String tagVersion
+                final ArtifactCollection collection,
+                final Component component,
+                final String tagVersion
             ) {
                 this.collection = collection;
                 this.component = component;
@@ -56,10 +56,10 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (AssociateMetadataWithCollection) obj;
+                final var that = (AssociateMetadataWithCollection) obj;
                 return Objects.equals(this.collection, that.collection) &&
                     Objects.equals(this.component, that.component) &&
                     Objects.equals(this.tagVersion, that.tagVersion);
@@ -86,7 +86,7 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
             private final String artifactId;
             private final String requested;
 
-            public RequestArtifactForProcessing(String groupId, String artifactId, String requested) {
+            public RequestArtifactForProcessing(final String groupId, final String artifactId, final String requested) {
                 this.groupId = groupId;
                 this.artifactId = artifactId;
                 this.requested = requested;
@@ -105,10 +105,10 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (RequestArtifactForProcessing) obj;
+                final var that = (RequestArtifactForProcessing) obj;
                 return Objects.equals(this.groupId, that.groupId) &&
                     Objects.equals(this.artifactId, that.artifactId) &&
                     Objects.equals(this.requested, that.requested);
@@ -134,8 +134,8 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
             private final CommitSha sha;
 
             public AssociateCommitShaWithArtifact(
-                ArtifactCollection collection,
-                CommitSha sha
+                final ArtifactCollection collection,
+                final CommitSha sha
             ) {
                 this.collection = collection;
                 this.sha = sha;
@@ -150,10 +150,10 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (AssociateCommitShaWithArtifact) obj;
+                final var that = (AssociateCommitShaWithArtifact) obj;
                 return Objects.equals(this.collection, that.collection) &&
                     Objects.equals(this.sha, that.sha);
             }
@@ -245,7 +245,7 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 return obj == this || obj != null && obj.getClass() == this.getClass();
             }
 
@@ -267,9 +267,9 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
             private final Map<String, Tuple2<String, String>> artifacts;
 
             public MetadataState(
-                String coordinates,
-                String repository,
-                Map<String, Tuple2<String, String>> artifacts
+                final String coordinates,
+                final String repository,
+                final Map<String, Tuple2<String, String>> artifacts
             ) {
                 this.coordinates = coordinates;
                 this.repository = repository;
@@ -324,10 +324,10 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (MetadataState) obj;
+                final var that = (MetadataState) obj;
                 return Objects.equals(this.coordinates, that.coordinates) &&
                     Objects.equals(this.repository, that.repository) &&
                     Objects.equals(this.artifacts, that.artifacts);
@@ -356,7 +356,7 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
             private final CommitSha commit;
 
             public CommittedState(
-                String s, String repository, Map<String, Tuple2<String, String>> artifacts, CommitSha commit
+                final String s, final String repository, final Map<String, Tuple2<String, String>> artifacts, final CommitSha commit
             ) {
                 this.s = s;
                 this.repository = repository;
@@ -416,10 +416,10 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (CommittedState) obj;
+                final var that = (CommittedState) obj;
                 return Objects.equals(this.s, that.s) &&
                     Objects.equals(this.repository, that.repository) &&
                     Objects.equals(this.artifacts, that.artifacts) &&

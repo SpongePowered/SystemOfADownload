@@ -40,7 +40,7 @@ public class GroupEntity
             private final String name;
             private final String website;
 
-            public GroupRegistered(String groupId, String name, String website) {
+            public GroupRegistered(final String groupId, final String name, final String website) {
                 this.groupId = groupId;
                 this.name = name;
                 this.website = website;
@@ -59,10 +59,10 @@ public class GroupEntity
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (GroupRegistered) obj;
+                final var that = (GroupRegistered) obj;
                 return Objects.equals(this.groupId, that.groupId) &&
                     Objects.equals(this.name, that.name) &&
                     Objects.equals(this.website, that.website);
@@ -89,7 +89,7 @@ public class GroupEntity
         final static class GetGroup implements GroupCommand, ReplyType<GroupResponse> {
             private final String groupId;
 
-            public GetGroup(String groupId) {
+            public GetGroup(final String groupId) {
                 this.groupId = groupId;
             }
 
@@ -98,10 +98,10 @@ public class GroupEntity
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (GetGroup) obj;
+                final var that = (GetGroup) obj;
                 return Objects.equals(this.groupId, that.groupId);
             }
 
@@ -122,7 +122,7 @@ public class GroupEntity
             implements GroupCommand, ReplyType<GetArtifactsResponse> {
             private final String groupId;
 
-            public GetArtifacts(String groupId) {
+            public GetArtifacts(final String groupId) {
                 this.groupId = groupId;
             }
 
@@ -131,10 +131,10 @@ public class GroupEntity
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (GetArtifacts) obj;
+                final var that = (GetArtifacts) obj;
                 return Objects.equals(this.groupId, that.groupId);
             }
 
@@ -155,7 +155,7 @@ public class GroupEntity
             implements GroupCommand, ReplyType<ArtifactRegistration.Response> {
             private final String artifact;
 
-            public RegisterArtifact(String artifact) {
+            public RegisterArtifact(final String artifact) {
                 this.artifact = artifact;
             }
 
@@ -164,10 +164,10 @@ public class GroupEntity
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (RegisterArtifact) obj;
+                final var that = (RegisterArtifact) obj;
                 return Objects.equals(this.artifact, that.artifact);
             }
 
@@ -190,7 +190,7 @@ public class GroupEntity
             private final String name;
             private final String website;
 
-            public RegisterGroup(String mavenCoordinates, String name, String website) {
+            public RegisterGroup(final String mavenCoordinates, final String name, final String website) {
                 this.mavenCoordinates = mavenCoordinates;
                 this.name = name;
                 this.website = website;
@@ -209,10 +209,10 @@ public class GroupEntity
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (RegisterGroup) obj;
+                final var that = (RegisterGroup) obj;
                 return Objects.equals(this.mavenCoordinates, that.mavenCoordinates) &&
                     Objects.equals(this.name, that.name) &&
                     Objects.equals(this.website, that.website);

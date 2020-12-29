@@ -89,7 +89,7 @@ public class SonatypeArtifactWorkerService implements Service {
         WORKER_STAGES = (eventClass) -> Optional.ofNullable(steps.get(eventClass));
     }
 
-    public <Command> PersistentEntityRef<Command> getProcessingEntity(String previousBuildCoordinates) {
+    public <Command> PersistentEntityRef<Command> getProcessingEntity(final String previousBuildCoordinates) {
         return null;
     }
 }

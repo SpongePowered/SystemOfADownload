@@ -8,7 +8,7 @@ public final class MavenPom {
     private final String version;
     private final String name;
 
-    public MavenPom(String groupId, String artifactId, String version, String name) {
+    public MavenPom(final String groupId, final String artifactId, final String version, final String name) {
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.version = version;
@@ -32,10 +32,10 @@ public final class MavenPom {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         if (obj == this) return true;
         if (obj == null || obj.getClass() != this.getClass()) return false;
-        var that = (MavenPom) obj;
+        final var that = (MavenPom) obj;
         return Objects.equals(this.groupId, that.groupId) &&
             Objects.equals(this.artifactId, that.artifactId) &&
             Objects.equals(this.version, that.version) &&

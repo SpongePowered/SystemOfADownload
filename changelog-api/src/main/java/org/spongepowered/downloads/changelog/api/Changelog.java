@@ -10,7 +10,7 @@ public final class Changelog {
     private final Artifact artifact;
     private final List<Commit> commits;
 
-    public Changelog(Artifact artifact, List<Commit> commits) {
+    public Changelog(final Artifact artifact, final List<Commit> commits) {
         this.artifact = artifact;
         this.commits = commits;
     }
@@ -24,10 +24,10 @@ public final class Changelog {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         if (obj == this) return true;
         if (obj == null || obj.getClass() != this.getClass()) return false;
-        var that = (Changelog) obj;
+        final var that = (Changelog) obj;
         return Objects.equals(this.artifact, that.artifact) &&
             Objects.equals(this.commits, that.commits);
     }

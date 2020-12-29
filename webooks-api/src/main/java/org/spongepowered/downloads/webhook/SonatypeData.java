@@ -14,8 +14,8 @@ final class SonatypeData {
     private final SonatypeComponent component;
 
     SonatypeData(
-        String timestamp, String nodeId, String initiator, String repositoryName, String action,
-        SonatypeComponent component
+        final String timestamp, final String nodeId, final String initiator, final String repositoryName, final String action,
+        final SonatypeComponent component
     ) {
         this.timestamp = timestamp;
         this.nodeId = nodeId;
@@ -50,10 +50,10 @@ final class SonatypeData {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         if (obj == this) return true;
         if (obj == null || obj.getClass() != this.getClass()) return false;
-        var that = (SonatypeData) obj;
+        final var that = (SonatypeData) obj;
         return Objects.equals(this.timestamp, that.timestamp) &&
             Objects.equals(this.nodeId, that.nodeId) &&
             Objects.equals(this.initiator, that.initiator) &&

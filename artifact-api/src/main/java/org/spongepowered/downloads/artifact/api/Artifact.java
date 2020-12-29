@@ -15,19 +15,19 @@ public final class Artifact {
     @Schema(required = true) private final String sha1;
 
     public Artifact(
-        @Schema(required = true)
-            String variant,
-        Group group,
-        @Schema(required = true)
-            String artifactId,
-        @Schema(required = true)
-            String version,
-        @Schema(required = true)
-            String downloadUrl,
-        @Schema(required = true)
-            String md5,
-        @Schema(required = true)
-            String sha1
+        @Schema(required = true) final
+        String variant,
+        final Group group,
+        @Schema(required = true) final
+        String artifactId,
+        @Schema(required = true) final
+        String version,
+        @Schema(required = true) final
+        String downloadUrl,
+        @Schema(required = true) final
+        String md5,
+        @Schema(required = true) final
+        String sha1
     ) {
         this.variant = variant;
         this.group = group;
@@ -85,10 +85,10 @@ public final class Artifact {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         if (obj == this) return true;
         if (obj == null || obj.getClass() != this.getClass()) return false;
-        var that = (Artifact) obj;
+        final var that = (Artifact) obj;
         return Objects.equals(this.variant, that.variant) &&
             Objects.equals(this.group, that.group) &&
             Objects.equals(this.artifactId, that.artifactId) &&

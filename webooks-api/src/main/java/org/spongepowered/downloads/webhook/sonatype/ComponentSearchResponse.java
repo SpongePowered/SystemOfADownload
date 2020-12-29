@@ -9,7 +9,7 @@ public final class ComponentSearchResponse {
     private final List<Item> items;
     private final Optional<String> continuationToken;
 
-    public ComponentSearchResponse(List<Item> items, Optional<String> continuationToken) {
+    public ComponentSearchResponse(final List<Item> items, final Optional<String> continuationToken) {
         this.items = items;
         this.continuationToken = continuationToken;
     }
@@ -23,10 +23,10 @@ public final class ComponentSearchResponse {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         if (obj == this) return true;
         if (obj == null || obj.getClass() != this.getClass()) return false;
-        var that = (ComponentSearchResponse) obj;
+        final var that = (ComponentSearchResponse) obj;
         return Objects.equals(this.items, that.items) &&
             Objects.equals(this.continuationToken, that.continuationToken);
     }
@@ -51,7 +51,7 @@ public final class ComponentSearchResponse {
         private final String name;
         private final String version;
 
-        public Item(String id, String repository, String format, String group, String name, String version) {
+        public Item(final String id, final String repository, final String format, final String group, final String name, final String version) {
             this.id = id;
             this.repository = repository;
             this.format = format;
@@ -85,10 +85,10 @@ public final class ComponentSearchResponse {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (Item) obj;
+            final var that = (Item) obj;
             return Objects.equals(this.id, that.id) &&
                 Objects.equals(this.repository, that.repository) &&
                 Objects.equals(this.format, that.format) &&

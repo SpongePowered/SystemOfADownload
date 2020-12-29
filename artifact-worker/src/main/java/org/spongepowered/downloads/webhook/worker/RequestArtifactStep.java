@@ -141,7 +141,7 @@ base name for will be the jar that has the shortest file name length.
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         return obj == this || obj != null && obj.getClass() == this.getClass();
     }
 

@@ -14,8 +14,8 @@ final class SonatypeComponent {
     private final String version;
 
     SonatypeComponent(
-        String id, String componentId, String format, String name, String group,
-        String version
+        final String id, final String componentId, final String format, final String name, final String group,
+        final String version
     ) {
         this.id = id;
         this.componentId = componentId;
@@ -50,10 +50,10 @@ final class SonatypeComponent {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         if (obj == this) return true;
         if (obj == null || obj.getClass() != this.getClass()) return false;
-        var that = (SonatypeComponent) obj;
+        final var that = (SonatypeComponent) obj;
         return Objects.equals(this.id, that.id) &&
             Objects.equals(this.componentId, that.componentId) &&
             Objects.equals(this.format, that.format) &&

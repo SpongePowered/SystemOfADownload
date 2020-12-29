@@ -25,7 +25,7 @@ public interface CommitEvent extends Jsonable, AggregateEvent<CommitEvent> {
         @Serial private static final long serialVersionUID = 0L;
         private final Commit commit;
 
-        public CommitCreated(Commit commit) {
+        public CommitCreated(final Commit commit) {
             this.commit = commit;
         }
 
@@ -34,10 +34,10 @@ public interface CommitEvent extends Jsonable, AggregateEvent<CommitEvent> {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (CommitCreated) obj;
+            final var that = (CommitCreated) obj;
             return Objects.equals(this.commit, that.commit);
         }
 
@@ -59,7 +59,7 @@ public interface CommitEvent extends Jsonable, AggregateEvent<CommitEvent> {
         @Serial private static final long serialVersionUID = 0L;
         private final Repository repository;
 
-        public GitRepoRegistered(Repository repository) {
+        public GitRepoRegistered(final Repository repository) {
             this.repository = repository;
         }
 
@@ -68,10 +68,10 @@ public interface CommitEvent extends Jsonable, AggregateEvent<CommitEvent> {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (GitRepoRegistered) obj;
+            final var that = (GitRepoRegistered) obj;
             return Objects.equals(this.repository, that.repository);
         }
 

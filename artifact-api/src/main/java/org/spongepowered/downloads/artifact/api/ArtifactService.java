@@ -205,7 +205,7 @@ public interface ArtifactService extends OpenAPIService {
             )
         }
     )
-    ServiceCall<ArtifactRegistration.RegisterCollection, ArtifactRegistration.Response> registerArtifacts();
+    ServiceCall<ArtifactRegistration.RegisterCollection, ArtifactRegistration.Response> registerArtifacts(String groupId);
 
     @Operation(
         method = "POST"
@@ -215,7 +215,7 @@ public interface ArtifactService extends OpenAPIService {
     @Operation(
         method = "GET"
     )
-    ServiceCall<NotUsed, GroupResponse> getGroup(String s);
+    ServiceCall<NotUsed, GroupResponse> getGroup(String groupId);
 
     @Operation(
         method = "POST"

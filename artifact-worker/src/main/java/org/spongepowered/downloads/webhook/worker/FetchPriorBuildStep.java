@@ -34,11 +34,11 @@ public final class FetchPriorBuildStep implements WorkerStep<ScrapedArtifactEven
         private final boolean isSnapshot;
 
         RecordRequest(
-            String groupId,
-            String artifactId,
-            String coordinates,
-            String mavenVersion,
-            boolean isSnapshot
+            final String groupId,
+            final String artifactId,
+            final String coordinates,
+            final String mavenVersion,
+            final boolean isSnapshot
         ) {
             this.groupId = groupId;
             this.artifactId = artifactId;
@@ -68,10 +68,10 @@ public final class FetchPriorBuildStep implements WorkerStep<ScrapedArtifactEven
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (RecordRequest) obj;
+            final var that = (RecordRequest) obj;
             return Objects.equals(this.groupId, that.groupId) &&
                 Objects.equals(this.artifactId, that.artifactId) &&
                 Objects.equals(this.coordinates, that.coordinates) &&
@@ -225,7 +225,7 @@ public final class FetchPriorBuildStep implements WorkerStep<ScrapedArtifactEven
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         return obj == this || obj != null && obj.getClass() == this.getClass();
     }
 

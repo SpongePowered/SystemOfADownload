@@ -16,8 +16,10 @@ public final class ArtifactCollection {
     private final Group group;
     @Schema(required = true)
     private final String artifactId;
+    @Schema(required = true)
     private final String version;
     private final String mavenCoordinates;
+    @Schema(required = true)
     private final String mavenVersion;
 
     public ArtifactCollection(

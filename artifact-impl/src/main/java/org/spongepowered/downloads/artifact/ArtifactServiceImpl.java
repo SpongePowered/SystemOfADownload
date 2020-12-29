@@ -90,7 +90,7 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
     }
 
     @Override
-    public ServiceCall<ArtifactRegistration.RegisterCollection, ArtifactRegistration.Response> registerArtifacts() {
+    public ServiceCall<ArtifactRegistration.RegisterCollection, ArtifactRegistration.Response> registerArtifacts(String groupId) {
         return registration -> {
             final String mavenCoordinates = registration.collection().getMavenCoordinates();
             final StringJoiner joiner = new StringJoiner(",", "[", "]");

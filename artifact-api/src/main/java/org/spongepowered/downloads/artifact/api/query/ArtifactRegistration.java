@@ -13,7 +13,7 @@ public final class ArtifactRegistration {
     public static final class RegisterCollection {
         @Schema(required = true) private final ArtifactCollection collection;
 
-        public RegisterCollection(@Schema(required = true) ArtifactCollection collection) {
+        public RegisterCollection(@Schema(required = true) final ArtifactCollection collection) {
             this.collection = collection;
         }
 
@@ -23,10 +23,10 @@ public final class ArtifactRegistration {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (RegisterCollection) obj;
+            final var that = (RegisterCollection) obj;
             return Objects.equals(this.collection, that.collection);
         }
 
@@ -50,7 +50,7 @@ public final class ArtifactRegistration {
             private final String artifactName;
             private final String groupId;
 
-            public ArtifactAlreadyRegistered(String artifactName, String groupId) {
+            public ArtifactAlreadyRegistered(final String artifactName, final String groupId) {
                 this.artifactName = artifactName;
                 this.groupId = groupId;
             }
@@ -64,10 +64,10 @@ public final class ArtifactRegistration {
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (ArtifactAlreadyRegistered) obj;
+                final var that = (ArtifactAlreadyRegistered) obj;
                 return Objects.equals(this.artifactName, that.artifactName) &&
                     Objects.equals(this.groupId, that.groupId);
             }
@@ -87,9 +87,10 @@ public final class ArtifactRegistration {
 
         final static class RegisteredArtifact implements Response {
             @Serial private static final long serialVersionUID = 0L;
+            @Schema(required = true)
             private final ArtifactCollection artifact;
 
-            public RegisteredArtifact(ArtifactCollection artifact) {
+            public RegisteredArtifact(final ArtifactCollection artifact) {
                 this.artifact = artifact;
             }
 
@@ -102,10 +103,10 @@ public final class ArtifactRegistration {
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (RegisteredArtifact) obj;
+                final var that = (RegisteredArtifact) obj;
                 return Objects.equals(this.artifact, that.artifact);
             }
 
@@ -126,7 +127,7 @@ public final class ArtifactRegistration {
             @Serial private static final long serialVersionUID = 0L;
             private final String s;
 
-            public GroupMissing(String s) {
+            public GroupMissing(final String s) {
                 this.s = s;
             }
 
@@ -135,10 +136,10 @@ public final class ArtifactRegistration {
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (GroupMissing) obj;
+                final var that = (GroupMissing) obj;
                 return Objects.equals(this.s, that.s);
             }
 

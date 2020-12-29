@@ -49,7 +49,7 @@ public final class AssociateMavenMetadataStep implements WorkerStep<ScrapedArtif
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         return obj == this || obj != null && obj.getClass() == this.getClass();
     }
 

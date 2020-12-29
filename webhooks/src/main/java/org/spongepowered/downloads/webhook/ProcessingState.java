@@ -79,7 +79,7 @@ interface ProcessingState {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             return obj == this || obj != null && obj.getClass() == this.getClass();
         }
 
@@ -101,9 +101,9 @@ interface ProcessingState {
         private final Map<String, Tuple2<String, String>> artifacts;
 
         public MetadataState(
-            String coordinates,
-            String repository,
-            Map<String, Tuple2<String, String>> artifacts
+            final String coordinates,
+            final String repository,
+            final Map<String, Tuple2<String, String>> artifacts
         ) {
             this.coordinates = coordinates;
             this.repository = repository;
@@ -158,10 +158,10 @@ interface ProcessingState {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (MetadataState) obj;
+            final var that = (MetadataState) obj;
             return Objects.equals(this.coordinates, that.coordinates) &&
                 Objects.equals(this.repository, that.repository) &&
                 Objects.equals(this.artifacts, that.artifacts);
@@ -190,7 +190,7 @@ interface ProcessingState {
         private final CommitSha commit;
 
         public CommittedState(
-            String s, String repository, Map<String, Tuple2<String, String>> artifacts, CommitSha commit
+            final String s, final String repository, final Map<String, Tuple2<String, String>> artifacts, final CommitSha commit
         ) {
             this.s = s;
             this.repository = repository;
@@ -250,10 +250,10 @@ interface ProcessingState {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (CommittedState) obj;
+            final var that = (CommittedState) obj;
             return Objects.equals(this.s, that.s) &&
                 Objects.equals(this.repository, that.repository) &&
                 Objects.equals(this.artifacts, that.artifacts) &&

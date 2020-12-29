@@ -19,7 +19,7 @@ public final class GetTaggedArtifacts {
         private final String versionPart;
         private final boolean includePrevious;
 
-        public MavenVersion(String versionPart, boolean includePrevious) {
+        public MavenVersion(final String versionPart, final boolean includePrevious) {
             this.versionPart = versionPart;
             this.includePrevious = includePrevious;
         }
@@ -43,10 +43,10 @@ public final class GetTaggedArtifacts {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (MavenVersion) obj;
+            final var that = (MavenVersion) obj;
             return Objects.equals(this.versionPart, that.versionPart) &&
                 this.includePrevious == that.includePrevious;
         }
@@ -69,7 +69,7 @@ public final class GetTaggedArtifacts {
         private final String mavenVersion;
         private final boolean includePrevious;
 
-        public SnapshotBuilds(String mavenVersion, boolean includePrevious) {
+        public SnapshotBuilds(final String mavenVersion, final boolean includePrevious) {
             this.mavenVersion = mavenVersion;
             this.includePrevious = includePrevious;
         }
@@ -93,10 +93,10 @@ public final class GetTaggedArtifacts {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (SnapshotBuilds) obj;
+            final var that = (SnapshotBuilds) obj;
             return Objects.equals(this.mavenVersion, that.mavenVersion) &&
                 this.includePrevious == that.includePrevious;
         }
@@ -120,7 +120,7 @@ public final class GetTaggedArtifacts {
         final static class TagUnknown implements Response {
             private final String tag;
 
-            public TagUnknown(String tag) {
+            public TagUnknown(final String tag) {
                 this.tag = tag;
             }
 
@@ -129,10 +129,10 @@ public final class GetTaggedArtifacts {
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (TagUnknown) obj;
+                final var that = (TagUnknown) obj;
                 return Objects.equals(this.tag, that.tag);
             }
 
@@ -153,7 +153,7 @@ public final class GetTaggedArtifacts {
     public final static class VersionsAvailable implements Response {
         private final TreeMap<String, String> artifacts;
 
-        public VersionsAvailable(TreeMap<String, String> artifacts) {
+        public VersionsAvailable(final TreeMap<String, String> artifacts) {
             this.artifacts = artifacts;
         }
 
@@ -162,10 +162,10 @@ public final class GetTaggedArtifacts {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (VersionsAvailable) obj;
+            final var that = (VersionsAvailable) obj;
             return Objects.equals(this.artifacts, that.artifacts);
         }
 
@@ -184,7 +184,7 @@ public final class GetTaggedArtifacts {
     public final static class GroupUnknown implements Response {
         private final String groupId;
 
-        public GroupUnknown(String groupId) {
+        public GroupUnknown(final String groupId) {
             this.groupId = groupId;
         }
 
@@ -193,10 +193,10 @@ public final class GetTaggedArtifacts {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (GroupUnknown) obj;
+            final var that = (GroupUnknown) obj;
             return Objects.equals(this.groupId, that.groupId);
         }
 
@@ -215,7 +215,7 @@ public final class GetTaggedArtifacts {
     public final static class ArtifactUnknown implements Response {
         private final String artifactId;
 
-        public ArtifactUnknown(String artifactId) {
+        public ArtifactUnknown(final String artifactId) {
             this.artifactId = artifactId;
         }
 
@@ -224,10 +224,10 @@ public final class GetTaggedArtifacts {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (ArtifactUnknown) obj;
+            final var that = (ArtifactUnknown) obj;
             return Objects.equals(this.artifactId, that.artifactId);
         }
 

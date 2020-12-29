@@ -43,7 +43,7 @@ public class ChangelogServiceImpl implements ChangelogService {
             .ask(new ChangelogCommand.RegisterArtifact(artifact));
     }
 
-    private PersistentEntityRef<ChangelogCommand> getChangelogEntity(String mavenCoordinates) {
+    private PersistentEntityRef<ChangelogCommand> getChangelogEntity(final String mavenCoordinates) {
         return this.registry.refFor(ChangelogEntity.class, mavenCoordinates);
     }
 

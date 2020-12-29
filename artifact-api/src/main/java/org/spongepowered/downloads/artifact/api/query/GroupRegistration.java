@@ -15,9 +15,9 @@ public final class GroupRegistration {
         private final String website;
 
         public RegisterGroupRequest(
-            String groupName,
-            String groupCoordinates,
-            String website
+            final String groupName,
+            final String groupCoordinates,
+            final String website
         ) {
             this.groupName = groupName;
             this.groupCoordinates = groupCoordinates;
@@ -37,10 +37,10 @@ public final class GroupRegistration {
         }
 
         @Override
-        public boolean equals(Object obj) {
+        public boolean equals(final Object obj) {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
-            var that = (RegisterGroupRequest) obj;
+            final var that = (RegisterGroupRequest) obj;
             return Objects.equals(this.groupName, that.groupName) &&
                 Objects.equals(this.groupCoordinates, that.groupCoordinates) &&
                 Objects.equals(this.website, that.website);
@@ -66,7 +66,7 @@ public final class GroupRegistration {
             @Serial private static final long serialVersionUID = 0L;
             private final String groupNameRequested;
 
-            public GroupAlreadyRegistered(String groupNameRequested) {
+            public GroupAlreadyRegistered(final String groupNameRequested) {
                 this.groupNameRequested = groupNameRequested;
             }
 
@@ -75,10 +75,10 @@ public final class GroupRegistration {
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (GroupAlreadyRegistered) obj;
+                final var that = (GroupAlreadyRegistered) obj;
                 return Objects.equals(this.groupNameRequested, that.groupNameRequested);
             }
 
@@ -98,7 +98,7 @@ public final class GroupRegistration {
             @Serial private static final long serialVersionUID = 0L;
             private final Group group;
 
-            public GroupRegistered(Group group) {
+            public GroupRegistered(final Group group) {
                 this.group = group;
             }
 
@@ -107,10 +107,10 @@ public final class GroupRegistration {
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (GroupRegistered) obj;
+                final var that = (GroupRegistered) obj;
                 return Objects.equals(this.group, that.group);
             }
 

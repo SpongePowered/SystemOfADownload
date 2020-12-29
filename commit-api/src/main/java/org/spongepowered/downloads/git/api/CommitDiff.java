@@ -9,8 +9,8 @@ public final class CommitDiff {
     private final CommitSha toSha;
 
     public CommitDiff(
-        CommitSha fromSha,
-        CommitSha toSha
+        final CommitSha fromSha,
+        final CommitSha toSha
     ) {
         this.fromSha = fromSha;
         this.toSha = toSha;
@@ -25,10 +25,10 @@ public final class CommitDiff {
     }
 
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(final Object obj) {
         if (obj == this) return true;
         if (obj == null || obj.getClass() != this.getClass()) return false;
-        var that = (CommitDiff) obj;
+        final var that = (CommitDiff) obj;
         return Objects.equals(this.fromSha, that.fromSha) &&
             Objects.equals(this.toSha, that.toSha);
     }

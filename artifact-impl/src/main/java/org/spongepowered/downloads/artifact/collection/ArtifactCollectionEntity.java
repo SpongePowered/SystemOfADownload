@@ -31,7 +31,7 @@ public final class ArtifactCollectionEntity extends PersistentEntity<ArtifactCol
             @Serial private static final long serialVersionUID = 0L;
             private final String groupId;
 
-            public ArtifactGroupUpdated(String groupId) {
+            public ArtifactGroupUpdated(final String groupId) {
                 this.groupId = groupId;
             }
 
@@ -40,10 +40,10 @@ public final class ArtifactCollectionEntity extends PersistentEntity<ArtifactCol
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (ArtifactGroupUpdated) obj;
+                final var that = (ArtifactGroupUpdated) obj;
                 return Objects.equals(this.groupId, that.groupId);
             }
 
@@ -63,7 +63,7 @@ public final class ArtifactCollectionEntity extends PersistentEntity<ArtifactCol
             @Serial private static final long serialVersionUID = 0L;
             private final String artifactId;
 
-            public ArtifactIdUpdated(String artifactId) {
+            public ArtifactIdUpdated(final String artifactId) {
                 this.artifactId = artifactId;
             }
 
@@ -72,10 +72,10 @@ public final class ArtifactCollectionEntity extends PersistentEntity<ArtifactCol
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (ArtifactIdUpdated) obj;
+                final var that = (ArtifactIdUpdated) obj;
                 return Objects.equals(this.artifactId, that.artifactId);
             }
 
@@ -96,7 +96,7 @@ public final class ArtifactCollectionEntity extends PersistentEntity<ArtifactCol
             private final String version;
             private final ArtifactCollection collection;
 
-            public ArtifactVersionRegistered(String version, ArtifactCollection collection) {
+            public ArtifactVersionRegistered(final String version, final ArtifactCollection collection) {
                 this.version = version;
                 this.collection = collection;
             }
@@ -110,10 +110,10 @@ public final class ArtifactCollectionEntity extends PersistentEntity<ArtifactCol
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (ArtifactVersionRegistered) obj;
+                final var that = (ArtifactVersionRegistered) obj;
                 return Objects.equals(this.version, that.version) &&
                     Objects.equals(this.collection, that.collection);
             }
@@ -135,7 +135,7 @@ public final class ArtifactCollectionEntity extends PersistentEntity<ArtifactCol
             @Serial private static final long serialVersionUID = 0L;
             private final ArtifactCollection collection;
 
-            public CollectionRegistered(ArtifactCollection collection) {
+            public CollectionRegistered(final ArtifactCollection collection) {
                 this.collection = collection;
             }
 
@@ -144,10 +144,10 @@ public final class ArtifactCollectionEntity extends PersistentEntity<ArtifactCol
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (CollectionRegistered) obj;
+                final var that = (CollectionRegistered) obj;
                 return Objects.equals(this.collection, that.collection);
             }
 
@@ -170,7 +170,7 @@ public final class ArtifactCollectionEntity extends PersistentEntity<ArtifactCol
             @Serial private static final long serialVersionUID = 0L;
             private final ArtifactCollection collection;
 
-            public RegisterCollection(ArtifactCollection collection) {
+            public RegisterCollection(final ArtifactCollection collection) {
                 this.collection = collection;
             }
 
@@ -179,10 +179,10 @@ public final class ArtifactCollectionEntity extends PersistentEntity<ArtifactCol
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (RegisterCollection) obj;
+                final var that = (RegisterCollection) obj;
                 return Objects.equals(this.collection, that.collection);
             }
 
@@ -203,7 +203,7 @@ public final class ArtifactCollectionEntity extends PersistentEntity<ArtifactCol
             private final String groupId;
             private final String artifactId;
 
-            public GetVersions(String groupId, String artifactId) {
+            public GetVersions(final String groupId, final String artifactId) {
                 this.groupId = groupId;
                 this.artifactId = artifactId;
             }
@@ -217,10 +217,10 @@ public final class ArtifactCollectionEntity extends PersistentEntity<ArtifactCol
             }
 
             @Override
-            public boolean equals(Object obj) {
+            public boolean equals(final Object obj) {
                 if (obj == this) return true;
                 if (obj == null || obj.getClass() != this.getClass()) return false;
-                var that = (GetVersions) obj;
+                final var that = (GetVersions) obj;
                 return Objects.equals(this.groupId, that.groupId) &&
                     Objects.equals(this.artifactId, that.artifactId);
             }
