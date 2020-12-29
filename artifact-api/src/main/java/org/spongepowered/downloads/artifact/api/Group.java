@@ -1,6 +1,8 @@
 package org.spongepowered.downloads.artifact.api;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.spongepowered.downloads.utils.UUIDType5;
 
 import java.net.URL;
@@ -11,9 +13,13 @@ import java.util.UUID;
 @JsonDeserialize
 public final class Group {
 
+    @Schema(required = true)
     private final String groupCoordinates;
+    @Schema(required = true)
     private final String name;
+    @Schema(required = true)
     private final String website;
+    @JsonIgnore
     private final UUID groupId;
 
     public Group(final String groupCoordinates, final String name, final String website) {

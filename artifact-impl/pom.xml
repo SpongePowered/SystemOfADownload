@@ -65,6 +65,12 @@
             <groupId>org.pac4j</groupId>
             <artifactId>lagom-pac4j_${scala.binary.version}</artifactId>
         </dependency>
+        <!-- Swagger impl -->
+        <dependency>
+            <groupId>org.taymyr.lagom</groupId>
+            <artifactId>lagom-openapi-java-impl_${scala.binary.version}</artifactId>
+            <version>${lagom.openapi.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

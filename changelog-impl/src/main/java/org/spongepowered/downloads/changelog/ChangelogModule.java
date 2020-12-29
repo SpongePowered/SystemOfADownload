@@ -10,9 +10,7 @@ public class ChangelogModule extends AbstractModule implements ServiceGuiceSuppo
 
     @Override
     protected void configure() {
-        this.bindService(ChangelogService.class, ChangelogServiceImpl.class);
         this.bind(ArtifactReadSideProcessor.class);
-        this.bindClient(ArtifactService.class);
-        this.bindClient(CommitService.class);
+        this.bindService(ChangelogService.class, ChangelogServiceImpl.class);
     }
 }

@@ -19,11 +19,12 @@ import org.spongepowered.downloads.artifact.api.query.GroupResponse;
 import org.spongepowered.downloads.artifact.collection.ArtifactCollectionEntity;
 import org.spongepowered.downloads.artifact.collection.TaggedVersionEntity;
 import org.spongepowered.downloads.artifact.group.GroupEntity;
+import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
 
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 
-public class ArtifactServiceImpl implements ArtifactService {
+public class ArtifactServiceImpl extends AbstractOpenAPIService implements ArtifactService {
 
     private static final Logger LOGGER = LogManager.getLogger(ArtifactServiceImpl.class);
     private final PersistentEntityRegistry registry;

@@ -1,13 +1,20 @@
 package org.spongepowered.downloads.artifact.api;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.vavr.collection.Map;
 
 import java.util.StringJoiner;
 
 public final class ArtifactCollection {
 
+    @Schema(required = true, description = "A map of artifact kind to artifact information")
     private final Map<String, Artifact> artifactComponents;
+    @Schema(
+        required = true,
+        description = "The group for an artifact collection"
+    )
     private final Group group;
+    @Schema(required = true)
     private final String artifactId;
     private final String version;
     private final String mavenCoordinates;

@@ -1,13 +1,13 @@
 package org.spongepowered.downloads.artifact.api.query;
 
 import com.lightbend.lagom.serialization.Jsonable;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 
 public final class ArtifactRegistration {
 
-
-    public static final record RegisterCollection(ArtifactCollection collection) {}
+    public static final record RegisterCollection(@Schema(required = true) ArtifactCollection collection) {}
 
     public sealed interface Response extends Jsonable {
 

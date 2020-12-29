@@ -17,19 +17,13 @@ import java.util.StringJoiner;
 public class ChangelogServiceImpl implements ChangelogService {
 
     private final PersistentEntityRegistry registry;
-    private final ArtifactService artifactService;
-    private final CommitService commitService;
 
     @Inject
     public ChangelogServiceImpl(
         final PersistentEntityRegistry registry,
-        final ArtifactService artifactService,
-        final CommitService commitService,
         final ReadSide readSide
     ) {
         this.registry = registry;
-        this.artifactService = artifactService;
-        this.commitService = commitService;
         readSide.register(ArtifactReadSideProcessor.class);
     }
 

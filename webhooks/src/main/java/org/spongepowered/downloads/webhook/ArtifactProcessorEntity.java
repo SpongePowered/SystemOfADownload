@@ -49,10 +49,7 @@ public class ArtifactProcessorEntity
         builder.setCommandHandler(Command.AssociateMetadataWithCollection.class, this::respondToMetadataAssociation);
         builder.setEventHandler(ScrapedArtifactEvent.AssociatedMavenMetadata.class, this::associateSonatypeInformation);
 
-        builder.setCommandHandler(Command.AssociateCommitShaWithArtifact.class, this::respondToAssociatingCommitShaWithArtifact);
         builder.setEventHandler(ScrapedArtifactEvent.AssociateCommitSha.class, this::handleCommitShaAssociation);
-
-        builder.setCommandHandler(Command.RequestArtifactForProcessing.class, this::respondRequestArtifactForProcessing);
         builder.setEventHandler(ScrapedArtifactEvent.ArtifactRequested.class, this::handleArtifactRequested);
         return builder.build();
     }
@@ -101,38 +98,6 @@ public class ArtifactProcessorEntity
         );
     }
 
-    private Persist<ScrapedArtifactEvent> respondToAssociatingCommitShaWithArtifact(
-        final Command.AssociateCommitShaWithArtifact cmd,
-        final CommandContext<NotUsed> ctx) {
-        // TODO - build in some better state control
-        if (!this.state().hasCommit()) {
-            ctx.thenPersist(new ScrapedArtifactEvent.AssociateCommitSha(
-                cmd.collection,
-                cmd.collection.getMavenCoordinates(),
-                cmd.collection.getGroup().getGroupCoordinates(),
-                cmd.collection.getArtifactId(),
-                cmd.collection.getVersion(),
-                cmd.sha
-            ));
-            return ctx.done();
-        }
-        return ctx.done();
-    }
-
-    private Persist<ScrapedArtifactEvent> respondRequestArtifactForProcessing(
-        final Command.RequestArtifactForProcessing cmd,
-        final CommandContext<NotUsed> ctx
-    ) {
-        final String mavenCoordinates = new StringJoiner(":").add(cmd.groupId).add(cmd.artifactId).add(cmd.requested).toString();
-
-        if (this.state().getCoordinates().map(coords -> !coords.equals(mavenCoordinates)).orElse(true)) {
-            ctx.thenPersist(
-                new ScrapedArtifactEvent.ArtifactRequested(cmd.groupId, cmd.artifactId, cmd.requested, mavenCoordinates),
-                message -> ctx.reply(NotUsed.notUsed())
-            );
-        }
-        return ctx.done();
-    }
 
     private ProcessingState handleArtifactRequested(final ScrapedArtifactEvent.ArtifactRequested event) {
         if (this.state().getCoordinates().map(coords -> !coords.equals(event.mavenCoordinates())).orElse(true)) {
