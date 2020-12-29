@@ -12,23 +12,88 @@ import org.spongepowered.downloads.artifact.api.query.GetVersionsResponse;
 import org.spongepowered.downloads.webhook.ScrapedArtifactEvent;
 import org.spongepowered.downloads.webhook.sonatype.SonatypeClient;
 
+import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-public final record FetchPriorBuildStep() implements WorkerStep<ScrapedArtifactEvent.AssociateCommitSha> {
+public final class FetchPriorBuildStep implements WorkerStep<ScrapedArtifactEvent.AssociateCommitSha> {
 
     private static final Marker MARKER = MarkerManager.getMarker("FETCH_PRIOR_BUILD");
 
-    final record RecordRequest(
-        String groupId,
-        String artifactId,
-        String coordinates,
-        String mavenVersion,
-        boolean isSnapshot
-    ) {
+    public FetchPriorBuildStep() {
+    }
+
+    final static class RecordRequest {
+        private final String groupId;
+        private final String artifactId;
+        private final String coordinates;
+        private final String mavenVersion;
+        private final boolean isSnapshot;
+
+        RecordRequest(
+            String groupId,
+            String artifactId,
+            String coordinates,
+            String mavenVersion,
+            boolean isSnapshot
+        ) {
+            this.groupId = groupId;
+            this.artifactId = artifactId;
+            this.coordinates = coordinates;
+            this.mavenVersion = mavenVersion;
+            this.isSnapshot = isSnapshot;
+        }
+
+        public String groupId() {
+            return this.groupId;
+        }
+
+        public String artifactId() {
+            return this.artifactId;
+        }
+
+        public String coordinates() {
+            return this.coordinates;
+        }
+
+        public String mavenVersion() {
+            return this.mavenVersion;
+        }
+
+        public boolean isSnapshot() {
+            return this.isSnapshot;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (RecordRequest) obj;
+            return Objects.equals(this.groupId, that.groupId) &&
+                Objects.equals(this.artifactId, that.artifactId) &&
+                Objects.equals(this.coordinates, that.coordinates) &&
+                Objects.equals(this.mavenVersion, that.mavenVersion) &&
+                this.isSnapshot == that.isSnapshot;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.groupId, this.artifactId, this.coordinates, this.mavenVersion, this.isSnapshot);
+        }
+
+        @Override
+        public String toString() {
+            return "RecordRequest[" +
+                "groupId=" + this.groupId + ", " +
+                "artifactId=" + this.artifactId + ", " +
+                "coordinates=" + this.coordinates + ", " +
+                "mavenVersion=" + this.mavenVersion + ", " +
+                "isSnapshot=" + this.isSnapshot + ']';
+        }
+
     }
 
     @Override
@@ -113,7 +178,8 @@ public final record FetchPriorBuildStep() implements WorkerStep<ScrapedArtifactE
         final String priorBuildVersion
     ) {
         return response -> {
-            if (response instanceof GetVersionsResponse.VersionsAvailable va) {
+            if (response instanceof GetVersionsResponse.VersionsAvailable) {
+                final var va = (GetVersionsResponse.VersionsAvailable) response;
                 final Option<ArtifactCollection> artifactCollections = va.artifacts()
                     .get(priorBuildVersion);
                 final Either<Done, ArtifactCollection> collectionOrDone = artifactCollections.toEither(
@@ -124,7 +190,9 @@ public final record FetchPriorBuildStep() implements WorkerStep<ScrapedArtifactE
                             .add(priorBuildVersion)
                             .toString();
                         return service.getProcessingEntity(previousBuildCoordinates)
-                            .ask(new ScrapedArtifactEntity.Command.RequestArtifactForProcessing(request.groupId, request.artifactId, priorBuildVersion))
+                            .ask(new ScrapedArtifactEntity.Command.RequestArtifactForProcessing(request.groupId,
+                                request.artifactId, priorBuildVersion
+                            ))
                             .thenApply(notUsed -> Done.done())
                             .toCompletableFuture()
                             .join();
@@ -155,4 +223,20 @@ public final record FetchPriorBuildStep() implements WorkerStep<ScrapedArtifactE
     public Marker marker() {
         return MARKER;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj == this || obj != null && obj.getClass() == this.getClass();
+    }
+
+    @Override
+    public int hashCode() {
+        return 1;
+    }
+
+    @Override
+    public String toString() {
+        return "FetchPriorBuildStep[]";
+    }
+
 }

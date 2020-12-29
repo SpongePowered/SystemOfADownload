@@ -19,10 +19,13 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-public final record RegisterArtifactsStep()
+public final class RegisterArtifactsStep
     implements WorkerStep<ScrapedArtifactEvent.InitializeArtifactForProcessing> {
     private static final Marker MARKER = MarkerManager.getMarker("ARTIFACT_REGISTRATION");
     private static final Pattern filePattern = Pattern.compile("(dev\\b|\\d+|shaded).jar$");
+
+    public RegisterArtifactsStep() {
+    }
 
     @Override
     public Try<Done> processEvent(
@@ -33,8 +36,8 @@ public final record RegisterArtifactsStep()
             () -> service.artifacts.getGroup(event.mavenCoordinates().split(":")[0])
                 .invoke()
                 .thenComposeAsync(response -> {
-                    if (response instanceof GroupResponse.Available available) {
-                        return this.processInitializationWithGroup(service, event, available);
+                    if (response instanceof GroupResponse.Available) {
+                        return this.processInitializationWithGroup(service, event, (GroupResponse.Available) response);
                     }
                     return CompletableFuture.completedFuture(Done.done());
                 }).toCompletableFuture()
@@ -133,4 +136,20 @@ base name for will be the jar that has the shortest file name length.
             .replace("universal", "")
             ;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj == this || obj != null && obj.getClass() == this.getClass();
+    }
+
+    @Override
+    public int hashCode() {
+        return 1;
+    }
+
+    @Override
+    public String toString() {
+        return "RegisterArtifactsStep[]";
+    }
+
 }

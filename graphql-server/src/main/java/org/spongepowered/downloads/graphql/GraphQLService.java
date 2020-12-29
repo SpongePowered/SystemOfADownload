@@ -62,6 +62,7 @@ public class GraphQLService implements Service {
                 // GraphQL effectively will be on the path, and accept any json blob
                 Service.restCall(Method.POST, "/graphql", this::graphql),
                 Service.restCall(Method.GET, "/graphql", this::graphqlByGet)
-            );
+            )
+            .withAutoAcl(true);
     }
 }

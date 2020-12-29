@@ -4,16 +4,26 @@ import io.vavr.collection.Map;
 import io.vavr.collection.TreeMap;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 
+import java.util.Objects;
+
 public final class GetTaggedArtifacts {
 
-    public sealed interface Request {
+    public interface Request {
         Type getType();
         String getTagType();
     }
 
     public enum Type { VERSION, SNAPSHOT; }
 
-    public final record MavenVersion(String versionPart, boolean includePrevious) implements Request {
+    public final static class MavenVersion implements Request {
+        private final String versionPart;
+        private final boolean includePrevious;
+
+        public MavenVersion(String versionPart, boolean includePrevious) {
+            this.versionPart = versionPart;
+            this.includePrevious = includePrevious;
+        }
+
         @Override
         public String getTagType() {
             return Type.VERSION.name();
@@ -23,8 +33,47 @@ public final class GetTaggedArtifacts {
         public Type getType() {
             return Type.VERSION;
         }
+
+        public String versionPart() {
+            return this.versionPart;
+        }
+
+        public boolean includePrevious() {
+            return this.includePrevious;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (MavenVersion) obj;
+            return Objects.equals(this.versionPart, that.versionPart) &&
+                this.includePrevious == that.includePrevious;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.versionPart, this.includePrevious);
+        }
+
+        @Override
+        public String toString() {
+            return "MavenVersion[" +
+                "versionPart=" + this.versionPart + ", " +
+                "includePrevious=" + this.includePrevious + ']';
+        }
+
     }
-    public final record SnapshotBuilds(String mavenVersion, boolean includePrevious) implements Request {
+
+    public final static class SnapshotBuilds implements Request {
+        private final String mavenVersion;
+        private final boolean includePrevious;
+
+        public SnapshotBuilds(String mavenVersion, boolean includePrevious) {
+            this.mavenVersion = mavenVersion;
+            this.includePrevious = includePrevious;
+        }
+
         @Override
         public String getTagType() {
             return Type.SNAPSHOT.name();
@@ -34,14 +83,163 @@ public final class GetTaggedArtifacts {
         public Type getType() {
             return Type.SNAPSHOT;
         }
+
+        public String mavenVersion() {
+            return this.mavenVersion;
+        }
+
+        public boolean includePrevious() {
+            return this.includePrevious;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (SnapshotBuilds) obj;
+            return Objects.equals(this.mavenVersion, that.mavenVersion) &&
+                this.includePrevious == that.includePrevious;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.mavenVersion, this.includePrevious);
+        }
+
+        @Override
+        public String toString() {
+            return "SnapshotBuilds[" +
+                "mavenVersion=" + this.mavenVersion + ", " +
+                "includePrevious=" + this.includePrevious + ']';
+        }
+
     }
 
-    public sealed interface Response {
+    public interface Response {
 
-        final record TagUnknown(String tag) implements Response {
+        final static class TagUnknown implements Response {
+            private final String tag;
+
+            public TagUnknown(String tag) {
+                this.tag = tag;
+            }
+
+            public String tag() {
+                return this.tag;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (TagUnknown) obj;
+                return Objects.equals(this.tag, that.tag);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.tag);
+            }
+
+            @Override
+            public String toString() {
+                return "TagUnknown[" +
+                    "tag=" + this.tag + ']';
+            }
+
         }
     }
-    public final record VersionsAvailable(TreeMap<String, String> artifacts) implements Response {}
-    public final record GroupUnknown(String groupId) implements Response {}
-    public final record ArtifactUnknown(String artifactId) implements Response {}
+
+    public final static class VersionsAvailable implements Response {
+        private final TreeMap<String, String> artifacts;
+
+        public VersionsAvailable(TreeMap<String, String> artifacts) {
+            this.artifacts = artifacts;
+        }
+
+        public TreeMap<String, String> artifacts() {
+            return this.artifacts;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (VersionsAvailable) obj;
+            return Objects.equals(this.artifacts, that.artifacts);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.artifacts);
+        }
+
+        @Override
+        public String toString() {
+            return "VersionsAvailable[" +
+                "artifacts=" + this.artifacts + ']';
+        }
+    }
+
+    public final static class GroupUnknown implements Response {
+        private final String groupId;
+
+        public GroupUnknown(String groupId) {
+            this.groupId = groupId;
+        }
+
+        public String groupId() {
+            return this.groupId;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (GroupUnknown) obj;
+            return Objects.equals(this.groupId, that.groupId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.groupId);
+        }
+
+        @Override
+        public String toString() {
+            return "GroupUnknown[" +
+                "groupId=" + this.groupId + ']';
+        }
+    }
+
+    public final static class ArtifactUnknown implements Response {
+        private final String artifactId;
+
+        public ArtifactUnknown(String artifactId) {
+            this.artifactId = artifactId;
+        }
+
+        public String artifactId() {
+            return this.artifactId;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (ArtifactUnknown) obj;
+            return Objects.equals(this.artifactId, that.artifactId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.artifactId);
+        }
+
+        @Override
+        public String toString() {
+            return "ArtifactUnknown[" +
+                "artifactId=" + this.artifactId + ']';
+        }
+    }
 }

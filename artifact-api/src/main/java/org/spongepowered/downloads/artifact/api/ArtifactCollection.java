@@ -7,7 +7,7 @@ import java.util.StringJoiner;
 
 public final class ArtifactCollection {
 
-    @Schema(required = true, description = "A map of artifact kind to artifact information")
+    @Schema(required = false, description = "A map of artifact kind to artifact information")
     private final Map<String, Artifact> artifactComponents;
     @Schema(
         required = true,

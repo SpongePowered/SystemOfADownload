@@ -9,6 +9,7 @@ import org.spongepowered.downloads.git.api.CommitSha;
 import org.spongepowered.downloads.webhook.sonatype.Component;
 import org.spongepowered.downloads.webhook.sonatype.SonatypeClient;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.StringJoiner;
 
@@ -17,19 +18,101 @@ public class ArtifactProcessorEntity
     extends PersistentEntity<ArtifactProcessorEntity.Command, ScrapedArtifactEvent, ProcessingState> {
 
 
-    public sealed interface Command {
+    public interface Command {
 
-        final record StartProcessing(
-            SonatypeData webhook,
-            ArtifactCollection artifact
-        ) implements Command, ReplyType<NotUsed> {
+        final static class StartProcessing implements Command, ReplyType<NotUsed> {
+            private final SonatypeData webhook;
+            private final ArtifactCollection artifact;
+
+            public StartProcessing(
+                SonatypeData webhook,
+                ArtifactCollection artifact
+            ) {
+                this.webhook = webhook;
+                this.artifact = artifact;
+            }
+
+            public SonatypeData webhook() {
+                return this.webhook;
+            }
+
+            public ArtifactCollection artifact() {
+                return this.artifact;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (StartProcessing) obj;
+                return Objects.equals(this.webhook, that.webhook) &&
+                    Objects.equals(this.artifact, that.artifact);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.webhook, this.artifact);
+            }
+
+            @Override
+            public String toString() {
+                return "StartProcessing[" +
+                    "webhook=" + this.webhook + ", " +
+                    "artifact=" + this.artifact + ']';
+            }
+
         }
 
-        final record AssociateMetadataWithCollection(
-            ArtifactCollection collection,
-            Component component,
-            String tagVersion
-        ) implements Command, ReplyType<NotUsed> {
+        final static class AssociateMetadataWithCollection implements Command, ReplyType<NotUsed> {
+            private final ArtifactCollection collection;
+            private final Component component;
+            private final String tagVersion;
+
+            public AssociateMetadataWithCollection(
+                ArtifactCollection collection,
+                Component component,
+                String tagVersion
+            ) {
+                this.collection = collection;
+                this.component = component;
+                this.tagVersion = tagVersion;
+            }
+
+            public ArtifactCollection collection() {
+                return this.collection;
+            }
+
+            public Component component() {
+                return this.component;
+            }
+
+            public String tagVersion() {
+                return this.tagVersion;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (AssociateMetadataWithCollection) obj;
+                return Objects.equals(this.collection, that.collection) &&
+                    Objects.equals(this.component, that.component) &&
+                    Objects.equals(this.tagVersion, that.tagVersion);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.collection, this.component, this.tagVersion);
+            }
+
+            @Override
+            public String toString() {
+                return "AssociateMetadataWithCollection[" +
+                    "collection=" + this.collection + ", " +
+                    "component=" + this.component + ", " +
+                    "tagVersion=" + this.tagVersion + ']';
+            }
+
         }
 
 

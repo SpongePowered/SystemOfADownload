@@ -14,12 +14,13 @@ import org.spongepowered.downloads.git.api.CommitService;
 import org.spongepowered.downloads.git.api.Repository;
 import org.spongepowered.downloads.git.api.RepositoryRegistration;
 import org.spongepowered.downloads.utils.UUIDType5;
+import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
 
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-public class CommitServiceImpl implements CommitService {
+public class CommitServiceImpl extends AbstractOpenAPIService implements CommitService {
 
     private static final String ENTITY_KEY = CommitServiceImpl.class.getName();
     private static final Logger LOGGER = LogManager.getLogger(CommitServiceImpl.class);

@@ -13,11 +13,12 @@ import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.artifact.api.Group;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.changelog.api.ChangelogService;
+import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
 
 import javax.inject.Inject;
 import java.util.concurrent.CompletableFuture;
 
-public class SonatypeWebhookServiceImpl implements SonatypeWebhookService {
+public class SonatypeWebhookServiceImpl extends AbstractOpenAPIService implements SonatypeWebhookService {
 
     public static final String TOPIC_NAME = "artifact-changelog-analysis";
     private final ArtifactService artifacts;
@@ -48,7 +49,8 @@ public class SonatypeWebhookServiceImpl implements SonatypeWebhookService {
                 return this.artifacts.registerArtifacts()
                     .invoke(new ArtifactRegistration.RegisterCollection(collection))
                     .thenCompose(response -> {
-                        if (response instanceof ArtifactRegistration.Response.RegisteredArtifact registered) {
+                        if (response instanceof ArtifactRegistration.Response.RegisteredArtifact) {
+                            final var registered = (ArtifactRegistration.Response.RegisteredArtifact) response;
                             return this.getProcessingEntity(registered.artifact().getMavenCoordinates())
                                 .ask(new ArtifactProcessorEntity.Command.StartProcessing(webhook,
                                     registered.artifact()

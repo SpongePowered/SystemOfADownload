@@ -29,11 +29,9 @@ public class CommitNodes {
 
     public static final GraphQLScalarType COMMIT_SHA_TYPE = GraphQLScalarType.newScalar()
         .name("CommitSha")
-        .description("""
-         A 160-bit SHA-1 identifier for a commit in git. Representable and uniquely identifiable,
-         near likely impossible to have the same identifier for a commit within the same branch history.
-         As according to the 
-                     """)
+        .description("A 160-bit SHA-1 identifier for a commit in git. Representable and uniquely identifiable, " +
+                "near likely impossible to have the same identifier for a commit within the same branch history. " +
+                "As according to the")
         .specifiedByUrl("https://git-scm.com/book/en/v2/Git-Tools-Revision-Selection")
         .coercing(new Coercing<CommitSha, String>() {
 
@@ -61,11 +59,10 @@ public class CommitNodes {
         .name("Author")
         .type(AUTHOR_TYPE)
         .description(
-    """
-    The commit author, may be different than the author that committed the commit.
-    Likewise, the committer may be the same as the author, in which case they may be
-    redundant.
-    """)
+    "The commit author, may be different than the author that committed the commit. " +
+        "Likewise, the committer may be the same as the author, in which case they may be " +
+        "redundant."
+        )
         .build();
 
     public static final GraphQLObjectType COMMIT_TYPE = GraphQLObjectType.newObject()

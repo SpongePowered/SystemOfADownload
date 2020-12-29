@@ -30,11 +30,6 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-changelog-event</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-log4j2_${scala.binary.version}</artifactId>
             <version>${lagom.version}</version>

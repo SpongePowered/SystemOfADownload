@@ -8,8 +8,10 @@ import com.lightbend.lagom.javadsl.api.broker.Topic;
 import com.lightbend.lagom.javadsl.api.broker.kafka.KafkaProperties;
 import com.lightbend.lagom.javadsl.api.transport.Method;
 import io.swagger.v3.oas.annotations.Operation;
+import org.taymyr.lagom.javadsl.openapi.OpenAPIService;
+import org.taymyr.lagom.javadsl.openapi.OpenAPIUtils;
 
-public interface SonatypeWebhookService extends Service {
+public interface SonatypeWebhookService extends OpenAPIService {
     public static final String TOPIC_NAME = "artifact-changelog-analysis";
 
     @Operation(
@@ -21,7 +23,7 @@ public interface SonatypeWebhookService extends Service {
 
     @Override
     default Descriptor descriptor() {
-        return Service.named("webhooks")
+        return OpenAPIUtils.withOpenAPI(Service.named("webhooks")
             .withCalls(
                 Service.restCall(Method.POST, "/api/webhook", this::processSonatypeData)
             )
@@ -29,6 +31,8 @@ public interface SonatypeWebhookService extends Service {
                 Service.topic(TOPIC_NAME, this::topic)
                     .withProperty(
                         KafkaProperties.partitionKeyStrategy(), ScrapedArtifactEvent::mavenCoordinates)
-            );
+            )
+            .withAutoAcl(true)
+        );
     }
 }

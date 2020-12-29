@@ -232,7 +232,9 @@ public interface ArtifactService extends OpenAPIService {
                 Service.restCall(Method.POST, "/api/:groupId/artifact/:artifactId/", this::getTaggedArtifacts),
                 Service.restCall(Method.POST, "/api/:groupId/register/", this::registerArtifacts),
                 Service.restCall(Method.POST, "/api/admin/groups/create", this::registerGroup)
-            ));
+            )
+            .withAutoAcl(true)
+        );
     }
 
 }

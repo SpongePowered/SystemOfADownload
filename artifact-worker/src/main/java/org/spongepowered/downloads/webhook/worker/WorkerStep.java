@@ -5,8 +5,7 @@ import io.vavr.control.Try;
 import org.apache.logging.log4j.Marker;
 import org.spongepowered.downloads.webhook.ScrapedArtifactEvent;
 
-sealed interface WorkerStep<E extends ScrapedArtifactEvent>
-    permits FetchPriorBuildStep, AssociateMavenMetadataStep, RegisterArtifactsStep, RequestArtifactStep {
+interface WorkerStep<E extends ScrapedArtifactEvent> {
 
     Try<Done> processEvent(SonatypeArtifactWorkerService service, E event);
 

@@ -32,7 +32,7 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-webhooks-event</artifactId>
+            <artifactId>systemofadownload-webhooks-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- JGit -->

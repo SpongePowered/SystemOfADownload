@@ -76,6 +76,7 @@ public class SonatypeArtifactWorkerService implements Service {
     @Override
     public Descriptor descriptor() {
         return Service.named("artifact-worker")
+            .withAutoAcl(true)
             ;
     }
 

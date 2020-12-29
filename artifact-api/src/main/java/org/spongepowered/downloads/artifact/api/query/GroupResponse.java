@@ -2,10 +2,70 @@ package org.spongepowered.downloads.artifact.api.query;
 
 import org.spongepowered.downloads.artifact.api.Group;
 
-public sealed interface GroupResponse {
+import java.util.Objects;
 
-    final record Missing(String groupId) implements GroupResponse {}
+public interface GroupResponse {
 
-    final record Available(Group group) implements GroupResponse {}
+    final static class Missing implements GroupResponse {
+        private final String groupId;
+
+        public Missing(String groupId) {
+            this.groupId = groupId;
+        }
+
+        public String groupId() {
+            return this.groupId;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (Missing) obj;
+            return Objects.equals(this.groupId, that.groupId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.groupId);
+        }
+
+        @Override
+        public String toString() {
+            return "Missing[" +
+                "groupId=" + this.groupId + ']';
+        }
+    }
+
+    final static class Available implements GroupResponse {
+        private final Group group;
+
+        public Available(Group group) {
+            this.group = group;
+        }
+
+        public Group group() {
+            return this.group;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (Available) obj;
+            return Objects.equals(this.group, that.group);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.group);
+        }
+
+        @Override
+        public String toString() {
+            return "Available[" +
+                "group=" + this.group + ']';
+        }
+    }
 
 }

@@ -21,11 +21,6 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-commit-event</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
             <artifactId>systemofadownload-utils</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -71,6 +66,11 @@
         <dependency>
             <groupId>io.vavr</groupId>
             <artifactId>vavr</artifactId>
+        </dependency>
+        <!-- Swagger impl -->
+        <dependency>
+            <groupId>org.taymyr.lagom</groupId>
+            <artifactId>lagom-openapi-java-impl_${scala.binary.version}</artifactId>
         </dependency>
     </dependencies>
 

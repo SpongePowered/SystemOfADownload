@@ -9,6 +9,7 @@ import org.spongepowered.downloads.git.api.CommitSha;
 import org.spongepowered.downloads.webhook.ScrapedArtifactEvent;
 import org.spongepowered.downloads.webhook.sonatype.Component;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.StringJoiner;
 
@@ -26,25 +27,153 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
         return builder.build();
     }
 
-    static sealed interface Command {
-        final record AssociateMetadataWithCollection(
-            ArtifactCollection collection,
-            Component component,
-            String tagVersion
-        ) implements Command, ReplyType<NotUsed> {
+    static interface Command {
+        final static class AssociateMetadataWithCollection implements Command, ReplyType<NotUsed> {
+            private final ArtifactCollection collection;
+            private final Component component;
+            private final String tagVersion;
+
+            public AssociateMetadataWithCollection(
+                ArtifactCollection collection,
+                Component component,
+                String tagVersion
+            ) {
+                this.collection = collection;
+                this.component = component;
+                this.tagVersion = tagVersion;
+            }
+
+            public ArtifactCollection collection() {
+                return this.collection;
+            }
+
+            public Component component() {
+                return this.component;
+            }
+
+            public String tagVersion() {
+                return this.tagVersion;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (AssociateMetadataWithCollection) obj;
+                return Objects.equals(this.collection, that.collection) &&
+                    Objects.equals(this.component, that.component) &&
+                    Objects.equals(this.tagVersion, that.tagVersion);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.collection, this.component, this.tagVersion);
+            }
+
+            @Override
+            public String toString() {
+                return "AssociateMetadataWithCollection[" +
+                    "collection=" + this.collection + ", " +
+                    "component=" + this.component + ", " +
+                    "tagVersion=" + this.tagVersion + ']';
+            }
+
         }
 
 
-        final record RequestArtifactForProcessing(String groupId, String artifactId, String requested) implements Command, ReplyType<NotUsed> {
+        final static class RequestArtifactForProcessing implements Command, ReplyType<NotUsed> {
+            private final String groupId;
+            private final String artifactId;
+            private final String requested;
+
+            public RequestArtifactForProcessing(String groupId, String artifactId, String requested) {
+                this.groupId = groupId;
+                this.artifactId = artifactId;
+                this.requested = requested;
+            }
+
+            public String groupId() {
+                return this.groupId;
+            }
+
+            public String artifactId() {
+                return this.artifactId;
+            }
+
+            public String requested() {
+                return this.requested;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (RequestArtifactForProcessing) obj;
+                return Objects.equals(this.groupId, that.groupId) &&
+                    Objects.equals(this.artifactId, that.artifactId) &&
+                    Objects.equals(this.requested, that.requested);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.groupId, this.artifactId, this.requested);
+            }
+
+            @Override
+            public String toString() {
+                return "RequestArtifactForProcessing[" +
+                    "groupId=" + this.groupId + ", " +
+                    "artifactId=" + this.artifactId + ", " +
+                    "requested=" + this.requested + ']';
+            }
+
         }
-        final record AssociateCommitShaWithArtifact(
-            ArtifactCollection collection,
-            CommitSha sha
-        ) implements Command, ReplyType<NotUsed> {
+
+        final static class AssociateCommitShaWithArtifact implements Command, ReplyType<NotUsed> {
+            private final ArtifactCollection collection;
+            private final CommitSha sha;
+
+            public AssociateCommitShaWithArtifact(
+                ArtifactCollection collection,
+                CommitSha sha
+            ) {
+                this.collection = collection;
+                this.sha = sha;
+            }
+
+            public ArtifactCollection collection() {
+                return this.collection;
+            }
+
+            public CommitSha sha() {
+                return this.sha;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (AssociateCommitShaWithArtifact) obj;
+                return Objects.equals(this.collection, that.collection) &&
+                    Objects.equals(this.sha, that.sha);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.collection, this.sha);
+            }
+
+            @Override
+            public String toString() {
+                return "AssociateCommitShaWithArtifact[" +
+                    "collection=" + this.collection + ", " +
+                    "sha=" + this.sha + ']';
+            }
+
         }
     }
 
-    sealed interface ProcessingState {
+    interface ProcessingState {
 
         boolean hasStarted();
 
@@ -72,7 +201,9 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
 
         Optional<Map<String, Tuple2<String, String>>> getArtifacts();
 
-        static final record EmptyState() implements ProcessingState {
+        static final class EmptyState implements ProcessingState {
+            public EmptyState() {
+            }
 
             public static EmptyState empty() {
                 return new EmptyState();
@@ -112,13 +243,38 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
             public Optional<Map<String, Tuple2<String, String>>> getArtifacts() {
                 return Optional.empty();
             }
+
+            @Override
+            public boolean equals(Object obj) {
+                return obj == this || obj != null && obj.getClass() == this.getClass();
+            }
+
+            @Override
+            public int hashCode() {
+                return 1;
+            }
+
+            @Override
+            public String toString() {
+                return "EmptyState[]";
+            }
+
         }
 
-        static final record MetadataState(
-            String coordinates,
-            String repository,
-            Map<String, Tuple2<String, String>> artifacts
-        ) implements ProcessingState {
+        static final class MetadataState implements ProcessingState {
+            private final String coordinates;
+            private final String repository;
+            private final Map<String, Tuple2<String, String>> artifacts;
+
+            public MetadataState(
+                String coordinates,
+                String repository,
+                Map<String, Tuple2<String, String>> artifacts
+            ) {
+                this.coordinates = coordinates;
+                this.repository = repository;
+                this.artifacts = artifacts;
+            }
 
             @Override
             public boolean hasStarted() {
@@ -154,10 +310,60 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
             public Optional<Map<String, Tuple2<String, String>>> getArtifacts() {
                 return Optional.of(this.artifacts);
             }
+
+            public String coordinates() {
+                return this.coordinates;
+            }
+
+            public String repository() {
+                return this.repository;
+            }
+
+            public Map<String, Tuple2<String, String>> artifacts() {
+                return this.artifacts;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (MetadataState) obj;
+                return Objects.equals(this.coordinates, that.coordinates) &&
+                    Objects.equals(this.repository, that.repository) &&
+                    Objects.equals(this.artifacts, that.artifacts);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.coordinates, this.repository, this.artifacts);
+            }
+
+            @Override
+            public String toString() {
+                return "MetadataState[" +
+                    "coordinates=" + this.coordinates + ", " +
+                    "repository=" + this.repository + ", " +
+                    "artifacts=" + this.artifacts + ']';
+            }
+
         }
 
-        static final record CommittedState(String s, String repository, Map<String, Tuple2<String, String>> artifacts, CommitSha commit)
+        static final class CommittedState
             implements ProcessingState {
+            private final String s;
+            private final String repository;
+            private final Map<String, Tuple2<String, String>> artifacts;
+            private final CommitSha commit;
+
+            public CommittedState(
+                String s, String repository, Map<String, Tuple2<String, String>> artifacts, CommitSha commit
+            ) {
+                this.s = s;
+                this.repository = repository;
+                this.artifacts = artifacts;
+                this.commit = commit;
+            }
+
             @Override
             public boolean hasStarted() {
                 return true;
@@ -192,6 +398,48 @@ public class ScrapedArtifactEntity extends PersistentEntity<ScrapedArtifactEntit
             public Optional<Map<String, Tuple2<String, String>>> getArtifacts() {
                 return Optional.of(this.artifacts);
             }
+
+            public String s() {
+                return this.s;
+            }
+
+            public String repository() {
+                return this.repository;
+            }
+
+            public Map<String, Tuple2<String, String>> artifacts() {
+                return this.artifacts;
+            }
+
+            public CommitSha commit() {
+                return this.commit;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (CommittedState) obj;
+                return Objects.equals(this.s, that.s) &&
+                    Objects.equals(this.repository, that.repository) &&
+                    Objects.equals(this.artifacts, that.artifacts) &&
+                    Objects.equals(this.commit, that.commit);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.s, this.repository, this.artifacts, this.commit);
+            }
+
+            @Override
+            public String toString() {
+                return "CommittedState[" +
+                    "s=" + this.s + ", " +
+                    "repository=" + this.repository + ", " +
+                    "artifacts=" + this.artifacts + ", " +
+                    "commit=" + this.commit + ']';
+            }
+
         }
 
     }

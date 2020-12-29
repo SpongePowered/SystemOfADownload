@@ -61,12 +61,14 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
         final String artifactId
     ) {
         return request -> {
-            if (request instanceof GetTaggedArtifacts.MavenVersion mvn) {
+            if (request instanceof GetTaggedArtifacts.MavenVersion) {
+                final var mvn = (GetTaggedArtifacts.MavenVersion) request;
                 final String mavenCoordinates = groupId + ":" + artifactId;
                 final String tagValue = mvn.getTagType() + ":" + mvn.versionPart();
                 return this.getTaggedCollection(mavenCoordinates, tagValue)
                     .ask(new TaggedVersionEntity.Command.RequestTaggedVersions(-1, -1));
-            } else if (request instanceof GetTaggedArtifacts.SnapshotBuilds snapshot) {
+            } else if (request instanceof GetTaggedArtifacts.SnapshotBuilds) {
+                final var snapshot = (GetTaggedArtifacts.SnapshotBuilds) request;
                 final String mavenCoordinates = groupId + ":" + artifactId;
                 final String tagValue = snapshot.getTagType() + ":" + snapshot.mavenVersion();
                 return this.getTaggedCollection(mavenCoordinates, tagValue)

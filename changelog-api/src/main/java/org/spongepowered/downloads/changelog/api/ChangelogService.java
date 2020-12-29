@@ -20,7 +20,9 @@ public interface ChangelogService extends Service {
         return Service.named("changelog")
             .withCalls(
               Service.restCall(Method.GET, "/api/:groupId/:artifactId/:version/changelog", this::getChangelog)
-            );
+            )
+            .withAutoAcl(true)
+            ;
     }
 
     ServiceCall<NotUsed, NotUsed> registerArtifact(Artifact artifact);

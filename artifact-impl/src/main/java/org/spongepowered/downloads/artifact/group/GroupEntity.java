@@ -15,7 +15,9 @@ import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
 import org.spongepowered.downloads.utils.UUIDType5;
 
+import java.io.Serial;
 import java.net.URL;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,7 +25,7 @@ import java.util.UUID;
 public class GroupEntity
     extends PersistentEntity<GroupEntity.GroupCommand, GroupEntity.GroupEvent, GroupEntity.GroupState> {
 
-    public sealed interface GroupEvent extends AggregateEvent<GroupEvent>, Jsonable {
+    public interface GroupEvent extends AggregateEvent<GroupEvent>, Jsonable {
 
         AggregateEventTag<GroupEvent> INSTANCE = AggregateEventTag.of(GroupEvent.class);
 
@@ -32,25 +34,203 @@ public class GroupEntity
             return INSTANCE;
         }
 
-        final record GroupRegistered(String groupId, String name, String website) implements GroupEvent {
+        final static class GroupRegistered implements GroupEvent {
+            @Serial private static final long serialVersionUID = 0L;
+            private final String groupId;
+            private final String name;
+            private final String website;
+
+            public GroupRegistered(String groupId, String name, String website) {
+                this.groupId = groupId;
+                this.name = name;
+                this.website = website;
+            }
+
+            public String groupId() {
+                return this.groupId;
+            }
+
+            public String name() {
+                return this.name;
+            }
+
+            public String website() {
+                return this.website;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (GroupRegistered) obj;
+                return Objects.equals(this.groupId, that.groupId) &&
+                    Objects.equals(this.name, that.name) &&
+                    Objects.equals(this.website, that.website);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.groupId, this.name, this.website);
+            }
+
+            @Override
+            public String toString() {
+                return "GroupRegistered[" +
+                    "groupId=" + this.groupId + ", " +
+                    "name=" + this.name + ", " +
+                    "website=" + this.website + ']';
+            }
+
         }
     }
 
-    public sealed interface GroupCommand {
+    public interface GroupCommand {
 
-        final record GetGroup(String groupId) implements GroupCommand, PersistentEntity.ReplyType<GroupResponse> {
+        final static class GetGroup implements GroupCommand, ReplyType<GroupResponse> {
+            private final String groupId;
+
+            public GetGroup(String groupId) {
+                this.groupId = groupId;
+            }
+
+            public String groupId() {
+                return this.groupId;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (GetGroup) obj;
+                return Objects.equals(this.groupId, that.groupId);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.groupId);
+            }
+
+            @Override
+            public String toString() {
+                return "GetGroup[" +
+                    "groupId=" + this.groupId + ']';
+            }
+
         }
 
-        final record GetArtifacts(String groupId)
-            implements GroupCommand, PersistentEntity.ReplyType<GetArtifactsResponse> {
+        final static class GetArtifacts
+            implements GroupCommand, ReplyType<GetArtifactsResponse> {
+            private final String groupId;
+
+            public GetArtifacts(String groupId) {
+                this.groupId = groupId;
+            }
+
+            public String groupId() {
+                return this.groupId;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (GetArtifacts) obj;
+                return Objects.equals(this.groupId, that.groupId);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.groupId);
+            }
+
+            @Override
+            public String toString() {
+                return "GetArtifacts[" +
+                    "groupId=" + this.groupId + ']';
+            }
+
         }
 
-        final record RegisterArtifact(String artifact)
-            implements GroupCommand, PersistentEntity.ReplyType<ArtifactRegistration.Response> {
+        final static class RegisterArtifact
+            implements GroupCommand, ReplyType<ArtifactRegistration.Response> {
+            private final String artifact;
+
+            public RegisterArtifact(String artifact) {
+                this.artifact = artifact;
+            }
+
+            public String artifact() {
+                return this.artifact;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (RegisterArtifact) obj;
+                return Objects.equals(this.artifact, that.artifact);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.artifact);
+            }
+
+            @Override
+            public String toString() {
+                return "RegisterArtifact[" +
+                    "artifact=" + this.artifact + ']';
+            }
+
         }
 
-        final record RegisterGroup(String mavenCoordinates, String name, String website)
-            implements GroupCommand, PersistentEntity.ReplyType<GroupRegistration.Response> {
+        final static class RegisterGroup
+            implements GroupCommand, ReplyType<GroupRegistration.Response> {
+            private final String mavenCoordinates;
+            private final String name;
+            private final String website;
+
+            public RegisterGroup(String mavenCoordinates, String name, String website) {
+                this.mavenCoordinates = mavenCoordinates;
+                this.name = name;
+                this.website = website;
+            }
+
+            public String mavenCoordinates() {
+                return this.mavenCoordinates;
+            }
+
+            public String name() {
+                return this.name;
+            }
+
+            public String website() {
+                return this.website;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (RegisterGroup) obj;
+                return Objects.equals(this.mavenCoordinates, that.mavenCoordinates) &&
+                    Objects.equals(this.name, that.name) &&
+                    Objects.equals(this.website, that.website);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.mavenCoordinates, this.name, this.website);
+            }
+
+            @Override
+            public String toString() {
+                return "RegisterGroup[" +
+                    "mavenCoordinates=" + this.mavenCoordinates + ", " +
+                    "name=" + this.name + ", " +
+                    "website=" + this.website + ']';
+            }
+
         }
     }
 

@@ -28,10 +28,10 @@ public final class Repository {
     }
 
     private Repository(Builder builder) {
-        id = builder.id;
-        name = builder.name;
-        repoUrl = builder.repoUrl;
-        website = builder.website;
+        this.id = builder.id;
+        this.name = builder.name;
+        this.repoUrl = builder.repoUrl;
+        this.website = builder.website;
     }
 
     public UUID getId() {

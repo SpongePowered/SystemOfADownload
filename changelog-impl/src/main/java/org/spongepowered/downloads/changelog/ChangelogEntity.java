@@ -3,16 +3,11 @@ package org.spongepowered.downloads.changelog;
 import akka.NotUsed;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntity;
 import io.vavr.collection.List;
-import org.apache.log4j.Level;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
-import org.spongepowered.downloads.artifact.api.Artifact;
-import org.spongepowered.downloads.artifact.event.ArtifactEvent;
-import org.spongepowered.downloads.artifact.event.ChangelogEvent;
-import org.spongepowered.downloads.changelog.api.query.ChangelogResponse;
+import org.spongepowered.downloads.changelog.event.ChangelogEvent;
 
 import java.util.Optional;
-import java.util.function.Function;
 
 @SuppressWarnings("unchecked")
 public class ChangelogEntity extends PersistentEntity<ChangelogCommand, ChangelogEvent, ChangelogState> {

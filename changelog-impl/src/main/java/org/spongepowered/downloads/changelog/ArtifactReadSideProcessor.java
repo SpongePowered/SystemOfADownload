@@ -33,7 +33,8 @@ public class ArtifactReadSideProcessor extends ReadSideProcessor<ArtifactEvent> 
                     .withAttributes(Attributes.createLogLevels(Attributes.logLevelInfo()))
                     .mapAsyncUnordered(10, e -> {
                         final ArtifactEvent event = e.first();
-                        if (event instanceof ArtifactEvent.ArtifactRegistered registered) {
+                        if (event instanceof ArtifactEvent.ArtifactRegistered) {
+                            final var registered = (ArtifactEvent.ArtifactRegistered) event;
                             return ArtifactReadSideProcessor.this.changelogService
                                 .registerArtifact(registered.artifact()).invoke()
                                 .thenApply(none -> Done.done());

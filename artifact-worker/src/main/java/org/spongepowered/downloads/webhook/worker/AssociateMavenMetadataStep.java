@@ -12,9 +12,13 @@ import org.spongepowered.downloads.webhook.sonatype.SonatypeClient;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-public final record AssociateMavenMetadataStep() implements WorkerStep<ScrapedArtifactEvent.AssociatedMavenMetadata> {
+public final class AssociateMavenMetadataStep implements WorkerStep<ScrapedArtifactEvent.AssociatedMavenMetadata> {
 
     private static final Marker MARKER = MarkerManager.getMarker("AssociateMetadata");
+
+    public AssociateMavenMetadataStep() {
+    }
+
     @Override
     public Try<Done> processEvent(
         final SonatypeArtifactWorkerService service,
@@ -23,7 +27,7 @@ public final record AssociateMavenMetadataStep() implements WorkerStep<ScrapedAr
         final SonatypeClient client = SonatypeClient.configureClient().apply();
         final Artifact base = event.collection().getArtifactComponents().get("base")
             .getOrElse(() -> event.collection().getArtifactComponents().head()._2);
-        return Try.of(() ->client.generateArtifactFrom(base)
+        return Try.of(() -> client.generateArtifactFrom(base)
             .map(sha -> service.getProcessingEntity(event.mavenCoordinates())
                 .ask(new ScrapedArtifactEntity.Command.AssociateCommitShaWithArtifact(event.collection(), sha))
             )
@@ -43,4 +47,20 @@ public final record AssociateMavenMetadataStep() implements WorkerStep<ScrapedAr
     public Marker marker() {
         return MARKER;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj == this || obj != null && obj.getClass() == this.getClass();
+    }
+
+    @Override
+    public int hashCode() {
+        return 1;
+    }
+
+    @Override
+    public String toString() {
+        return "AssociateMavenMetadataStep[]";
+    }
+
 }

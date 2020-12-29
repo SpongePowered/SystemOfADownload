@@ -14,6 +14,8 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.vavr.collection.List;
+import org.taymyr.lagom.javadsl.openapi.OpenAPIService;
+import org.taymyr.lagom.javadsl.openapi.OpenAPIUtils;
 
 import java.util.Optional;
 
@@ -32,7 +34,7 @@ import java.util.Optional;
         )
     )
 )
-public interface CommitService extends Service {
+public interface CommitService extends OpenAPIService {
 
     @Operation(
         method = "POST",
@@ -54,12 +56,12 @@ public interface CommitService extends Service {
 
     @Override
     default Descriptor descriptor() {
-        return Service.named("commit")
+        return OpenAPIUtils.withOpenAPI(Service.named("commit")
             .withCalls(
                 Service.restCall(Method.POST, "/api/repository/:repo/commit/diff", this::getGitDiff),
                 Service.restCall(Method.GET, "/api/repository/:repo/:commit", this::getCommit),
                 Service.restCall(Method.POST, "/api/repository/register", this::registerRepository)
             )
-            .withAutoAcl(true);
+            .withAutoAcl(true));
     }
 }

@@ -12,12 +12,14 @@ import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.query.GetVersionsResponse;
 
+import java.io.Serial;
+import java.util.Objects;
 import java.util.Optional;
 
 @SuppressWarnings("unchecked")
 public final class ArtifactCollectionEntity extends PersistentEntity<ArtifactCollectionEntity.Command, ArtifactCollectionEntity.Event, ArtifactCollectionEntity.State> {
 
-    public sealed interface Event extends Jsonable, AggregateEvent<Event> {
+    public interface Event extends Jsonable, AggregateEvent<Event> {
         AggregateEventTag<Event> INSTANCE = AggregateEventTag.of(Event.class);
 
         @Override
@@ -25,17 +27,216 @@ public final class ArtifactCollectionEntity extends PersistentEntity<ArtifactCol
             return INSTANCE;
         }
 
-        final record ArtifactGroupUpdated(String groupId) implements Event {}
-        final record ArtifactIdUpdated(String artifactId) implements Event {}
-        final record ArtifactVersionRegistered(String version, ArtifactCollection collection) implements Event {}
-        final record CollectionRegistered(ArtifactCollection collection) implements Event { }
+        final static class ArtifactGroupUpdated implements Event {
+            @Serial private static final long serialVersionUID = 0L;
+            private final String groupId;
+
+            public ArtifactGroupUpdated(String groupId) {
+                this.groupId = groupId;
+            }
+
+            public String groupId() {
+                return this.groupId;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (ArtifactGroupUpdated) obj;
+                return Objects.equals(this.groupId, that.groupId);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.groupId);
+            }
+
+            @Override
+            public String toString() {
+                return "ArtifactGroupUpdated[" +
+                    "groupId=" + this.groupId + ']';
+            }
+        }
+
+        final static class ArtifactIdUpdated implements Event {
+            @Serial private static final long serialVersionUID = 0L;
+            private final String artifactId;
+
+            public ArtifactIdUpdated(String artifactId) {
+                this.artifactId = artifactId;
+            }
+
+            public String artifactId() {
+                return this.artifactId;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (ArtifactIdUpdated) obj;
+                return Objects.equals(this.artifactId, that.artifactId);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.artifactId);
+            }
+
+            @Override
+            public String toString() {
+                return "ArtifactIdUpdated[" +
+                    "artifactId=" + this.artifactId + ']';
+            }
+        }
+
+        final static class ArtifactVersionRegistered implements Event {
+            @Serial private static final long serialVersionUID = 0L;
+            private final String version;
+            private final ArtifactCollection collection;
+
+            public ArtifactVersionRegistered(String version, ArtifactCollection collection) {
+                this.version = version;
+                this.collection = collection;
+            }
+
+            public String version() {
+                return this.version;
+            }
+
+            public ArtifactCollection collection() {
+                return this.collection;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (ArtifactVersionRegistered) obj;
+                return Objects.equals(this.version, that.version) &&
+                    Objects.equals(this.collection, that.collection);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.version, this.collection);
+            }
+
+            @Override
+            public String toString() {
+                return "ArtifactVersionRegistered[" +
+                    "version=" + this.version + ", " +
+                    "collection=" + this.collection + ']';
+            }
+        }
+
+        final static class CollectionRegistered implements Event {
+            @Serial private static final long serialVersionUID = 0L;
+            private final ArtifactCollection collection;
+
+            public CollectionRegistered(ArtifactCollection collection) {
+                this.collection = collection;
+            }
+
+            public ArtifactCollection collection() {
+                return this.collection;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (CollectionRegistered) obj;
+                return Objects.equals(this.collection, that.collection);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.collection);
+            }
+
+            @Override
+            public String toString() {
+                return "CollectionRegistered[" +
+                    "collection=" + this.collection + ']';
+            }
+        }
     }
 
-    public sealed interface Command extends Jsonable {
+    public interface Command extends Jsonable {
 
-        final record RegisterCollection(ArtifactCollection collection) implements Command, PersistentEntity.ReplyType<NotUsed> {}
+        final static class RegisterCollection implements Command, ReplyType<NotUsed> {
+            @Serial private static final long serialVersionUID = 0L;
+            private final ArtifactCollection collection;
 
-        final record GetVersions(String groupId, String artifactId) implements Command, PersistentEntity.ReplyType<GetVersionsResponse> {}
+            public RegisterCollection(ArtifactCollection collection) {
+                this.collection = collection;
+            }
+
+            public ArtifactCollection collection() {
+                return this.collection;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (RegisterCollection) obj;
+                return Objects.equals(this.collection, that.collection);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.collection);
+            }
+
+            @Override
+            public String toString() {
+                return "RegisterCollection[" +
+                    "collection=" + this.collection + ']';
+            }
+        }
+
+        final static class GetVersions implements Command, ReplyType<GetVersionsResponse> {
+            @Serial private static final long serialVersionUID = 0L;
+            private final String groupId;
+            private final String artifactId;
+
+            public GetVersions(String groupId, String artifactId) {
+                this.groupId = groupId;
+                this.artifactId = artifactId;
+            }
+
+            public String groupId() {
+                return this.groupId;
+            }
+
+            public String artifactId() {
+                return this.artifactId;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj == this) return true;
+                if (obj == null || obj.getClass() != this.getClass()) return false;
+                var that = (GetVersions) obj;
+                return Objects.equals(this.groupId, that.groupId) &&
+                    Objects.equals(this.artifactId, that.artifactId);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(this.groupId, this.artifactId);
+            }
+
+            @Override
+            public String toString() {
+                return "GetVersions[" +
+                    "groupId=" + this.groupId + ", " +
+                    "artifactId=" + this.artifactId + ']';
+            }
+        }
     }
 
     public static class State {

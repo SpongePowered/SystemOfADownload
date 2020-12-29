@@ -35,11 +35,7 @@
             <artifactId>systemofadownload-webhooks-api</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-webhooks-event</artifactId>
-            <version>${project.version}</version>
-        </dependency>
+
 
         <!-- JGit -->
         <dependency>
@@ -99,6 +95,11 @@
         <dependency>
             <groupId>io.vavr</groupId>
             <artifactId>vavr-jackson</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.taymyr.lagom</groupId>
+            <artifactId>lagom-openapi-java-impl_${scala.binary.version}</artifactId>
         </dependency>
     </dependencies>
 

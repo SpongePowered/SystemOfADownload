@@ -19,10 +19,13 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-public final record RequestArtifactStep()
+public final class RequestArtifactStep
     implements WorkerStep<ScrapedArtifactEvent.ArtifactRequested> {
     private static final Marker MARKER = MarkerManager.getMarker("ARTIFACT_REQUESTED");
     private static final Pattern filePattern = Pattern.compile("(dev\\b|\\d+|shaded).jar$");
+
+    public RequestArtifactStep() {
+    }
 
     @Override
     public Try<Done> processEvent(
@@ -33,7 +36,8 @@ public final record RequestArtifactStep()
             () -> service.artifacts.getGroup(event.mavenCoordinates().split(":")[0])
                 .invoke()
                 .thenComposeAsync(response -> {
-                    if (response instanceof GroupResponse.Available available) {
+                    if (response instanceof GroupResponse.Available) {
+                        final var available = (GroupResponse.Available) response;
                         return this.processInitializationWithGroup(service, event, available);
                     }
                     return CompletableFuture.completedFuture(Done.done());
@@ -53,7 +57,8 @@ public final record RequestArtifactStep()
         final GroupResponse.Available available
     ) {
         final SonatypeClient client = SonatypeClient.configureClient().apply();
-        final Try<Component> componentTry = client.resolveMavenArtifactWithComponentVersion(event.mavenGroupId(), event.mavenArtifactId(), event.componentVersion());
+        final Try<Component> componentTry = client.resolveMavenArtifactWithComponentVersion(
+            event.mavenGroupId(), event.mavenArtifactId(), event.componentVersion());
         final var newCollection = componentTry.map(component -> {
             final Component.Asset base = component.assets()
                 // First, try "finding" the most appropriate jar
@@ -87,7 +92,9 @@ public final record RequestArtifactStep()
                 .invoke(new ArtifactRegistration.RegisterCollection(updatedCollection))
                 .thenCompose(done -> service
                     .getProcessingEntity(event.mavenCoordinates())
-                    .ask(new ScrapedArtifactEntity.Command.AssociateMetadataWithCollection(updatedCollection, component, tagVersion))
+                    .ask(new ScrapedArtifactEntity.Command.AssociateMetadataWithCollection(updatedCollection, component,
+                        tagVersion
+                    ))
                     .thenApply(notUsed -> Done.done())
                 ).thenCompose(response -> service.artifacts
                     .registerTaggedVersion(event.mavenCoordinates(), tagVersion)
@@ -132,4 +139,20 @@ base name for will be the jar that has the shortest file name length.
             .replace("universal", "")
             ;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj == this || obj != null && obj.getClass() == this.getClass();
+    }
+
+    @Override
+    public int hashCode() {
+        return 1;
+    }
+
+    @Override
+    public String toString() {
+        return "RequestArtifactStep[]";
+    }
+
 }

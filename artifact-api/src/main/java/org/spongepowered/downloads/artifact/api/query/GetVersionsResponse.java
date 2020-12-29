@@ -3,11 +3,100 @@ package org.spongepowered.downloads.artifact.api.query;
 import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 
-public sealed interface GetVersionsResponse {
+import java.util.Objects;
 
-    final record VersionsAvailable(Map<String, ArtifactCollection> artifacts) implements GetVersionsResponse {}
+public interface GetVersionsResponse {
 
-    final record GroupUnknown(String groupId) implements GetVersionsResponse {}
+    final static class VersionsAvailable implements GetVersionsResponse {
+        private final Map<String, ArtifactCollection> artifacts;
 
-    final record ArtifactUnknown(String artifactId) implements GetVersionsResponse {}
+        public VersionsAvailable(Map<String, ArtifactCollection> artifacts) {
+            this.artifacts = artifacts;
+        }
+
+        public Map<String, ArtifactCollection> artifacts() {
+            return this.artifacts;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (VersionsAvailable) obj;
+            return Objects.equals(this.artifacts, that.artifacts);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.artifacts);
+        }
+
+        @Override
+        public String toString() {
+            return "VersionsAvailable[" +
+                "artifacts=" + this.artifacts + ']';
+        }
+    }
+
+    final static class GroupUnknown implements GetVersionsResponse {
+        private final String groupId;
+
+        public GroupUnknown(String groupId) {
+            this.groupId = groupId;
+        }
+
+        public String groupId() {
+            return this.groupId;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (GroupUnknown) obj;
+            return Objects.equals(this.groupId, that.groupId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.groupId);
+        }
+
+        @Override
+        public String toString() {
+            return "GroupUnknown[" +
+                "groupId=" + this.groupId + ']';
+        }
+    }
+
+    final static class ArtifactUnknown implements GetVersionsResponse {
+        private final String artifactId;
+
+        public ArtifactUnknown(String artifactId) {
+            this.artifactId = artifactId;
+        }
+
+        public String artifactId() {
+            return this.artifactId;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (ArtifactUnknown) obj;
+            return Objects.equals(this.artifactId, that.artifactId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.artifactId);
+        }
+
+        @Override
+        public String toString() {
+            return "ArtifactUnknown[" +
+                "artifactId=" + this.artifactId + ']';
+        }
+    }
 }

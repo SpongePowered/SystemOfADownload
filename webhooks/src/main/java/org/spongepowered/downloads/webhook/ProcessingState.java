@@ -4,9 +4,10 @@ import io.vavr.Tuple2;
 import io.vavr.collection.Map;
 import org.spongepowered.downloads.git.api.CommitSha;
 
+import java.util.Objects;
 import java.util.Optional;
 
-sealed interface ProcessingState {
+interface ProcessingState {
 
     boolean hasStarted();
 
@@ -34,7 +35,9 @@ sealed interface ProcessingState {
 
     Optional<Map<String, Tuple2<String, String>>> getArtifacts();
 
-    final record EmptyState() implements ProcessingState {
+    final static class EmptyState implements ProcessingState {
+        public EmptyState() {
+        }
 
         public static EmptyState empty() {
             return new EmptyState();
@@ -74,13 +77,38 @@ sealed interface ProcessingState {
         public Optional<Map<String, Tuple2<String, String>>> getArtifacts() {
             return Optional.empty();
         }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj == this || obj != null && obj.getClass() == this.getClass();
+        }
+
+        @Override
+        public int hashCode() {
+            return 1;
+        }
+
+        @Override
+        public String toString() {
+            return "EmptyState[]";
+        }
+
     }
 
-    final record MetadataState(
-        String coordinates,
-        String repository,
-        Map<String, Tuple2<String, String>> artifacts
-    ) implements ProcessingState {
+    final static class MetadataState implements ProcessingState {
+        private final String coordinates;
+        private final String repository;
+        private final Map<String, Tuple2<String, String>> artifacts;
+
+        public MetadataState(
+            String coordinates,
+            String repository,
+            Map<String, Tuple2<String, String>> artifacts
+        ) {
+            this.coordinates = coordinates;
+            this.repository = repository;
+            this.artifacts = artifacts;
+        }
 
         @Override
         public boolean hasStarted() {
@@ -116,10 +144,60 @@ sealed interface ProcessingState {
         public Optional<Map<String, Tuple2<String, String>>> getArtifacts() {
             return Optional.of(this.artifacts);
         }
+
+        public String coordinates() {
+            return this.coordinates;
+        }
+
+        public String repository() {
+            return this.repository;
+        }
+
+        public Map<String, Tuple2<String, String>> artifacts() {
+            return this.artifacts;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (MetadataState) obj;
+            return Objects.equals(this.coordinates, that.coordinates) &&
+                Objects.equals(this.repository, that.repository) &&
+                Objects.equals(this.artifacts, that.artifacts);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.coordinates, this.repository, this.artifacts);
+        }
+
+        @Override
+        public String toString() {
+            return "MetadataState[" +
+                "coordinates=" + this.coordinates + ", " +
+                "repository=" + this.repository + ", " +
+                "artifacts=" + this.artifacts + ']';
+        }
+
     }
 
-    final record CommittedState(String s, String repository, Map<String, Tuple2<String, String>> artifacts, CommitSha commit)
+    final static class CommittedState
         implements ProcessingState {
+        private final String s;
+        private final String repository;
+        private final Map<String, Tuple2<String, String>> artifacts;
+        private final CommitSha commit;
+
+        public CommittedState(
+            String s, String repository, Map<String, Tuple2<String, String>> artifacts, CommitSha commit
+        ) {
+            this.s = s;
+            this.repository = repository;
+            this.artifacts = artifacts;
+            this.commit = commit;
+        }
+
         @Override
         public boolean hasStarted() {
             return true;
@@ -154,6 +232,48 @@ sealed interface ProcessingState {
         public Optional<Map<String, Tuple2<String, String>>> getArtifacts() {
             return Optional.of(this.artifacts);
         }
+
+        public String s() {
+            return this.s;
+        }
+
+        public String repository() {
+            return this.repository;
+        }
+
+        public Map<String, Tuple2<String, String>> artifacts() {
+            return this.artifacts;
+        }
+
+        public CommitSha commit() {
+            return this.commit;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) return true;
+            if (obj == null || obj.getClass() != this.getClass()) return false;
+            var that = (CommittedState) obj;
+            return Objects.equals(this.s, that.s) &&
+                Objects.equals(this.repository, that.repository) &&
+                Objects.equals(this.artifacts, that.artifacts) &&
+                Objects.equals(this.commit, that.commit);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(this.s, this.repository, this.artifacts, this.commit);
+        }
+
+        @Override
+        public String toString() {
+            return "CommittedState[" +
+                "s=" + this.s + ", " +
+                "repository=" + this.repository + ", " +
+                "artifacts=" + this.artifacts + ", " +
+                "commit=" + this.commit + ']';
+        }
+
     }
 
 }
