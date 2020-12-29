@@ -12,7 +12,7 @@ public interface AuthService extends Service {
 
         public static final String LDAP = "ldap";
         public static final String JWT = "jwt";
-        public static final String INTERNAL = "internal";
+        public static final String WEBHOOK = "internal";
     }
 
     final class Roles {

@@ -4,29 +4,48 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Inject;
 import com.google.inject.Provides;
 import com.google.inject.name.Named;
-import com.lightbend.lagom.javadsl.api.transport.NotFound;
 import com.nimbusds.jose.JOSEException;
+import org.ldaptive.ConnectionConfig;
+import org.ldaptive.DefaultConnectionFactory;
+import org.ldaptive.auth.PooledBindAuthenticationHandler;
+import org.ldaptive.auth.SearchDnResolver;
+import org.ldaptive.pool.BlockingConnectionPool;
+import org.ldaptive.pool.IdlePruneStrategy;
+import org.ldaptive.pool.PoolConfig;
+import org.ldaptive.pool.PooledConnectionFactory;
+import org.ldaptive.pool.SearchValidator;
 import org.pac4j.core.authorization.authorizer.Authorizer;
+import org.pac4j.core.client.DirectClient;
 import org.pac4j.core.config.Config;
 import org.pac4j.core.context.HttpConstants;
+import org.pac4j.core.credentials.TokenCredentials;
+import org.pac4j.core.credentials.UsernamePasswordCredentials;
+import org.pac4j.core.credentials.authenticator.Authenticator;
+import org.pac4j.core.exception.CredentialsException;
 import org.pac4j.core.profile.CommonProfile;
+import org.pac4j.http.client.direct.DirectBasicAuthClient;
 import org.pac4j.http.client.direct.HeaderClient;
+import org.pac4j.http.client.direct.IpClient;
+import org.pac4j.http.credentials.authenticator.IpRegexpAuthenticator;
 import org.pac4j.jwt.config.encryption.SecretEncryptionConfiguration;
 import org.pac4j.jwt.config.signature.SecretSignatureConfiguration;
 import org.pac4j.jwt.credentials.authenticator.JwtAuthenticator;
 import org.pac4j.jwt.profile.JwtGenerator;
+import org.pac4j.ldap.profile.service.LdapProfileService;
 import org.spongepowered.downloads.auth.api.AuthService;
 import org.spongepowered.downloads.auth.api.SOADAuth;
 
 import java.security.SecureRandom;
 import java.text.ParseException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.Objects;
 
 // See: https://github.com/pac4j/lagom-pac4j-java-demo
 //
-// We could alternatively go for HTTP or Cookie auth that uses LDAP as a backing store, but
+// We could alternatively go for Cookie auth that uses LDAP as an initial check, but
 // JWT may suffice - we can then just use LDAP as a way enable JWT generation. We can also just
 // require LDAP every time... but that's probably not what we want.
 //
@@ -36,6 +55,12 @@ import java.util.Date;
 //
 // JWTs should be short lived anyway.
 public final class AuthModule extends AbstractModule {
+
+    private final String ipAddressWhitelistRegex = Objects.requireNonNullElse(System.getenv("IP_WHITELIST"), "(127.0.0.1|localhost)");;
+    private final boolean useDummyCredentials = Objects.requireNonNullElse(System.getenv("USE_DUMMY_LDAP"), "false").equalsIgnoreCase("true");
+    private final String ldapUrl = Objects.requireNonNullElse(System.getenv("LDAP_URL"), "ldap://localhost:389");
+    private final String ldapBaseUserDn = Objects.requireNonNullElse(System.getenv("LDAP_BASE_USER_DN"), "dc=spongepowered,dc=org");
+    private final String ldapSoadOu = Objects.requireNonNullElse(System.getenv("LDAP_SOAD_OU"), "soad");
 
     private final SecretSignatureConfiguration secretSignatureConfiguration;
     private final SecretEncryptionConfiguration secretEncryptionConfiguration;
@@ -48,7 +73,7 @@ public final class AuthModule extends AbstractModule {
     @Inject
     public AuthModule() {
         final var secureRandom = new SecureRandom();
-        final var bytesToGenerate = new byte[256];
+        final var bytesToGenerate = new byte[64];
         secureRandom.nextBytes(bytesToGenerate);
         this.secretSignatureConfiguration = new SecretSignatureConfiguration(bytesToGenerate);
         secureRandom.nextBytes(bytesToGenerate);
@@ -65,55 +90,96 @@ public final class AuthModule extends AbstractModule {
     //  create a JWT in the body of the request/response method.
     @Provides
     @Named(AuthService.Providers.LDAP)
-    protected HeaderClient providerHeaderLDAPClient() {
-        final var headerClient = new HeaderClient();
-        headerClient.setName(AuthService.Providers.LDAP);
-        headerClient.setHeaderName(HttpConstants.AUTHENTICATE_HEADER);
+    protected DirectClient<UsernamePasswordCredentials, CommonProfile> providerHeaderLDAPClient() {
+        final var basicAuthClient = new DirectBasicAuthClient();
+        basicAuthClient.setName(AuthService.Providers.LDAP);
+
+        final Authenticator<UsernamePasswordCredentials> authenticator;
+        // TODO: Ditch this once we're running.
+        if (this.useDummyCredentials) {
+            authenticator = ((usernamePasswordCredentials, webContext) -> {
+                if (usernamePasswordCredentials.getUsername().equals("soad") && usernamePasswordCredentials.getPassword().equals("systemofadownload")) {
+                    final var profile = new CommonProfile();
+                    profile.setId("soad");
+                    usernamePasswordCredentials.setUserProfile(profile);
+                    return;
+                }
+                throw new CredentialsException("Incorrect username and password.");
+            });
+        } else {
+            // http://www.pac4j.org/3.4.x/docs/authenticators/ldap.html
+            // This could probably be improved... but the documentation leaves something to be desired
+            final var dnResolver = new SearchDnResolver();
+            dnResolver.setBaseDn(this.ldapBaseUserDn);
+            dnResolver.setUserFilter("(&(ou=" + this.ldapSoadOu + ")(uid={user}))"); // TODO: Need to check this on LDAP
+            final var connectionConfig = new ConnectionConfig();
+            connectionConfig.setConnectTimeout(Duration.ofMillis(500));
+            connectionConfig.setResponseTimeout(Duration.ofSeconds(1));
+            connectionConfig.setLdapUrl(this.ldapUrl);
+            final var connectionFactory = new DefaultConnectionFactory();
+            connectionFactory.setConnectionConfig(connectionConfig);
+            final var poolConfig = new PoolConfig();
+            poolConfig.setMinPoolSize(1);
+            poolConfig.setMaxPoolSize(2);
+            poolConfig.setValidateOnCheckOut(true);
+            poolConfig.setValidateOnCheckIn(true);
+            poolConfig.setValidatePeriodically(false);
+            final var searchValidator = new SearchValidator();
+            final var pruneStrategy = new IdlePruneStrategy();
+            final var connectionPool = new BlockingConnectionPool();
+            connectionPool.setPoolConfig(poolConfig);
+            connectionPool.setBlockWaitTime(Duration.ofSeconds(1));
+            connectionPool.setValidator(searchValidator);
+            connectionPool.setPruneStrategy(pruneStrategy);
+            connectionPool.setConnectionFactory(connectionFactory);
+            connectionPool.initialize();
+            final var pooledConnectionFactory = new PooledConnectionFactory();
+            pooledConnectionFactory.setConnectionPool(connectionPool);
+            dnResolver.setConnectionFactory(pooledConnectionFactory);
+            final var handler = new PooledBindAuthenticationHandler();
+            handler.setConnectionFactory(pooledConnectionFactory);
+            final var ldaptiveAuthenticator = new org.ldaptive.auth.Authenticator();
+            ldaptiveAuthenticator.setDnResolver(dnResolver);
+            ldaptiveAuthenticator.setAuthenticationHandler(handler);
+
+            authenticator = new LdapProfileService(pooledConnectionFactory, ldaptiveAuthenticator, this.ldapBaseUserDn);
+        }
 
         // If we're IP whitelisting it, we just need to check the webcontext. Otherwise we'll want to
         // add tokens and such
-        headerClient.setAuthenticator((tokenCredentials, webContext) -> {
-            // if failure, not found as it shouldn't even be exposed
-            // throw new NotFound("Not found");
-            final var profile = new CommonProfile();
-            profile.setId("admin");
+        basicAuthClient.setAuthenticator(authenticator);
+        basicAuthClient.setAuthorizationGenerator((webContext, profile) -> {
+            // TODO: need to check the ldap profile for the right OU, but if that filter is right, then we won't need to
+            //  We're assuming that there is only one role on SOAD coming from LDAP right now, if more, we'll need to
+            //  inspect the profile to see what attributes are given.
             profile.addRole(AuthService.Roles.ADMIN);
-            profile.setClientName("SOAD Admin User");
-            tokenCredentials.setUserProfile(profile);
+            return profile;
         });
-        headerClient.setAuthorizationGenerator((webContext, commonProfile) -> commonProfile);
-        return headerClient;
+        return basicAuthClient;
     }
 
     // For use with internal endpoints, basically the Sonatype endpoint
+    // IP Whitelisted.
     @Provides
-    @Named(AuthService.Providers.INTERNAL)
-    protected HeaderClient provideInternalAuthenticatorClient() throws ParseException, JOSEException {
-        final var headerClient = new HeaderClient();
-        headerClient.setName(AuthService.Providers.INTERNAL);
-
-        // If we're IP whitelisting it, we just need to check the webcontext. Otherwise we'll want to
-        // add tokens and such
-        headerClient.setAuthenticator((tokenCredentials, webContext) -> {
-            if (webContext != null) {
-                // it never is, we're just testing here.
-                final var profile = new CommonProfile();
-                profile.setId("webhook");
-                profile.addRole(AuthService.Roles.WEBHOOK);
-                profile.setClientName("SOAD Webhook");
-                tokenCredentials.setUserProfile(profile);
-                return;
-            }
-            // if failure, not found as it shouldn't even be exposed
-            throw new NotFound("Not found");
+    @Named(AuthService.Providers.WEBHOOK)
+    protected DirectClient<TokenCredentials, CommonProfile> provideInternalAuthenticatorClient() {
+        final var ipClient = new IpClient();
+        ipClient.setName(AuthService.Providers.WEBHOOK);
+        ipClient.setAuthenticator(new IpRegexpAuthenticator(this.ipAddressWhitelistRegex));
+        ipClient.setProfileCreator((tokenCredentials, webContext) -> {
+            final var profile = new CommonProfile();
+            profile.setId("webhook");
+            profile.addRole(AuthService.Roles.WEBHOOK);
+            profile.setClientName("SOAD Webhook");
+            return profile;
         });
-        return headerClient;
+        return ipClient;
     }
 
     // Provides the JWT client - mostly taken from example.
     @Provides
     @Named(AuthService.Providers.JWT)
-    protected HeaderClient provideHeaderJwtClient() throws ParseException, JOSEException {
+    protected DirectClient<TokenCredentials, CommonProfile> provideHeaderJwtClient() throws ParseException, JOSEException {
         final var headerClient = new HeaderClient();
         headerClient.setName(AuthService.Providers.JWT);
         headerClient.setHeaderName(HttpConstants.AUTHORIZATION_HEADER);
@@ -122,17 +188,8 @@ public final class AuthModule extends AbstractModule {
         final var jwtAuthenticator = new JwtAuthenticator();
         jwtAuthenticator.addSignatureConfiguration(this.secretSignatureConfiguration);
         jwtAuthenticator.addEncryptionConfiguration(this.secretEncryptionConfiguration);
-        headerClient.setAuthenticator(jwtAuthenticator);
-        // Custom AuthorizationGenerator to compute the appropriate roles of the authenticated user profile.
-        // Roles are fetched from JWT 'roles' attribute.
-        // See more http://www.pac4j.org/3.4.x/docs/clients.html#2-compute-roles-and-permissions
-        /* headerClient.setAuthorizationGenerator((context, profile) -> {
-            if (profile.containsAttribute("roles")) {
-                profile.addRoles(profile.getAttribute("roles", Collection.class));
-            }
-            return profile;
-        }); */
-        headerClient.setName("jwt_header");
+        headerClient.setAuthenticator(jwtAuthenticator); // this should provide the correct profile automagically.
+        headerClient.setName(AuthService.Providers.JWT);
         return headerClient;
     }
 
@@ -147,15 +204,15 @@ public final class AuthModule extends AbstractModule {
     @Provides
     @SOADAuth
     protected Config configProvider(
-            @Named(AuthService.Providers.JWT) final HeaderClient client,
-            @Named(AuthService.Providers.LDAP) final HeaderClient ldapClient,
-            @Named(AuthService.Providers.INTERNAL) final HeaderClient internalClient) {
+            @Named(AuthService.Providers.JWT) final DirectClient<TokenCredentials, CommonProfile> client,
+            @Named(AuthService.Providers.LDAP) final DirectClient<UsernamePasswordCredentials, CommonProfile> ldapClient,
+            @Named(AuthService.Providers.WEBHOOK) final DirectClient<TokenCredentials, CommonProfile> webhookClient) {
         final var config = new Config();
-        config.getClients().setDefaultSecurityClients(client.getHeaderName());
+        config.getClients().setDefaultSecurityClients(client.getName());
         config.getClients().setClients(
                 client,
                 ldapClient,
-                internalClient
+                webhookClient
         );
         config.addAuthorizer(AuthService.Roles.ADMIN, this.adminRoleAuthorizer);
         config.addAuthorizer(AuthService.Roles.WEBHOOK, this.webhookAuthorizer);
