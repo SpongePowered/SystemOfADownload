@@ -152,12 +152,6 @@
                 <version>${pac4j.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.pac4j</groupId>
-                <artifactId>pac4j-jwt</artifactId>
-                <version>${pac4j.version}</version>
-            </dependency>
-
-            <dependency>
                 <groupId>org.taymyr.lagom</groupId>
                 <artifactId>lagom-openapi-java-api_${scala.binary.version}</artifactId>
                 <version>${lagom.openapi.version}</version>

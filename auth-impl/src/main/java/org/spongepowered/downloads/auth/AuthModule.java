@@ -1,4 +1,4 @@
-package org.spongepowered.downloads.auth.impl;
+package org.spongepowered.downloads.auth;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;

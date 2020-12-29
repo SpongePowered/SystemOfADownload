@@ -1,4 +1,4 @@
-package org.spongepowered.downloads.auth.impl;
+package org.spongepowered.downloads.auth;
 
 import akka.NotUsed;
 import com.google.inject.Inject;

@@ -9,7 +9,7 @@ downloads website.
 
 ## Requirements
 
-- Java 15
+- Java 14
 
 ## Technologies in use
 
@@ -28,11 +28,12 @@ that goes at length about how the system works together.
 ### Services
 Each service (maven module) in this project is meant to represent a specific
 domain of control/knowledge, and as such, rendered into its own service. They are
-as follows:
+as follows
 - `ArtifactService`
 - `CommitService`
 - `ChangelogService`
 - `SonatypeWebhookService`
+- `AuthService`
 - `GraphQLService`
 
 The first three are what effectively being given as model views to exploring a paired
@@ -64,6 +65,13 @@ This is the webhook functionality that performs a [Saga]-like series of jobs or 
 work. Because the nature of an artifact being uploaded to Sonatype and "the fact that anything
 can and will go wrong", 
 
+### AuthService
+
+Provides the login end point and generates Json Web Tokens (JWTs) to enable interacting
+with select services. It uses lagom-pac4j's [`SecuredService`] to provide authentication
+and authorization to other endpoints. It is used to provide internal, LDAP and JWT based
+authentication.
+
 [LagomFramework]:https://lagomframework.com/
 [Event Source]:https://docs.microsoft.com/en-us/azure/architecture/patterns/event-sourcing
 [CQRS]:https://docs.microsoft.com/en-us/azure/architecture/patterns/cqrs
@@ -71,3 +79,4 @@ can and will go wrong",
 [Cassandra]:https://cassandra.apache.org
 [Sonatype Nexus]:https://www.sonatype.com/nexus/repository-pro
 [Saga]:https://docs.microsoft.com/en-us/azure/architecture/reference-architectures/saga/saga
+[`SecuredService`]:https://github.com/pac4j/lagom-pac4j/blob/master/shared/src/main/java/org/pac4j/lagom/javadsl/SecuredService.java
