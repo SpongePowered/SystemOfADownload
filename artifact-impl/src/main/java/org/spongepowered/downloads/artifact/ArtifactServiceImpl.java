@@ -22,6 +22,7 @@ import org.spongepowered.downloads.artifact.collection.ArtifactCollectionEntity;
 import org.spongepowered.downloads.artifact.collection.TaggedVersionEntity;
 import org.spongepowered.downloads.artifact.group.GroupEntity;
 import org.spongepowered.downloads.auth.api.AuthService;
+import org.spongepowered.downloads.auth.api.SOADAuth;
 import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
 
 import java.util.Locale;
@@ -35,7 +36,7 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
     private final Config securityConfig;
 
     @Inject
-    public ArtifactServiceImpl(final PersistentEntityRegistry registry, final Config securityConfig) {
+    public ArtifactServiceImpl(final PersistentEntityRegistry registry, @SOADAuth final Config securityConfig) {
         this.registry = registry;
         this.registry.register(GroupEntity.class);
         this.registry.register(ArtifactCollectionEntity.class);

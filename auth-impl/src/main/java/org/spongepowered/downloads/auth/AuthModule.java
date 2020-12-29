@@ -1,6 +1,7 @@
 package org.spongepowered.downloads.auth;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.Inject;
 import com.google.inject.Provides;
 import com.google.inject.name.Named;
 import com.lightbend.lagom.javadsl.api.transport.NotFound;
@@ -15,6 +16,7 @@ import org.pac4j.jwt.config.signature.SecretSignatureConfiguration;
 import org.pac4j.jwt.credentials.authenticator.JwtAuthenticator;
 import org.pac4j.jwt.profile.JwtGenerator;
 import org.spongepowered.downloads.auth.api.AuthService;
+import org.spongepowered.downloads.auth.api.SOADAuth;
 
 import java.security.SecureRandom;
 import java.text.ParseException;
@@ -43,6 +45,7 @@ public final class AuthModule extends AbstractModule {
     private final Authorizer<CommonProfile> webhookAuthorizer =
             (webContext, list) -> list.stream().anyMatch(x -> !x.isExpired() && x.getRoles().contains(AuthService.Roles.WEBHOOK));
 
+    @Inject
     public AuthModule() {
         final var secureRandom = new SecureRandom();
         final var bytesToGenerate = new byte[256];
@@ -64,7 +67,7 @@ public final class AuthModule extends AbstractModule {
     @Named(AuthService.Providers.LDAP)
     protected HeaderClient providerHeaderLDAPClient() {
         final var headerClient = new HeaderClient();
-        headerClient.setName("ldap");
+        headerClient.setName(AuthService.Providers.LDAP);
         headerClient.setHeaderName(HttpConstants.AUTHENTICATE_HEADER);
 
         // If we're IP whitelisting it, we just need to check the webcontext. Otherwise we'll want to
@@ -87,7 +90,7 @@ public final class AuthModule extends AbstractModule {
     @Named(AuthService.Providers.INTERNAL)
     protected HeaderClient provideInternalAuthenticatorClient() throws ParseException, JOSEException {
         final var headerClient = new HeaderClient();
-        headerClient.setName("internal");
+        headerClient.setName(AuthService.Providers.INTERNAL);
 
         // If we're IP whitelisting it, we just need to check the webcontext. Otherwise we'll want to
         // add tokens and such
@@ -112,6 +115,7 @@ public final class AuthModule extends AbstractModule {
     @Named(AuthService.Providers.JWT)
     protected HeaderClient provideHeaderJwtClient() throws ParseException, JOSEException {
         final var headerClient = new HeaderClient();
+        headerClient.setName(AuthService.Providers.JWT);
         headerClient.setHeaderName(HttpConstants.AUTHORIZATION_HEADER);
         headerClient.setPrefixHeader(HttpConstants.BEARER_HEADER_PREFIX);
 
@@ -133,6 +137,7 @@ public final class AuthModule extends AbstractModule {
     }
 
     @Provides
+    @SOADAuth
     protected JwtGenerator<CommonProfile> provideJwtGenerator() {
         final var generator = new JwtGenerator<>(this.secretSignatureConfiguration, this.secretEncryptionConfiguration);
         generator.setExpirationTime(Date.from(Instant.now().plus(10, ChronoUnit.MINUTES)));
@@ -140,8 +145,9 @@ public final class AuthModule extends AbstractModule {
     }
 
     @Provides
+    @SOADAuth
     protected Config configProvider(
-            final HeaderClient client,
+            @Named(AuthService.Providers.JWT) final HeaderClient client,
             @Named(AuthService.Providers.LDAP) final HeaderClient ldapClient,
             @Named(AuthService.Providers.INTERNAL) final HeaderClient internalClient) {
         final var config = new Config();

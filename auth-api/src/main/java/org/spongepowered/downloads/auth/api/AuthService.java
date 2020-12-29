@@ -21,7 +21,8 @@ public interface AuthService extends Service {
         public static final String WEBHOOK = "soad_webhook";
     }
 
-    // TODO: Proper response, request will probably be this too
+    // The response will contain a JWT if the authentication succeeded.
+    // Uses standard Basic auth over HTTPS to login.
     ServiceCall<NotUsed, AuthenticationRequest.Response> login();
 
     ServiceCall<NotUsed, NotUsed> logout();

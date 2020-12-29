@@ -9,6 +9,7 @@ import org.pac4j.jwt.profile.JwtGenerator;
 import org.pac4j.lagom.javadsl.SecuredService;
 import org.spongepowered.downloads.auth.api.AuthService;
 import org.spongepowered.downloads.auth.api.AuthenticationRequest;
+import org.spongepowered.downloads.auth.api.SOADAuth;
 
 import java.sql.Date;
 import java.time.Instant;
@@ -21,7 +22,7 @@ public final class AuthServiceImpl implements AuthService, SecuredService {
     private final JwtGenerator<CommonProfile> profileJwtGenerator;
 
     @Inject
-    public AuthServiceImpl(final Config config, final JwtGenerator<CommonProfile> profileJwtGenerator) {
+    public AuthServiceImpl(@SOADAuth final Config config, @SOADAuth final JwtGenerator<CommonProfile> profileJwtGenerator) {
         this.securityConfig = config;
         this.profileJwtGenerator = profileJwtGenerator;
     }
