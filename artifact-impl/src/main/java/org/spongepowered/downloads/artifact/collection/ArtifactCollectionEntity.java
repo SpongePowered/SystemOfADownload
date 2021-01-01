@@ -9,6 +9,10 @@ import com.lightbend.lagom.javadsl.persistence.PersistentEntity;
 import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.collection.HashMap;
 import io.vavr.collection.Map;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Marker;
+import org.apache.logging.log4j.MarkerManager;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.query.GetVersionsResponse;
 
@@ -18,6 +22,9 @@ import java.util.Optional;
 
 @SuppressWarnings("unchecked")
 public final class ArtifactCollectionEntity extends PersistentEntity<ArtifactCollectionEntity.Command, ArtifactCollectionEntity.Event, ArtifactCollectionEntity.State> {
+
+    public static final Logger LOGGER = LogManager.getLogger("ArtifactEntity");
+    public static final Marker DATA_RETRIEVAL = MarkerManager.getMarker("READ");
 
     public interface Event extends Jsonable, AggregateEvent<Event> {
         AggregateEventTag<Event> INSTANCE = AggregateEventTag.of(Event.class);

@@ -1,13 +1,25 @@
 package org.spongepowered.downloads.artifact.api.query;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 
 import java.util.Objects;
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = GetVersionsResponse.VersionsAvailable.class, name = "Artifacts"),
+    @JsonSubTypes.Type(value = GetVersionsResponse.GroupUnknown.class, name = "UnknownGroup"),
+    @JsonSubTypes.Type(value = GetVersionsResponse.ArtifactUnknown.class, name = "UnknownArtifact")
+})
 public interface GetVersionsResponse {
 
+    @JsonSerialize
     final static class VersionsAvailable implements GetVersionsResponse {
+        @JsonProperty
         private final Map<String, ArtifactCollection> artifacts;
 
         public VersionsAvailable(final Map<String, ArtifactCollection> artifacts) {
@@ -38,7 +50,9 @@ public interface GetVersionsResponse {
         }
     }
 
+    @JsonSerialize
     final static class GroupUnknown implements GetVersionsResponse {
+        @JsonProperty
         private final String groupId;
 
         public GroupUnknown(final String groupId) {
@@ -69,7 +83,9 @@ public interface GetVersionsResponse {
         }
     }
 
+    @JsonSerialize
     final static class ArtifactUnknown implements GetVersionsResponse {
+        @JsonProperty
         private final String artifactId;
 
         public ArtifactUnknown(final String artifactId) {
