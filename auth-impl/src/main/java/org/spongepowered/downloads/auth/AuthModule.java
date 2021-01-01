@@ -72,11 +72,11 @@ public final class AuthModule extends AbstractModule implements ServiceGuiceSupp
 
     public AuthModule() {
         final var secureRandom = new SecureRandom();
-        final var bytesToGenerate = new byte[64];
+        final var bytesToGenerate = new byte[32];
         secureRandom.nextBytes(bytesToGenerate);
         this.secretSignatureConfiguration = new SecretSignatureConfiguration(bytesToGenerate);
         secureRandom.nextBytes(bytesToGenerate);
-        this.secretEncryptionConfiguration = new SecretEncryptionConfiguration(bytesToGenerate);
+        this.secretEncryptionConfiguration = null;
     }
 
     @Override
@@ -186,7 +186,7 @@ public final class AuthModule extends AbstractModule implements ServiceGuiceSupp
 
         final var jwtAuthenticator = new JwtAuthenticator();
         jwtAuthenticator.addSignatureConfiguration(this.secretSignatureConfiguration);
-        jwtAuthenticator.addEncryptionConfiguration(this.secretEncryptionConfiguration);
+//        jwtAuthenticator.addEncryptionConfiguration(this.secretEncryptionConfiguration);
         headerClient.setAuthenticator(jwtAuthenticator); // this should provide the correct profile automagically.
         headerClient.setName(AuthService.Providers.JWT);
         return headerClient;
@@ -195,7 +195,7 @@ public final class AuthModule extends AbstractModule implements ServiceGuiceSupp
     @Provides
     @SOADAuth
     protected JwtGenerator<CommonProfile> provideJwtGenerator() {
-        final var generator = new JwtGenerator<>(this.secretSignatureConfiguration, this.secretEncryptionConfiguration);
+        final var generator = new JwtGenerator<>(this.secretSignatureConfiguration);
         generator.setExpirationTime(Date.from(Instant.now().plus(10, ChronoUnit.MINUTES)));
         return generator;
     }

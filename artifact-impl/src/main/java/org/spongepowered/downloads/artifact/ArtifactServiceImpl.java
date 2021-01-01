@@ -34,13 +34,15 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
     private static final Logger LOGGER = LogManager.getLogger(ArtifactServiceImpl.class);
     private final PersistentEntityRegistry registry;
     private final Config securityConfig;
+    private final AuthService auth;
 
     @Inject
-    public ArtifactServiceImpl(final PersistentEntityRegistry registry, @SOADAuth final Config securityConfig) {
+    public ArtifactServiceImpl(final PersistentEntityRegistry registry, final AuthService auth, @SOADAuth final Config securityConfig) {
         this.registry = registry;
         this.registry.register(GroupEntity.class);
         this.registry.register(ArtifactCollectionEntity.class);
         this.registry.register(TaggedVersionEntity.class);
+        this.auth = auth;
         this.securityConfig = securityConfig;
     }
 
