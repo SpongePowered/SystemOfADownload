@@ -1,9 +1,9 @@
 package org.spongepowered.downloads.auth;
 
 import com.google.inject.AbstractModule;
-import com.google.inject.Inject;
 import com.google.inject.Provides;
 import com.google.inject.name.Named;
+import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
 import com.nimbusds.jose.JOSEException;
 import org.ldaptive.ConnectionConfig;
 import org.ldaptive.DefaultConnectionFactory;
@@ -54,7 +54,7 @@ import java.util.Objects;
 // which expire themselves after some time, and can be forcefully expired when needed.
 //
 // JWTs should be short lived anyway.
-public final class AuthModule extends AbstractModule {
+public final class AuthModule extends AbstractModule implements ServiceGuiceSupport {
 
     private final String ipAddressWhitelistRegex = Objects.requireNonNullElse(System.getenv("IP_WHITELIST"), "(127\\.0\\.0\\.1|localhost)");
     private final boolean useDummyCredentials = Objects.requireNonNullElse(System.getenv("USE_DUMMY_LDAP"), "false").equalsIgnoreCase("true");
@@ -70,7 +70,6 @@ public final class AuthModule extends AbstractModule {
     private final Authorizer<CommonProfile> webhookAuthorizer =
             (webContext, list) -> list.stream().anyMatch(x -> !x.isExpired() && x.getRoles().contains(AuthService.Roles.WEBHOOK));
 
-    @Inject
     public AuthModule() {
         final var secureRandom = new SecureRandom();
         final var bytesToGenerate = new byte[64];
@@ -82,7 +81,7 @@ public final class AuthModule extends AbstractModule {
 
     @Override
     protected void configure() {
-        this.bind(AuthService.class).to(AuthServiceImpl.class);
+        this.bindService(AuthService.class, AuthServiceImpl.class);
     }
 
     // TODO: If we'd rather use a GraphQL endpoint to log in, rather than
@@ -207,13 +206,8 @@ public final class AuthModule extends AbstractModule {
             @Named(AuthService.Providers.JWT) final DirectClient<TokenCredentials, CommonProfile> client,
             @Named(AuthService.Providers.LDAP) final DirectClient<UsernamePasswordCredentials, CommonProfile> ldapClient,
             @Named(AuthService.Providers.WEBHOOK) final DirectClient<TokenCredentials, CommonProfile> webhookClient) {
-        final var config = new Config();
+        final var config = new Config(client, ldapClient, webhookClient);
         config.getClients().setDefaultSecurityClients(client.getName());
-        config.getClients().setClients(
-                client,
-                ldapClient,
-                webhookClient
-        );
         config.addAuthorizer(AuthService.Roles.ADMIN, this.adminRoleAuthorizer);
         config.addAuthorizer(AuthService.Roles.WEBHOOK, this.webhookAuthorizer);
         return config;

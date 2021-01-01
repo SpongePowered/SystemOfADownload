@@ -21,5 +21,14 @@
             <artifactId>lagom-pac4j_2.13</artifactId>
             <version>${lagom.pac4j.version}</version>
         </dependency>
+        <!-- Generates handy swagger docs to publish -->
+        <dependency>
+            <groupId>org.taymyr.lagom</groupId>
+            <artifactId>lagom-openapi-java-api_${scala.binary.version}</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.swagger.core.v3</groupId>
+            <artifactId>swagger-annotations</artifactId>
+        </dependency>
     </dependencies>
 </project>

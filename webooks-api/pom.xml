@@ -91,16 +91,4 @@
             <artifactId>vavr-jackson</artifactId>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>com.lightbend.lagom</groupId>
-                <artifactId>lagom-maven-plugin</artifactId>
-                <configuration>
-                    <lagomService>true</lagomService>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
 </project>

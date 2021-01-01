@@ -10,13 +10,14 @@ import org.pac4j.lagom.javadsl.SecuredService;
 import org.spongepowered.downloads.auth.api.AuthService;
 import org.spongepowered.downloads.auth.api.AuthenticationRequest;
 import org.spongepowered.downloads.auth.api.SOADAuth;
+import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
 
 import java.sql.Date;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CompletableFuture;
 
-public final class AuthServiceImpl implements AuthService, SecuredService {
+public final class AuthServiceImpl extends AbstractOpenAPIService implements AuthService, SecuredService {
 
     private final Config securityConfig;
     private final JwtGenerator<CommonProfile> profileJwtGenerator;
