@@ -90,25 +90,15 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
 
     @Override
     public ServiceCall<GroupRegistration.RegisterGroupRequest, GroupRegistration.Response> registerGroup() {
-<<<<<<< HEAD
-        return registration -> {
-            final String mavenCoordinates = registration.groupCoordinates();
-            final String name = registration.groupName();
-            final String website = registration.website();
-            return this.getGroupEntity(registration.groupName().toLowerCase(Locale.ROOT))
-                .ask(new GroupEntity.GroupCommand.RegisterGroup(mavenCoordinates, name, website));
-        };
-=======
         return this.authorize(AuthService.Providers.JWT, AuthService.Roles.ADMIN, profile -> {
             return registration -> {
                 final String mavenCoordinates = registration.groupCoordinates();
                 final String name = registration.groupName();
                 final String website = registration.website();
-                return this.getGroupEntity(mavenCoordinates)
+                return this.getGroupEntity(registration.groupName().toLowerCase(Locale.ROOT))
                         .ask(new GroupEntity.GroupCommand.RegisterGroup(mavenCoordinates, name, website));
             };
         });
->>>>>>> Add authorising code, need to do LDAP authentication
     }
 
     @Override
