@@ -28,6 +28,7 @@
         <module>artifact-event</module>
         <module>artifact-impl</module>
         <module>artifact-worker</module>
+        <module>graphql-api</module>
         <module>graphql-server</module>
         <module>webhooks</module>
         <module>integration-tests</module>

@@ -1,27 +1,35 @@
 package org.spongepowered.downloads.artifact.api;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.spongepowered.downloads.utils.UUIDType5;
 
+import javax.annotation.concurrent.Immutable;
 import java.net.URL;
 import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.UUID;
 
+@Immutable
 @JsonDeserialize
 public final class Group {
 
     @Schema(required = true)
-    private final String groupCoordinates;
+    @JsonProperty
+    public final String groupCoordinates;
     @Schema(required = true)
-    private final String name;
+    @JsonProperty
+    public final String name;
     @Schema(required = true)
-    private final String website;
+    @JsonProperty
+    public final String website;
     @JsonIgnore
-    private final UUID groupId;
+    public final UUID groupId;
 
+    @JsonCreator
     public Group(final String groupCoordinates, final String name, final String website) {
         this.groupCoordinates = groupCoordinates;
         this.name = name;

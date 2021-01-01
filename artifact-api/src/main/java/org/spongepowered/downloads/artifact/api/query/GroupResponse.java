@@ -1,13 +1,24 @@
 package org.spongepowered.downloads.artifact.api.query;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.spongepowered.downloads.artifact.api.Group;
 
 import java.util.Objects;
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = GroupResponse.Missing.class, name = "MissingGroup"),
+    @JsonSubTypes.Type(value = GroupResponse.Available.class, name = "Group")
+})
 public interface GroupResponse {
 
+    @JsonSerialize
     final static class Missing implements GroupResponse {
-        private final String groupId;
+        @JsonProperty
+        public final String groupId;
 
         public Missing(final String groupId) {
             this.groupId = groupId;
@@ -36,9 +47,10 @@ public interface GroupResponse {
                 "groupId=" + this.groupId + ']';
         }
     }
-
+    @JsonSerialize
     final static class Available implements GroupResponse {
-        private final Group group;
+        @JsonProperty
+        public final Group group;
 
         public Available(final Group group) {
             this.group = group;

@@ -21,6 +21,7 @@ import org.spongepowered.downloads.artifact.collection.TaggedVersionEntity;
 import org.spongepowered.downloads.artifact.group.GroupEntity;
 import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
 
+import java.util.Locale;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 
@@ -32,6 +33,9 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
     @Inject
     public ArtifactServiceImpl(final PersistentEntityRegistry registry) {
         this.registry = registry;
+        this.registry.register(GroupEntity.class);
+        this.registry.register(ArtifactCollectionEntity.class);
+        this.registry.register(TaggedVersionEntity.class);
     }
 
     @Override
@@ -84,7 +88,7 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
             final String mavenCoordinates = registration.groupCoordinates();
             final String name = registration.groupName();
             final String website = registration.website();
-            return this.getGroupEntity(mavenCoordinates)
+            return this.getGroupEntity(registration.groupName().toLowerCase(Locale.ROOT))
                 .ask(new GroupEntity.GroupCommand.RegisterGroup(mavenCoordinates, name, website));
         };
     }
@@ -121,8 +125,8 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
     @Override
     public ServiceCall<NotUsed, GroupResponse> getGroup(final String groupId) {
         return notUsed -> {
-            LOGGER.log(Level.DEBUG, String.format("Requesting group by id: %s", groupId));
-            return this.getGroupEntity(groupId)
+            LOGGER.log(Level.INFO, String.format("Requesting group by id: %s", groupId));
+            return this.getGroupEntity(groupId.toLowerCase(Locale.ROOT))
                 .ask(new GroupEntity.GroupCommand.GetGroup(groupId));
         };
     }

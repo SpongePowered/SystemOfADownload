@@ -20,13 +20,16 @@ import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.StringJoiner;
 import java.util.jar.JarInputStream;
@@ -48,6 +51,7 @@ public class SonatypeClient {
     }).memoized();
 
     private final ObjectMapper mapper = new ObjectMapper();
+    private final HttpClient client = HttpClient.newHttpClient();
     private Config config;
     public static final class Config {
         // The base url like https://repo.sonatype.org/service/rest/v1/
@@ -91,16 +95,18 @@ public class SonatypeClient {
     }
 
     private static Try<InputStream> openConnectionTo(final String target) {
-        return Try.of(() -> new URL(target))
-            .mapTry(URL::openConnection)
-            .mapTry(url -> (HttpURLConnection) url)
-            .mapTry(connection -> {
-                connection.setRequestMethod("GET");
-                connection.setRequestProperty("Content-Type", "application/json");
-                connection.setRequestProperty("User-Agent", "Sponge-Downloader");
-                connection.connect();
-                return connection.getInputStream();
-            });
+        return Try.of(() -> URI.create(target))
+            .mapTry(HttpRequest::newBuilder)
+            .map(builder -> builder.timeout(Duration.ofMinutes(2))
+                .header("Content-Type", "application/json")
+                .header("User-Agent", "SystemOfADownload-Crawler")
+                .GET()
+                .build()
+            ).mapTry(httpRequest -> SonatypeClient.configureClient().get().client
+                .sendAsync(httpRequest, HttpResponse.BodyHandlers.ofInputStream())
+                .thenApply(HttpResponse::body)
+                .join()
+            );
     }
 
     /**

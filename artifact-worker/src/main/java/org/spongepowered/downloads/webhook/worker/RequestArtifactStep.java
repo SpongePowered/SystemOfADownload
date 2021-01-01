@@ -88,7 +88,7 @@ public final class RequestArtifactStep
                 component.version(),
                 tagVersion
             );
-            return service.artifacts.registerArtifacts()
+            return service.artifacts.registerArtifacts(available.group().getGroupCoordinates())
                 .invoke(new ArtifactRegistration.RegisterCollection(updatedCollection))
                 .thenCompose(done -> service
                     .getProcessingEntity(event.mavenCoordinates())

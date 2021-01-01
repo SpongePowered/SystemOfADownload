@@ -4,10 +4,15 @@ import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntity;
+import com.lightbend.lagom.serialization.CompressedJsonable;
 import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.collection.HashSet;
 import io.vavr.collection.Set;
 import io.vavr.control.Try;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Marker;
+import org.apache.logging.log4j.MarkerManager;
 import org.spongepowered.downloads.artifact.api.Group;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
@@ -17,6 +22,7 @@ import org.spongepowered.downloads.utils.UUIDType5;
 
 import java.io.Serial;
 import java.net.URL;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,6 +30,9 @@ import java.util.UUID;
 @SuppressWarnings("unchecked")
 public class GroupEntity
     extends PersistentEntity<GroupEntity.GroupCommand, GroupEntity.GroupEvent, GroupEntity.GroupState> {
+
+    public static final Logger LOGGER = LogManager.getLogger("GroupEntity");
+    public static final Marker STATE_RETRIEVAL = MarkerManager.getMarker("READ");
 
     public interface GroupEvent extends AggregateEvent<GroupEvent>, Jsonable {
 
@@ -84,7 +93,7 @@ public class GroupEntity
         }
     }
 
-    public interface GroupCommand {
+    public interface GroupCommand extends Jsonable {
 
         final static class GetGroup implements GroupCommand, ReplyType<GroupResponse> {
             private final String groupId;
@@ -320,15 +329,22 @@ public class GroupEntity
     }
 
     private void respondToGetGroup(final GroupCommand.GetGroup cmd, final ReadOnlyCommandContext<GroupResponse> ctx) {
-        if (this.state().groupCoordinates.equals(cmd.groupId)) {
+        LOGGER.info(STATE_RETRIEVAL, "CurrentState: {} responding to cmd {}", this.state().getName(), cmd);
+        if (this.state().getName().equalsIgnoreCase(cmd.groupId)) {
 
+            LOGGER.info(STATE_RETRIEVAL, "Group Matched, getting response from Stfate: {}", this.state());
             final String website = this.state().website;
             ctx.reply(Try.of(() -> new URL(website))
-                .<GroupResponse>mapTry(url -> new GroupResponse.Available(
-                    new Group(this.state().groupCoordinates, this.state().name, website)))
+                .<GroupResponse>mapTry(url -> {
+                    LOGGER.info(STATE_RETRIEVAL, "URL matched");
+                    final Group group = new Group(this.state().groupCoordinates, this.state().name, website);
+                    LOGGER.info(STATE_RETRIEVAL, "Retrieved Group: (coords: {}, name: {}, website: {})", group.groupCoordinates, group.name, group.website);
+                    return new GroupResponse.Available(group);
+                })
                 .getOrElseGet(throwable -> new GroupResponse.Missing(cmd.groupId)));
             return;
         }
+        LOGGER.info(STATE_RETRIEVAL, "GroupId mismatch, requested {} but had {}", this.state().name, cmd.groupId);
         ctx.reply(new GroupResponse.Missing(cmd.groupId));
     }
 

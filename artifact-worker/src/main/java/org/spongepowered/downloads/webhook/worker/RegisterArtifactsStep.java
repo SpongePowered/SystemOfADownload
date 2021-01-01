@@ -86,7 +86,7 @@ public final class RegisterArtifactsStep
                 component.version(),
                 tagVersion
             );
-            return service.artifacts.registerArtifacts()
+            return service.artifacts.registerArtifacts(component.group())
                 .invoke(new ArtifactRegistration.RegisterCollection(updatedCollection))
                 .thenCompose(done -> service.getProcessingEntity(event.mavenCoordinates())
                     .ask(new ScrapedArtifactEntity.Command.AssociateMetadataWithCollection(updatedCollection, component,

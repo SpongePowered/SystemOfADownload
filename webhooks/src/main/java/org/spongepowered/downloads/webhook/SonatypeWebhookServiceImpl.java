@@ -46,7 +46,7 @@ public class SonatypeWebhookServiceImpl extends AbstractOpenAPIService implement
                     new Group(component.group(), component.group(), ""), component.id(),
                     component.version()
                 );
-                return this.artifacts.registerArtifacts()
+                return this.artifacts.registerArtifacts(component.group())
                     .invoke(new ArtifactRegistration.RegisterCollection(collection))
                     .thenCompose(response -> {
                         if (response instanceof ArtifactRegistration.Response.RegisteredArtifact) {
