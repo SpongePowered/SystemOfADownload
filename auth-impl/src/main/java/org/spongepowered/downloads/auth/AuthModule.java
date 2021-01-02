@@ -6,8 +6,8 @@ import com.google.inject.name.Named;
 import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
 import org.ldaptive.ConnectionConfig;
 import org.ldaptive.DefaultConnectionFactory;
+import org.ldaptive.auth.FormatDnResolver;
 import org.ldaptive.auth.PooledBindAuthenticationHandler;
-import org.ldaptive.auth.SearchDnResolver;
 import org.ldaptive.pool.BlockingConnectionPool;
 import org.ldaptive.pool.IdlePruneStrategy;
 import org.ldaptive.pool.PoolConfig;
@@ -27,6 +27,7 @@ import org.spongepowered.downloads.auth.api.SOADAuth;
 import org.spongepowered.downloads.utils.AuthUtils;
 
 import java.time.Duration;
+import java.util.Collection;
 import java.util.Objects;
 
 // See: https://github.com/pac4j/lagom-pac4j-java-demo
@@ -76,9 +77,8 @@ public final class AuthModule extends AbstractModule implements ServiceGuiceSupp
         } else {
             // http://www.pac4j.org/3.4.x/docs/authenticators/ldap.html
             // This could probably be improved... but the documentation leaves something to be desired
-            final var dnResolver = new SearchDnResolver();
-            dnResolver.setBaseDn(this.ldapBaseUserDn);
-            dnResolver.setUserFilter("(&(ou=" + this.ldapSoadOu + ")(uid={user}))"); // TODO: Need to check this on LDAP
+            final var dnResolver = new FormatDnResolver();
+            dnResolver.setFormat("cn=%s," + this.ldapBaseUserDn);
             final var connectionConfig = new ConnectionConfig();
             connectionConfig.setConnectTimeout(Duration.ofMillis(500));
             connectionConfig.setResponseTimeout(Duration.ofSeconds(1));
@@ -102,24 +102,33 @@ public final class AuthModule extends AbstractModule implements ServiceGuiceSupp
             connectionPool.initialize();
             final var pooledConnectionFactory = new PooledConnectionFactory();
             pooledConnectionFactory.setConnectionPool(connectionPool);
-            dnResolver.setConnectionFactory(pooledConnectionFactory);
+           // dnResolver.setConnectionFactory(pooledConnectionFactory);
             final var handler = new PooledBindAuthenticationHandler();
             handler.setConnectionFactory(pooledConnectionFactory);
             final var ldaptiveAuthenticator = new org.ldaptive.auth.Authenticator();
             ldaptiveAuthenticator.setDnResolver(dnResolver);
             ldaptiveAuthenticator.setAuthenticationHandler(handler);
 
-            authenticator = new LdapProfileService(pooledConnectionFactory, ldaptiveAuthenticator, this.ldapBaseUserDn);
+            authenticator = new LdapProfileService(pooledConnectionFactory, ldaptiveAuthenticator, "ou", this.ldapBaseUserDn);
         }
 
         // If we're IP whitelisting it, we just need to check the webcontext. Otherwise we'll want to
         // add tokens and such
         basicAuthClient.setAuthenticator(authenticator);
         basicAuthClient.setAuthorizationGenerator((webContext, profile) -> {
-            // TODO: need to check the ldap profile for the right OU, but if that filter is right, then we won't need to
-            //  We're assuming that there is only one role on SOAD coming from LDAP right now, if more, we'll need to
-            //  inspect the profile to see what attributes are given.
-            profile.addRole(AuthUtils.Roles.ADMIN);
+            final var ouAttr = profile.getAttribute("ou");
+            final boolean isAdmin;
+            if (ouAttr instanceof String) {
+                isAdmin = ouAttr.equals(this.ldapSoadOu);
+            } else if (ouAttr instanceof Collection) {
+                isAdmin = ((Collection<?>) ouAttr).contains(this.ldapSoadOu);
+            } else {
+                isAdmin = false;
+            }
+
+            if (isAdmin) {
+                profile.addRole(AuthUtils.Roles.ADMIN);
+            }
             return profile;
         });
         return basicAuthClient;

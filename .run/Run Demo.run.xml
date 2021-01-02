@@ -7,11 +7,13 @@
           <option name="delegateBuildToMaven" value="false" />
           <option name="environmentProperties">
             <map>
+              <entry key="JWT-SIGNATURE-SECRET" value="12345678901234567890123456789012" />
+              <entry key="LDAP_BASE_USER_DN" value="ou=Users,dc=example,dc=com" />
+              <entry key="LDAP_URL" value="ldap://localhost:10389" />
               <entry key="PUBLIC-REPO" value="maven-public" />
               <entry key="RELEASE-REPO" value="maven-releases" />
               <entry key="SNAPSHOT-REPO" value="maven-snapshots" />
               <entry key="SONATYPE-URL" value="https://repo-new.spongepowered.org/" />
-              <entry key="USE_DUMMY_LDAP" value="true" />
             </map>
           </option>
           <option name="jreName" value="#USE_PROJECT_JDK" />
