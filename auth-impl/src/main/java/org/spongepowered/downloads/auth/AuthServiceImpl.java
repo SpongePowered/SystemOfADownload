@@ -40,7 +40,9 @@ public final class AuthServiceImpl extends AbstractOpenAPIService implements Aut
     @Override
     public ServiceCall<NotUsed, NotUsed> logout() {
         // TODO - if it's even possible
-        return notUsed -> CompletableFuture.completedFuture(NotUsed.getInstance());
+        return this.authorize(AuthUtils.Types.JWT, AuthUtils.Roles.ADMIN, profile -> {
+            return notUsed -> CompletableFuture.completedFuture(NotUsed.getInstance());
+        });
     }
 
     @Override
