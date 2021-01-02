@@ -13,14 +13,6 @@ public interface AuthService extends OpenAPIService {
     final class Providers {
 
         public static final String LDAP = "ldap";
-        public static final String JWT = "jwt";
-        public static final String WEBHOOK = "internal";
-    }
-
-    final class Roles {
-
-        public static final String ADMIN = "soad_admin";
-        public static final String WEBHOOK = "soad_webhook";
     }
 
     // The response will contain a JWT if the authentication succeeded.

@@ -10,6 +10,7 @@ import org.pac4j.lagom.javadsl.SecuredService;
 import org.spongepowered.downloads.auth.api.AuthService;
 import org.spongepowered.downloads.auth.api.AuthenticationRequest;
 import org.spongepowered.downloads.auth.api.SOADAuth;
+import org.spongepowered.downloads.utils.AuthUtils;
 import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
 
 import java.sql.Date;
@@ -30,7 +31,7 @@ public final class AuthServiceImpl extends AbstractOpenAPIService implements Aut
 
     @Override
     public ServiceCall<NotUsed, AuthenticationRequest.Response> login() {
-        return this.authorize(Providers.LDAP, Roles.ADMIN, profile -> {
+        return this.authorize(Providers.LDAP, AuthUtils.Roles.ADMIN, profile -> {
             this.profileJwtGenerator.setExpirationTime(Date.from(Instant.now().plus(5, ChronoUnit.MINUTES)));
             return notUsed -> CompletableFuture.completedFuture(new AuthenticationRequest.Response(this.profileJwtGenerator.generate(profile)));
         });

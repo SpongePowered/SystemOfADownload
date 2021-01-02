@@ -70,11 +70,6 @@
             <groupId>org.taymyr.lagom</groupId>
             <artifactId>lagom-openapi-java-impl_${scala.binary.version}</artifactId>
         </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-auth-impl</artifactId>
-            <version>${project.version}</version>
-        </dependency>
     </dependencies>
 
     <build>

@@ -23,6 +23,7 @@ import org.spongepowered.downloads.artifact.collection.TaggedVersionEntity;
 import org.spongepowered.downloads.artifact.group.GroupEntity;
 import org.spongepowered.downloads.auth.api.AuthService;
 import org.spongepowered.downloads.auth.api.SOADAuth;
+import org.spongepowered.downloads.utils.AuthUtils;
 import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
 
 import java.util.Locale;
@@ -34,15 +35,13 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
     private static final Logger LOGGER = LogManager.getLogger(ArtifactServiceImpl.class);
     private final PersistentEntityRegistry registry;
     private final Config securityConfig;
-    private final AuthService auth;
 
     @Inject
-    public ArtifactServiceImpl(final PersistentEntityRegistry registry, final AuthService auth, @SOADAuth final Config securityConfig) {
+    public ArtifactServiceImpl(final PersistentEntityRegistry registry, @SOADAuth final Config securityConfig) {
         this.registry = registry;
         this.registry.register(GroupEntity.class);
         this.registry.register(ArtifactCollectionEntity.class);
         this.registry.register(TaggedVersionEntity.class);
-        this.auth = auth;
         this.securityConfig = securityConfig;
     }
 
@@ -92,7 +91,7 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
 
     @Override
     public ServiceCall<GroupRegistration.RegisterGroupRequest, GroupRegistration.Response> registerGroup() {
-        return this.authorize(AuthService.Providers.JWT, AuthService.Roles.ADMIN, profile -> {
+        return this.authorize(AuthUtils.Types.JWT, AuthUtils.Roles.ADMIN, profile -> {
             return registration -> {
                 final String mavenCoordinates = registration.groupCoordinates();
                 final String name = registration.groupName();
@@ -105,7 +104,7 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
 
     @Override
     public ServiceCall<ArtifactRegistration.RegisterCollection, ArtifactRegistration.Response> registerArtifacts(String groupId) {
-        return this.authorize(AuthService.Providers.JWT, AuthService.Roles.ADMIN, profile -> {
+        return this.authorize(AuthUtils.Types.JWT, AuthUtils.Roles.ADMIN, profile -> {
             return registration -> {
                 final String mavenCoordinates = registration.collection().getMavenCoordinates();
                 final StringJoiner joiner = new StringJoiner(",", "[", "]");
@@ -145,7 +144,7 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
 
     @Override
     public ServiceCall<NotUsed, NotUsed> registerTaggedVersion(final String groupAndArtifactId, final String pomVersion) {
-        return this.authorize(AuthService.Providers.JWT, AuthService.Roles.ADMIN, profile -> {
+        return this.authorize(AuthUtils.Types.JWT, AuthUtils.Roles.ADMIN, profile -> {
             return notUsed -> {
                 LOGGER.log(Level.DEBUG, String.format("Registering Tagged version: %s with maven artifact %s", pomVersion, groupAndArtifactId));
                 final List<String> versions;
