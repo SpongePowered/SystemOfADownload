@@ -33,6 +33,8 @@
         <module>webhooks</module>
         <module>integration-tests</module>
         <module>webooks-api</module>
+        <module>auth-api</module>
+        <module>auth-impl</module>
     </modules>
 
     <build>
@@ -150,12 +152,6 @@
                 <version>${pac4j.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.pac4j</groupId>
-                <artifactId>pac4j-jwt</artifactId>
-                <version>${pac4j.version}</version>
-            </dependency>
-
-            <dependency>
                 <groupId>org.taymyr.lagom</groupId>
                 <artifactId>lagom-openapi-java-api_${scala.binary.version}</artifactId>
                 <version>${lagom.openapi.version}</version>
@@ -181,7 +177,7 @@
 
         <lagom.openapi.version>1.2.2</lagom.openapi.version>
         <lagom.version>1.6.4</lagom.version>
-        <pac4j.version>3.7</pac4j.version>
+        <pac4j.version>3.7.0</pac4j.version>
         <lagom.pac4j.version>2.1.0</lagom.pac4j.version>
         <vavr.version>0.10.3</vavr.version>
         <mycila.license.version>4.0.rc2</mycila.license.version>

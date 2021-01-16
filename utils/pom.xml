@@ -18,6 +18,21 @@
             <groupId>io.vavr</groupId>
             <artifactId>vavr</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.pac4j</groupId>
+            <artifactId>lagom-pac4j_2.13</artifactId>
+            <version>${lagom.pac4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.pac4j</groupId>
+            <artifactId>pac4j-http</artifactId>
+            <version>${pac4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.pac4j</groupId>
+            <artifactId>pac4j-jwt</artifactId>
+            <version>${pac4j.version}</version>
+        </dependency>
     </dependencies>
 
 </project>
