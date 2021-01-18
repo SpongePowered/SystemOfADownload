@@ -22,27 +22,25 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact;
+package org.spongepowered.downloads.artifact.collection;
 
-import com.google.inject.AbstractModule;
-import com.google.inject.Provides;
-import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
-import org.pac4j.core.config.Config;
-import org.spongepowered.downloads.artifact.api.ArtifactService;
-import org.spongepowered.downloads.auth.api.SOADAuth;
-import org.spongepowered.downloads.utils.AuthUtils;
+import io.vavr.collection.HashMap;
+import io.vavr.collection.Map;
+import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 
-public class ArtifactModule extends AbstractModule implements ServiceGuiceSupport {
+public class ACState {
 
-    @Override
-    protected void configure() {
-        this.bindService(ArtifactService.class, ArtifactServiceImpl.class);
+    public final String groupId;
+    public final String artifactId;
+    public final Map<String, ArtifactCollection> collection;
+
+    public static ACState empty() {
+        return new ACState("", "", HashMap.empty());
     }
 
-    @Provides
-    @SOADAuth
-    protected Config configProvider() {
-        return AuthUtils.createConfig();
+    public ACState(final String groupId, final String artifactId, final Map<String, ArtifactCollection> collection) {
+        this.groupId = groupId;
+        this.artifactId = artifactId;
+        this.collection = collection;
     }
-
 }

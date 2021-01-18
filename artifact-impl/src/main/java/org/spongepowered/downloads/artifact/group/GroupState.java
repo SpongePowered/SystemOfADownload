@@ -22,27 +22,41 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact;
+package org.spongepowered.downloads.artifact.group;
 
-import com.google.inject.AbstractModule;
-import com.google.inject.Provides;
-import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
-import org.pac4j.core.config.Config;
-import org.spongepowered.downloads.artifact.api.ArtifactService;
-import org.spongepowered.downloads.auth.api.SOADAuth;
-import org.spongepowered.downloads.utils.AuthUtils;
+import io.vavr.collection.HashSet;
+import io.vavr.collection.Set;
+import org.spongepowered.downloads.artifact.api.Group;
+import org.spongepowered.downloads.utils.UUIDType5;
 
-public class ArtifactModule extends AbstractModule implements ServiceGuiceSupport {
+import java.util.UUID;
 
-    @Override
-    protected void configure() {
-        this.bindService(ArtifactService.class, ArtifactServiceImpl.class);
+public final class GroupState {
+    public final String groupCoordinates;
+    public final String name;
+    public final String website;
+    public final Set<String> artifacts;
+    public final UUID groupId;
+
+    static GroupState empty() {
+        return new GroupState("", "", "https://example.com", HashSet.empty());
     }
 
-    @Provides
-    @SOADAuth
-    protected Config configProvider() {
-        return AuthUtils.createConfig();
+    GroupState(
+        final String groupCoordinates, final String name, final String website, final Set<String> artifacts
+    ) {
+        this.groupCoordinates = groupCoordinates;
+        this.name = name;
+        this.website = website;
+        this.groupId = UUIDType5.nameUUIDFromNamespaceAndString(UUIDType5.NAMESPACE_OID, this.groupCoordinates);
+        this.artifacts = artifacts;
     }
 
+    public boolean isEmpty() {
+        return this.groupCoordinates.isEmpty() || this.name.isEmpty();
+    }
+
+    public Group asGroup() {
+        return new Group(this.groupCoordinates, this.name, this.website);
+    }
 }
