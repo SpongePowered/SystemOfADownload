@@ -27,6 +27,10 @@
             <artifactId>vavr</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.vavr</groupId>
+            <artifactId>vavr-jackson</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.taymyr.lagom</groupId>
             <artifactId>lagom-openapi-java-api_${scala.binary.version}</artifactId>
         </dependency>

@@ -35,7 +35,11 @@
             <artifactId>systemofadownload-webhooks-api</artifactId>
             <version>${project.version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.spongepowered</groupId>
+            <artifactId>systemofadownload-auth-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- JGit -->
         <dependency>
@@ -101,6 +105,12 @@
             <groupId>org.taymyr.lagom</groupId>
             <artifactId>lagom-openapi-java-impl_${scala.binary.version}</artifactId>
         </dependency>
+        <!-- Auth -->
+        <dependency>
+            <groupId>org.pac4j</groupId>
+            <artifactId>lagom-pac4j_${scala.binary.version}</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>
