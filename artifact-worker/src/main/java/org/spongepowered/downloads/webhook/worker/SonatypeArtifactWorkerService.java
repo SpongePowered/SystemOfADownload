@@ -25,12 +25,16 @@
 package org.spongepowered.downloads.webhook.worker;
 
 import akka.Done;
+import akka.cluster.sharding.typed.javadsl.ClusterSharding;
+import akka.cluster.sharding.typed.javadsl.Entity;
+import akka.cluster.sharding.typed.javadsl.EntityRef;
 import akka.stream.javadsl.Flow;
 import com.google.inject.Inject;
 import com.lightbend.lagom.javadsl.api.Descriptor;
 import com.lightbend.lagom.javadsl.api.Service;
-import com.lightbend.lagom.javadsl.persistence.PersistentEntityRef;
+import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
+import com.lightbend.lagom.javadsl.persistence.ReadSide;
 import io.vavr.control.Try;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -39,6 +43,8 @@ import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.changelog.api.ChangelogService;
+import org.spongepowered.downloads.utils.AuthUtils;
+import org.spongepowered.downloads.webhook.ArtifactWorker;
 import org.spongepowered.downloads.webhook.ScrapedArtifactEvent;
 import org.spongepowered.downloads.webhook.SonatypeWebhookService;
 
@@ -46,7 +52,7 @@ import java.util.IdentityHashMap;
 import java.util.Optional;
 import java.util.function.Function;
 
-public class SonatypeArtifactWorkerService implements Service {
+public class SonatypeArtifactWorkerService implements ArtifactWorker {
 
     static final Logger LOGGER = LogManager.getLogger(SonatypeArtifactWorkerService.class);
     static final Marker SERVICE = MarkerManager.getMarker("ArtifactScraper");
@@ -57,29 +63,44 @@ public class SonatypeArtifactWorkerService implements Service {
     final ChangelogService changelog;
     final SonatypeWebhookService webhookService;
     final PersistentEntityRegistry registry;
+    final ClusterSharding clusterSharding;
 
     @Inject
     public SonatypeArtifactWorkerService(
         final ArtifactService artifacts, final ChangelogService changelog,
         final SonatypeWebhookService webhookService,
-        final PersistentEntityRegistry registry
+        final PersistentEntityRegistry registry,
+        final ClusterSharding clusterSharding
     ) {
         this.artifacts = artifacts;
         this.changelog = changelog;
         this.registry = registry;
+
         webhookService.topic().subscribe()
             .atLeastOnce(Flow.<ScrapedArtifactEvent>create().map(this::processEvent));
         this.webhookService = webhookService;
+        this.clusterSharding = clusterSharding;
+        this.clusterSharding.init(
+            Entity.of(
+                ScrapedArtifactEntity.ENTITY_TYPE_KEY,
+                ScrapedArtifactEntity::create
+            )
+        );
+    }
+
+    static <Request, Response> ServiceCall<Request, Response> authorizeInvoke(final ServiceCall<Request, Response> call) {
+        return call.handleRequestHeader(requestHeader -> requestHeader.withHeader(AuthUtils.INTERNAL_HEADER_KEY, AuthUtils.INTERNAL_HEADER_SECRET));
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private Done processEvent(final ScrapedArtifactEvent event) {
+        LOGGER.log(Level.INFO, "Receiving Event {}", event);
        return SonatypeArtifactWorkerService.WORKER_STAGES.apply(event.getClass())
             .map(step -> {
                 LOGGER.log(
-                    Level.DEBUG,
+                    Level.INFO,
                     step.marker(),
-                    "Starting process of event %s[%s]",
+                    "Starting process of event {}[{}]",
                     () -> event.getClass().getSimpleName(),
                     event::toString
                 );
@@ -97,12 +118,7 @@ public class SonatypeArtifactWorkerService implements Service {
            .fold(Function.identity(), Function.identity());
     }
 
-    @Override
-    public Descriptor descriptor() {
-        return Service.named("artifact-worker")
-            .withAutoAcl(true)
-            ;
-    }
+
 
     static {
         final IdentityHashMap<Class<? extends ScrapedArtifactEvent>, WorkerStep<?>> steps = new IdentityHashMap<>();
@@ -113,7 +129,7 @@ public class SonatypeArtifactWorkerService implements Service {
         WORKER_STAGES = (eventClass) -> Optional.ofNullable(steps.get(eventClass));
     }
 
-    public PersistentEntityRef<ScrapedArtifactEntity.Command> getProcessingEntity(final String previousBuildCoordinates) {
-        return this.registry.refFor(ScrapedArtifactEntity.class, previousBuildCoordinates);
+    public EntityRef<ScrapedArtifactCommand> getProcessingEntity(final String previousBuildCoordinates) {
+        return this.clusterSharding.entityRefFor(ScrapedArtifactEntity.ENTITY_TYPE_KEY, previousBuildCoordinates);
     }
 }

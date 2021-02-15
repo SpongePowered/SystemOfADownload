@@ -7,6 +7,8 @@
           <option name="delegateBuildToMaven" value="false" />
           <option name="environmentProperties">
             <map>
+              <entry key="INTERNAL_HEADER" value="Pxg9YarPtLiJf2*dHVULKNkm*p7dR-Y_E!MVsp9Z6rBj" />
+              <entry key="INTERNAL_KEY" value="2ZpX4gzDh-x!oJMEDHgvziiGWbTMiyLCFWE4pn7NRW2Ed" />
               <entry key="JWT-SIGNATURE-SECRET" value="12345678901234567890123456789012" />
               <entry key="LDAP_BASE_USER_DN" value="ou=Users,dc=example,dc=com" />
               <entry key="LDAP_URL" value="ldap://localhost:10389" />

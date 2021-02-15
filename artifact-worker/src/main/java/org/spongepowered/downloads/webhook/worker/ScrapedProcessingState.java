@@ -22,17 +22,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.webhook;
+package org.spongepowered.downloads.webhook.worker;
 
 import io.vavr.Tuple2;
 import io.vavr.collection.Map;
-import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.git.api.CommitSha;
 
 import java.util.Objects;
 import java.util.Optional;
 
-interface ProcessingState {
+interface ScrapedProcessingState {
 
     boolean hasStarted();
 
@@ -42,13 +41,25 @@ interface ProcessingState {
 
     boolean hasCompleted();
 
-    Optional<MavenCoordinates> getCoordinates();
+    Optional<String> getCoordinates();
 
     Optional<String> getRepository();
 
+    default Optional<String> getArtifactId() {
+        return this.getCoordinates().map(coords -> coords.split(":")[1]);
+    }
+
+    default Optional<String> getGroupId() {
+        return this.getCoordinates().map(coords -> coords.split(":")[0]);
+    }
+
+    default Optional<String> getMavenVersion() {
+        return this.getCoordinates().map(coords -> coords.split(":")[2]);
+    }
+
     Optional<Map<String, Tuple2<String, String>>> getArtifacts();
 
-    final static class EmptyState implements ProcessingState {
+    static final class EmptyState implements ScrapedProcessingState {
         public EmptyState() {
         }
 
@@ -77,7 +88,7 @@ interface ProcessingState {
         }
 
         @Override
-        public Optional<MavenCoordinates> getCoordinates() {
+        public Optional<String> getCoordinates() {
             return Optional.empty();
         }
 
@@ -108,13 +119,13 @@ interface ProcessingState {
 
     }
 
-    final static class MetadataState implements ProcessingState {
-        private final MavenCoordinates coordinates;
+    static final class MetadataState implements ScrapedProcessingState {
+        private final String coordinates;
         private final String repository;
         private final Map<String, Tuple2<String, String>> artifacts;
 
         public MetadataState(
-            final MavenCoordinates coordinates,
+            final String coordinates,
             final String repository,
             final Map<String, Tuple2<String, String>> artifacts
         ) {
@@ -149,7 +160,7 @@ interface ProcessingState {
         }
 
         @Override
-        public Optional<MavenCoordinates> getCoordinates() {
+        public Optional<String> getCoordinates() {
             return Optional.of(this.coordinates);
         }
 
@@ -159,7 +170,7 @@ interface ProcessingState {
         }
 
         public String coordinates() {
-            return this.coordinates.toString();
+            return this.coordinates;
         }
 
         public String repository() {
@@ -172,8 +183,12 @@ interface ProcessingState {
 
         @Override
         public boolean equals(final Object obj) {
-            if (obj == this) return true;
-            if (obj == null || obj.getClass() != this.getClass()) return false;
+            if (obj == this) {
+                return true;
+            }
+            if (obj == null || obj.getClass() != this.getClass()) {
+                return false;
+            }
             final var that = (MetadataState) obj;
             return Objects.equals(this.coordinates, that.coordinates) &&
                 Objects.equals(this.repository, that.repository) &&
@@ -195,15 +210,16 @@ interface ProcessingState {
 
     }
 
-    final static class CommittedState
-        implements ProcessingState {
+    static final class CommittedState
+        implements ScrapedProcessingState {
         private final String s;
         private final String repository;
         private final Map<String, Tuple2<String, String>> artifacts;
         private final CommitSha commit;
 
         public CommittedState(
-            final String s, final String repository, final Map<String, Tuple2<String, String>> artifacts, final CommitSha commit
+            final String s, final String repository, final Map<String, Tuple2<String, String>> artifacts,
+            final CommitSha commit
         ) {
             this.s = s;
             this.repository = repository;
@@ -232,7 +248,7 @@ interface ProcessingState {
         }
 
         @Override
-        public Optional<MavenCoordinates> getCoordinates() {
+        public Optional<String> getCoordinates() {
             return Optional.empty();
         }
 
@@ -264,8 +280,12 @@ interface ProcessingState {
 
         @Override
         public boolean equals(final Object obj) {
-            if (obj == this) return true;
-            if (obj == null || obj.getClass() != this.getClass()) return false;
+            if (obj == this) {
+                return true;
+            }
+            if (obj == null || obj.getClass() != this.getClass()) {
+                return false;
+            }
             final var that = (CommittedState) obj;
             return Objects.equals(this.s, that.s) &&
                 Objects.equals(this.repository, that.repository) &&

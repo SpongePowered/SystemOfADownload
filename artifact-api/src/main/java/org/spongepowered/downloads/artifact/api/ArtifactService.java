@@ -28,6 +28,7 @@ import akka.NotUsed;
 import com.lightbend.lagom.javadsl.api.Descriptor;
 import com.lightbend.lagom.javadsl.api.Service;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
+import com.lightbend.lagom.javadsl.api.broker.Topic;
 import com.lightbend.lagom.javadsl.api.transport.Method;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.Operation;
@@ -240,6 +241,10 @@ public interface ArtifactService extends OpenAPIService {
         String groupId
     );
 
+    ServiceCall<ArtifactRegistration.RegisterCollection, ArtifactRegistration.Response> registerArtifactCollection(
+        String groupId, String artifactId
+    );
+
     @Operation(
         method = "POST"
     )
@@ -264,6 +269,7 @@ public interface ArtifactService extends OpenAPIService {
                 Service.restCall(Method.GET, "/api/:groupId/artifact/:artifactId", this::getArtifactVersions),
                 Service.restCall(Method.POST, "/api/:groupId/artifact/:artifactId/", this::getTaggedArtifacts),
                 Service.restCall(Method.POST, "/api/:groupId/register", this::registerArtifacts),
+                Service.restCall(Method.POST, "/api/:groupId/artifact/:artifactId/register", this::registerArtifactCollection),
                 Service.restCall(Method.POST, "/api/admin/groups/create", this::registerGroup)
             )
             .withAutoAcl(true)

@@ -34,115 +34,78 @@ import java.util.StringJoiner;
 
 @JsonSerialize
 public final class Artifact {
-    @JsonProperty @Schema(required = true) private final String variant;
-    @JsonIgnore private final Group group;
-    @JsonProperty @Schema(required = true) private final String artifactId;
-    @JsonProperty @Schema(required = true) private final String version;
-    @JsonProperty @Schema(required = true) private final String downloadUrl;
-    @JsonProperty @Schema(required = true) private final String md5;
-    @JsonProperty @Schema(required = true) private final String sha1;
+    @JsonProperty
+    @Schema(required = true)
+    public final String variant;
+    @JsonIgnore public final MavenCoordinates coordinates;
+    @JsonProperty
+    @Schema(required = true)
+    public final String downloadUrl;
+    @JsonProperty
+    @Schema(required = true)
+    public final String md5;
+    @JsonProperty
+    @Schema(required = true)
+    public final String sha1;
 
     public Artifact(
-        @Schema(required = true) final
-        String variant,
-        final Group group,
-        @Schema(required = true) final
-        String artifactId,
-        @Schema(required = true) final
-        String version,
-        @Schema(required = true) final
-        String downloadUrl,
-        @Schema(required = true) final
-        String md5,
-        @Schema(required = true) final
-        String sha1
+        final String variant,
+        final MavenCoordinates coordinates,
+        final String downloadUrl, final String md5, final String sha1
     ) {
         this.variant = variant;
-        this.group = group;
-        this.artifactId = artifactId;
-        this.version = version;
+        this.coordinates = coordinates;
         this.downloadUrl = downloadUrl;
         this.md5 = md5;
         this.sha1 = sha1;
     }
 
+    /**
+     * Gets the
+     * @param delimiter
+     * @return
+     */
     public String getFormattedString(final String delimiter) {
         if (Objects.requireNonNull(delimiter, "Delimiter cannot be null!").isEmpty()) {
             throw new IllegalArgumentException("Delimiter cannot be an empty string!");
         }
         final StringJoiner stringJoiner = new StringJoiner(delimiter);
         return stringJoiner
-            .add(this.group.getGroupCoordinates())
-            .add(this.artifactId)
-            .add(this.version)
+            .add(this.coordinates.groupId)
+            .add(this.coordinates.artifactId)
+            .add(this.coordinates.version)
             .toString();
     }
 
-    @Schema(required = true)
-    public String variant() {
-        return this.variant;
-    }
-
-    public Group group() {
-        return this.group;
-    }
-
-    @Schema(required = true)
-    public String artifactId() {
-        return this.artifactId;
-    }
-
-    @Schema(required = true)
-    public String version() {
-        return this.version;
-    }
-
-    @Schema(required = true)
-    public String downloadUrl() {
-        return this.downloadUrl;
-    }
-
-    @Schema(required = true)
-    public String md5() {
-        return this.md5;
-    }
-
-    @Schema(required = true)
-    public String sha1() {
-        return this.sha1;
-    }
-
     @Override
-    public boolean equals(final Object obj) {
-        if (obj == this) return true;
-        if (obj == null || obj.getClass() != this.getClass()) return false;
-        final var that = (Artifact) obj;
-        return Objects.equals(this.variant, that.variant) &&
-            Objects.equals(this.group, that.group) &&
-            Objects.equals(this.artifactId, that.artifactId) &&
-            Objects.equals(this.version, that.version) &&
-            Objects.equals(this.downloadUrl, that.downloadUrl) &&
-            Objects.equals(this.md5, that.md5) &&
-            Objects.equals(this.sha1, that.sha1);
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || this.getClass() != o.getClass()) {
+            return false;
+        }
+        final Artifact artifact = (Artifact) o;
+        return Objects.equals(this.variant, artifact.variant) && Objects.equals(
+            this.coordinates, artifact.coordinates) && Objects.equals(
+            this.downloadUrl, artifact.downloadUrl) && Objects.equals(
+            this.md5, artifact.md5) && Objects.equals(this.sha1, artifact.sha1);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(
-            this.variant, this.group, this.artifactId, this.version, this.downloadUrl, this.md5, this.sha1);
+        return Objects.hash(this.variant, this.coordinates, this.downloadUrl, this.md5, this.sha1);
     }
 
     @Override
     public String toString() {
-        return "Artifact[" +
-            "variant=" + this.variant + ", " +
-            "group=" + this.group + ", " +
-            "artifactId=" + this.artifactId + ", " +
-            "version=" + this.version + ", " +
-            "downloadUrl=" + this.downloadUrl + ", " +
-            "md5=" + this.md5 + ", " +
-            "sha1=" + this.sha1 + ']';
+        return new StringJoiner(
+            ", ", Artifact.class.getSimpleName() + "[", "]")
+            .add("coordinates=" + this.coordinates)
+            .add("variant='" + this.variant + "'")
+            .add("downloadUrl='" + this.downloadUrl + "'")
+            .add("md5='" + this.md5 + "'")
+            .add("sha1='" + this.sha1 + "'")
+            .toString();
     }
-
-
 }

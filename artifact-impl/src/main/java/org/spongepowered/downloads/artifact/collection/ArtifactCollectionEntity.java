@@ -29,20 +29,24 @@ import akka.cluster.sharding.typed.javadsl.EntityContext;
 import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
 import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
-import akka.persistence.typed.javadsl.EffectFactories;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
+import io.vavr.collection.Map;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
+import org.spongepowered.downloads.artifact.api.ArtifactCollection;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.artifact.api.query.GetVersionsResponse;
 
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.function.Function;
 
 public final class ArtifactCollectionEntity
@@ -50,6 +54,7 @@ public final class ArtifactCollectionEntity
 
     public static final Logger LOGGER = LogManager.getLogger("ArtifactEntity");
     public static final Marker DATA_RETRIEVAL = MarkerManager.getMarker("READ");
+    public static final Marker ARTIFACT_RESOLUTION = MarkerManager.getMarker("COLLISION_RESOLUTION");
     public static EntityTypeKey<ACCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(ACCommand.class, "ArtifactCollection");
     private final String groupId;
     private final Function<ACEvent, Set<String>> tagger;
@@ -80,17 +85,22 @@ public final class ArtifactCollectionEntity
     public EventHandler<ACState, ACEvent> eventHandler() {
         final var builder = this.newEventHandlerBuilder();
         builder.forAnyState()
-            .onEvent(ACEvent.ArtifactGroupUpdated.class, this::updateGroupId)
-            .onEvent(ACEvent.ArtifactIdUpdated.class, this::updateArtifactId)
+            .onEvent(ACEvent.ArtifactCoordinatesUpdated.class, this::updateCoordinates)
             .onEvent(ACEvent.ArtifactVersionRegistered.class, this::updateVersionRegistered);
+        builder.forState(ACState::isRegistered)
+            .onEvent(ACEvent.CollectionRegistered.class, this::updateCollections)
+            ;
         return builder.build();
     }
 
     @Override
     public CommandHandlerWithReply<ACCommand, ACEvent, ACState> commandHandler() {
         final var builder = this.newCommandHandlerWithReplyBuilder();
-        builder.forAnyState()
+        builder.forState(ACState::isRegistered)
             .onCommand(ACCommand.RegisterCollection.class, this::handleRegisterCommand)
+        ;
+        builder.forAnyState()
+            .onCommand(ACCommand.RegisterArtifact.class, this::handleRegisterArtifact)
             .onCommand(ACCommand.GetVersions.class, this::respondToGetVersions);
         return builder.build();
     }
@@ -99,49 +109,89 @@ public final class ArtifactCollectionEntity
         final ACState state,
         final ACCommand.RegisterCollection cmd
     ) {
-        final var groupNameRegistered = cmd.group.name.toLowerCase(Locale.ROOT);
+        LOGGER.log(Level.INFO, DATA_RETRIEVAL, "Incoming register command for {}", cmd.coordinates);
         final var events = new ArrayList<ACEvent>();
-        if (!state.groupId.equals(groupNameRegistered)) {
-            events.add(new ACEvent.ArtifactGroupUpdated(cmd.group));
+        final var groupNameRegistered = cmd.coordinates.groupId.toLowerCase(Locale.ROOT);
+        if (!state.coordinates.groupId.equals(groupNameRegistered)) {
+            events.add(new ACEvent.ArtifactCoordinatesUpdated(cmd.coordinates));
         }
-        final String artifactId = cmd.collection.getArtifactId();
-        if (!state.artifactId.equals(artifactId)) {
-            events.add(new ACEvent.ArtifactIdUpdated(artifactId));
-        }
-        final String version = cmd.collection.getVersion();
-        if (!state.collection.containsKey(version)) {
-            events.add(new ACEvent.ArtifactVersionRegistered(version, cmd.collection));
+        if (!state.collection.get(cmd.coordinates.version)
+            .exists(existing -> {
+                LOGGER.log(Level.INFO,
+                    ARTIFACT_RESOLUTION,
+                    "Resolving differences between artifact (existing) {} and {}",
+                    existing.toString(),
+                    cmd.collection.toString()
+                    );
+                return existing.getArtifactComponents().equals(cmd.collection.getArtifactComponents());
+            })) {
+            events.add(new ACEvent.CollectionRegistered(cmd.collection));
         }
         return this.Effect().persist(events).thenReply(cmd.replyTo, (s) -> NotUsed.notUsed());
     }
 
-    private ACState updateGroupId(
-        final ACState state, final ACEvent.ArtifactGroupUpdated event
+    private ReplyEffect<ACEvent, ACState> handleRegisterArtifact(
+        final ACState state,
+        final ACCommand.RegisterArtifact cmd
     ) {
-        return new ACState(event.groupId.name.toLowerCase(Locale.ROOT), state.artifactId, state.collection);
+
+        final var events = new ArrayList<ACEvent>();
+        if (!state.coordinates.groupId.equals(cmd.coordinates.groupId) || !state.coordinates.artifactId.equalsIgnoreCase(cmd.coordinates.artifactId)) {
+            events.add(new ACEvent.ArtifactCoordinatesUpdated(cmd.coordinates));
+        }
+        return this.Effect().persist(events).thenReply(cmd.replyTo, (s) -> NotUsed.notUsed());
     }
 
-    private ACState updateArtifactId(
-        final ACState state, final ACEvent.ArtifactIdUpdated event
+
+    private ACState updateCoordinates(
+        final ACState state, final ACEvent.ArtifactCoordinatesUpdated event
     ) {
-        return new ACState(state.groupId, event.artifactId(), state.collection);
+        return new ACState(event.coordinates, state.collection);
     }
 
     private ACState updateVersionRegistered(
         final ACState state, final ACEvent.ArtifactVersionRegistered event
     ) {
         return new ACState(
-            state.groupId,
-            state.artifactId,
-            state.collection.put(event.version, event.collection)
+            state.coordinates,
+            state.collection
         );
+    }
+
+    private ACState updateCollections(
+        final ACState state, final ACEvent.CollectionRegistered event
+    ) {
+        final var version = event.collection.coordinates.version;
+        final var updatedComponents = state.collection.get(version)
+            .map(ArtifactCollection::getArtifactComponents)
+            .map(existing -> existing.merge(
+                event.collection.getArtifactComponents(),
+                (existingArtifact, newArtifact) -> {
+                    if (existingArtifact.equals(newArtifact)) {
+                        return existingArtifact;
+                    }
+                    return newArtifact;
+                })
+            )
+            .getOrElse(event.collection::getArtifactComponents);
+        final var updatedCollection = new ArtifactCollection(updatedComponents, event.collection.coordinates);
+        final var updatedVersionedCollections = state.collection.put(version, updatedCollection);
+        return new ACState(state.coordinates, updatedVersionedCollections);
     }
 
     private ReplyEffect<ACEvent, ACState> respondToGetVersions(
         final ACState state,
         final ACCommand.GetVersions cmd
     ) {
-        if (!state.artifactId.equals(cmd.artifactId)) {
+        LOGGER.log(Level.INFO,
+            DATA_RETRIEVAL,
+            "Responding to getting versions for {}:{} with {}:{} as current state",
+            cmd.groupId,
+            cmd.artifactId,
+            state.coordinates.groupId,
+            state.coordinates.artifactId
+            );
+        if (!state.coordinates.artifactId.equalsIgnoreCase(cmd.artifactId)) {
             return this.Effect().reply(cmd.replyTo, new GetVersionsResponse.ArtifactUnknown(cmd.artifactId));
         }
         return this.Effect().reply(cmd.replyTo, new GetVersionsResponse.VersionsAvailable(state.collection));

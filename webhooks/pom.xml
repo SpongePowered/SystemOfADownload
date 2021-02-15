@@ -40,7 +40,11 @@
             <artifactId>systemofadownload-auth-api</artifactId>
             <version>${project.version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>systemofadownload-auth-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- JGit -->
         <dependency>
             <groupId>org.eclipse.jgit</groupId>
@@ -109,6 +113,13 @@
         <dependency>
             <groupId>org.pac4j</groupId>
             <artifactId>lagom-pac4j_${scala.binary.version}</artifactId>
+        </dependency>
+
+        <!-- Nexus -->
+        <dependency>
+            <groupId>org.sonatype.nexus</groupId>
+            <artifactId>nexus-webhooks</artifactId>
+            <version>3.29.2-02</version>
         </dependency>
 
     </dependencies>

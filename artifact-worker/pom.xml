@@ -35,6 +35,11 @@
             <artifactId>systemofadownload-webhooks-api</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>systemofadownload-auth-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
         <!-- JGit -->
         <dependency>
             <groupId>org.eclipse.jgit</groupId>

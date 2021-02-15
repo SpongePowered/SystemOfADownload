@@ -66,7 +66,7 @@ public interface SonatypeWebhookService extends OpenAPIService {
         tags = "sonatype",
         method = "POST"
     )
-    ServiceCall<SonatypeData, NotUsed> processSonatypeData();
+    ServiceCall<SonatypeData, String> processSonatypeData();
 
     Topic<ScrapedArtifactEvent> topic();
 

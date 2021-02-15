@@ -35,6 +35,7 @@ import com.lightbend.lagom.javadsl.persistence.ReadSideProcessor;
 import org.pcollections.PSequence;
 import org.spongepowered.downloads.artifact.event.ArtifactEvent;
 import org.spongepowered.downloads.changelog.api.ChangelogService;
+import org.spongepowered.downloads.utils.AuthUtils;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -60,7 +61,11 @@ public class ArtifactReadSideProcessor extends ReadSideProcessor<ArtifactEvent> 
                         if (event instanceof ArtifactEvent.ArtifactRegistered) {
                             final var registered = (ArtifactEvent.ArtifactRegistered) event;
                             return ArtifactReadSideProcessor.this.changelogService
-                                .registerArtifact(registered.artifact()).invoke()
+                                .registerArtifact(registered.artifact())
+                                .handleRequestHeader(headers ->
+                                    headers.withHeader(AuthUtils.INTERNAL_HEADER_KEY, AuthUtils.INTERNAL_HEADER_SECRET)
+                                )
+                                .invoke()
                                 .thenApply(none -> Done.done());
                         }
                         return CompletableFuture.completedFuture(Done.done());

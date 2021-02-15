@@ -25,6 +25,7 @@
 package org.spongepowered.downloads.webhook.worker;
 
 import akka.Done;
+import akka.NotUsed;
 import io.vavr.collection.List;
 import io.vavr.collection.Map;
 import io.vavr.control.Try;
@@ -32,12 +33,15 @@ import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
 import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
 import org.spongepowered.downloads.webhook.ScrapedArtifactEvent;
 import org.spongepowered.downloads.webhook.sonatype.Component;
 import org.spongepowered.downloads.webhook.sonatype.SonatypeClient;
 
+import java.time.Duration;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -57,7 +61,7 @@ public final class RequestArtifactStep
         final ScrapedArtifactEvent.ArtifactRequested event
     ) {
         return Try.of(
-            () -> service.artifacts.getGroup(event.mavenCoordinates().split(":")[0])
+            () -> SonatypeArtifactWorkerService.authorizeInvoke(service.artifacts.getGroup(event.mavenCoordinates().split(":")[0]))
                 .invoke()
                 .thenComposeAsync(response -> {
                     if (response instanceof GroupResponse.Available) {
@@ -96,7 +100,7 @@ public final class RequestArtifactStep
                 );
             final var artifacts = RequestArtifactStep.gatherArtifacts(available, component, base);
             final Map<String, Artifact> artifactByVariant = artifacts.toMap(
-                Artifact::variant,
+                artifact -> artifact.variant,
                 Function.identity()
             );
             final String tagVersion = component.assets()
@@ -105,23 +109,23 @@ public final class RequestArtifactStep
                 .map(client::resolvePomVersion)
                 .flatMap(Try::get)
                 .getOrElse(component::version);
+            final var mavenCoordinates = MavenCoordinates.parse(
+                available.group().groupCoordinates + ":" + event.mavenArtifactId() + ":" + event.componentVersion());
             final var updatedCollection = new ArtifactCollection(
                 artifactByVariant,
-                available.group(),
-                component.id(),
-                component.version(),
-                tagVersion
+                mavenCoordinates
             );
-            return service.artifacts.registerArtifacts(available.group().getGroupCoordinates())
+            return SonatypeArtifactWorkerService.authorizeInvoke(service.artifacts.registerArtifacts(available.group().getGroupCoordinates()))
                 .invoke(new ArtifactRegistration.RegisterArtifact(component.id(), component.name(), component.version()))
                 .thenCompose(done -> service
                     .getProcessingEntity(event.mavenCoordinates())
-                    .ask(new ScrapedArtifactEntity.Command.AssociateMetadataWithCollection(updatedCollection, component,
-                        tagVersion
-                    ))
+                    .<NotUsed>ask(replyTo -> new ScrapedArtifactCommand.AssociateMetadataWithCollection(updatedCollection, component,
+                        tagVersion,
+                        replyTo
+                    ), Duration.ofSeconds(30))
                     .thenApply(notUsed -> Done.done())
-                ).thenCompose(response -> service.artifacts
-                    .registerTaggedVersion(event.mavenCoordinates(), tagVersion)
+                ).thenCompose(response -> SonatypeArtifactWorkerService.authorizeInvoke(service.artifacts
+                    .registerTaggedVersion(event.mavenCoordinates(), tagVersion))
                     .invoke()
                     .thenApply(notUsed -> Done.done())
                 );
@@ -136,17 +140,23 @@ public final class RequestArtifactStep
         final GroupResponse.Available available, final Component component, final Component.Asset base
     ) {
         final var baseName = getBaseName(base.path());
+        final var rawCoordinates = new StringJoiner(":")
+            .add(available.group.groupCoordinates)
+            .add(component.id())
+            .add(component.version())
+            .toString();
+        final var coordinates = MavenCoordinates.parse(rawCoordinates);
         final var variants = component.assets().filter(asset -> asset.path().endsWith(".jar"))
             .filter(jar -> !jar.equals(base))
             .map(jar -> {
                 final var variant = jar.path().replace(baseName, "").replace(".jar", "");
                 return new Artifact(
-                    variant, available.group(), component.id(), component.version(), jar.downloadUrl(),
+                    variant, coordinates, jar.downloadUrl(),
                     jar.checksum().md5(), jar.checksum().sha1()
                 );
             });
         return variants.prepend(
-            new Artifact("base", available.group(), component.id(), component.version(), base.downloadUrl(),
+            new Artifact("base", coordinates, base.downloadUrl(),
                 base.checksum().md5(), base.checksum().sha1()
             ));
     }

@@ -22,47 +22,30 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.collection;
+package org.spongepowered.downloads.webhook;
 
 import akka.NotUsed;
 import akka.actor.typed.ActorRef;
-import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
-import org.spongepowered.downloads.artifact.api.Group;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
-import org.spongepowered.downloads.artifact.api.query.GetVersionsResponse;
+import org.spongepowered.downloads.webhook.sonatype.Component;
 
-import java.io.Serial;
 import java.util.Objects;
 
-public interface ACCommand extends Jsonable {
+public interface ArtifactSagaCommand {
 
-    final class RegisterArtifact implements ACCommand {
-        @Serial private static final long serialVersionUID = -3915075643831556478L;
-
-        public final MavenCoordinates coordinates;
+    final class StartProcessing implements ArtifactSagaCommand {
+        public final SonatypeData webhook;
+        public final MavenCoordinates artifact;
         public final ActorRef<NotUsed> replyTo;
 
-        public RegisterArtifact(
-            final MavenCoordinates coordinates, final ActorRef<NotUsed> replyTo
-        ) {
-            this.coordinates = coordinates;
-            this.replyTo = replyTo;
-        }
-    }
-
-    final class RegisterCollection implements ACCommand {
-        @Serial private static final long serialVersionUID = 0L;
-        public final MavenCoordinates coordinates;
-        public final ArtifactCollection collection;
-        public final ActorRef<NotUsed> replyTo;
-
-        public RegisterCollection(
-            final MavenCoordinates coordinates, final ArtifactCollection collection,
+        public StartProcessing(
+            final SonatypeData webhook,
+            final MavenCoordinates artifact,
             final ActorRef<NotUsed> replyTo
         ) {
-            this.coordinates = coordinates;
-            this.collection = collection;
+            this.webhook = webhook;
+            this.artifact = artifact;
             this.replyTo = replyTo;
         }
 
@@ -74,34 +57,40 @@ public interface ACCommand extends Jsonable {
             if (obj == null || obj.getClass() != this.getClass()) {
                 return false;
             }
-            final var that = (RegisterCollection) obj;
-            return Objects.equals(this.collection, that.collection);
+            final var that = (StartProcessing) obj;
+            return Objects.equals(this.webhook, that.webhook) &&
+                Objects.equals(this.artifact, that.artifact);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(this.collection);
+            return Objects.hash(this.webhook, this.artifact);
         }
 
         @Override
         public String toString() {
-            return "RegisterCollection[" +
-                "collection=" + this.collection + ']';
+            return "StartProcessing[" +
+                "webhook=" + this.webhook + ", " +
+                "artifact=" + this.artifact + ']';
         }
+
     }
 
-    final class GetVersions implements ACCommand {
-        @Serial private static final long serialVersionUID = 0L;
-        public final String groupId;
-        public final String artifactId;
-        public final ActorRef<GetVersionsResponse> replyTo;
+    final class AssociateMetadataWithCollection implements ArtifactSagaCommand {
+        public final ArtifactCollection collection;
+        public final Component component;
+        public final String tagVersion;
+        public final ActorRef<NotUsed> replyTo;
 
-        public GetVersions(
-            final String groupId, final String artifactId,
-            final ActorRef<GetVersionsResponse> replyTo
+        public AssociateMetadataWithCollection(
+            final ArtifactCollection collection,
+            final Component component,
+            final String tagVersion,
+            final ActorRef<NotUsed> replyTo
         ) {
-            this.groupId = groupId;
-            this.artifactId = artifactId;
+            this.collection = collection;
+            this.component = component;
+            this.tagVersion = tagVersion;
             this.replyTo = replyTo;
         }
 
@@ -113,21 +102,26 @@ public interface ACCommand extends Jsonable {
             if (obj == null || obj.getClass() != this.getClass()) {
                 return false;
             }
-            final var that = (GetVersions) obj;
-            return Objects.equals(this.groupId, that.groupId) &&
-                Objects.equals(this.artifactId, that.artifactId);
+            final var that = (AssociateMetadataWithCollection) obj;
+            return Objects.equals(this.collection, that.collection) &&
+                Objects.equals(this.component, that.component) &&
+                Objects.equals(this.tagVersion, that.tagVersion);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(this.groupId, this.artifactId);
+            return Objects.hash(this.collection, this.component, this.tagVersion);
         }
 
         @Override
         public String toString() {
-            return "GetVersions[" +
-                "groupId=" + this.groupId + ", " +
-                "artifactId=" + this.artifactId + ']';
+            return "AssociateMetadataWithCollection[" +
+                "collection=" + this.collection + ", " +
+                "component=" + this.component + ", " +
+                "tagVersion=" + this.tagVersion + ']';
         }
+
     }
+
+
 }

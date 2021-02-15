@@ -35,6 +35,7 @@
         <module>webooks-api</module>
         <module>auth-api</module>
         <module>auth-impl</module>
+        <module>auth-common</module>
     </modules>
 
     <build>

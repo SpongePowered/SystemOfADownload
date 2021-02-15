@@ -25,6 +25,7 @@
 package org.spongepowered.downloads.webhook.worker;
 
 import akka.Done;
+import akka.NotUsed;
 import io.vavr.control.Either;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
@@ -36,6 +37,7 @@ import org.spongepowered.downloads.artifact.api.query.GetVersionsResponse;
 import org.spongepowered.downloads.webhook.ScrapedArtifactEvent;
 import org.spongepowered.downloads.webhook.sonatype.SonatypeClient;
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
@@ -134,7 +136,7 @@ public final class FetchPriorBuildStep implements WorkerStep<ScrapedArtifactEven
         can effectively query for the previous artifact. If we're not up to date, submit a new command/request
         to start an artifact process for the previous version and then submit the "resume" event.
          */
-        final String mavenVersion = event.collection().getMavenVersion();
+        final String mavenVersion = event.collection().coordinates.asStandardCoordinates();
         final boolean isSnapshot = mavenVersion.endsWith("-SNAPSHOT");
         final SonatypeClient sonatypeClient = SonatypeClient.configureClient().get();
         final String groupId = event.groupId();
@@ -189,7 +191,7 @@ public final class FetchPriorBuildStep implements WorkerStep<ScrapedArtifactEven
         final RecordRequest request,
         final String priorBuildVersion
     ) {
-        return service.artifacts.getArtifactVersions(request.groupId, request.artifactId)
+        return SonatypeArtifactWorkerService.authorizeInvoke(service.artifacts.getArtifactVersions(request.groupId, request.artifactId))
             .invoke()
             .thenCompose(
                 FetchPriorBuildStep.getPreviousBuildVersionOrSubmitRequest(service, request, priorBuildVersion)
@@ -214,9 +216,10 @@ public final class FetchPriorBuildStep implements WorkerStep<ScrapedArtifactEven
                             .add(priorBuildVersion)
                             .toString();
                         return service.getProcessingEntity(previousBuildCoordinates)
-                            .ask(new ScrapedArtifactEntity.Command.RequestArtifactForProcessing(request.groupId,
-                                request.artifactId, priorBuildVersion
-                            ))
+                            .<NotUsed>ask(replyTo -> new ScrapedArtifactCommand.RequestArtifactForProcessing(request.groupId,
+                                request.artifactId, priorBuildVersion,
+                                replyTo
+                            ), Duration.ofSeconds(10))
                             .thenApply(notUsed -> Done.done())
                             .toCompletableFuture()
                             .join();

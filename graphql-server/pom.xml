@@ -35,6 +35,11 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>systemofadownload-auth-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.graphql-java</groupId>
             <artifactId>graphql-java</artifactId>
             <version>16.1</version>
@@ -64,11 +69,6 @@
             <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-javadsl-testkit_${scala.binary.version}</artifactId>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-persistence-cassandra_${scala.binary.version}</artifactId>
-            <version>${lagom.version}</version>
         </dependency>
         <!-- Language Features -->
         <dependency>

@@ -24,40 +24,45 @@
  */
 package org.spongepowered.downloads.artifact.api.query;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.Group;
 
 import java.io.Serial;
-import java.net.URL;
 import java.util.Objects;
 
 public final class GroupRegistration {
 
+    @JsonDeserialize
     public static final class RegisterGroupRequest {
-        private final String groupName;
-        private final String groupCoordinates;
-        private final String website;
 
+        /**
+         * The name of the group, displayed for reading purposes
+         */
+        @JsonProperty(required = true)
+        public final String name;
+        /**
+         * The maven group coordinates of the group.
+         */
+        @JsonProperty(required = true)
+        public final String groupCoordinates;
+        /**
+         * A website for the group
+         */
+        @JsonProperty(required = true)
+        public final String website;
+
+        @JsonCreator
         public RegisterGroupRequest(
-            final String groupName,
+            final String name,
             final String groupCoordinates,
             final String website
         ) {
-            this.groupName = groupName;
+            this.name = name;
             this.groupCoordinates = groupCoordinates;
             this.website = website;
-        }
-
-        public String groupName() {
-            return this.groupName;
-        }
-
-        public String groupCoordinates() {
-            return this.groupCoordinates;
-        }
-
-        public String website() {
-            return this.website;
         }
 
         @Override
@@ -65,20 +70,20 @@ public final class GroupRegistration {
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
             final var that = (RegisterGroupRequest) obj;
-            return Objects.equals(this.groupName, that.groupName) &&
+            return Objects.equals(this.name, that.name) &&
                 Objects.equals(this.groupCoordinates, that.groupCoordinates) &&
                 Objects.equals(this.website, that.website);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(this.groupName, this.groupCoordinates, this.website);
+            return Objects.hash(this.name, this.groupCoordinates, this.website);
         }
 
         @Override
         public String toString() {
             return "RegisterGroupRequest[" +
-                "groupName=" + this.groupName + ", " +
+                "name=" + this.name + ", " +
                 "groupCoordinates=" + this.groupCoordinates + ", " +
                 "website=" + this.website + ']';
         }
@@ -86,7 +91,7 @@ public final class GroupRegistration {
 
     public interface Response extends Jsonable {
 
-        final static class GroupAlreadyRegistered implements Response {
+        final class GroupAlreadyRegistered implements Response {
             @Serial private static final long serialVersionUID = 0L;
             private final String groupNameRequested;
 
@@ -118,7 +123,7 @@ public final class GroupRegistration {
             }
         }
 
-        final static class GroupRegistered implements Response {
+        final class GroupRegistered implements Response {
             @Serial private static final long serialVersionUID = 0L;
             private final Group group;
 

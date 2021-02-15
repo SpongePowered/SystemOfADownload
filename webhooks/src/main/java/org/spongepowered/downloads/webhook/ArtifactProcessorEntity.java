@@ -25,202 +25,156 @@
 package org.spongepowered.downloads.webhook;
 
 import akka.NotUsed;
-import com.lightbend.lagom.javadsl.persistence.PersistentEntity;
+import akka.cluster.sharding.typed.javadsl.EntityContext;
+import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
+import akka.persistence.typed.PersistenceId;
+import akka.persistence.typed.javadsl.CommandHandlerWithReply;
+import akka.persistence.typed.javadsl.EventHandler;
+import akka.persistence.typed.javadsl.EventHandlerBuilder;
+import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
+import akka.persistence.typed.javadsl.ReplyEffect;
+import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
 import io.vavr.Tuple2;
+import io.vavr.collection.Array;
 import io.vavr.collection.HashMap;
-import org.spongepowered.downloads.artifact.api.ArtifactCollection;
-import org.spongepowered.downloads.git.api.CommitSha;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Marker;
+import org.apache.logging.log4j.MarkerManager;
 import org.spongepowered.downloads.webhook.sonatype.Component;
 import org.spongepowered.downloads.webhook.sonatype.SonatypeClient;
 
-import java.util.Objects;
+import java.util.ArrayList;
 import java.util.Optional;
-import java.util.StringJoiner;
+import java.util.Set;
+import java.util.function.Function;
 
 @SuppressWarnings("unchecked")
 public class ArtifactProcessorEntity
-    extends PersistentEntity<ArtifactProcessorEntity.Command, ScrapedArtifactEvent, ProcessingState> {
+    extends EventSourcedBehaviorWithEnforcedReplies<ArtifactSagaCommand, ScrapedArtifactEvent, ProcessingState> {
+
+    public static final Logger LOGGER = LogManager.getLogger("ArtifactProcessorEntity");
+    public static final Marker DATA_RETRIEVAL = MarkerManager.getMarker("READ");
+    public static final Marker COMMAND_PROCESS = MarkerManager.getMarker("COMMAND");
+    public static final Marker EVENT_TRIGGER = MarkerManager.getMarker("EVENT_TRIGGERED");
+    public static final Marker ARTIFACT_RESOLUTION = MarkerManager.getMarker("COLLISION_RESOLUTION");
+    public static EntityTypeKey<ArtifactSagaCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(
+        ArtifactSagaCommand.class, "ArtifactCollection");
+    private final String groupId;
+    private final Function<ScrapedArtifactEvent, Set<String>> tagger;
 
 
-    public interface Command {
-
-        final class StartProcessing implements Command, ReplyType<NotUsed> {
-            private final SonatypeData webhook;
-            private final ArtifactCollection artifact;
-
-            public StartProcessing(
-                final SonatypeData webhook,
-                final ArtifactCollection artifact
-            ) {
-                this.webhook = webhook;
-                this.artifact = artifact;
-            }
-
-            public SonatypeData webhook() {
-                return this.webhook;
-            }
-
-            public ArtifactCollection artifact() {
-                return this.artifact;
-            }
-
-            @Override
-            public boolean equals(final Object obj) {
-                if (obj == this) return true;
-                if (obj == null || obj.getClass() != this.getClass()) return false;
-                final var that = (StartProcessing) obj;
-                return Objects.equals(this.webhook, that.webhook) &&
-                    Objects.equals(this.artifact, that.artifact);
-            }
-
-            @Override
-            public int hashCode() {
-                return Objects.hash(this.webhook, this.artifact);
-            }
-
-            @Override
-            public String toString() {
-                return "StartProcessing[" +
-                    "webhook=" + this.webhook + ", " +
-                    "artifact=" + this.artifact + ']';
-            }
-
-        }
-
-        final class AssociateMetadataWithCollection implements Command, ReplyType<NotUsed> {
-            private final ArtifactCollection collection;
-            private final Component component;
-            private final String tagVersion;
-
-            public AssociateMetadataWithCollection(
-                final ArtifactCollection collection,
-                final Component component,
-                final String tagVersion
-            ) {
-                this.collection = collection;
-                this.component = component;
-                this.tagVersion = tagVersion;
-            }
-
-            public ArtifactCollection collection() {
-                return this.collection;
-            }
-
-            public Component component() {
-                return this.component;
-            }
-
-            public String tagVersion() {
-                return this.tagVersion;
-            }
-
-            @Override
-            public boolean equals(final Object obj) {
-                if (obj == this) return true;
-                if (obj == null || obj.getClass() != this.getClass()) return false;
-                final var that = (AssociateMetadataWithCollection) obj;
-                return Objects.equals(this.collection, that.collection) &&
-                    Objects.equals(this.component, that.component) &&
-                    Objects.equals(this.tagVersion, that.tagVersion);
-            }
-
-            @Override
-            public int hashCode() {
-                return Objects.hash(this.collection, this.component, this.tagVersion);
-            }
-
-            @Override
-            public String toString() {
-                return "AssociateMetadataWithCollection[" +
-                    "collection=" + this.collection + ", " +
-                    "component=" + this.component + ", " +
-                    "tagVersion=" + this.tagVersion + ']';
-            }
-
-        }
-
-
-    }
-
-    public ArtifactProcessorEntity() {
+    public static ArtifactProcessorEntity create(final EntityContext<ArtifactSagaCommand> context) {
+        return new ArtifactProcessorEntity(context);
     }
 
     @Override
-    public Behavior initialBehavior(
-        final Optional<ProcessingState> snapshotState
-    ) {
-        final BehaviorBuilder builder = this.newBehaviorBuilder(ProcessingState.EmptyState.empty());
-        builder.setCommandHandler(Command.StartProcessing.class, this::handleStartProcessing);
-        builder.setEventHandler(ScrapedArtifactEvent.InitializeArtifactForProcessing.class, this::initializeFromEvent);
-
-        builder.setCommandHandler(Command.AssociateMetadataWithCollection.class, this::respondToMetadataAssociation);
-        builder.setEventHandler(ScrapedArtifactEvent.AssociatedMavenMetadata.class, this::associateSonatypeInformation);
-
-        builder.setEventHandler(ScrapedArtifactEvent.AssociateCommitSha.class, this::handleCommitShaAssociation);
-        builder.setEventHandler(ScrapedArtifactEvent.ArtifactRequested.class, this::handleArtifactRequested);
+    public CommandHandlerWithReply<ArtifactSagaCommand, ScrapedArtifactEvent, ProcessingState> commandHandler() {
+        final var builder = this.newCommandHandlerWithReplyBuilder();
+        builder.forAnyState()
+            .onCommand(ArtifactSagaCommand.StartProcessing.class, this::handleStartProcessing)
+            .onCommand( ArtifactSagaCommand.AssociateMetadataWithCollection.class, this::respondToMetadataAssociation);
         return builder.build();
     }
 
-    private Persist<ScrapedArtifactEvent> handleStartProcessing(
-        final Command.StartProcessing cmd,
-        final CommandContext<NotUsed> ctx
-    ) {
-        final String mavenCoordinates = cmd.artifact().getMavenCoordinates();
-        final String componentId = cmd.webhook().component().componentId();
+    @Override
+    public ProcessingState emptyState() {
+        return new ProcessingState.EmptyState();
+    }
 
-        if (this.state().getCoordinates().map(coords -> !coords.equals(mavenCoordinates)).orElse(false)) {
-            ctx.thenPersist(
-                new ScrapedArtifactEvent.InitializeArtifactForProcessing(mavenCoordinates, cmd.webhook().repositoryName(), componentId),
-                message -> ctx.reply(NotUsed.notUsed())
+    @Override
+    public EventHandler<ProcessingState, ScrapedArtifactEvent> eventHandler() {
+        final var builder = this.newEventHandlerBuilder();
+        builder.forAnyState()
+            .onEvent(ScrapedArtifactEvent.InitializeArtifactForProcessing.class, this::initializeFromEvent)
+            .onEvent(ScrapedArtifactEvent.AssociatedMavenMetadata.class, this::associateSonatypeInformation)
+            .onEvent(ScrapedArtifactEvent.AssociateCommitSha.class, this::handleCommitShaAssociation)
+            .onEvent(ScrapedArtifactEvent.ArtifactRequested.class, this::handleArtifactRequested);
+        return builder.build();
+    }
+
+    private ArtifactProcessorEntity(final EntityContext<ArtifactSagaCommand> context) {
+        super(
+            // PersistenceId needs a typeHint (or namespace) and entityId,
+            // we take then from the EntityContext
+            PersistenceId.of(
+                context.getEntityTypeKey().name(), // <- type hint
+                context.getEntityId() // <- business id
+            ));
+        // we keep a copy of cartI
+        this.groupId = context.getEntityId();
+        this.tagger = AkkaTaggerAdapter.fromLagom(context, ScrapedArtifactEvent.INSTANCE);
+
+    }
+
+
+    private ReplyEffect<ScrapedArtifactEvent, ProcessingState> handleStartProcessing(
+        final ProcessingState state,
+        final ArtifactSagaCommand.StartProcessing cmd
+    ) {
+        LOGGER.log(Level.INFO, COMMAND_PROCESS, "State[{}] processing command: {}", state, cmd);
+        final var mavenCoordinates = cmd.artifact;
+        final String componentId = cmd.webhook.component().componentId();
+
+        final var events = new ArrayList<ScrapedArtifactEvent>();
+        if (state.getCoordinates().map(coords -> !coords.equals(mavenCoordinates)).orElse(true)) {
+            LOGGER.log(Level.INFO, EVENT_TRIGGER, "State[{}] will add a new event for initializing the process of an artifact: {}", state, mavenCoordinates);
+
+            events.add(
+                new ScrapedArtifactEvent.InitializeArtifactForProcessing(
+                    mavenCoordinates, cmd.webhook.repositoryName(), componentId)
             );
         }
-        return ctx.done();
+        return this.Effect().persist(events).thenReply(cmd.replyTo, (s) -> NotUsed.notUsed());
     }
 
     private ProcessingState initializeFromEvent(
         final ScrapedArtifactEvent.InitializeArtifactForProcessing event
     ) {
-        return new ProcessingState.MetadataState(event.mavenCoordinates(), event.repository(), HashMap.empty());
+        return new ProcessingState.MetadataState(event.coordinates, event.repository(), HashMap.empty());
     }
 
-    private Persist<ScrapedArtifactEvent> respondToMetadataAssociation(
-        final Command.AssociateMetadataWithCollection cmd, final CommandContext<NotUsed> ctx
+    private ReplyEffect<ScrapedArtifactEvent, ProcessingState> respondToMetadataAssociation(
+        final ProcessingState state,
+        final ArtifactSagaCommand.AssociateMetadataWithCollection cmd
     ) {
-        if (this.state().hasMetadata()) {
-            return ctx.done();
+        if (state.hasMetadata()) {
+            return this.Effect().reply(cmd.replyTo, NotUsed.notUsed());
         }
-        return ctx.thenPersist(new ScrapedArtifactEvent.AssociatedMavenMetadata(
+        return this.Effect().persist(new ScrapedArtifactEvent.AssociatedMavenMetadata(
             cmd.collection,
-            cmd.collection.getMavenCoordinates(),
+            cmd.collection.coordinates.toString(),
             cmd.tagVersion,
             cmd.component.assets().toMap(Component.Asset::path, asset -> new Tuple2<>(asset.id(), asset.downloadUrl()))
-        ));
+        )).thenReply(cmd.replyTo, (s) -> NotUsed.notUsed());
     }
 
-    private ProcessingState associateSonatypeInformation(final ScrapedArtifactEvent.AssociatedMavenMetadata event) {
+    private ProcessingState associateSonatypeInformation(final ProcessingState state, final ScrapedArtifactEvent.AssociatedMavenMetadata event) {
         return new ProcessingState.MetadataState(
-            event.mavenCoordinates(),
-            this.state().getRepository().get(),
+            event.collection().coordinates,
+            state.getRepository().get(),
             event.artifactPathToSonatypeId()
         );
     }
 
 
-    private ProcessingState handleArtifactRequested(final ScrapedArtifactEvent.ArtifactRequested event) {
-        if (this.state().getCoordinates().map(coords -> !coords.equals(event.mavenCoordinates())).orElse(true)) {
-            return new ProcessingState.MetadataState(event.mavenCoordinates(), SonatypeClient.getConfig().getPublicRepo(), HashMap.empty());
+    private ProcessingState handleArtifactRequested(final ProcessingState state, final ScrapedArtifactEvent.ArtifactRequested event) {
+        if (state.getCoordinates().map(coords -> !coords.equals(event.mavenCoordinates())).orElse(true)) {
+            return new ProcessingState.MetadataState(
+                event.coordinates, SonatypeClient.getConfig().getPublicRepo(), HashMap.empty());
         }
-        return this.state();
+        return state;
     }
 
-    private ProcessingState handleCommitShaAssociation(final ScrapedArtifactEvent.AssociateCommitSha event) {
-        if (this.state().hasCommit()) {
-            return this.state();
+    private ProcessingState handleCommitShaAssociation(final ProcessingState state, final ScrapedArtifactEvent.AssociateCommitSha event) {
+        if (state.hasCommit()) {
+            return state;
         }
         return new ProcessingState.CommittedState(
             event.mavenCoordinates(),
-            this.state().getRepository().get(),
-            this.state().getArtifacts().get(),
+            state.getRepository().get(),
+            state.getArtifacts().get(),
             event.commit()
         );
     }

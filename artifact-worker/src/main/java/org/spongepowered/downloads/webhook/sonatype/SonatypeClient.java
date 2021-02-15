@@ -210,7 +210,7 @@ public class SonatypeClient {
     }
 
     public Try<CommitSha> generateArtifactFrom(final Artifact asset) {
-        return SonatypeClient.openConnectionTo(asset.downloadUrl())
+        return SonatypeClient.openConnectionTo(asset.downloadUrl)
             .flatMapTry(reader -> {
                 final Path jar = Files.createTempFile("system-of-a-download-files", "jar");
                 return readFileFromInput(reader, jar);

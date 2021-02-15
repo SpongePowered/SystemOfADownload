@@ -22,24 +22,27 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.webhook.worker;
+package org.spongepowered.downloads.artifact.tags;
 
-import com.google.inject.AbstractModule;
-import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
-import org.spongepowered.downloads.artifact.api.ArtifactService;
-import org.spongepowered.downloads.changelog.api.ChangelogService;
-import org.spongepowered.downloads.git.api.CommitService;
-import org.spongepowered.downloads.webhook.ArtifactWorker;
-import org.spongepowered.downloads.webhook.SonatypeWebhookService;
+public interface TaggedState {
 
-public class WorkerModule extends AbstractModule implements ServiceGuiceSupport {
+    final static class EmptyState implements TaggedState {
+        public EmptyState() {
+        }
 
-    @Override
-    protected void configure() {
-        this.bindClient(CommitService.class);
-        this.bindClient(ArtifactService.class);
-        this.bindClient(ChangelogService.class);
-        this.bindClient(SonatypeWebhookService.class);
-        this.bindService(ArtifactWorker.class, SonatypeArtifactWorkerService.class);
+        @Override
+        public boolean equals(final Object obj) {
+            return obj == this || obj != null && obj.getClass() == this.getClass();
+        }
+
+        @Override
+        public int hashCode() {
+            return 1;
+        }
+
+        @Override
+        public String toString() {
+            return "EmptyState[]";
+        }
     }
 }

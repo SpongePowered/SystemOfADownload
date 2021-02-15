@@ -25,19 +25,27 @@
 package org.spongepowered.downloads.webhook.worker;
 
 import akka.Done;
+import akka.NotUsed;
+import com.lightbend.lagom.javadsl.api.transport.Method;
+import com.lightbend.lagom.javadsl.api.transport.RequestHeader;
 import io.vavr.collection.List;
 import io.vavr.collection.Map;
 import io.vavr.control.Try;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
 import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
+import org.spongepowered.downloads.utils.AuthUtils;
 import org.spongepowered.downloads.webhook.ScrapedArtifactEvent;
 import org.spongepowered.downloads.webhook.sonatype.Component;
 import org.spongepowered.downloads.webhook.sonatype.SonatypeClient;
 
+import java.time.Duration;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -47,6 +55,7 @@ public final class RegisterArtifactsStep
     implements WorkerStep<ScrapedArtifactEvent.InitializeArtifactForProcessing> {
     private static final Marker MARKER = MarkerManager.getMarker("ARTIFACT_REGISTRATION");
     private static final Pattern filePattern = Pattern.compile("(dev\\b|\\d+|shaded).jar$");
+    private final Duration askTimeout = Duration.ofSeconds(5);
 
     public RegisterArtifactsStep() {
     }
@@ -57,7 +66,7 @@ public final class RegisterArtifactsStep
         final ScrapedArtifactEvent.InitializeArtifactForProcessing event
     ) {
         return Try.of(
-            () -> service.artifacts.getGroup(event.mavenCoordinates().split(":")[0])
+            () -> SonatypeArtifactWorkerService.authorizeInvoke(service.artifacts.getGroup(event.coordinates.groupId))
                 .invoke()
                 .thenComposeAsync(response -> {
                     if (response instanceof GroupResponse.Available) {
@@ -79,6 +88,7 @@ public final class RegisterArtifactsStep
         final ScrapedArtifactEvent.InitializeArtifactForProcessing event,
         final GroupResponse.Available available
     ) {
+        SonatypeArtifactWorkerService.LOGGER.log(Level.INFO, MARKER, "Starting to gather components from Nexus for event {}", event);
         final SonatypeClient client = SonatypeClient.configureClient().apply();
         final Try<Component> componentTry = client.resolveArtifact(event.componentId());
         final var newCollection = componentTry.map(component -> {
@@ -92,9 +102,11 @@ public final class RegisterArtifactsStep
                     .sortBy(Component.Asset::path)
                     .head()
                 );
+            SonatypeArtifactWorkerService.LOGGER.log(Level.INFO, MARKER, "Found base component {}", base);
+
             final var artifacts = RegisterArtifactsStep.gatherArtifacts(available, component, base);
             final Map<String, Artifact> artifactByVariant = artifacts.toMap(
-                Artifact::variant,
+                artifact -> artifact.variant,
                 Function.identity()
             );
             final String tagVersion = component.assets()
@@ -103,22 +115,27 @@ public final class RegisterArtifactsStep
                 .map(client::resolvePomVersion)
                 .flatMap(Try::get)
                 .getOrElse(component::version);
+            final var coordinates = MavenCoordinates.parse(
+                available.group.groupCoordinates + ":" + component.id() + ":" + component.version());
             final var updatedCollection = new ArtifactCollection(
                 artifactByVariant,
-                available.group(),
-                component.id(),
-                component.version(),
-                tagVersion
+                coordinates
             );
+            SonatypeArtifactWorkerService.LOGGER.log(Level.INFO, MARKER, "Attempting registration {}", base);
+
             return service.artifacts.registerArtifacts(component.group())
+                .handleRequestHeader(header -> header.withHeader(AuthUtils.INTERNAL_HEADER_KEY, AuthUtils.INTERNAL_HEADER_SECRET))
                 .invoke(new ArtifactRegistration.RegisterArtifact(component.id(), component.name(), component.version()))
+                .thenCompose(done -> SonatypeArtifactWorkerService.authorizeInvoke(service.artifacts.registerArtifactCollection(coordinates.groupId, coordinates.artifactId))
+                    .invoke(new ArtifactRegistration.RegisterCollection(updatedCollection)))
                 .thenCompose(done -> service.getProcessingEntity(event.mavenCoordinates())
-                    .ask(new ScrapedArtifactEntity.Command.AssociateMetadataWithCollection(updatedCollection, component,
-                        tagVersion
-                    ))
+                    .<NotUsed>ask(replyTo -> new ScrapedArtifactCommand.AssociateMetadataWithCollection(updatedCollection, component,
+                        tagVersion,
+                        replyTo
+                    ), this.askTimeout)
                     .thenApply(notUsed -> Done.done())
-                ).thenCompose(response -> service.artifacts
-                    .registerTaggedVersion(event.mavenCoordinates(), tagVersion)
+                ).thenCompose(response -> SonatypeArtifactWorkerService.authorizeInvoke(service.artifacts
+                    .registerTaggedVersion(event.mavenCoordinates(), tagVersion))
                     .invoke()
                     .thenApply(notUsed -> Done.done())
                 );
@@ -133,17 +150,24 @@ public final class RegisterArtifactsStep
         final GroupResponse.Available available, final Component component, final Component.Asset base
     ) {
         final var baseName = getBaseName(base.path());
+        final var rawCoordinates = new StringJoiner(":")
+            .add(available.group.groupCoordinates)
+            .add(component.id())
+            .add(component.version())
+            .toString();
+        final var coordinates = MavenCoordinates.parse(rawCoordinates);
         final var variants = component.assets().filter(asset -> asset.path().endsWith(".jar"))
             .filter(jar -> !jar.equals(base))
             .map(jar -> {
                 final var variant = jar.path().replace(baseName, "").replace(".jar", "");
+
                 return new Artifact(
-                    variant, available.group(), component.id(), component.version(), jar.downloadUrl(),
+                    variant, coordinates, jar.downloadUrl(),
                     jar.checksum().md5(), jar.checksum().sha1()
                 );
             });
         return variants.prepend(
-            new Artifact("base", available.group(), component.id(), component.version(), base.downloadUrl(),
+            new Artifact("base", coordinates, base.downloadUrl(),
                 base.checksum().md5(), base.checksum().sha1()
             ));
     }

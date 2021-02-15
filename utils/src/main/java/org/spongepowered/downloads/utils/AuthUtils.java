@@ -33,8 +33,6 @@ import org.pac4j.core.context.HttpConstants;
 import org.pac4j.core.credentials.TokenCredentials;
 import org.pac4j.core.profile.CommonProfile;
 import org.pac4j.http.client.direct.HeaderClient;
-import org.pac4j.http.client.direct.IpClient;
-import org.pac4j.http.credentials.authenticator.IpRegexpAuthenticator;
 import org.pac4j.jwt.config.encryption.EncryptionConfiguration;
 import org.pac4j.jwt.config.encryption.SecretEncryptionConfiguration;
 import org.pac4j.jwt.config.signature.SecretSignatureConfiguration;
@@ -45,20 +43,19 @@ import org.pac4j.jwt.profile.JwtGenerator;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
-import java.util.Objects;
 
 public final class AuthUtils {
 
-    private static final String IP_ADDRESS_WHITELIST_REGEX =
-            Objects.requireNonNullElse(System.getenv("IP_WHITELIST"), "(127\\.0\\.0\\.1|localhost)");
     private static final String ENCRYPTION_SECRET = System.getenv("JWT-ENCRYPTION-SECRET");
     private static final String SIGNATURE_SECRET = System.getenv("JWT-SIGNATURE-SECRET");
+    private static final String NEXUS_WEBHOOK_SECRET = System.getenv("NEXUS_WEBHOOK_SECRET");
+    public static final String INTERNAL_HEADER_SECRET = System.getenv("INTERNAL_KEY");
+    public static final String INTERNAL_HEADER_KEY = System.getenv("INTERNAL_HEADER");
 
     @SuppressWarnings("rawtypes")
     public static Config createConfig(final Client... additionalClients) {
         final var jwtClient = AuthUtils.createJwtClient();
-        final var ipClient = AuthUtils.createIpWhitelistClient();
-        final var config = new Config(List.<Client>of(jwtClient, ipClient).appendAll(List.of(additionalClients)).asJava());
+        final var config = new Config(List.<Client>of(jwtClient).appendAll(List.of(additionalClients)).asJava());
         config.getClients().setDefaultSecurityClients(jwtClient.getName());
         AuthUtils.setAuthorizers(config);
         return config;
@@ -80,20 +77,6 @@ public final class AuthUtils {
         headerClient.setAuthenticator(jwtAuthenticator); // this should provide the correct profile automagically.
         headerClient.setName(AuthUtils.Types.JWT);
         return headerClient;
-    }
-
-    public static DirectClient<TokenCredentials, CommonProfile> createIpWhitelistClient() {
-        final var ipClient = new IpClient();
-        ipClient.setName(AuthUtils.Types.WEBHOOK);
-        ipClient.setAuthenticator(new IpRegexpAuthenticator(AuthUtils.IP_ADDRESS_WHITELIST_REGEX));
-        ipClient.setProfileCreator((tokenCredentials, webContext) -> {
-            final var profile = new CommonProfile();
-            profile.setId("webhook");
-            profile.addRole(AuthUtils.Roles.WEBHOOK);
-            profile.setClientName("SOAD Webhook");
-            return profile;
-        });
-        return ipClient;
     }
 
     public static JwtGenerator<CommonProfile> createJwtGenerator() {
@@ -119,6 +102,10 @@ public final class AuthUtils {
 
     private static SignatureConfiguration getSignatureConfiguration() {
         return new SecretSignatureConfiguration(AuthUtils.SIGNATURE_SECRET);
+    }
+
+    private static SignatureConfiguration getSonatypeSignatureConfiguration() {
+        return new SecretSignatureConfiguration(AuthUtils.NEXUS_WEBHOOK_SECRET);
     }
 
     private AuthUtils() {}

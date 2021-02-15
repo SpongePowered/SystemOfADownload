@@ -27,20 +27,23 @@ package org.spongepowered.downloads.artifact.collection;
 import io.vavr.collection.HashMap;
 import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 
 public class ACState {
 
-    public final String groupId;
-    public final String artifactId;
+    public final MavenCoordinates coordinates;
     public final Map<String, ArtifactCollection> collection;
 
     public static ACState empty() {
-        return new ACState("", "", HashMap.empty());
+        return new ACState(MavenCoordinates.parse("com.example:example:0"), HashMap.empty());
     }
 
-    public ACState(final String groupId, final String artifactId, final Map<String, ArtifactCollection> collection) {
-        this.groupId = groupId;
-        this.artifactId = artifactId;
+    public ACState(final MavenCoordinates coordinates, final Map<String, ArtifactCollection> collection) {
+        this.coordinates = coordinates;
         this.collection = collection;
+    }
+
+    public boolean isRegistered() {
+        return "com.example".equals(this.coordinates.groupId);
     }
 }

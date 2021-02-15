@@ -22,24 +22,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.webhook.worker;
+package org.spongepowered.downloads.auth;
 
-import com.google.inject.AbstractModule;
-import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
-import org.spongepowered.downloads.artifact.api.ArtifactService;
-import org.spongepowered.downloads.changelog.api.ChangelogService;
-import org.spongepowered.downloads.git.api.CommitService;
-import org.spongepowered.downloads.webhook.ArtifactWorker;
-import org.spongepowered.downloads.webhook.SonatypeWebhookService;
+import org.pac4j.core.profile.CommonProfile;
 
-public class WorkerModule extends AbstractModule implements ServiceGuiceSupport {
+public class InternalApplicationProfile extends CommonProfile {
 
-    @Override
-    protected void configure() {
-        this.bindClient(CommitService.class);
-        this.bindClient(ArtifactService.class);
-        this.bindClient(ChangelogService.class);
-        this.bindClient(SonatypeWebhookService.class);
-        this.bindService(ArtifactWorker.class, SonatypeArtifactWorkerService.class);
+    public InternalApplicationProfile() {
+        this.setId("InternalApplication");
     }
+
 }

@@ -25,46 +25,51 @@
 package org.spongepowered.downloads.webhook;
 
 import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
+import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.Tuple2;
 import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.git.api.CommitSha;
 
 import java.io.Serial;
 import java.util.Objects;
+import java.util.StringJoiner;
 
 public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEvent>, Jsonable {
+
+    AggregateEventShards<ScrapedArtifactEvent> INSTANCE = AggregateEventTag.sharded(ScrapedArtifactEvent.class, 10);
 
     AggregateEventTag<ScrapedArtifactEvent> TAG = AggregateEventTag.of(ScrapedArtifactEvent.class);
 
     @Override
     default AggregateEventTagger<ScrapedArtifactEvent> aggregateTag() {
-        return TAG;
+        return INSTANCE;
     }
 
     String mavenCoordinates();
 
     final class InitializeArtifactForProcessing implements ScrapedArtifactEvent {
         @Serial private static final long serialVersionUID = 0L;
-        private final String mavenCoordinates;
-        private final String repository;
-        private final String componentId;
+        public final MavenCoordinates coordinates;
+        public final String repository;
+        public final String componentId;
 
         public InitializeArtifactForProcessing(
-            final String mavenCoordinates,
+            final MavenCoordinates coordinates,
             final String repository,
             final String componentId
         ) {
-            this.mavenCoordinates = mavenCoordinates;
+            this.coordinates = coordinates;
             this.repository = repository;
             this.componentId = componentId;
         }
 
         public String mavenCoordinates() {
-            return this.mavenCoordinates;
+            return this.coordinates.toString();
         }
 
         public String repository() {
@@ -80,20 +85,20 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
             if (obj == this) return true;
             if (obj == null || obj.getClass() != this.getClass()) return false;
             final var that = (InitializeArtifactForProcessing) obj;
-            return Objects.equals(this.mavenCoordinates, that.mavenCoordinates) &&
+            return Objects.equals(this.coordinates, that.coordinates) &&
                 Objects.equals(this.repository, that.repository) &&
                 Objects.equals(this.componentId, that.componentId);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(this.mavenCoordinates, this.repository, this.componentId);
+            return Objects.hash(this.coordinates, this.repository, this.componentId);
         }
 
         @Override
         public String toString() {
             return "InitializeArtifactForProcessing[" +
-                "mavenCoordinates=" + this.mavenCoordinates + ", " +
+                "mavenCoordinates=" + this.coordinates + ", " +
                 "repository=" + this.repository + ", " +
                 "componentId=" + this.componentId + ']';
         }
@@ -102,64 +107,56 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
 
     final class ArtifactRequested implements ScrapedArtifactEvent {
         @Serial private static final long serialVersionUID = 0L;
-        private final String mavenGroupId;
-        private final String mavenArtifactId;
-        private final String componentVersion;
-        private final String mavenCoordinates;
+        public final MavenCoordinates coordinates;
 
         public ArtifactRequested(
-            final String mavenGroupId,
-            final String mavenArtifactId,
-            final String componentVersion,
-            final String mavenCoordinates
+            final MavenCoordinates coordinates
         ) {
-            this.mavenGroupId = mavenGroupId;
-            this.mavenArtifactId = mavenArtifactId;
-            this.componentVersion = componentVersion;
-            this.mavenCoordinates = mavenCoordinates;
+            this.coordinates = coordinates;
         }
 
         public String mavenGroupId() {
-            return this.mavenGroupId;
+            return this.coordinates.groupId;
         }
 
         public String mavenArtifactId() {
-            return this.mavenArtifactId;
+            return this.coordinates.artifactId;
         }
 
         public String componentVersion() {
-            return this.componentVersion;
+            return this.coordinates.version;
         }
 
         public String mavenCoordinates() {
-            return this.mavenCoordinates;
+            return this.coordinates.asStandardCoordinates();
         }
 
         @Override
-        public boolean equals(final Object obj) {
-            if (obj == this) return true;
-            if (obj == null || obj.getClass() != this.getClass()) return false;
-            final var that = (ArtifactRequested) obj;
-            return Objects.equals(this.mavenGroupId, that.mavenGroupId) &&
-                Objects.equals(this.mavenArtifactId, that.mavenArtifactId) &&
-                Objects.equals(this.componentVersion, that.componentVersion) &&
-                Objects.equals(this.mavenCoordinates, that.mavenCoordinates);
+        public boolean equals(final Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || this.getClass() != o.getClass()) {
+                return false;
+            }
+            final ArtifactRequested that = (ArtifactRequested) o;
+            return Objects.equals(this.coordinates, that.coordinates);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(this.mavenGroupId, this.mavenArtifactId, this.componentVersion, this.mavenCoordinates);
+            return Objects.hash(this.coordinates);
         }
 
         @Override
         public String toString() {
-            return "ArtifactRequested[" +
-                "mavenGroupId=" + this.mavenGroupId + ", " +
-                "mavenArtifactId=" + this.mavenArtifactId + ", " +
-                "componentVersion=" + this.componentVersion + ", " +
-                "mavenCoordinates=" + this.mavenCoordinates + ']';
+            return new StringJoiner(
+                ", ", ArtifactRequested.class.getSimpleName() + "[",
+                "]"
+            )
+                .add("coordinates=" + this.coordinates)
+                .toString();
         }
-
     }
 
     final class AssociatedMavenMetadata
@@ -227,25 +224,13 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
     final class AssociateCommitSha implements ScrapedArtifactEvent {
         @Serial private static final long serialVersionUID = 0L;
         private final ArtifactCollection collection;
-        private final String mavenCoordinates;
-        private final String groupId;
-        private final String artifactId;
-        private final String version;
         private final CommitSha commit;
 
         public AssociateCommitSha(
             final ArtifactCollection collection,
-            final String mavenCoordinates,
-            final String groupId,
-            final String artifactId,
-            final String version,
             final CommitSha commit
         ) {
             this.collection = collection;
-            this.mavenCoordinates = mavenCoordinates;
-            this.groupId = groupId;
-            this.artifactId = artifactId;
-            this.version = version;
             this.commit = commit;
         }
 
@@ -254,19 +239,19 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
         }
 
         public String mavenCoordinates() {
-            return this.mavenCoordinates;
+            return this.collection.coordinates.toString();
         }
 
         public String groupId() {
-            return this.groupId;
+            return this.collection.coordinates.groupId;
         }
 
         public String artifactId() {
-            return this.artifactId;
+            return this.collection.coordinates.artifactId;
         }
 
         public String version() {
-            return this.version;
+            return this.collection.coordinates.version;
         }
 
         public CommitSha commit() {
@@ -279,27 +264,19 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
             if (obj == null || obj.getClass() != this.getClass()) return false;
             final var that = (AssociateCommitSha) obj;
             return Objects.equals(this.collection, that.collection) &&
-                Objects.equals(this.mavenCoordinates, that.mavenCoordinates) &&
-                Objects.equals(this.groupId, that.groupId) &&
-                Objects.equals(this.artifactId, that.artifactId) &&
-                Objects.equals(this.version, that.version) &&
                 Objects.equals(this.commit, that.commit);
         }
 
         @Override
         public int hashCode() {
             return Objects.hash(
-                this.collection, this.mavenCoordinates, this.groupId, this.artifactId, this.version, this.commit);
+                this.collection, this.commit);
         }
 
         @Override
         public String toString() {
             return "AssociateCommitSha[" +
                 "collection=" + this.collection + ", " +
-                "mavenCoordinates=" + this.mavenCoordinates + ", " +
-                "groupId=" + this.groupId + ", " +
-                "artifactId=" + this.artifactId + ", " +
-                "version=" + this.version + ", " +
                 "commit=" + this.commit + ']';
         }
 

@@ -26,86 +26,121 @@ package org.spongepowered.downloads.webhook;
 
 
 import akka.NotUsed;
+import akka.cluster.sharding.typed.javadsl.ClusterSharding;
+import akka.cluster.sharding.typed.javadsl.Entity;
+import akka.cluster.sharding.typed.javadsl.EntityRef;
+import akka.japi.Pair;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.broker.Topic;
+import com.lightbend.lagom.javadsl.api.transport.MessageProtocol;
+import com.lightbend.lagom.javadsl.api.transport.ResponseHeader;
 import com.lightbend.lagom.javadsl.broker.TopicProducer;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRef;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
-import io.vavr.collection.HashMap;
+import com.lightbend.lagom.javadsl.server.HeaderServiceCall;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.Marker;
+import org.apache.logging.log4j.MarkerManager;
 import org.pac4j.core.config.Config;
 import org.pac4j.lagom.javadsl.SecuredService;
-import org.spongepowered.downloads.artifact.api.ArtifactCollection;
+import org.pcollections.HashTreePMap;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
-import org.spongepowered.downloads.artifact.api.Group;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
+import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
+import org.spongepowered.downloads.auth.AuthenticatedInternalService;
 import org.spongepowered.downloads.auth.api.SOADAuth;
 import org.spongepowered.downloads.changelog.api.ChangelogService;
 import org.spongepowered.downloads.utils.AuthUtils;
 import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
 
 import javax.inject.Inject;
+import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public class SonatypeWebhookServiceImpl extends AbstractOpenAPIService implements SonatypeWebhookService,
-    SecuredService {
+    AuthenticatedInternalService {
 
+    private static final Logger LOGGER = LogManager.getLogger("SonatypeWebhook");
+    public static final Marker HEADER_AUTH = MarkerManager.getMarker("AUTH");
     public static final String TOPIC_NAME = "artifact-changelog-analysis";
     private final ArtifactService artifacts;
     private final ChangelogService changelog;
-    private final PersistentEntityRegistry registry;
+    private final ClusterSharding clusterSharding;
+    private final PersistentEntityRegistry persistentEntityRegistry;
     private final Config securityConfig;
+    public static final String NEXUS_SECRET_HEADER = "X-Nexus-Webhook-Signature";
 
     @Inject
     public SonatypeWebhookServiceImpl(
         final ArtifactService artifacts, final ChangelogService changelog,
-        final PersistentEntityRegistry registry,
+        final ClusterSharding clusterSharding,
+        final PersistentEntityRegistry persistentEntityRegistry,
         @SOADAuth final Config securityConfig
     ) {
         this.artifacts = artifacts;
         this.changelog = changelog;
-        this.registry = registry;
-        registry.register(ArtifactProcessorEntity.class);
+        this.clusterSharding = clusterSharding;
+        this.clusterSharding.init(
+            Entity.of(
+                ArtifactProcessorEntity.ENTITY_TYPE_KEY,
+                ArtifactProcessorEntity::create
+            )
+        );
+        this.persistentEntityRegistry = persistentEntityRegistry;
         this.securityConfig = securityConfig;
     }
 
     @Override
-    public ServiceCall<SonatypeData, NotUsed> processSonatypeData() {
-        return this.authorize(AuthUtils.Types.WEBHOOK, AuthUtils.Roles.WEBHOOK, profile -> (webhook) -> {
-            if ("CREATED".equals(webhook.action())) {
+    public HeaderServiceCall<SonatypeData, String> processSonatypeData() {
+        return (requestHeader, webhookData) -> {
+            final var signatureOpt = requestHeader.getHeader(NEXUS_SECRET_HEADER);
+            if (signatureOpt.isEmpty()) {
+                final var unauthorized = new ResponseHeader(401, new MessageProtocol(), HashTreePMap.empty());
+                return CompletableFuture.completedFuture(Pair.create(unauthorized, "Unauthorized"));
+            }
+            final String nexusSignature = signatureOpt.get();
 
-                final SonatypeComponent component = webhook.component();
-                final var collection = new ArtifactCollection(HashMap.empty(),
-                    new Group(component.group(), component.group(), ""), component.id(),
-                    component.version()
-                );
-                return this.artifacts.registerArtifacts(component.group())
-                    .invoke(new ArtifactRegistration.RegisterArtifact(component.id(), component.name(), component.version()))
+            LOGGER.log(Level.INFO, "Webhook Content:" + webhookData.toString());
+            if ("CREATED".equals(webhookData.action())) {
+
+                final SonatypeComponent component = webhookData.component();
+                final String groupId = component.group();
+                return this.authorizeInvoke(this.artifacts.getArtifacts(groupId))
+                    .invoke()
                     .thenCompose(response -> {
-                        if (response instanceof ArtifactRegistration.Response.RegisteredArtifact) {
-                            final var registered = (ArtifactRegistration.Response.RegisteredArtifact) response;
-                            return this.getProcessingEntity(registered.artifact().getMavenCoordinates())
-                                .ask(new ArtifactProcessorEntity.Command.StartProcessing(webhook,
-                                    registered.artifact()
-                                ));
+                        final MavenCoordinates coordinates = MavenCoordinates.parse(
+                            groupId + ":" + component.name() + ":" + component.version());
+                        if (response instanceof GetArtifactsResponse.ArtifactsAvailable) {
+                            if (((GetArtifactsResponse.ArtifactsAvailable) response).artifactIds().contains(component.name())) {
+                                return this.getProcessingEntity(coordinates)
+                                    .ask(replyTo -> new ArtifactSagaCommand.StartProcessing(webhookData,
+                                        coordinates,
+                                        replyTo
+                                    ), Duration.ofSeconds(10));
+                            }
                         }
                         return CompletableFuture.completedStage(NotUsed.notUsed());
                     })
-                    .thenApply(response -> NotUsed.notUsed());
+                    .thenApply(response -> Pair.create(ResponseHeader.OK, "success"));
             }
-            return CompletableFuture.completedStage(NotUsed.notUsed());
-        });
+            return CompletableFuture.completedStage(Pair.create(ResponseHeader.OK, "success"));
+        };
     }
 
     @Override
     public Topic<ScrapedArtifactEvent> topic() {
         return TopicProducer.singleStreamWithOffset(offset ->
             // Load the event stream for the passed in shard tag
-            this.registry.eventStream(ScrapedArtifactEvent.TAG, offset));
+            this.persistentEntityRegistry.eventStream(ScrapedArtifactEvent.TAG, offset));
     }
 
 
-    public PersistentEntityRef<ArtifactProcessorEntity.Command> getProcessingEntity(final String mavenCoordinates) {
-        return this.registry.refFor(ArtifactProcessorEntity.class, mavenCoordinates);
+    public EntityRef<ArtifactSagaCommand> getProcessingEntity(final MavenCoordinates mavenCoordinates) {
+        return this.clusterSharding.entityRefFor(ArtifactProcessorEntity.ENTITY_TYPE_KEY, mavenCoordinates.toString());
     }
 
     @Override

@@ -43,6 +43,7 @@ import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.Group;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
@@ -180,17 +181,17 @@ public class GroupEntity
         }
 
         final var group = state.asGroup();
-        final var collection = new ArtifactCollection(group, cmd.artifact, "");
+        final var coordinates = MavenCoordinates.parse(group.groupCoordinates + ":" + cmd.artifact + ":" + cmd.version);
         final EffectFactories<GroupEvent, GroupState> effect = this.Effect();
         return effect.persist(new GroupEvent.ArtifactRegistered(state.groupCoordinates, cmd.artifact))
-            .thenReply(cmd.replyTo, (s) -> new ArtifactRegistration.Response.RegisteredArtifact(collection));
+            .thenReply(cmd.replyTo, (s) -> new ArtifactRegistration.Response.RegisteredArtifact(coordinates));
     }
 
     private ReplyEffect<GroupEvent, GroupState> respondToGetGroup(
         final GroupState state, final GroupCommand.GetGroup cmd
     ) {
         LOGGER.info(STATE_RETRIEVAL, "CurrentState: {} responding to cmd {}", state.name, cmd);
-        if (state.name.equalsIgnoreCase(cmd.groupId)) {
+        if (state.groupCoordinates.equalsIgnoreCase(cmd.groupId)) {
 
             LOGGER.info(STATE_RETRIEVAL, "Group Matched, getting response from Stfate: {}", state);
             final String website = state.website;
@@ -215,7 +216,7 @@ public class GroupEntity
         final GroupCommand.GetArtifacts cmd
     ) {
         LOGGER.info(STATE_RETRIEVAL, "CurrentState: {} responding to cmd {}", state.name, cmd);
-        if (!state.name.equalsIgnoreCase(cmd.groupId)) {
+        if (!state.groupCoordinates.equalsIgnoreCase(cmd.groupId)) {
             LOGGER.info(STATE_RETRIEVAL, "GroupId mismatch, requested {} but had {}", state.name, cmd.groupId);
             return this.Effect().reply(cmd.replyTo, new GetArtifactsResponse.GroupMissing(cmd.groupId));
         }

@@ -31,7 +31,7 @@ import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
-import org.spongepowered.downloads.artifact.api.Group;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 
 import java.io.Serial;
 import java.util.Objects;
@@ -44,13 +44,13 @@ public interface ACEvent extends Jsonable, AggregateEvent<ACEvent> {
         return INSTANCE;
     }
 
-    final class ArtifactGroupUpdated implements ACEvent {
+    final class ArtifactCoordinatesUpdated implements ACEvent {
         @Serial private static final long serialVersionUID = 0L;
-        public final Group groupId;
+        public final MavenCoordinates coordinates;
 
         @JsonCreator
-        public ArtifactGroupUpdated(final Group groupId) {
-            this.groupId = groupId;
+        public ArtifactCoordinatesUpdated(final MavenCoordinates coordinates) {
+            this.coordinates = coordinates;
         }
 
         @Override
@@ -61,56 +61,19 @@ public interface ACEvent extends Jsonable, AggregateEvent<ACEvent> {
             if (obj == null || obj.getClass() != this.getClass()) {
                 return false;
             }
-            final var that = (ArtifactGroupUpdated) obj;
-            return Objects.equals(this.groupId, that.groupId);
+            final var that = (ArtifactCoordinatesUpdated) obj;
+            return Objects.equals(this.coordinates, that.coordinates);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(this.groupId);
+            return Objects.hash(this.coordinates);
         }
 
         @Override
         public String toString() {
-            return "ArtifactGroupUpdated[" +
-                "groupId=" + this.groupId + ']';
-        }
-    }
-
-    final class ArtifactIdUpdated implements ACEvent {
-        @Serial private static final long serialVersionUID = 0L;
-        public final String artifactId;
-
-        @JsonCreator
-        public ArtifactIdUpdated(final String artifactId) {
-            this.artifactId = artifactId;
-        }
-
-        public String artifactId() {
-            return this.artifactId;
-        }
-
-        @Override
-        public boolean equals(final Object obj) {
-            if (obj == this) {
-                return true;
-            }
-            if (obj == null || obj.getClass() != this.getClass()) {
-                return false;
-            }
-            final var that = (ArtifactIdUpdated) obj;
-            return Objects.equals(this.artifactId, that.artifactId);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(this.artifactId);
-        }
-
-        @Override
-        public String toString() {
-            return "ArtifactIdUpdated[" +
-                "artifactId=" + this.artifactId + ']';
+            return "ArtifactCoordinatesUpdated[" +
+                "coordinates=" + this.coordinates + ']';
         }
     }
 
@@ -120,7 +83,9 @@ public interface ACEvent extends Jsonable, AggregateEvent<ACEvent> {
         public final ArtifactCollection collection;
 
         @JsonCreator
-        public ArtifactVersionRegistered(final String version, final ArtifactCollection collection) {
+        public ArtifactVersionRegistered(
+            final String version, final ArtifactCollection collection
+        ) {
             this.version = version;
             this.collection = collection;
         }
@@ -134,20 +99,18 @@ public interface ACEvent extends Jsonable, AggregateEvent<ACEvent> {
                 return false;
             }
             final var that = (ArtifactVersionRegistered) obj;
-            return Objects.equals(this.version, that.version) &&
-                Objects.equals(this.collection, that.collection);
+            return Objects.equals(this.version, that.version);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(this.version, this.collection);
+            return Objects.hash(this.version);
         }
 
         @Override
         public String toString() {
             return "ArtifactVersionRegistered[" +
-                "version=" + this.version + ", " +
-                "collection=" + this.collection + ']';
+                "version=" + this.version + ", ";
         }
     }
 

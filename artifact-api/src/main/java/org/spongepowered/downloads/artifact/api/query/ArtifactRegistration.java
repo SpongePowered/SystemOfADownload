@@ -28,12 +28,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.lightbend.lagom.serialization.Jsonable;
 import io.swagger.v3.oas.annotations.media.Schema;
-import io.vavr.collection.List;
+import io.vavr.collection.HashMap;
+import io.vavr.collection.Map;
+import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 
 import java.io.Serial;
 import java.util.Objects;
@@ -45,29 +47,17 @@ public final class ArtifactRegistration {
     public static final class RegisterArtifact {
 
         @JsonProperty(required = true)
-        private final String artifactId;
+        public final String artifactId;
         @JsonProperty(required = true)
-        private final String displayName;
+        public final String displayName;
         @JsonProperty(required = false)
-        private final String version;
+        public final String version;
 
         @JsonCreator
         public RegisterArtifact(final String artifactId, final String displayName, final String version) {
             this.artifactId = artifactId;
             this.displayName = displayName;
             this.version = version;
-        }
-
-        public String getArtifactId() {
-            return this.artifactId;
-        }
-
-        public String getDisplayName() {
-            return this.displayName;
-        }
-
-        public String getVersion() {
-            return this.version;
         }
 
         @Override
@@ -105,16 +95,11 @@ public final class ArtifactRegistration {
     @JsonSerialize
     public static final class RegisterCollection {
 
-        @Schema(required = true) @JsonProperty private final ArtifactCollection collection;
+        @Schema(required = true) @JsonProperty public final ArtifactCollection collection;
 
         @JsonCreator
         public RegisterCollection(@Schema(required = true) final ArtifactCollection collection) {
             this.collection = collection;
-        }
-
-        @Schema(required = true)
-        public ArtifactCollection collection() {
-            return this.collection;
         }
 
         @Override
@@ -151,21 +136,13 @@ public final class ArtifactRegistration {
             @Serial private static final long serialVersionUID = -3135793273231868113L;
 
             @JsonProperty
-            private final String artifactName;
+            public final String artifactName;
             @JsonProperty
-            private final String groupId;
+            public final String groupId;
 
             public ArtifactAlreadyRegistered(final String artifactName, final String groupId) {
                 this.artifactName = artifactName;
                 this.groupId = groupId;
-            }
-
-            public String artifactName() {
-                return this.artifactName;
-            }
-
-            public String groupId() {
-                return this.groupId;
             }
 
             @Override
@@ -197,37 +174,31 @@ public final class ArtifactRegistration {
 
             @Schema(required = true)
             @JsonProperty(required = true)
-            private final ArtifactCollection artifact;
+            public final Map<String, Artifact> artifactComponents;
 
-            public RegisteredArtifact(final ArtifactCollection artifact) {
-                this.artifact = artifact;
+            @JsonProperty(value = "literalCoordinates", required = true)
+            public final MavenCoordinates coordinates;
+
+            public RegisteredArtifact(final MavenCoordinates mavenCoordinates) {
+                this.coordinates = mavenCoordinates;
+                this.artifactComponents = HashMap.empty();
+            }
+
+            public RegisteredArtifact(
+                final Map<String, Artifact> artifactComponents,
+                final MavenCoordinates mavenCoordinates
+            ) {
+                this.artifactComponents = artifactComponents;
+                this.coordinates = mavenCoordinates;
             }
 
             public String getMavenCoordinates() {
-                return this.artifact.getMavenCoordinates();
+                return this.coordinates.toString();
             }
 
-            public ArtifactCollection artifact() {
-                return this.artifact;
-            }
-
-            @Override
-            public boolean equals(final Object obj) {
-                if (obj == this) return true;
-                if (obj == null || obj.getClass() != this.getClass()) return false;
-                final var that = (RegisteredArtifact) obj;
-                return Objects.equals(this.artifact, that.artifact);
-            }
-
-            @Override
-            public int hashCode() {
-                return Objects.hash(this.artifact);
-            }
-
-            @Override
-            public String toString() {
-                return "RegisteredArtifact[" +
-                    "artifact=" + this.artifact + ']';
+            @JsonProperty("coordinates")
+            public String asStandardCoordinates() {
+                return this.coordinates.asStandardCoordinates();
             }
 
         }

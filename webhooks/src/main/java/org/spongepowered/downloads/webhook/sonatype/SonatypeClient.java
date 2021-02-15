@@ -38,6 +38,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.spongepowered.downloads.artifact.api.Artifact;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.git.api.CommitSha;
 
 import java.io.BufferedInputStream;
@@ -140,11 +141,20 @@ public class SonatypeClient {
      * that if a snapshot version say comes with the timestamp associated, it
      * is not the valid maven version and instead should use
      * {@code ?version=$componentVersion}
-     * @param mavenGroup
-     * @param mavenArtifactId
-     * @param mavenVersion
+     * @param coordinates The Maven formatted coordinates
      * @return
      */
+    public Try<Component> resolveMavenArtifact(final MavenCoordinates coordinates) {
+        final String baseUrl = this.config.baseUrl + "search?";
+        final String target = new StringJoiner("&", baseUrl, "")
+            .add("maven.groupId=" + coordinates.groupId)
+            .add("maven.artifactId=" + coordinates.artifactId)
+            .add("maven.baseVersion=" + coordinates.version)
+            .toString();
+        return SonatypeClient.openConnectionTo(target)
+            .mapTry(reader -> this.mapper.readValue(reader, Component.class));
+    }
+
     public Try<Component> resolveMavenArtifact(final String mavenGroup, final String mavenArtifactId, final String mavenVersion) {
         final String baseUrl = this.config.baseUrl + "search?";
         final String target = new StringJoiner("&", baseUrl, "")
@@ -216,7 +226,7 @@ public class SonatypeClient {
     }
 
     public Try<CommitSha> generateArtifactFrom(final Artifact asset) {
-        return SonatypeClient.openConnectionTo(asset.downloadUrl())
+        return SonatypeClient.openConnectionTo(asset.downloadUrl)
             .flatMapTry(reader -> {
                 final Path jar = Files.createTempFile("system-of-a-download-files", "jar");
                 return readFileFromInput(reader, jar);

@@ -39,10 +39,10 @@ public class WebhookModule extends AbstractModule implements ServiceGuiceSupport
 
     @Override
     protected void configure() {
-        this.bindServiceInfo(ServiceInfo.of("webhook"));
         this.bindClient(CommitService.class);
         this.bindClient(ArtifactService.class);
         this.bindClient(ChangelogService.class);
+        this.bindService(SonatypeWebhookService.class, SonatypeWebhookServiceImpl.class);
     }
 
     @Provides

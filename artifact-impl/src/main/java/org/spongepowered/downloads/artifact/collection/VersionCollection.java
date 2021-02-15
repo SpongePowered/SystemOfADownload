@@ -22,24 +22,29 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.webhook.worker;
+package org.spongepowered.downloads.artifact.collection;
 
-import com.google.inject.AbstractModule;
-import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
-import org.spongepowered.downloads.artifact.api.ArtifactService;
-import org.spongepowered.downloads.changelog.api.ChangelogService;
-import org.spongepowered.downloads.git.api.CommitService;
-import org.spongepowered.downloads.webhook.ArtifactWorker;
-import org.spongepowered.downloads.webhook.SonatypeWebhookService;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.vavr.collection.Map;
+import org.spongepowered.downloads.artifact.api.Artifact;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 
-public class WorkerModule extends AbstractModule implements ServiceGuiceSupport {
+@JsonSerialize
+public class VersionCollection {
 
-    @Override
-    protected void configure() {
-        this.bindClient(CommitService.class);
-        this.bindClient(ArtifactService.class);
-        this.bindClient(ChangelogService.class);
-        this.bindClient(SonatypeWebhookService.class);
-        this.bindService(ArtifactWorker.class, SonatypeArtifactWorkerService.class);
+    @JsonProperty(required = true)
+    public final Map<String, Artifact> components;
+
+    /**
+     * The {@code coordinates} of this particular version collection.
+     */
+    @JsonProperty(required = true)
+    public final MavenCoordinates mavenCoordinates;
+
+    public VersionCollection(final MavenCoordinates coordinates, final Map<String, Artifact> components) {
+        this.components = components;
+        this.mavenCoordinates = coordinates;
     }
+
 }

@@ -25,6 +25,7 @@
 package org.spongepowered.downloads.webhook.worker;
 
 import akka.Done;
+import akka.NotUsed;
 import io.vavr.control.Try;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Marker;
@@ -33,6 +34,7 @@ import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.webhook.ScrapedArtifactEvent;
 import org.spongepowered.downloads.webhook.sonatype.SonatypeClient;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -53,7 +55,8 @@ public final class AssociateMavenMetadataStep implements WorkerStep<ScrapedArtif
             .getOrElse(() -> event.collection().getArtifactComponents().head()._2);
         return Try.of(() -> client.generateArtifactFrom(base)
             .map(sha -> service.getProcessingEntity(event.mavenCoordinates())
-                .ask(new ScrapedArtifactEntity.Command.AssociateCommitShaWithArtifact(event.collection(), sha))
+                .<NotUsed>ask(replyTo -> new ScrapedArtifactCommand.AssociateCommitShaWithArtifact(event.collection(), sha, replyTo),
+                    Duration.ofSeconds(10))
             )
             .map(notUsed -> notUsed.thenApply(notUsed1 -> Done.done()))
             .toEither()

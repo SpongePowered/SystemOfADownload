@@ -106,11 +106,15 @@ public interface GroupCommand extends Jsonable {
 
     final class RegisterArtifact implements GroupCommand {
         public final String artifact;
+        public final String version;
         public final ActorRef<ArtifactRegistration.Response> replyTo;
 
         @JsonCreator
-        public RegisterArtifact(final String artifact, final ActorRef<ArtifactRegistration.Response> replyTo) {
+        public RegisterArtifact(
+            final String artifact, final String version, final ActorRef<ArtifactRegistration.Response> replyTo
+        ) {
             this.artifact = artifact;
+            this.version = version;
             this.replyTo = replyTo;
         }
 
