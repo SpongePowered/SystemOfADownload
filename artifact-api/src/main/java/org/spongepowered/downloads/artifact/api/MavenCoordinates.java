@@ -24,14 +24,17 @@
  */
 package org.spongepowered.downloads.artifact.api;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.regex.Pattern;
 
-@JsonSerialize
+@JsonDeserialize
 public final class MavenCoordinates {
 
     private static final Pattern MAVEN_REGEX = Pattern.compile("[\\w.]+");
@@ -57,7 +60,7 @@ public final class MavenCoordinates {
     @JsonProperty(required = true)
     public final String version;
 
-    @JsonProperty(required = false)
+    @JsonIgnore
     public final VersionType versionType;
 
     /**
@@ -88,13 +91,42 @@ public final class MavenCoordinates {
         return new MavenCoordinates(groupId, artifactId, version);
     }
 
-    private MavenCoordinates(final String groupId, final String artifactId, final String version) {
+    public MavenCoordinates(String coordinates) {
+        final var splitCoordinates = coordinates.split(":");
+        if (splitCoordinates.length < 3) {
+            throw new IllegalArgumentException(
+                "Coordinates are not formatted or delimited by the `:` character or contains fewer than the required size");
+        }
+        final var groupId = splitCoordinates[0];
+        if (!MAVEN_REGEX.asMatchPredicate().test(groupId)) {
+            throw new IllegalArgumentException("GroupId does not conform to regex rules for a maven group id");
+        }
+        final var artifactId = splitCoordinates[1];
+        if (!MAVEN_REGEX.asMatchPredicate().test(artifactId)) {
+            throw new IllegalArgumentException("ArtifactId does not conform to regex rules for a maven artifact id");
+        }
+        final var version = splitCoordinates[2];
+
+        VersionType.fromVersion(version); // validates the version is going to be valid somewhat
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.version = version;
         this.versionType = VersionType.fromVersion(version);
     }
 
+    @JsonCreator
+    public MavenCoordinates(
+        @JsonProperty("groupId") final String groupId,
+        @JsonProperty("artifactId") final String artifactId,
+        @JsonProperty("version") final String version
+    ) {
+        this.groupId = groupId;
+        this.artifactId = artifactId;
+        this.version = version;
+        this.versionType = VersionType.fromVersion(version);
+    }
+
+    @JsonIgnore
     public String asStandardCoordinates() {
         return new StringJoiner(":")
             .add(this.groupId)
@@ -103,6 +135,7 @@ public final class MavenCoordinates {
             .toString();
     }
 
+    @JsonIgnore
     public boolean isSnapshot() {
         return this.versionType.isSnapshot();
     }

@@ -30,7 +30,7 @@ import com.lightbend.lagom.javadsl.api.Service;
 public interface ArtifactWorker extends Service {
     @Override
     default Descriptor descriptor() {
-        return Service.named("artifact-worker")
+        return Service.named("artifact-scraper")
             .withAutoAcl(true)
             ;
     }

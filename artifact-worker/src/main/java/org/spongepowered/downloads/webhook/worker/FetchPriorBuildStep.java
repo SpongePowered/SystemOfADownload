@@ -26,10 +26,13 @@ package org.spongepowered.downloads.webhook.worker;
 
 import akka.Done;
 import akka.NotUsed;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vavr.control.Either;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
@@ -47,9 +50,12 @@ import java.util.function.Function;
 
 public final class FetchPriorBuildStep implements WorkerStep<ScrapedArtifactEvent.AssociateCommitSha> {
 
+    private static final Logger LOGGER = LogManager.getLogger("PriorBuildFetcher");
     private static final Marker MARKER = MarkerManager.getMarker("FETCH_PRIOR_BUILD");
+    private final ObjectMapper objectMapper;
 
-    public FetchPriorBuildStep() {
+    public FetchPriorBuildStep(final ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
     }
 
     final static class RecordRequest {
@@ -137,8 +143,14 @@ public final class FetchPriorBuildStep implements WorkerStep<ScrapedArtifactEven
         to start an artifact process for the previous version and then submit the "resume" event.
          */
         final String mavenVersion = event.collection().coordinates.asStandardCoordinates();
-        final boolean isSnapshot = mavenVersion.endsWith("-SNAPSHOT");
-        final SonatypeClient sonatypeClient = SonatypeClient.configureClient().get();
+        return ensureVersionsUpdated(service, event, mavenVersion);
+    }
+
+    private Try<Done> ensureVersionsUpdated(
+        SonatypeArtifactWorkerService service, ScrapedArtifactEvent.AssociateCommitSha event, String mavenVersion
+    ) {
+        final boolean isSnapshot = event.collection().coordinates.isSnapshot();
+        final SonatypeClient sonatypeClient = SonatypeClient.configureClient(this.objectMapper).get();
         final String groupId = event.groupId();
         final String artifactId = event.artifactId();
         final String coordinates = event.mavenCoordinates();
@@ -147,13 +159,14 @@ public final class FetchPriorBuildStep implements WorkerStep<ScrapedArtifactEven
             final String[] split = event.version().split("-");
             final String artifactBuildNumberString = split[split.length - 1];
             return sonatypeClient.getSnapshotBuildCount(groupId, artifactId, mavenVersion)
-                .onFailure(this.logFailure(mavenVersion, groupId, artifactId))
+                .onFailure(logFailure(mavenVersion, groupId, artifactId))
                 .flatMapTry(totalBuildCount -> {
 
                     final Try<CompletionStage<Either<Done, ArtifactCollection>>> completionStages = Try.of(
                         () -> Integer.parseInt(artifactBuildNumberString)
                     )
-                        .flatMapTry(buildNumber -> FetchPriorBuildStep.getPriorBuildVersionOrRequestWork(service,
+                        .flatMapTry(buildNumber -> FetchPriorBuildStep.getPriorBuildVersionOrRequestWork(
+                            service,
                             sonatypeClient, request, buildNumber
                         ));
                     final Try<Either<Done, ArtifactCollection>> previousBuildOrRequested = completionStages
@@ -169,11 +182,10 @@ public final class FetchPriorBuildStep implements WorkerStep<ScrapedArtifactEven
                 });
 
         }
-
-        return null;
+        return Try.success(Done.done());
     }
 
-    private static Try<? extends CompletionStage<Either<Done, ArtifactCollection>>> getPriorBuildVersionOrRequestWork(
+    static Try<? extends CompletionStage<Either<Done, ArtifactCollection>>> getPriorBuildVersionOrRequestWork(
         final SonatypeArtifactWorkerService service, final SonatypeClient sonatypeClient, final RecordRequest request,
         final int buildNum
     ) {
@@ -186,7 +198,7 @@ public final class FetchPriorBuildStep implements WorkerStep<ScrapedArtifactEven
                 .getOrElse(CompletableFuture.completedFuture(Either.left(Done.done()))));
     }
 
-    private static CompletionStage<Either<Done, ArtifactCollection>> getPriorBuildVersion(
+    static CompletionStage<Either<Done, ArtifactCollection>> getPriorBuildVersion(
         final SonatypeArtifactWorkerService service,
         final RecordRequest request,
         final String priorBuildVersion
@@ -232,8 +244,8 @@ public final class FetchPriorBuildStep implements WorkerStep<ScrapedArtifactEven
         };
     }
 
-    private Consumer<Throwable> logFailure(final String mavenVersion, final String groupId, final String artifactId) {
-        return throwable -> SonatypeArtifactWorkerService.LOGGER.log(
+    static Consumer<Throwable> logFailure(final String mavenVersion, final String groupId, final String artifactId) {
+        return throwable -> LOGGER.log(
             Level.WARN,
             FetchPriorBuildStep.MARKER,
             String.format(
@@ -249,6 +261,11 @@ public final class FetchPriorBuildStep implements WorkerStep<ScrapedArtifactEven
     @Override
     public Marker marker() {
         return MARKER;
+    }
+
+    @Override
+    public Logger logger() {
+        return LOGGER;
     }
 
     @Override

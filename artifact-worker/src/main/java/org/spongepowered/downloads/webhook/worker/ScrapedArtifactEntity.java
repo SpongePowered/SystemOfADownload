@@ -35,13 +35,16 @@ import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
+import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.webhook.ScrapedArtifactEvent;
 
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -82,6 +85,7 @@ public class ScrapedArtifactEntity extends EventSourcedBehaviorWithEnforcedRepli
     public CommandHandlerWithReply<ScrapedArtifactCommand, ScrapedArtifactEvent, ScrapedProcessingState> commandHandler() {
         final var builder = this.newCommandHandlerWithReplyBuilder();
         builder.forAnyState()
+            .onCommand(ScrapedArtifactCommand.AssociateMetadataWithCollection.class, this::respondToAssociateMetadataForCollection)
             .onCommand(ScrapedArtifactCommand.RequestArtifactForProcessing.class, this::respondRequestArtifactForProcessing)
             .onCommand(ScrapedArtifactCommand.AssociateCommitShaWithArtifact.class, this::respondToAssociatingCommitShaWithArtifact);
         return builder.build();
@@ -91,6 +95,14 @@ public class ScrapedArtifactEntity extends EventSourcedBehaviorWithEnforcedRepli
     public EventHandler<ScrapedProcessingState, ScrapedArtifactEvent> eventHandler() {
         final var builder = this.newEventHandlerBuilder();
         return builder.build();
+    }
+
+    private ReplyEffect<ScrapedArtifactEvent, ScrapedProcessingState> respondToAssociateMetadataForCollection(
+        final ScrapedProcessingState state,
+        final ScrapedArtifactCommand.AssociateMetadataWithCollection cmd
+    ) {
+        LOGGER.log(Level.INFO, "Got state {} with cmd {}", state, cmd);
+        return this.Effect().reply(cmd.replyTo, NotUsed.notUsed());
     }
 
 

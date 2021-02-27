@@ -78,8 +78,7 @@ public interface SonatypeWebhookService extends OpenAPIService {
             )
             .withTopics(
                 Service.topic(TOPIC_NAME, this::topic)
-                    .withProperty(
-                        KafkaProperties.partitionKeyStrategy(), ScrapedArtifactEvent::mavenCoordinates)
+                    .withProperty(KafkaProperties.partitionKeyStrategy(), ScrapedArtifactEvent::mavenCoordinates)
             )
             .withAutoAcl(true)
         );

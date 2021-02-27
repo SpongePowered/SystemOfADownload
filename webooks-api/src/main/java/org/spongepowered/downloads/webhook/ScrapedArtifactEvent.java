@@ -24,6 +24,12 @@
  */
 package org.spongepowered.downloads.webhook;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
@@ -39,11 +45,16 @@ import java.io.Serial;
 import java.util.Objects;
 import java.util.StringJoiner;
 
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = ScrapedArtifactEvent.InitializeArtifactForProcessing.class, name = "Initialize"),
+    @JsonSubTypes.Type(value = ScrapedArtifactEvent.ArtifactRequested.class, name = "Requested"),
+    @JsonSubTypes.Type(value = ScrapedArtifactEvent.AssociatedMavenMetadata.class, name = "AssociatedMetadata"),
+    @JsonSubTypes.Type(value = ScrapedArtifactEvent.AssociateCommitSha.class, name = "AssociatedCommit")
+})
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
 public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEvent>, Jsonable {
 
-    AggregateEventShards<ScrapedArtifactEvent> INSTANCE = AggregateEventTag.sharded(ScrapedArtifactEvent.class, 10);
-
-    AggregateEventTag<ScrapedArtifactEvent> TAG = AggregateEventTag.of(ScrapedArtifactEvent.class);
+    AggregateEventShards<ScrapedArtifactEvent> INSTANCE = AggregateEventTag.sharded(ScrapedArtifactEvent.class, 1);
 
     @Override
     default AggregateEventTagger<ScrapedArtifactEvent> aggregateTag() {
@@ -52,12 +63,14 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
 
     String mavenCoordinates();
 
+    @JsonDeserialize
     final class InitializeArtifactForProcessing implements ScrapedArtifactEvent {
         @Serial private static final long serialVersionUID = 0L;
-        public final MavenCoordinates coordinates;
-        public final String repository;
-        public final String componentId;
+        @JsonProperty public final MavenCoordinates coordinates;
+        @JsonProperty public final String repository;
+        @JsonProperty public final String componentId;
 
+        @JsonCreator
         public InitializeArtifactForProcessing(
             final MavenCoordinates coordinates,
             final String repository,
@@ -104,11 +117,12 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
         }
 
     }
-
+    @JsonDeserialize
     final class ArtifactRequested implements ScrapedArtifactEvent {
         @Serial private static final long serialVersionUID = 0L;
         public final MavenCoordinates coordinates;
 
+        @JsonCreator
         public ArtifactRequested(
             final MavenCoordinates coordinates
         ) {
@@ -158,7 +172,7 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
                 .toString();
         }
     }
-
+    @JsonDeserialize
     final class AssociatedMavenMetadata
         implements ScrapedArtifactEvent {
         @Serial private static final long serialVersionUID = 0L;
@@ -167,6 +181,7 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
         private final String tagVersion;
         private final Map<String, Tuple2<String, String>> artifactPathToSonatypeId;
 
+        @JsonCreator
         public AssociatedMavenMetadata(
             final ArtifactCollection collection,
             final String mavenCoordinates,
@@ -220,12 +235,13 @@ public interface ScrapedArtifactEvent extends AggregateEvent<ScrapedArtifactEven
         }
 
     }
-
+    @JsonDeserialize
     final class AssociateCommitSha implements ScrapedArtifactEvent {
         @Serial private static final long serialVersionUID = 0L;
         private final ArtifactCollection collection;
         private final CommitSha commit;
 
+        @JsonCreator
         public AssociateCommitSha(
             final ArtifactCollection collection,
             final CommitSha commit

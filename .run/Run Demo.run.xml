@@ -15,7 +15,9 @@
               <entry key="PUBLIC-REPO" value="maven-public" />
               <entry key="RELEASE-REPO" value="maven-releases" />
               <entry key="SNAPSHOT-REPO" value="maven-snapshots" />
-              <entry key="SONATYPE-URL" value="https://repo-new.spongepowered.org/" />
+              <entry key="SONATYPE-URL" value="http://localhost:8081/service/rest/v1/" />
+              <entry key="SONATYPE_PASSWORD" value="OURM2psol@mopt!dwok" />
+              <entry key="SONATYPE_USERNAME" value="admin" />
               <entry key="USE_DUMMY_LDAP" value="true" />
             </map>
           </option>

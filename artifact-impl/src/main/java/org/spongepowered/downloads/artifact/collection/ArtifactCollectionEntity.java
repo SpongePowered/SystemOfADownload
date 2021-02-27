@@ -94,6 +94,11 @@ public final class ArtifactCollectionEntity
     }
 
     @Override
+    public Set<String> tagsFor(final ACEvent acEvent) {
+        return this.tagger.apply(acEvent);
+    }
+
+    @Override
     public CommandHandlerWithReply<ACCommand, ACEvent, ACState> commandHandler() {
         final var builder = this.newCommandHandlerWithReplyBuilder();
         builder.forState(ACState::isRegistered)
@@ -161,6 +166,7 @@ public final class ArtifactCollectionEntity
     private ACState updateCollections(
         final ACState state, final ACEvent.CollectionRegistered event
     ) {
+        LOGGER.log(Level.INFO, "Mutating State {} with new event {}", state, event);
         final var version = event.collection.coordinates.version;
         final var updatedComponents = state.collection.get(version)
             .map(ArtifactCollection::getArtifactComponents)
@@ -176,7 +182,9 @@ public final class ArtifactCollectionEntity
             .getOrElse(event.collection::getArtifactComponents);
         final var updatedCollection = new ArtifactCollection(updatedComponents, event.collection.coordinates);
         final var updatedVersionedCollections = state.collection.put(version, updatedCollection);
-        return new ACState(state.coordinates, updatedVersionedCollections);
+        final ACState acState = new ACState(state.coordinates, updatedVersionedCollections);
+        LOGGER.log(Level.INFO, "Resulting state {}", acState);
+        return acState;
     }
 
     private ReplyEffect<ACEvent, ACState> respondToGetVersions(

@@ -239,7 +239,7 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
             LOGGER.log(
                 Level.INFO,
                 SERVICE_REQUEST,
-                "Collection registered under {}:{}:{}",
+                "Artifact registered under {}:{}:{}",
                 groupId,
                 artifactId,
                 coordinates.version

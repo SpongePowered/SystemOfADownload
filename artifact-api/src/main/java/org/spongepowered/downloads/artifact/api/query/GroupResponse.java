@@ -24,6 +24,7 @@
  */
 package org.spongepowered.downloads.artifact.api.query;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -44,6 +45,7 @@ public interface GroupResponse {
         @JsonProperty
         public final String groupId;
 
+        @JsonCreator
         public Missing(final String groupId) {
             this.groupId = groupId;
         }
@@ -77,6 +79,7 @@ public interface GroupResponse {
         @JsonProperty
         public final Group group;
 
+        @JsonCreator
         public Available(final Group group) {
             this.group = group;
         }

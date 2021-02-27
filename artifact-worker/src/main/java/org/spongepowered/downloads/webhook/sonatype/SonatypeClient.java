@@ -24,16 +24,24 @@
  */
 package org.spongepowered.downloads.webhook.sonatype;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import com.typesafe.config.ConfigException;
 import io.vavr.Function0;
+import io.vavr.Function1;
 import io.vavr.Tuple2;
 import io.vavr.collection.List;
 import io.vavr.collection.Map;
 import io.vavr.control.Option;
 import io.vavr.control.Try;
 import io.vavr.jackson.datatype.VavrModule;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
@@ -49,8 +57,10 @@ import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.Optional;
 import java.util.StringJoiner;
 import java.util.jar.JarInputStream;
@@ -60,8 +70,8 @@ public class SonatypeClient {
 
     private static final String ASSET_SEARCH = "service/rest/v1/search";
     private static final List<String> DEFAULT_SEARCH_ARGS = List.of("sort=version", "direction=asc", "maven.extension=jar", "maven.classifier");
-    private static final Function0<SonatypeClient> SONATYPE_CLIENT = Function0.of(() -> {
-        final SonatypeClient client = new SonatypeClient();
+    private static final Function1<ObjectMapper, SonatypeClient> SONATYPE_CLIENT = Function1.of((mapper) -> {
+        final SonatypeClient client = new SonatypeClient(mapper);
 
         try {
             client.config = new Config();
@@ -69,9 +79,9 @@ public class SonatypeClient {
         } catch (final ConfigException.Missing e) {
             throw new IllegalStateException("Malformed configuration file for sonatype-url", e);
         }
-    }).memoized();
+    });
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper;
     private Config config;
     public static final class Config {
         // The base url like https://repo.sonatype.org/service/rest/v1/
@@ -82,6 +92,8 @@ public class SonatypeClient {
         final String releaseRepo = System.getenv().get("RELEASE-REPO");
         // The public repo containing everything, like maven-public
         final String publicRepo = System.getenv("PUBLIC-REPO");
+        final String user = System.getenv("SONATYPE_USERNAME");
+        final String password = System.getenv("SONATYPE_PASSWORD");
 
         Config() { }
 
@@ -106,15 +118,21 @@ public class SonatypeClient {
         return new Config();
     }
 
-    private SonatypeClient() {
-        this.mapper.registerModule(new VavrModule());
+    private SonatypeClient(final ObjectMapper mapper) {
+        this.mapper = mapper;
     }
 
-    public static Function0<SonatypeClient> configureClient() {
-        return SONATYPE_CLIENT;
+    public static Function0<SonatypeClient> configureClient(
+        final ObjectMapper objectMapper
+    ) {
+        return Function0.of(() -> SONATYPE_CLIENT.apply(objectMapper));
     }
 
-    private static Try<InputStream> openConnectionTo(final String target) {
+    private Try<InputStream> openConnectionTo(final String target) {
+        final Config config = this.config;
+        final var userPass = config.user + ":" + config.password;
+        final String encodedAuth = Base64.getEncoder().encodeToString(userPass.getBytes(
+            StandardCharsets.UTF_8));
         return Try.of(() -> new URL(target))
             .mapTry(URL::openConnection)
             .mapTry(url -> (HttpURLConnection) url)
@@ -122,6 +140,7 @@ public class SonatypeClient {
                 connection.setRequestMethod("GET");
                 connection.setRequestProperty("Content-Type", "application/json");
                 connection.setRequestProperty("User-Agent", "Sponge-Downloader");
+                connection.setRequestProperty("Authorization", "Basic " + encodedAuth);
                 connection.connect();
                 return connection.getInputStream();
             });
@@ -146,7 +165,7 @@ public class SonatypeClient {
             .add("maven.artifactId=" + mavenArtifactId)
             .add("maven.baseVersion=" + mavenVersion)
             .toString();
-        return SonatypeClient.openConnectionTo(target)
+        return this.openConnectionTo(target)
             .mapTry(reader -> this.mapper.readValue(reader, Component.class));
     }
 
@@ -157,18 +176,29 @@ public class SonatypeClient {
             .add("maven.groupId=" + mavenGroup)
             .add("maven.artifactId=" + mavenArtifactId)
             .toString();
-        return SonatypeClient.openConnectionTo(target)
+        return this.openConnectionTo(target)
             .mapTry(reader -> this.mapper.readValue(reader, Component.class));
     }
 
-    public Try<Component> resolveArtifact(final String componentId) {
-        final String target = this.config.baseUrl + "search?id=" + componentId;
-        return SonatypeClient.openConnectionTo(target)
-            .mapTry(reader -> this.mapper.readValue(reader, Component.class));
+    public Try<Component> resolveArtifact(final String componentId, final Logger logger) {
+        final String target = this.config.baseUrl + "components/" + componentId;
+        return this.openConnectionTo(target)
+            .onFailure((throwable) -> logger.log(Level.ERROR, "Failed to retrieve component, maybe it doesn't exist? {}", componentId))
+            .mapTry(reader -> {
+                final JsonFactory factory = this.mapper.getFactory();
+                final JsonParser parser = factory.createParser(reader.readAllBytes());
+                final Component component = this.mapper.readValue(parser, Component.class);
+                return component;
+            })
+            .onFailure(throwable -> {
+                logger.log(Level.ERROR, "Failed to deserialize component for id {}", componentId);
+                logger.throwing(throwable);
+            })
+            ;
     }
 
     public Try<Option<String>> resolvePomVersion(final Component.Asset asset) {
-        return SonatypeClient.openConnectionTo(asset.downloadUrl())
+        return this.openConnectionTo(asset.downloadUrl())
             .flatMapTry(reader -> {
                 final Path pom = Files.createTempFile("system-of-a-download-files", "pom");
                 return SonatypeClient.readFileFromInput(reader, pom);
@@ -210,7 +240,7 @@ public class SonatypeClient {
     }
 
     public Try<CommitSha> generateArtifactFrom(final Artifact asset) {
-        return SonatypeClient.openConnectionTo(asset.downloadUrl)
+        return this.openConnectionTo(asset.downloadUrl)
             .flatMapTry(reader -> {
                 final Path jar = Files.createTempFile("system-of-a-download-files", "jar");
                 return readFileFromInput(reader, jar);
@@ -235,7 +265,7 @@ public class SonatypeClient {
             .add(artifactId)
             .add(MavenConstants.MAVEN_METADATA_FILE)
             .toString();
-        return SonatypeClient.openConnectionTo(url)
+        return this.openConnectionTo(url)
             .flatMapTry(reader -> {
                 final Path pom = Files.createTempFile("system-of-a-download-files", "maven-metadata");
                 return SonatypeClient.readFileFromInput(reader, pom);
@@ -254,7 +284,7 @@ public class SonatypeClient {
             .add(mavenVersion)
             .add(MavenConstants.MAVEN_METADATA_FILE)
             .toString();
-        return SonatypeClient.openConnectionTo(url)
+        return this.openConnectionTo(url)
             .flatMapTry(reader -> {
                 final Path pom = Files.createTempFile("system-of-a-download-files", "maven-metadata");
                 return SonatypeClient.readFileFromInput(reader, pom);
@@ -315,7 +345,7 @@ public class SonatypeClient {
         if (continueUntil < existing.size()) {
             return Try.success(existing);
         }
-        return SonatypeClient.openConnectionTo(completeUrl)
+        return this.openConnectionTo(completeUrl)
             .flatMapTry(reader -> {
                 final var response = this.mapper.readValue(reader, ComponentSearchResponse.class);
                 final List<String> versionsFromResponse = response.items().map(ComponentSearchResponse.Item::version);

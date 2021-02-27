@@ -31,6 +31,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.vavr.collection.HashMap;
@@ -39,7 +40,7 @@ import io.vavr.jackson.datatype.VavrModule;
 
 import java.util.StringJoiner;
 
-@JsonSerialize
+@JsonDeserialize
 public final class ArtifactCollection {
 
     @Schema(required = false, description = "A map of artifact kind to artifact information")
@@ -55,8 +56,8 @@ public final class ArtifactCollection {
 
     @JsonCreator
     public ArtifactCollection(
-        final Map<String, Artifact> components,
-        final MavenCoordinates coordinates
+        @JsonProperty("components") final Map<String, Artifact> components,
+        @JsonProperty("coordinates") final MavenCoordinates coordinates
     ) {
         this.artifactComponents = components;
         this.coordinates = coordinates;

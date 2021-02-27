@@ -25,6 +25,7 @@
 package org.spongepowered.downloads.artifact.collection;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
@@ -114,10 +115,12 @@ public interface ACEvent extends Jsonable, AggregateEvent<ACEvent> {
         }
     }
 
+    @JsonDeserialize
     final class CollectionRegistered implements ACEvent {
         @Serial private static final long serialVersionUID = 0L;
         public final ArtifactCollection collection;
 
+        @JsonCreator
         public CollectionRegistered(final ArtifactCollection collection) {
             this.collection = collection;
         }

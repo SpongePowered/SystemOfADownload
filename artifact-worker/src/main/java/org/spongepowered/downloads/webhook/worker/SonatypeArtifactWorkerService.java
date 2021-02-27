@@ -25,16 +25,15 @@
 package org.spongepowered.downloads.webhook.worker;
 
 import akka.Done;
+import akka.actor.ActorSystem;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.Entity;
 import akka.cluster.sharding.typed.javadsl.EntityRef;
 import akka.stream.javadsl.Flow;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import com.lightbend.lagom.javadsl.api.Descriptor;
-import com.lightbend.lagom.javadsl.api.Service;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
-import com.lightbend.lagom.javadsl.persistence.ReadSide;
 import io.vavr.control.Try;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -54,23 +53,26 @@ import java.util.function.Function;
 
 public class SonatypeArtifactWorkerService implements ArtifactWorker {
 
-    static final Logger LOGGER = LogManager.getLogger(SonatypeArtifactWorkerService.class);
+    static final Logger LOGGER = LogManager.getLogger("ArtifactWorker");
     static final Marker SERVICE = MarkerManager.getMarker("ArtifactScraper");
 
-    private static final Function<Class<? extends ScrapedArtifactEvent>, Optional<WorkerStep<?>>> WORKER_STAGES;
+    private final Function<Class<? extends ScrapedArtifactEvent>, Optional<WorkerStep<?>>> WORKER_STAGES;
 
     final ArtifactService artifacts;
     final ChangelogService changelog;
     final SonatypeWebhookService webhookService;
     final PersistentEntityRegistry registry;
     final ClusterSharding clusterSharding;
+    private final ObjectMapper objectMapper;
 
     @Inject
     public SonatypeArtifactWorkerService(
         final ArtifactService artifacts, final ChangelogService changelog,
         final SonatypeWebhookService webhookService,
         final PersistentEntityRegistry registry,
-        final ClusterSharding clusterSharding
+        final ClusterSharding clusterSharding,
+        final ActorSystem actorSystem,
+        final ObjectMapper objectMapper
     ) {
         this.artifacts = artifacts;
         this.changelog = changelog;
@@ -86,6 +88,14 @@ public class SonatypeArtifactWorkerService implements ArtifactWorker {
                 ScrapedArtifactEntity::create
             )
         );
+        this.objectMapper = objectMapper;
+
+        final IdentityHashMap<Class<? extends ScrapedArtifactEvent>, WorkerStep<?>> steps = new IdentityHashMap<>();
+        steps.put(ScrapedArtifactEvent.InitializeArtifactForProcessing.class, new RegisterArtifactsStep(this.objectMapper));
+        steps.put(ScrapedArtifactEvent.AssociateCommitSha.class, new FetchPriorBuildStep(this.objectMapper));
+        steps.put(ScrapedArtifactEvent.AssociatedMavenMetadata.class, new AssociateMavenMetadataStep(this.objectMapper));
+        steps.put(ScrapedArtifactEvent.ArtifactRequested.class, new RequestArtifactStep(this.objectMapper));
+        WORKER_STAGES = (eventClass) -> Optional.ofNullable(steps.get(eventClass));
     }
 
     static <Request, Response> ServiceCall<Request, Response> authorizeInvoke(final ServiceCall<Request, Response> call) {
@@ -95,7 +105,7 @@ public class SonatypeArtifactWorkerService implements ArtifactWorker {
     @SuppressWarnings({"unchecked", "rawtypes"})
     private Done processEvent(final ScrapedArtifactEvent event) {
         LOGGER.log(Level.INFO, "Receiving Event {}", event);
-       return SonatypeArtifactWorkerService.WORKER_STAGES.apply(event.getClass())
+       return this.WORKER_STAGES.apply(event.getClass())
             .map(step -> {
                 LOGGER.log(
                     Level.INFO,
@@ -121,12 +131,7 @@ public class SonatypeArtifactWorkerService implements ArtifactWorker {
 
 
     static {
-        final IdentityHashMap<Class<? extends ScrapedArtifactEvent>, WorkerStep<?>> steps = new IdentityHashMap<>();
-        steps.put(ScrapedArtifactEvent.InitializeArtifactForProcessing.class, new RegisterArtifactsStep());
-        steps.put(ScrapedArtifactEvent.AssociateCommitSha.class, new FetchPriorBuildStep());
-        steps.put(ScrapedArtifactEvent.AssociatedMavenMetadata.class, new AssociateMavenMetadataStep());
-        steps.put(ScrapedArtifactEvent.ArtifactRequested.class, new RequestArtifactStep());
-        WORKER_STAGES = (eventClass) -> Optional.ofNullable(steps.get(eventClass));
+
     }
 
     public EntityRef<ScrapedArtifactCommand> getProcessingEntity(final String previousBuildCoordinates) {

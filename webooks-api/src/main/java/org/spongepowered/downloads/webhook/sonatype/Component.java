@@ -24,10 +24,17 @@
  */
 package org.spongepowered.downloads.webhook.sonatype;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.vavr.collection.List;
 
+import java.util.Collections;
 import java.util.Objects;
 
+@JsonDeserialize
+@JsonSerialize
 public final class Component {
     private final String id;
     private final String repository;
@@ -37,15 +44,15 @@ public final class Component {
     private final String version;
     private final List<Asset> assets;
 
+    @JsonCreator
     public Component(
-
-        final String id,
-        final String repository,
-        final String format,
-        final String group,
-        final String name,
-        final String version,
-        final List<Asset> assets
+        @JsonProperty(value = "id", required = true) final String id,
+        @JsonProperty(value = "repository", required = true) final String repository,
+        @JsonProperty(value = "format", required = true) final String format,
+        @JsonProperty(value = "group", required = true) final String group,
+        @JsonProperty(value = "name", required = true) final String name,
+        @JsonProperty(value = "version", required = true) final String version,
+        @JsonProperty(value = "assets", required = true) final List<Asset> assets
     ) {
         this.id = id;
         this.repository = repository;
@@ -86,8 +93,12 @@ public final class Component {
 
     @Override
     public boolean equals(final Object obj) {
-        if (obj == this) return true;
-        if (obj == null || obj.getClass() != this.getClass()) return false;
+        if (obj == this) {
+            return true;
+        }
+        if (obj == null || obj.getClass() != this.getClass()) {
+            return false;
+        }
         final var that = (Component) obj;
         return Objects.equals(this.id, that.id) &&
             Objects.equals(this.repository, that.repository) &&
@@ -116,6 +127,7 @@ public final class Component {
     }
 
 
+    @JsonDeserialize
     public static final class Asset {
         private final String downloadUrl;
         private final String path;
@@ -124,13 +136,14 @@ public final class Component {
         private final String format;
         private final Checksum checksum;
 
+        @JsonCreator
         public Asset(
-            final String downloadUrl,
-            final String path,
-            final String id,
-            final String repository,
-            final String format,
-            final Checksum checksum
+            @JsonProperty(value = "downloadUrl") final String downloadUrl,
+            @JsonProperty(value = "path") final String path,
+            @JsonProperty(value = "id") final String id,
+            @JsonProperty(value = "repository") final String repository,
+            @JsonProperty(value = "format") final String format,
+            @JsonProperty(value = "checksum") final Checksum checksum
         ) {
             this.downloadUrl = downloadUrl;
             this.path = path;
@@ -166,8 +179,12 @@ public final class Component {
 
         @Override
         public boolean equals(final Object obj) {
-            if (obj == this) return true;
-            if (obj == null || obj.getClass() != this.getClass()) return false;
+            if (obj == this) {
+                return true;
+            }
+            if (obj == null || obj.getClass() != this.getClass()) {
+                return false;
+            }
             final var that = (Asset) obj;
             return Objects.equals(this.downloadUrl, that.downloadUrl) &&
                 Objects.equals(this.path, that.path) &&
@@ -194,15 +211,23 @@ public final class Component {
         }
     }
 
+    @JsonDeserialize
     public static final class Checksum {
         private final String sha1;
+        public final String sha256;
+        public final String sha512;
         private final String md5;
 
+        @JsonCreator
         public Checksum(
-            final String sha1,
-            final String md5
+            @JsonProperty(value = "sha1") final String sha1,
+            @JsonProperty(value = "sha256") final String sha256,
+            @JsonProperty(value = "sha512") final String sha512,
+            @JsonProperty(value = "md5") final String md5
         ) {
             this.sha1 = sha1;
+            this.sha256 = sha256;
+            this.sha512 = sha512;
             this.md5 = md5;
         }
 
@@ -216,8 +241,12 @@ public final class Component {
 
         @Override
         public boolean equals(final Object obj) {
-            if (obj == this) return true;
-            if (obj == null || obj.getClass() != this.getClass()) return false;
+            if (obj == this) {
+                return true;
+            }
+            if (obj == null || obj.getClass() != this.getClass()) {
+                return false;
+            }
             final var that = (Checksum) obj;
             return Objects.equals(this.sha1, that.sha1) &&
                 Objects.equals(this.md5, that.md5);

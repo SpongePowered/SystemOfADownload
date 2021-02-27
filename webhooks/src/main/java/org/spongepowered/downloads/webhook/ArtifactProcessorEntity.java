@@ -30,12 +30,11 @@ import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
 import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
 import akka.persistence.typed.javadsl.EventHandler;
-import akka.persistence.typed.javadsl.EventHandlerBuilder;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
+import akka.persistence.typed.javadsl.RetentionCriteria;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
 import io.vavr.Tuple2;
-import io.vavr.collection.Array;
 import io.vavr.collection.HashMap;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -43,14 +42,11 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
 import org.spongepowered.downloads.webhook.sonatype.Component;
-import org.spongepowered.downloads.webhook.sonatype.SonatypeClient;
 
 import java.util.ArrayList;
-import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 
-@SuppressWarnings("unchecked")
 public class ArtifactProcessorEntity
     extends EventSourcedBehaviorWithEnforcedReplies<ArtifactSagaCommand, ScrapedArtifactEvent, ProcessingState> {
 
@@ -74,7 +70,7 @@ public class ArtifactProcessorEntity
         final var builder = this.newCommandHandlerWithReplyBuilder();
         builder.forAnyState()
             .onCommand(ArtifactSagaCommand.StartProcessing.class, this::handleStartProcessing)
-            .onCommand( ArtifactSagaCommand.AssociateMetadataWithCollection.class, this::respondToMetadataAssociation);
+            .onCommand(ArtifactSagaCommand.AssociateMetadataWithCollection.class, this::respondToMetadataAssociation);
         return builder.build();
     }
 
@@ -107,7 +103,15 @@ public class ArtifactProcessorEntity
         this.tagger = AkkaTaggerAdapter.fromLagom(context, ScrapedArtifactEvent.INSTANCE);
 
     }
+    @Override
+    public RetentionCriteria retentionCriteria() {
+        return RetentionCriteria.snapshotEvery(100, 2);
+    }
 
+    @Override
+    public Set<String> tagsFor(final ScrapedArtifactEvent scrapedArtifactEvent) {
+        return this.tagger.apply(scrapedArtifactEvent);
+    }
 
     private ReplyEffect<ScrapedArtifactEvent, ProcessingState> handleStartProcessing(
         final ProcessingState state,
@@ -132,6 +136,7 @@ public class ArtifactProcessorEntity
     private ProcessingState initializeFromEvent(
         final ScrapedArtifactEvent.InitializeArtifactForProcessing event
     ) {
+        LOGGER.log(Level.INFO, "Initializing metadata state for event {}", event);
         return new ProcessingState.MetadataState(event.coordinates, event.repository(), HashMap.empty());
     }
 
@@ -162,7 +167,7 @@ public class ArtifactProcessorEntity
     private ProcessingState handleArtifactRequested(final ProcessingState state, final ScrapedArtifactEvent.ArtifactRequested event) {
         if (state.getCoordinates().map(coords -> !coords.equals(event.mavenCoordinates())).orElse(true)) {
             return new ProcessingState.MetadataState(
-                event.coordinates, SonatypeClient.getConfig().getPublicRepo(), HashMap.empty());
+                event.coordinates, System.getenv("PUBLIC-REPO"), HashMap.empty());
         }
         return state;
     }

@@ -26,8 +26,11 @@ package org.spongepowered.downloads.webhook.worker;
 
 import akka.Done;
 import akka.NotUsed;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vavr.control.Try;
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
 import org.spongepowered.downloads.artifact.api.Artifact;
@@ -40,9 +43,12 @@ import java.util.function.Function;
 
 public final class AssociateMavenMetadataStep implements WorkerStep<ScrapedArtifactEvent.AssociatedMavenMetadata> {
 
+    private static final Logger LOGGER = LogManager.getLogger("SonatypeArtifactMetadataFetcher");
     private static final Marker MARKER = MarkerManager.getMarker("AssociateMetadata");
+    private final ObjectMapper objectMapper;
 
-    public AssociateMavenMetadataStep() {
+    public AssociateMavenMetadataStep(final ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -50,7 +56,7 @@ public final class AssociateMavenMetadataStep implements WorkerStep<ScrapedArtif
         final SonatypeArtifactWorkerService service,
         final ScrapedArtifactEvent.AssociatedMavenMetadata event
     ) {
-        final SonatypeClient client = SonatypeClient.configureClient().apply();
+        final SonatypeClient client = SonatypeClient.configureClient(this.objectMapper).apply();
         final Artifact base = event.collection().getArtifactComponents().get("base")
             .getOrElse(() -> event.collection().getArtifactComponents().head()._2);
         return Try.of(() -> client.generateArtifactFrom(base)
@@ -73,6 +79,11 @@ public final class AssociateMavenMetadataStep implements WorkerStep<ScrapedArtif
     @Override
     public Marker marker() {
         return MARKER;
+    }
+
+    @Override
+    public Logger logger() {
+        return LOGGER;
     }
 
     @Override

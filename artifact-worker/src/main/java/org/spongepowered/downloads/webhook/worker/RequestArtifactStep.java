@@ -26,9 +26,12 @@ package org.spongepowered.downloads.webhook.worker;
 
 import akka.Done;
 import akka.NotUsed;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vavr.collection.List;
 import io.vavr.collection.Map;
 import io.vavr.control.Try;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
 import org.spongepowered.downloads.artifact.api.Artifact;
@@ -49,10 +52,13 @@ import java.util.regex.Pattern;
 
 public final class RequestArtifactStep
     implements WorkerStep<ScrapedArtifactEvent.ArtifactRequested> {
+    public static final Logger LOGGER = LogManager.getLogger("ArtifactRequestedStep");
     private static final Marker MARKER = MarkerManager.getMarker("ARTIFACT_REQUESTED");
     private static final Pattern filePattern = Pattern.compile("(dev\\b|\\d+|shaded).jar$");
+    private final ObjectMapper objectMapper;
 
-    public RequestArtifactStep() {
+    public RequestArtifactStep(final ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -79,12 +85,17 @@ public final class RequestArtifactStep
         return MARKER;
     }
 
+    @Override
+    public Logger logger() {
+        return LOGGER;
+    }
+
     private CompletionStage<Done> processInitializationWithGroup(
         final SonatypeArtifactWorkerService service,
         final ScrapedArtifactEvent.ArtifactRequested event,
         final GroupResponse.Available available
     ) {
-        final SonatypeClient client = SonatypeClient.configureClient().apply();
+        final SonatypeClient client = SonatypeClient.configureClient(this.objectMapper).apply();
         final Try<Component> componentTry = client.resolveMavenArtifactWithComponentVersion(
             event.mavenGroupId(), event.mavenArtifactId(), event.componentVersion());
         final var newCollection = componentTry.map(component -> {

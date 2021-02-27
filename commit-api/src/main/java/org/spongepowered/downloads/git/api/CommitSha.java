@@ -24,7 +24,9 @@
  */
 package org.spongepowered.downloads.git.api;
 
-import javax.annotation.concurrent.Immutable;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
 import java.util.Objects;
 import java.util.StringJoiner;
 
@@ -46,12 +48,13 @@ import java.util.StringJoiner;
  * a single SHA-1 object collision.
  * </blockquote>
  */
-@Immutable
+@JsonDeserialize
 public final class CommitSha {
 
     public final long shaPart1, shaPart2;
     public final int shaPart3;
 
+    @JsonCreator
     public CommitSha(final long shaPart1, final long shaPart2, final int shaPart3) {
         this.shaPart1 = shaPart1;
         this.shaPart2 = shaPart2;

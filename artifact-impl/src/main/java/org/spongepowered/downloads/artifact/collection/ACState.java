@@ -24,10 +24,14 @@
  */
 package org.spongepowered.downloads.artifact.collection;
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.vavr.collection.HashMap;
 import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+
+import java.util.Objects;
+import java.util.StringJoiner;
 
 public class ACState {
 
@@ -44,6 +48,33 @@ public class ACState {
     }
 
     public boolean isRegistered() {
-        return "com.example".equals(this.coordinates.groupId);
+        return !"com.example".equals(this.coordinates.groupId);
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ACState acState = (ACState) o;
+        return Objects.equals(coordinates, acState.coordinates) && Objects.equals(
+            collection, acState.collection);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(coordinates, collection);
+    }
+
+    @Override
+    public String toString() {
+        return new StringJoiner(
+            ", ", ACState.class.getSimpleName() + "[", "]")
+            .add("coordinates=" + coordinates)
+            .add("collection=" + collection)
+            .toString();
     }
 }

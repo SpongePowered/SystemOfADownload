@@ -28,6 +28,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.lightbend.lagom.serialization.Jsonable;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -167,7 +168,7 @@ public final class ArtifactRegistration {
             }
         }
 
-        @JsonSerialize
+        @JsonDeserialize
         final class RegisteredArtifact implements Response {
 
             @Serial private static final long serialVersionUID = 9042959235854086148L;
@@ -176,14 +177,16 @@ public final class ArtifactRegistration {
             @JsonProperty(required = true)
             public final Map<String, Artifact> artifactComponents;
 
-            @JsonProperty(value = "literalCoordinates", required = true)
+            @JsonProperty(value = "mavenCoordinates", required = true)
             public final MavenCoordinates coordinates;
 
+            @JsonCreator
             public RegisteredArtifact(final MavenCoordinates mavenCoordinates) {
                 this.coordinates = mavenCoordinates;
                 this.artifactComponents = HashMap.empty();
             }
 
+            @JsonCreator
             public RegisteredArtifact(
                 final Map<String, Artifact> artifactComponents,
                 final MavenCoordinates mavenCoordinates
