@@ -31,7 +31,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.spongepowered.downloads.utils.UUIDType5;
 
-import java.net.URL;
 import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.UUID;

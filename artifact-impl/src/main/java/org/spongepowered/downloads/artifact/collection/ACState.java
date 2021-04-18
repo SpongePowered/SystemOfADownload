@@ -24,7 +24,6 @@
  */
 package org.spongepowered.downloads.artifact.collection;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.vavr.collection.HashMap;
 import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;

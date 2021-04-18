@@ -17,17 +17,12 @@
         <!-- Project Modules -->
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-commit-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-changelog-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
             <artifactId>systemofadownload-artifact-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>systemofadownload-sonatype</artifactId>
             <version>${project.version}</version>
         </dependency>
 

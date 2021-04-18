@@ -29,6 +29,7 @@ import com.lightbend.lagom.javadsl.api.Descriptor;
 import com.lightbend.lagom.javadsl.api.Service;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.broker.Topic;
+import com.lightbend.lagom.javadsl.api.broker.kafka.KafkaProperties;
 import com.lightbend.lagom.javadsl.api.transport.Method;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,7 +44,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
@@ -51,6 +51,7 @@ import org.spongepowered.downloads.artifact.api.query.GetTaggedArtifacts;
 import org.spongepowered.downloads.artifact.api.query.GetVersionsResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
+import org.spongepowered.downloads.artifact.group.GroupEvent;
 import org.spongepowered.downloads.utils.AuthUtils;
 import org.taymyr.lagom.javadsl.openapi.OpenAPIService;
 import org.taymyr.lagom.javadsl.openapi.OpenAPIUtils;
@@ -260,6 +261,8 @@ public interface ArtifactService extends OpenAPIService {
     )
     ServiceCall<NotUsed, NotUsed> registerTaggedVersion(String mavenCoordinates, String tagVersion);
 
+    Topic<GroupEvent> groupTopic();
+
     @Override
     default Descriptor descriptor() {
         return OpenAPIUtils.withOpenAPI(Service.named("artifact")
@@ -271,6 +274,10 @@ public interface ArtifactService extends OpenAPIService {
                 Service.restCall(Method.POST, "/api/:groupId/register", this::registerArtifacts),
                 Service.restCall(Method.POST, "/api/:groupId/artifact/:artifactId/register", this::registerArtifactCollection),
                 Service.restCall(Method.POST, "/api/admin/groups/create", this::registerGroup)
+            )
+            .withTopics(
+                Service.topic("group_activity", this::groupTopic)
+                    .withProperty(KafkaProperties.partitionKeyStrategy(), GroupEvent::groupId)
             )
             .withAutoAcl(true)
         );

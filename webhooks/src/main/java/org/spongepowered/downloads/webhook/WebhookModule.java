@@ -26,7 +26,6 @@ package org.spongepowered.downloads.webhook;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
-import com.lightbend.lagom.javadsl.api.ServiceInfo;
 import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
 import org.pac4j.core.config.Config;
 import org.spongepowered.downloads.artifact.api.ArtifactService;

@@ -30,14 +30,8 @@ import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.Entity;
 import akka.cluster.sharding.typed.javadsl.EntityRef;
 import akka.japi.Pair;
-import akka.stream.javadsl.Source;
-import com.lightbend.lagom.javadsl.api.ServiceCall;
-import com.lightbend.lagom.javadsl.api.broker.Topic;
 import com.lightbend.lagom.javadsl.api.transport.MessageProtocol;
 import com.lightbend.lagom.javadsl.api.transport.ResponseHeader;
-import com.lightbend.lagom.javadsl.broker.TopicProducer;
-import com.lightbend.lagom.javadsl.persistence.Offset;
-import com.lightbend.lagom.javadsl.persistence.PersistentEntityRef;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
 import com.lightbend.lagom.javadsl.server.HeaderServiceCall;
 import org.apache.logging.log4j.Level;
@@ -46,21 +40,16 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
 import org.pac4j.core.config.Config;
-import org.pac4j.lagom.javadsl.SecuredService;
 import org.pcollections.HashTreePMap;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
-import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
 import org.spongepowered.downloads.auth.AuthenticatedInternalService;
 import org.spongepowered.downloads.auth.api.SOADAuth;
-import org.spongepowered.downloads.changelog.api.ChangelogService;
-import org.spongepowered.downloads.utils.AuthUtils;
 import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
 
 import javax.inject.Inject;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public class SonatypeWebhookServiceImpl extends AbstractOpenAPIService implements SonatypeWebhookService,
@@ -70,7 +59,6 @@ public class SonatypeWebhookServiceImpl extends AbstractOpenAPIService implement
     public static final Marker HEADER_AUTH = MarkerManager.getMarker("AUTH");
     public static final String TOPIC_NAME = "artifact-changelog-analysis";
     private final ArtifactService artifacts;
-    private final ChangelogService changelog;
     private final ClusterSharding clusterSharding;
     private final PersistentEntityRegistry persistentEntityRegistry;
     private final Config securityConfig;
@@ -78,13 +66,12 @@ public class SonatypeWebhookServiceImpl extends AbstractOpenAPIService implement
 
     @Inject
     public SonatypeWebhookServiceImpl(
-        final ArtifactService artifacts, final ChangelogService changelog,
+        final ArtifactService artifacts,
         final ClusterSharding clusterSharding,
         final PersistentEntityRegistry persistentEntityRegistry,
         @SOADAuth final Config securityConfig
     ) {
         this.artifacts = artifacts;
-        this.changelog = changelog;
         this.clusterSharding = clusterSharding;
         this.clusterSharding.init(
             Entity.of(
@@ -116,40 +103,26 @@ public class SonatypeWebhookServiceImpl extends AbstractOpenAPIService implement
                     .thenCompose(response -> {
                         final MavenCoordinates coordinates = MavenCoordinates.parse(
                             groupId + ":" + component.name() + ":" + component.version());
-                        if (response instanceof GetArtifactsResponse.ArtifactsAvailable) {
-                            if (((GetArtifactsResponse.ArtifactsAvailable) response).artifactIds().contains(component.name())) {
-                                LOGGER.log(Level.INFO, "Proposing to start processing artifact {}", coordinates);
-                                return this.getProcessingEntity(coordinates)
-                                    .ask(replyTo -> new ArtifactSagaCommand.StartProcessing(webhookData,
-                                        coordinates,
-                                        replyTo
-                                    ), Duration.ofSeconds(10));
-                            }
+                        if (!(response instanceof GetArtifactsResponse.ArtifactsAvailable)) {
+                            LOGGER.log(Level.DEBUG, "Dismissed webhook component by coordinates: {}", coordinates);
+                            return CompletableFuture.completedStage(NotUsed.notUsed());
                         }
-                        return CompletableFuture.completedStage(NotUsed.notUsed());
+                        final var available = (GetArtifactsResponse.ArtifactsAvailable) response;
+                        if (!available.artifactIds().contains(component.name())) {
+                            LOGGER.log(Level.DEBUG, "Dismissed artifact by {}", coordinates);
+                            return CompletableFuture.completedFuture(NotUsed.notUsed());
+                        }
+                        LOGGER.log(Level.INFO, "Proposing to start processing artifact {}", coordinates);
+                        return this.getProcessingEntity(coordinates)
+                            .ask(replyTo -> new ArtifactSagaCommand.StartProcessing(webhookData,
+                                coordinates,
+                                replyTo
+                            ), Duration.ofSeconds(10));
                     })
                     .thenApply(response -> Pair.create(ResponseHeader.OK, "success"));
             }
             return CompletableFuture.completedStage(Pair.create(ResponseHeader.OK, "success"));
         };
-    }
-
-    @Override
-    public Topic<ScrapedArtifactEvent> topic() {
-        // Load the event stream for the passed in shard tag
-        LOGGER.log(Level.INFO, "Creating ScrapedArtifactEventTopic");
-        final Topic<ScrapedArtifactEvent> scrapedArtifactEventTopic = TopicProducer.taggedStreamWithOffset(
-            ScrapedArtifactEvent.INSTANCE.allTags(),
-            (aggregateTag, fromOffset) -> {
-                LOGGER.log(Level.INFO, "Creating Stream of tag {}", aggregateTag);
-                final Source<Pair<ScrapedArtifactEvent, Offset>, NotUsed> source = this.persistentEntityRegistry.eventStream(
-                    aggregateTag, fromOffset);
-                LOGGER.log(Level.INFO, "Created stream {}", source);
-                return source;
-            }
-        );
-        LOGGER.log(Level.INFO, "Created Topic {}", scrapedArtifactEventTopic);
-        return scrapedArtifactEventTopic;
     }
 
 

@@ -25,11 +25,18 @@
 package org.spongepowered.downloads.artifact;
 
 import akka.NotUsed;
+import akka.actor.ActorSystem;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.Entity;
 import akka.cluster.sharding.typed.javadsl.EntityRef;
+import akka.japi.Pair;
 import com.google.inject.Inject;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
+import com.lightbend.lagom.javadsl.api.broker.Topic;
+import com.lightbend.lagom.javadsl.api.transport.ResponseHeader;
+import com.lightbend.lagom.javadsl.broker.TopicProducer;
+import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
+import com.lightbend.lagom.javadsl.server.HeaderServiceCall;
 import com.lightbend.lagom.javadsl.server.ServerServiceCall;
 import io.vavr.collection.List;
 import io.vavr.control.Either;
@@ -51,6 +58,7 @@ import org.spongepowered.downloads.artifact.collection.ACCommand;
 import org.spongepowered.downloads.artifact.collection.ArtifactCollectionEntity;
 import org.spongepowered.downloads.artifact.group.GroupCommand;
 import org.spongepowered.downloads.artifact.group.GroupEntity;
+import org.spongepowered.downloads.artifact.group.GroupEvent;
 import org.spongepowered.downloads.artifact.tags.TaggedCommand;
 import org.spongepowered.downloads.artifact.tags.TaggedVersionEntity;
 import org.spongepowered.downloads.auth.AuthenticatedInternalService;
@@ -73,10 +81,13 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
     private final Duration askTimeout = Duration.ofSeconds(5);
     private final Config securityConfig;
     private final ClusterSharding clusterSharding;
+    private final PersistentEntityRegistry persistentEntityRegistry;
 
     @Inject
     public ArtifactServiceImpl(
         final ClusterSharding clusterSharding,
+        final PersistentEntityRegistry persistentEntityRegistry,
+        final ActorSystem system,
         @SOADAuth final Config securityConfig
     ) {
         this.clusterSharding = clusterSharding;
@@ -99,6 +110,7 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
                 TaggedVersionEntity::create
             )
         );
+        this.persistentEntityRegistry = persistentEntityRegistry;
     }
 
     @Override
@@ -110,26 +122,36 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
         };
     }
 
+    // With HeaderServiceCall, we can manage the response header directly so that
+    // the REST principles are followed (if a group is missing or artifact is missing,
+    // we return 404, etc.)
     @Override
-    public ServiceCall<NotUsed, GetVersionsResponse> getArtifactVersions(
+    public HeaderServiceCall<NotUsed, GetVersionsResponse> getArtifactVersions(
         final String groupId,
         final String artifactId
     ) {
-        return notUsed -> {
+        return (requestHeader, notUsed) -> {
             LOGGER.log(Level.DEBUG, String.format("Requesting versions for artifact: %s:%s", groupId, artifactId));
             return this.authorizeInvoke(this.getGroup(groupId))
                 .invoke()
                 .thenCompose(response -> {
                     if (response instanceof GroupResponse.Missing) {
-                        return CompletableFuture.completedFuture(new GetVersionsResponse.GroupUnknown(groupId));
+                        return CompletableFuture.completedFuture(
+                            Pair.create(ResponseHeader.OK.withStatus(404),
+                                new GetVersionsResponse.GroupUnknown(groupId)
+                            ));
                     }
                     if (response instanceof GroupResponse.Available) {
                         final var aggregateCoordinates = ((GroupResponse.Available) response).group.groupCoordinates + ":" + artifactId;
                         return this.getCollection(aggregateCoordinates)
                             .<GetVersionsResponse>ask(
-                                replyTo -> new ACCommand.GetVersions(groupId, artifactId, replyTo), this.askTimeout);
+                                replyTo -> new ACCommand.GetVersions(groupId, artifactId, replyTo), this.askTimeout
+                            )
+                            .thenApply(versions -> Pair.create(ResponseHeader.OK, versions));
                     }
-                    return CompletableFuture.completedFuture(new GetVersionsResponse.ArtifactUnknown(artifactId));
+                    return CompletableFuture.completedFuture(
+                        Pair.create(ResponseHeader.OK, new GetVersionsResponse.ArtifactUnknown(artifactId))
+                    );
                 });
         };
     }
@@ -380,6 +402,15 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
             )
                 .head();
         });
+    }
+
+
+    @Override
+    public Topic<GroupEvent> groupTopic() {
+        return TopicProducer.taggedStreamWithOffset(
+            GroupEvent.TAG.allTags(),
+            this.persistentEntityRegistry::eventStream
+        );
     }
 
     private EntityRef<GroupCommand> getGroupEntity(final String groupId) {

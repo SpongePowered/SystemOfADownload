@@ -28,7 +28,7 @@ import akka.NotUsed;
 import akka.actor.typed.ActorRef;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
-import org.spongepowered.downloads.webhook.sonatype.Component;
+import org.spongepowered.downloads.sonatype.Component;
 
 import java.util.Objects;
 

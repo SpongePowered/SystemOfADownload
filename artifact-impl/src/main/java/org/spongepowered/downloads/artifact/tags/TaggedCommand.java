@@ -26,7 +26,6 @@ package org.spongepowered.downloads.artifact.tags;
 
 import akka.NotUsed;
 import akka.actor.typed.ActorRef;
-import com.lightbend.lagom.javadsl.persistence.PersistentEntity;
 import org.spongepowered.downloads.artifact.api.query.GetTaggedArtifacts;
 
 import java.util.Objects;

@@ -28,7 +28,6 @@ import akka.NotUsed;
 import akka.actor.typed.ActorRef;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
-import org.spongepowered.downloads.artifact.api.Group;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.artifact.api.query.GetVersionsResponse;
 

@@ -28,18 +28,11 @@ import akka.cluster.sharding.typed.javadsl.EntityContext;
 import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
 import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
-import akka.persistence.typed.javadsl.CommandHandlerWithReplyBuilder;
 import akka.persistence.typed.javadsl.EventHandler;
-import akka.persistence.typed.javadsl.EventHandlerBuilder;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
-import com.lightbend.lagom.javadsl.persistence.PersistentEntity;
 import io.vavr.collection.TreeMap;
 import org.spongepowered.downloads.artifact.api.query.GetTaggedArtifacts;
-import org.spongepowered.downloads.artifact.collection.ACCommand;
-import org.spongepowered.downloads.artifact.collection.ArtifactCollectionEntity;
-
-import java.util.Optional;
 
 public class TaggedVersionEntity
     extends EventSourcedBehaviorWithEnforcedReplies<TaggedCommand, TaggedEvent, TaggedState> {

@@ -41,7 +41,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
-import org.spongepowered.downloads.webhook.sonatype.Component;
+import org.spongepowered.downloads.sonatype.Component;
 
 import java.util.ArrayList;
 import java.util.Set;
@@ -84,9 +84,7 @@ public class ArtifactProcessorEntity
         final var builder = this.newEventHandlerBuilder();
         builder.forAnyState()
             .onEvent(ScrapedArtifactEvent.InitializeArtifactForProcessing.class, this::initializeFromEvent)
-            .onEvent(ScrapedArtifactEvent.AssociatedMavenMetadata.class, this::associateSonatypeInformation)
-            .onEvent(ScrapedArtifactEvent.AssociateCommitSha.class, this::handleCommitShaAssociation)
-            .onEvent(ScrapedArtifactEvent.ArtifactRequested.class, this::handleArtifactRequested);
+            .onEvent(ScrapedArtifactEvent.AssociatedMavenMetadata.class, this::associateSonatypeInformation);
         return builder.build();
     }
 
@@ -160,27 +158,6 @@ public class ArtifactProcessorEntity
             event.collection().coordinates,
             state.getRepository().get(),
             event.artifactPathToSonatypeId()
-        );
-    }
-
-
-    private ProcessingState handleArtifactRequested(final ProcessingState state, final ScrapedArtifactEvent.ArtifactRequested event) {
-        if (state.getCoordinates().map(coords -> !coords.equals(event.mavenCoordinates())).orElse(true)) {
-            return new ProcessingState.MetadataState(
-                event.coordinates, System.getenv("PUBLIC-REPO"), HashMap.empty());
-        }
-        return state;
-    }
-
-    private ProcessingState handleCommitShaAssociation(final ProcessingState state, final ScrapedArtifactEvent.AssociateCommitSha event) {
-        if (state.hasCommit()) {
-            return state;
-        }
-        return new ProcessingState.CommittedState(
-            event.mavenCoordinates(),
-            state.getRepository().get(),
-            state.getArtifacts().get(),
-            event.commit()
         );
     }
 

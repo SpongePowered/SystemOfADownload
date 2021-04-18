@@ -22,40 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.api;
+package org.spongepowered.downloads.sonatype;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.vavr.collection.Map;
-
-@JsonDeserialize
-public final class ArtifactCollection {
-
-    @Schema(required = false, description = "A map of artifact kind to artifact information")
-    @JsonProperty(value = "components")
-    public final Map<String, Artifact> artifactComponents;
-
-    @Schema(
-        required = false,
-        description = "The group for an artifact collection"
-    )
-    @JsonProperty
-    public final MavenCoordinates coordinates;
-
-    @JsonCreator
-    public ArtifactCollection(
-        @JsonProperty("components") final Map<String, Artifact> components,
-        @JsonProperty("coordinates") final MavenCoordinates coordinates
-    ) {
-        this.artifactComponents = components;
-        this.coordinates = coordinates;
-    }
-
-
-    public Map<String, Artifact> getArtifactComponents() {
-        return this.artifactComponents;
-    }
-
+public final class MavenConstants {
+    public static final String MAVEN_METADATA_FILE = "maven-metadata.xml";
 }
