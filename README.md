@@ -1,6 +1,6 @@
 # SystemOfADownload
 
-![Actions Status](https://github.com/SpongePowered/SystemOfADownload/workflows/.github/workflows/build-project.yaml/badge.svg)
+[![Actions Status](https://github.com/SpongePowered/SystemOfADownload/actions/workflows/build-project.yaml/badge.svg)](https://github.com/SpongePowered/SystemOfADownload/actions/workflows/build-project.yaml)
 
 The metadata generator webapp that serves up enhanced information
 and "tagging" for artifacts from a Maven repository. This is intended to
