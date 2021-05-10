@@ -22,28 +22,29 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.webhook;
+package org.spongepowered.downloads.versions.collection;
 
-import com.google.inject.AbstractModule;
-import com.google.inject.Provides;
-import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
-import org.pac4j.core.config.Config;
-import org.spongepowered.downloads.artifact.api.ArtifactService;
-import org.spongepowered.downloads.auth.api.SOADAuth;
-import org.spongepowered.downloads.utils.AuthUtils;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.vavr.collection.Map;
+import org.spongepowered.downloads.artifact.api.Artifact;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 
-public class WebhookModule extends AbstractModule implements ServiceGuiceSupport {
+@JsonSerialize
+public class VersionCollection {
 
-    @Override
-    protected void configure() {
-        this.bindClient(ArtifactService.class);
-         this.bindService(SonatypeWebhookService.class, SonatypeWebhookServiceImpl.class);
-    }
+    @JsonProperty(required = true)
+    public final Map<String, Artifact> components;
 
-    @Provides
-    @SOADAuth
-    protected Config configProvider() {
-        return AuthUtils.createConfig();
+    /**
+     * The {@code coordinates} of this particular version collection.
+     */
+    @JsonProperty(required = true)
+    public final MavenCoordinates mavenCoordinates;
+
+    public VersionCollection(final MavenCoordinates coordinates, final Map<String, Artifact> components) {
+        this.components = components;
+        this.mavenCoordinates = coordinates;
     }
 
 }

@@ -22,6 +22,8 @@
         <module>utils</module>
         <module>artifact-api</module>
         <module>artifact-impl</module>
+        <module>versions-api</module>
+        <module>versions-impl</module>
         <module>webhooks</module>
         <module>integration-tests</module>
         <module>sonatype</module>

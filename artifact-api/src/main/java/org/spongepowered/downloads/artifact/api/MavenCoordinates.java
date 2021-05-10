@@ -139,6 +139,11 @@ public final class MavenCoordinates {
         return this.versionType.isSnapshot();
     }
 
+    @JsonIgnore
+    public ArtifactCoordinates asArtifactCoordinates() {
+        return new ArtifactCoordinates(this.groupId, this.artifactId);
+    }
+
     @Override
     public String toString() {
         return new StringJoiner(":")

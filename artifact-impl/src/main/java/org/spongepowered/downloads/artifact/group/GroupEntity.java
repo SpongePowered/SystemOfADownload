@@ -41,6 +41,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.Marker;
 import org.apache.logging.log4j.MarkerManager;
+import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.Group;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
@@ -52,7 +53,6 @@ import java.net.URL;
 import java.util.Set;
 import java.util.function.Function;
 
-@SuppressWarnings("unchecked")
 public class GroupEntity
     extends EventSourcedBehaviorWithEnforcedReplies<GroupCommand, GroupEvent, GroupState> {
 
@@ -116,19 +116,7 @@ public class GroupEntity
     private GroupState handleArtifactRegistration(
         final GroupState state, final GroupEvent.ArtifactRegistered event
     ) {
-        LOGGER.info(
-            STATE_MUTATION,
-            "Mutating state {} with {}",
-            state,
-            event
-        );
         final var add = state.artifacts.add(event.artifact);
-        LOGGER.info(
-            STATE_MUTATION,
-            "Adding artifact {} to existing set {}",
-            event.artifact,
-            state.artifacts
-        );
         return new GroupState(state.groupCoordinates, state.name, state.website, add);
     }
 
@@ -140,8 +128,14 @@ public class GroupEntity
             .onCommand(GroupCommand.RegisterGroup.class, this::respondToRegisterGroup)
             .onCommand(GroupCommand.RegisterArtifact.class, this::respondToRegisterArtifact)
             .onCommand(GroupCommand.GetGroup.class, this::respondToGetGroup)
+            .onCommand(GroupCommand.GetArtifactDetails.class, this::respondToGetArtifactDetails)
             .onCommand(GroupCommand.GetArtifacts.class, this::respondToGetVersions);
         return builder.build();
+    }
+
+    private ReplyEffect<GroupEvent, GroupState> respondToGetArtifactDetails(GroupState state, GroupCommand.GetArtifactDetails cmd) {
+        state.artifacts
+        return null;
     }
 
     private ReplyEffect<GroupEvent, GroupState> respondToRegisterGroup(
@@ -180,10 +174,10 @@ public class GroupEntity
         }
 
         final var group = state.asGroup();
-        final var coordinates = MavenCoordinates.parse(group.groupCoordinates + ":" + cmd.artifact + ":" + cmd.version);
+        final var coordinates = new ArtifactCoordinates(group.groupCoordinates, cmd.artifact);
         final EffectFactories<GroupEvent, GroupState> effect = this.Effect();
         return effect.persist(new GroupEvent.ArtifactRegistered(state.groupCoordinates, cmd.artifact))
-            .thenReply(cmd.replyTo, (s) -> new ArtifactRegistration.Response.RegisteredArtifact(coordinates));
+            .thenReply(cmd.replyTo, (s) -> new ArtifactRegistration.Response.ArtifactRegistered(coordinates));
     }
 
     private ReplyEffect<GroupEvent, GroupState> respondToGetGroup(

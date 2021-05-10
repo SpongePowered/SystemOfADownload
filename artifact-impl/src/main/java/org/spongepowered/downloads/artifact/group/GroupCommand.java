@@ -28,6 +28,7 @@ import akka.actor.typed.ActorRef;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
+import org.spongepowered.downloads.artifact.api.query.GetArtifactDetailsResponse;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
@@ -106,15 +107,13 @@ public interface GroupCommand extends Jsonable {
 
     final class RegisterArtifact implements GroupCommand {
         public final String artifact;
-        public final String version;
         public final ActorRef<ArtifactRegistration.Response> replyTo;
 
         @JsonCreator
         public RegisterArtifact(
-            final String artifact, final String version, final ActorRef<ArtifactRegistration.Response> replyTo
+            final String artifact, final ActorRef<ArtifactRegistration.Response> replyTo
         ) {
             this.artifact = artifact;
-            this.version = version;
             this.replyTo = replyTo;
         }
 
@@ -183,5 +182,18 @@ public interface GroupCommand extends Jsonable {
                 "website=" + this.website + ']';
         }
 
+    }
+
+    public class GetArtifactDetails implements GroupCommand {
+        private final String artifactId;
+        private final ActorRef<GetArtifactDetailsResponse> replyTo;
+
+        public GetArtifactDetails(
+            String artifactId, ActorRef<GetArtifactDetailsResponse> replyTo
+        ) {
+
+            this.artifactId = artifactId;
+            this.replyTo = replyTo;
+        }
     }
 }

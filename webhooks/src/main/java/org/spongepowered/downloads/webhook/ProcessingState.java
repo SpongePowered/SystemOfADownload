@@ -27,7 +27,6 @@ package org.spongepowered.downloads.webhook;
 import io.vavr.Tuple2;
 import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
-import org.spongepowered.downloads.git.api.CommitSha;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -191,100 +190,6 @@ interface ProcessingState {
                 "coordinates=" + this.coordinates + ", " +
                 "repository=" + this.repository + ", " +
                 "artifacts=" + this.artifacts + ']';
-        }
-
-    }
-
-    final static class CommittedState
-        implements ProcessingState {
-        private final String s;
-        private final String repository;
-        private final Map<String, Tuple2<String, String>> artifacts;
-        private final CommitSha commit;
-
-        public CommittedState(
-            final String s, final String repository, final Map<String, Tuple2<String, String>> artifacts, final CommitSha commit
-        ) {
-            this.s = s;
-            this.repository = repository;
-            this.artifacts = artifacts;
-            this.commit = commit;
-        }
-
-        @Override
-        public boolean hasStarted() {
-            return true;
-        }
-
-        @Override
-        public boolean hasMetadata() {
-            return true;
-        }
-
-        @Override
-        public boolean hasCommit() {
-            return true;
-        }
-
-        @Override
-        public boolean hasCompleted() {
-            return false;
-        }
-
-        @Override
-        public Optional<MavenCoordinates> getCoordinates() {
-            return Optional.empty();
-        }
-
-        @Override
-        public Optional<String> getRepository() {
-            return Optional.of(this.repository());
-        }
-
-        @Override
-        public Optional<Map<String, Tuple2<String, String>>> getArtifacts() {
-            return Optional.of(this.artifacts);
-        }
-
-        public String s() {
-            return this.s;
-        }
-
-        public String repository() {
-            return this.repository;
-        }
-
-        public Map<String, Tuple2<String, String>> artifacts() {
-            return this.artifacts;
-        }
-
-        public CommitSha commit() {
-            return this.commit;
-        }
-
-        @Override
-        public boolean equals(final Object obj) {
-            if (obj == this) return true;
-            if (obj == null || obj.getClass() != this.getClass()) return false;
-            final var that = (CommittedState) obj;
-            return Objects.equals(this.s, that.s) &&
-                Objects.equals(this.repository, that.repository) &&
-                Objects.equals(this.artifacts, that.artifacts) &&
-                Objects.equals(this.commit, that.commit);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(this.s, this.repository, this.artifacts, this.commit);
-        }
-
-        @Override
-        public String toString() {
-            return "CommittedState[" +
-                "s=" + this.s + ", " +
-                "repository=" + this.repository + ", " +
-                "artifacts=" + this.artifacts + ", " +
-                "commit=" + this.commit + ']';
         }
 
     }

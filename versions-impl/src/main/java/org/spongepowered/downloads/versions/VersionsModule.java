@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.webhook;
+package org.spongepowered.downloads.versions;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
@@ -31,13 +31,16 @@ import org.pac4j.core.config.Config;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.auth.api.SOADAuth;
 import org.spongepowered.downloads.utils.AuthUtils;
+import org.spongepowered.downloads.versions.api.VersionsService;
+import org.spongepowered.downloads.versions.sonatype.SonatypeSynchronizer;
 
-public class WebhookModule extends AbstractModule implements ServiceGuiceSupport {
+public class VersionsModule extends AbstractModule implements ServiceGuiceSupport {
 
     @Override
     protected void configure() {
         this.bindClient(ArtifactService.class);
-         this.bindService(SonatypeWebhookService.class, SonatypeWebhookServiceImpl.class);
+        this.bindService(VersionsService.class, VersionsServiceImpl.class);
+        this.bind(SonatypeSynchronizer.class).asEagerSingleton();
     }
 
     @Provides
