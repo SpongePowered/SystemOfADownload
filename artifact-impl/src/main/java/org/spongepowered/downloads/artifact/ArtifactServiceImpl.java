@@ -34,14 +34,13 @@ import com.lightbend.lagom.javadsl.api.broker.Topic;
 import com.lightbend.lagom.javadsl.broker.TopicProducer;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
 import com.lightbend.lagom.javadsl.server.ServerServiceCall;
-import io.vavr.collection.List;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.Marker;
-import org.apache.logging.log4j.MarkerManager;
 import org.pac4j.core.config.Config;
+import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
+import org.spongepowered.downloads.artifact.api.Group;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactDetailsResponse;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
@@ -50,6 +49,8 @@ import org.spongepowered.downloads.artifact.api.query.GroupResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
 import org.spongepowered.downloads.artifact.details.ArtifactDetailsEntity;
 import org.spongepowered.downloads.artifact.details.DetailsCommand;
+import org.spongepowered.downloads.artifact.global.GlobalCommand;
+import org.spongepowered.downloads.artifact.global.GlobalRegistration;
 import org.spongepowered.downloads.artifact.group.GroupCommand;
 import org.spongepowered.downloads.artifact.group.GroupEntity;
 import org.spongepowered.downloads.artifact.group.GroupEvent;
@@ -61,6 +62,7 @@ import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 public class ArtifactServiceImpl extends AbstractOpenAPIService implements ArtifactService,
     AuthenticatedInternalService {
@@ -85,7 +87,20 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
                 GroupEntity::create
             )
         );
+        this.clusterSharding.init(
+            Entity.of(
+                GlobalRegistration.ENTITY_TYPE_KEY,
+                GlobalRegistration::create
+            )
+        );
+        this.clusterSharding.init(
+            Entity.of(
+                ArtifactDetailsEntity.ENTITY_TYPE_KEY,
+                ArtifactDetailsEntity::create
+            )
+        );
         this.persistentEntityRegistry = persistentEntityRegistry;
+
     }
 
     @Override
@@ -104,10 +119,19 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
             final String name = registration.name;
             final String website = registration.website;
             return this.getGroupEntity(registration.groupCoordinates.toLowerCase(Locale.ROOT))
-                .ask(
+                .<GroupRegistration.Response>ask(
                     replyTo -> new GroupCommand.RegisterGroup(mavenCoordinates, name, website, replyTo),
                     this.askTimeout
-                );
+                ).thenCompose(response -> {
+                    if (!(response instanceof GroupRegistration.Response.GroupRegistered)) {
+                        return CompletableFuture.completedFuture(response);
+                    }
+                    final var group = ((GroupRegistration.Response.GroupRegistered) response).group();
+                    return this.getGlobalEntity()
+                        .<NotUsed>ask(replyTo -> new GlobalCommand.RegisterGroup(replyTo, group), this.askTimeout)
+                        .thenApply(notUsed -> response);
+
+                });
         });
     }
 
@@ -119,7 +143,18 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
             final EntityRef<GroupCommand> groupEntity = this.getGroupEntity(groupId.toLowerCase(Locale.ROOT));
             final var artifactId = registration.artifactId;
             return groupEntity
-                .ask(replyTo -> new GroupCommand.RegisterArtifact(artifactId, replyTo), this.askTimeout);
+                .<ArtifactRegistration.Response>ask(replyTo -> new GroupCommand.RegisterArtifact(artifactId, replyTo), this.askTimeout)
+                .thenCompose(response -> {
+                    if (!(response instanceof ArtifactRegistration.Response.ArtifactRegistered)) {
+                       return CompletableFuture.completedFuture(response);
+                    }
+                    final var coordinates = ((ArtifactRegistration.Response.ArtifactRegistered) response).coordinates;
+                    return this.getDetailsEntity(
+                        coordinates.groupId, coordinates.artifactId)
+                        .<NotUsed>ask(
+                            replyTo -> new DetailsCommand.RegisterArtifact(coordinates, replyTo), this.askTimeout)
+                        .thenApply(notUsed -> response);
+                });
         });
     }
 
@@ -134,9 +169,7 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
 
     @Override
     public ServiceCall<NotUsed, GroupsResponse> getGroups() {
-        return notUsed -> {
-            return CompletableFuture.completedFuture(new GroupsResponse.Available(List.empty()));
-        };
+        return notUsed -> this.getGlobalEntity().ask(GlobalCommand.GetGroups::new, this.askTimeout);
     }
 
     @Override
@@ -145,7 +178,7 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
         final String artifactId
     ) {
         return notUsed -> this.getDetailsEntity(groupId, artifactId)
-            .ask(replyTo -> new GroupCommand.GetArtifactDetails(artifactId, replyTo), Duration.ofSeconds(1));
+            .ask(replyTo -> new DetailsCommand.GetArtifactDetails(artifactId, replyTo), Duration.ofSeconds(1));
     }
 
     @Override
@@ -162,6 +195,10 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
 
     private EntityRef<DetailsCommand> getDetailsEntity(final String groupId, final String artifactId) {
         return this.clusterSharding.entityRefFor(ArtifactDetailsEntity.ENTITY_TYPE_KEY, groupId + ":" + artifactId);
+    }
+
+    private EntityRef<GlobalCommand> getGlobalEntity() {
+        return this.clusterSharding.entityRefFor(GlobalRegistration.ENTITY_TYPE_KEY, "global");
     }
 
     @Override

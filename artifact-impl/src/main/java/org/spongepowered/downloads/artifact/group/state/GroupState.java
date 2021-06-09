@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.group;
+package org.spongepowered.downloads.artifact.group.state;
 
 import io.vavr.collection.HashSet;
 import io.vavr.collection.Set;
@@ -31,32 +31,15 @@ import org.spongepowered.downloads.utils.UUIDType5;
 
 import java.util.UUID;
 
-public final class GroupState {
-    public final String groupCoordinates;
-    public final String name;
-    public final String website;
-    public final Set<String> artifacts;
-    public final UUID groupId;
+public interface GroupState {
 
-    static GroupState empty() {
-        return new GroupState("", "", "https://example.com", HashSet.empty());
-    }
+    boolean isEmpty();
 
-    GroupState(
-        final String groupCoordinates, final String name, final String website, final Set<String> artifacts
-    ) {
-        this.groupCoordinates = groupCoordinates;
-        this.name = name;
-        this.website = website;
-        this.groupId = UUIDType5.nameUUIDFromNamespaceAndString(UUIDType5.NAMESPACE_OID, this.groupCoordinates);
-        this.artifacts = artifacts;
-    }
+    Group asGroup();
 
-    public boolean isEmpty() {
-        return this.groupCoordinates.isEmpty() || this.name.isEmpty();
-    }
+    String website();
 
-    public Group asGroup() {
-        return new Group(this.groupCoordinates, this.name, this.website);
-    }
+    String name();
+
+    String groupCoordinates();
 }

@@ -37,17 +37,15 @@ import akka.persistence.typed.javadsl.ReplyEffect;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
 import io.vavr.collection.HashSet;
 import io.vavr.control.Try;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.Marker;
-import org.apache.logging.log4j.MarkerManager;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.Group;
-import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
+import org.spongepowered.downloads.artifact.group.state.EmptyState;
+import org.spongepowered.downloads.artifact.group.state.GroupState;
+import org.spongepowered.downloads.artifact.group.state.PopulatedState;
 
 import java.net.URL;
 import java.util.Set;
@@ -56,9 +54,6 @@ import java.util.function.Function;
 public class GroupEntity
     extends EventSourcedBehaviorWithEnforcedReplies<GroupCommand, GroupEvent, GroupState> {
 
-    public static final Logger LOGGER = LogManager.getLogger("GroupEntity");
-    public static final Marker STATE_RETRIEVAL = MarkerManager.getMarker("READ");
-    public static final Marker STATE_MUTATION = MarkerManager.getMarker("CHANGES");
     public static EntityTypeKey<GroupCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(GroupCommand.class, "GroupEntity");
     private final String groupId;
     private final Function<GroupEvent, Set<String>> tagger;
@@ -83,7 +78,7 @@ public class GroupEntity
 
     @Override
     public GroupState emptyState() {
-        return GroupState.empty();
+        return new EmptyState();
     }
 
     @Override
@@ -95,7 +90,7 @@ public class GroupEntity
                 GroupEvent.GroupRegistered.class,
                 this::handleRegistration
             );
-        builder.forAnyState()
+        builder.forStateType(PopulatedState.class)
             .onEvent(GroupEvent.ArtifactRegistered.class, this::handleArtifactRegistration);
 
         return builder.build();
@@ -104,68 +99,55 @@ public class GroupEntity
     private GroupState handleRegistration(
         final GroupState state, final GroupEvent.GroupRegistered event
     ) {
-        LOGGER.info(
-            STATE_MUTATION,
-            "Mutating state {} with {}",
-            state,
-            event
-        );
-        return new GroupState(event.groupId, event.name, event.website, HashSet.empty());
+        return new PopulatedState(event.groupId, event.name, event.website, HashSet.empty());
     }
 
     private GroupState handleArtifactRegistration(
-        final GroupState state, final GroupEvent.ArtifactRegistered event
+        final PopulatedState state, final GroupEvent.ArtifactRegistered event
     ) {
         final var add = state.artifacts.add(event.artifact);
-        return new GroupState(state.groupCoordinates, state.name, state.website, add);
+        return new PopulatedState(state.groupCoordinates, state.name, state.website, add);
     }
 
     @Override
     public CommandHandlerWithReply<GroupCommand, GroupEvent, GroupState> commandHandler() {
         final CommandHandlerWithReplyBuilder<GroupCommand, GroupEvent, GroupState> builder = this.newCommandHandlerWithReplyBuilder();
 
-        builder.forAnyState()
+        builder.forState(GroupState::isEmpty)
             .onCommand(GroupCommand.RegisterGroup.class, this::respondToRegisterGroup)
+            .onCommand(GroupCommand.RegisterArtifact.class, (state, cmd) -> this.Effect().reply(cmd.replyTo, new ArtifactRegistration.Response.GroupMissing(state.name())))
+            .onCommand(GroupCommand.GetGroup.class, (cmd) -> this.Effect().reply(cmd.replyTo, new GroupResponse.Missing(cmd.groupId)))
+            .onCommand(GroupCommand.GetArtifacts.class, (cmd) -> this.Effect().reply(cmd.replyTo, new GetArtifactsResponse.GroupMissing(cmd.groupId)))
+            ;
+        builder.forStateType(PopulatedState.class)
+            .onCommand(GroupCommand.RegisterGroup.class, (cmd) -> this.Effect().reply(cmd.replyTo, new GroupRegistration.Response.GroupAlreadyRegistered(cmd.mavenCoordinates)))
             .onCommand(GroupCommand.RegisterArtifact.class, this::respondToRegisterArtifact)
             .onCommand(GroupCommand.GetGroup.class, this::respondToGetGroup)
-            .onCommand(GroupCommand.GetArtifactDetails.class, this::respondToGetArtifactDetails)
             .onCommand(GroupCommand.GetArtifacts.class, this::respondToGetVersions);
         return builder.build();
-    }
-
-    private ReplyEffect<GroupEvent, GroupState> respondToGetArtifactDetails(GroupState state, GroupCommand.GetArtifactDetails cmd) {
-        state.artifacts
-        return null;
     }
 
     private ReplyEffect<GroupEvent, GroupState> respondToRegisterGroup(
         final GroupState state,
         final GroupCommand.RegisterGroup cmd
     ) {
-        if (!state.groupCoordinates.equals(cmd.mavenCoordinates)) {
-            return this.Effect()
-                .persist(new GroupEvent.GroupRegistered(cmd.mavenCoordinates, cmd.name, cmd.website))
-                .thenReply(
-                    cmd.replyTo,
-                    newState -> new GroupRegistration.Response.GroupRegistered(
-                        new Group(
-                            newState.groupCoordinates,
-                            newState.name,
-                            newState.website
-                        ))
-                );
-        }
-        return this.Effect().reply(
-            cmd.replyTo, new GroupRegistration.Response.GroupAlreadyRegistered(cmd.mavenCoordinates));
+        return this.Effect()
+            .persist(new GroupEvent.GroupRegistered(cmd.mavenCoordinates, cmd.name, cmd.website))
+            .thenReply(
+                cmd.replyTo,
+                newState -> new GroupRegistration.Response.GroupRegistered(
+                    new Group(
+                        newState.groupCoordinates(),
+                        newState.name(),
+                        newState.website()
+                    ))
+            );
     }
 
     private ReplyEffect<GroupEvent, GroupState> respondToRegisterArtifact(
-        final GroupState state,
+        final PopulatedState state,
         final GroupCommand.RegisterArtifact cmd
     ) {
-        if (state.groupCoordinates.isEmpty()) {
-            return this.Effect().reply(cmd.replyTo, new ArtifactRegistration.Response.GroupMissing(state.name));
-        }
         if (state.artifacts.contains(cmd.artifact)) {
             this.Effect().reply(cmd.replyTo, new ArtifactRegistration.Response.ArtifactAlreadyRegistered(
                 cmd.artifact,
@@ -181,51 +163,21 @@ public class GroupEntity
     }
 
     private ReplyEffect<GroupEvent, GroupState> respondToGetGroup(
-        final GroupState state, final GroupCommand.GetGroup cmd
+        final PopulatedState state, final GroupCommand.GetGroup cmd
     ) {
-        LOGGER.info(STATE_RETRIEVAL, "CurrentState: {} responding to cmd {}", state.name, cmd);
-        if (state.groupCoordinates.equalsIgnoreCase(cmd.groupId)) {
-
-            LOGGER.info(STATE_RETRIEVAL, "Group Matched, getting response from Stfate: {}", state);
-            final String website = state.website;
-            return this.Effect().reply(cmd.replyTo, Try.of(() -> new URL(website))
-                .<GroupResponse>mapTry(url -> {
-                    LOGGER.info(STATE_RETRIEVAL, "URL matched");
-                    final Group group = new Group(state.groupCoordinates, state.name, website);
-                    LOGGER.info(
-                        STATE_RETRIEVAL, "Retrieved Group: (coords: {}, name: {}, website: {})", group.groupCoordinates,
-                        group.name, group.website
-                    );
-                    return new GroupResponse.Available(group);
-                })
-                .getOrElseGet(throwable -> new GroupResponse.Missing(cmd.groupId)));
-        }
-        LOGGER.info(STATE_RETRIEVAL, "GroupId mismatch, requested {} but had {}", state.name, cmd.groupId);
-        return this.Effect().reply(cmd.replyTo, new GroupResponse.Missing(cmd.groupId));
+        final String website = state.website;
+        return this.Effect().reply(cmd.replyTo, Try.of(() -> new URL(website))
+            .<GroupResponse>mapTry(url -> {
+                final Group group = new Group(state.groupCoordinates, state.name, website);
+                return new GroupResponse.Available(group);
+            })
+            .getOrElseGet(throwable -> new GroupResponse.Missing(cmd.groupId)));
     }
 
     private ReplyEffect<GroupEvent, GroupState> respondToGetVersions(
-        final GroupState state,
+        final PopulatedState state,
         final GroupCommand.GetArtifacts cmd
     ) {
-        LOGGER.info(STATE_RETRIEVAL, "CurrentState: {} responding to cmd {}", state.name, cmd);
-        if (!state.groupCoordinates.equalsIgnoreCase(cmd.groupId)) {
-            LOGGER.info(STATE_RETRIEVAL, "GroupId mismatch, requested {} but had {}", state.name, cmd.groupId);
-            return this.Effect().reply(cmd.replyTo, new GetArtifactsResponse.GroupMissing(cmd.groupId));
-        }
-        LOGGER.info(STATE_RETRIEVAL, "Group Matched, getting response from Stfate: {}", state);
-        final String website = state.website;
-        final Group group = new Group(state.groupCoordinates, state.name, website);
-        LOGGER.info(
-            STATE_RETRIEVAL, "Retrieved Group: (coords: {}, name: {}, website: {})", group.groupCoordinates,
-            group.name, group.website
-        );
-        LOGGER.info(
-            STATE_RETRIEVAL,
-            "Artifacts available for group: {} [{}]",
-            state.name,
-            state.artifacts.toJavaList()
-        );
         return this.Effect().reply(cmd.replyTo, new GetArtifactsResponse.ArtifactsAvailable(state.artifacts.toList()));
     }
 }

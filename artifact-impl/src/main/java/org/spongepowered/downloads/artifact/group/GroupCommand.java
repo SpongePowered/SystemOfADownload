@@ -184,16 +184,4 @@ public interface GroupCommand extends Jsonable {
 
     }
 
-    public class GetArtifactDetails implements GroupCommand {
-        private final String artifactId;
-        private final ActorRef<GetArtifactDetailsResponse> replyTo;
-
-        public GetArtifactDetails(
-            String artifactId, ActorRef<GetArtifactDetailsResponse> replyTo
-        ) {
-
-            this.artifactId = artifactId;
-            this.replyTo = replyTo;
-        }
-    }
 }
