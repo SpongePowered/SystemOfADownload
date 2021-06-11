@@ -1,11 +1,13 @@
 package org.spongepowered.downloads.artifact.global;
 
+import akka.NotUsed;
 import akka.cluster.sharding.typed.javadsl.EntityContext;
 import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
 import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
+import akka.persistence.typed.javadsl.ReplyEffect;
 import akka.persistence.typed.javadsl.RetentionCriteria;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
 import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
@@ -47,6 +49,10 @@ public class GlobalRegistration
     @Override
     public EventHandler<GlobalState, GlobalEvent> eventHandler() {
         final var builder = this.newEventHandlerBuilder();
+        builder.forAnyState()
+            .onEvent(GlobalEvent.GroupRegistered.class, (state, event) -> {
+                return new GlobalState(state.groups.append(event.group));
+            });
         return builder.build();
     }
 
@@ -62,7 +68,19 @@ public class GlobalRegistration
             .onCommand(
                 GlobalCommand.GetGroups.class,
                 (state, cmd) -> this.Effect().reply(cmd.replyTo, new GroupsResponse.Available(state.groups))
+            )
+            .onCommand(
+                GlobalCommand.RegisterGroup.class,
+                this::handleRegisterGroup
             );
         return builder.build();
     }
+
+    private ReplyEffect<GlobalEvent, GlobalState> handleRegisterGroup(GlobalState state, GlobalCommand.RegisterGroup cmd) {
+        if (!state.groups.contains(cmd.group)) {
+            return this.Effect().persist(new GlobalEvent.GroupRegistered(cmd.group)).thenReply(cmd.replyTo, (s) -> NotUsed.notUsed());
+        }
+        return this.Effect().reply(cmd.replyTo, NotUsed.notUsed());
+    }
+
 }
