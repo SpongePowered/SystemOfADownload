@@ -1,10 +1,14 @@
 package org.spongepowered.downloads.maven.artifact;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.vavr.collection.List;
 
 import java.util.Objects;
 import java.util.Optional;
 
+@JsonDeserialize
 public final class Versioning {
     public final String latest;
     public final String release;
@@ -18,13 +22,15 @@ public final class Versioning {
         this.versions = List.empty();
     }
 
-    Versioning(
-        final Optional<String> latest, final Optional<String> release,
-        final String lastUpdated,
-        final List<String> versions
+    @JsonCreator
+    public Versioning(
+        @JsonProperty("latest") final String latest,
+        @JsonProperty("release") final String release,
+        @JsonProperty("lastUpdated") String lastUpdated,
+        @JsonProperty("versions") List<String> versions
     ) {
-        this.latest = latest.orElse("");
-        this.release = release.orElse("");
+        this.latest = latest == null ? "" : latest;
+        this.release = release == null ? "" : release;
         this.lastUpdated = lastUpdated;
         this.versions = versions;
     }

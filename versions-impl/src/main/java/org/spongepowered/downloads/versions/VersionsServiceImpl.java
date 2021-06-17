@@ -11,6 +11,7 @@ import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.broker.Topic;
 import com.lightbend.lagom.javadsl.broker.TopicProducer;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
+import com.lightbend.lagom.javadsl.server.ServerServiceCall;
 import org.pac4j.core.config.Config;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
@@ -63,8 +64,8 @@ public class VersionsServiceImpl  extends AbstractOpenAPIService implements Vers
         if (!(a instanceof GroupEvent.ArtifactRegistered)) {
             return Done.done();
         }
-        final String groupId = ((GroupEvent.ArtifactRegistered) a).groupId;
-        final String artifact = ((GroupEvent.ArtifactRegistered) a).artifact;
+        final String groupId = ((GroupEvent.ArtifactRegistered) a).groupId.toLowerCase(Locale.ROOT);
+        final String artifact = ((GroupEvent.ArtifactRegistered) a).artifact.toLowerCase(Locale.ROOT);
         return this.getCollection(groupId, artifact)
             .<NotUsed>ask(replyTo -> new ACCommand.RegisterArtifact(new ArtifactCoordinates(groupId, artifact), replyTo), this.streamTimeout)
             .thenApply(notUsed -> Done.done())
@@ -78,7 +79,7 @@ public class VersionsServiceImpl  extends AbstractOpenAPIService implements Vers
     }
 
     @Override
-    public ServiceCall<NotUsed, GetVersionsResponse> getArtifactVersions(
+    public ServerServiceCall<NotUsed, GetVersionsResponse> getArtifactVersions(
         final String groupId,
         final String artifactId
     ) {

@@ -14,13 +14,17 @@ import io.vavr.collection.List;
 import java.util.Set;
 import java.util.function.Function;
 
-public class GlobalManagedArtifacts extends EventSourcedBehaviorWithEnforcedReplies<ManageCommand, GloballyManagedArtifactEvent, ManagedArtifacts> {
-    public static EntityTypeKey<ManageCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(ManageCommand.class, "GlobalManagedArtifacts");
+public class GlobalManagedArtifacts
+    extends EventSourcedBehaviorWithEnforcedReplies<ManageCommand, GloballyManagedArtifactEvent, ManagedArtifacts> {
+    public static EntityTypeKey<ManageCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(
+        ManageCommand.class, "GlobalManagedArtifacts");
     private final String groupId;
     private final Function<GloballyManagedArtifactEvent, Set<String>> tagger;
+
     public static GlobalManagedArtifacts create(final EntityContext<ManageCommand> context) {
         return new GlobalManagedArtifacts(context);
     }
+
     private GlobalManagedArtifacts(final EntityContext<ManageCommand> context) {
         super(
             // PersistenceId needs a typeHint (or namespace) and entityId,
@@ -44,7 +48,8 @@ public class GlobalManagedArtifacts extends EventSourcedBehaviorWithEnforcedRepl
     public EventHandler<ManagedArtifacts, GloballyManagedArtifactEvent> eventHandler() {
         final var builder = this.newEventHandlerBuilder();
 
-        builder.forAnyState().onEvent(GloballyManagedArtifactEvent.Registered.class, (s, e) -> s.withArtifact(e.coordinates));
+        builder.forAnyState().onEvent(
+            GloballyManagedArtifactEvent.Registered.class, (s, e) -> s.withArtifact(e.coordinates));
         return builder.build();
     }
 
@@ -57,9 +62,10 @@ public class GlobalManagedArtifacts extends EventSourcedBehaviorWithEnforcedRepl
         return builder.build();
     }
 
-    private ReplyEffect<GloballyManagedArtifactEvent, ManagedArtifacts> handleAdd(final ManagedArtifacts state, final
-        ManageCommand.Add cmd
-        ) {
+    private ReplyEffect<GloballyManagedArtifactEvent, ManagedArtifacts> handleAdd(
+        final ManagedArtifacts state, final
+    ManageCommand.Add cmd
+    ) {
         if (state.artifacts.contains(cmd.coordinates)) {
             return this.Effect().reply(cmd.replyTo, NotUsed.notUsed());
         }

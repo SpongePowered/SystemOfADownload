@@ -27,6 +27,7 @@ package org.spongepowered.downloads.versions.sonatype.client;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.typesafe.config.ConfigException;
 import io.vavr.Function0;
 import io.vavr.Function1;
@@ -34,6 +35,7 @@ import io.vavr.Tuple2;
 import io.vavr.collection.List;
 import io.vavr.collection.Map;
 import io.vavr.control.Try;
+import io.vavr.jackson.datatype.VavrModule;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.Logger;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -44,8 +46,10 @@ import org.spongepowered.downloads.sonatype.ComponentSearchResponse;
 import java.io.BufferedInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Base64;
@@ -70,7 +74,22 @@ public class SonatypeClient {
     private Config config;
 
     public Try<ArtifactMavenMetadata> getArtifactMetadata(String groupId, String artifactId) {
-        return null;
+        final var httpClient = HttpClient.newHttpClient();
+        final var url = new StringJoiner("/", "https://repo.spongepowered.org/repository/maven-public/", "")
+            .add(groupId)
+            .add(artifactId)
+            .add("maven-metadata.xml")
+            .toString();
+        final var request = HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("User-Agent", "SystemOfADownload-Synchronizer")
+            .build();
+
+        final var xmlmapper = new XmlMapper();
+        xmlmapper.registerModule(new VavrModule());
+        return Try.of(() -> httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream()))
+            .map(HttpResponse::body)
+            .mapTry(is -> xmlmapper.readValue(is, ArtifactMavenMetadata.class));
     }
 
     public static final class Config {
@@ -123,17 +142,14 @@ public class SonatypeClient {
         final var userPass = config.user + ":" + config.password;
         final String encodedAuth = Base64.getEncoder().encodeToString(userPass.getBytes(
             StandardCharsets.UTF_8));
-        return Try.of(() -> new URL(target))
-            .mapTry(URL::openConnection)
-            .mapTry(url -> (HttpURLConnection) url)
-            .mapTry(connection -> {
-                connection.setRequestMethod("GET");
-                connection.setRequestProperty("Content-Type", "application/json");
-                connection.setRequestProperty("User-Agent", "Sponge-Downloader");
-                connection.setRequestProperty("Authorization", "Basic " + encodedAuth);
-                connection.connect();
-                return connection.getInputStream();
-            });
+        final HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(target))
+            .header("Content-Type", "application/json")
+            .header("User-Agent", "Sponge-Downloader")
+            .build();
+        return Try.of(HttpClient::newHttpClient)
+            .mapTry(client -> client.send(request, HttpResponse.BodyHandlers.ofInputStream()))
+            .map(HttpResponse::body);
     }
 
     /**

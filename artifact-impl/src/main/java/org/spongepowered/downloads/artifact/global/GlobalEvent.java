@@ -1,5 +1,7 @@
 package org.spongepowered.downloads.artifact.global;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
@@ -15,9 +17,11 @@ public interface GlobalEvent extends AggregateEvent<GlobalEvent>, Jsonable {
         return TAG;
     }
 
+    @JsonDeserialize
     final class GroupRegistered implements GlobalEvent {
         public final Group group;
 
+        @JsonCreator
         public GroupRegistered(Group group) {
             this.group = group;
         }

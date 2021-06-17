@@ -99,12 +99,17 @@ public final class VersionedArtifactAggregate
     public CommandHandlerWithReply<ACCommand, ACEvent, ACState> commandHandler() {
         final var builder = this.newCommandHandlerWithReplyBuilder();
         builder.forState(ACState::isRegistered)
+            .onCommand(ACCommand.RegisterVersion.class, this::handleRegisterVersion)
             .onCommand(ACCommand.RegisterCollection.class, this::handleRegisterCommand)
         ;
         builder.forAnyState()
             .onCommand(ACCommand.RegisterArtifact.class, this::handleRegisterArtifact)
             .onCommand(ACCommand.GetVersions.class, this::respondToGetVersions);
         return builder.build();
+    }
+
+    private ReplyEffect<ACEvent, ACState> handleRegisterVersion(final ACState state, final ACCommand.RegisterVersion cmd) {
+        return null;
     }
 
     private ReplyEffect<ACEvent, ACState> handleRegisterCommand(

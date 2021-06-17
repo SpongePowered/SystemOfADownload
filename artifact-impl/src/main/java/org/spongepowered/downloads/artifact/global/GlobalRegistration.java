@@ -10,6 +10,8 @@ import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
 import akka.persistence.typed.javadsl.RetentionCriteria;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
 
 import java.util.Set;
@@ -20,6 +22,7 @@ public class GlobalRegistration
 
     public static EntityTypeKey<GlobalCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(
         GlobalCommand.class, "GlobalEntity");
+    private static final Logger LOGGER = LogManager.getLogger("GlobalRegistration");
     private final String groupId;
     private final Function<GlobalEvent, Set<String>> tagger;
 
@@ -50,15 +53,8 @@ public class GlobalRegistration
     public EventHandler<GlobalState, GlobalEvent> eventHandler() {
         final var builder = this.newEventHandlerBuilder();
         builder.forAnyState()
-            .onEvent(GlobalEvent.GroupRegistered.class, (state, event) -> {
-                return new GlobalState(state.groups.append(event.group));
-            });
+            .onEvent(GlobalEvent.GroupRegistered.class, (state, event) -> new GlobalState(state.groups.append(event.group)));
         return builder.build();
-    }
-
-    @Override
-    public RetentionCriteria retentionCriteria() {
-        return RetentionCriteria.snapshotEvery(10, 10);
     }
 
     @Override

@@ -1,5 +1,7 @@
 package org.spongepowered.downloads.artifact.details;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
@@ -16,9 +18,11 @@ public interface DetailsEvent extends AggregateEvent<DetailsEvent>, Jsonable {
         return TAG;
     }
 
+    @JsonDeserialize
     final class ArtifactRegistered implements DetailsEvent {
         public final ArtifactCoordinates coordinates;
 
+        @JsonCreator
         public ArtifactRegistered(final ArtifactCoordinates coordinates) {
             this.coordinates = coordinates;
         }

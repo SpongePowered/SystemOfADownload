@@ -10,11 +10,14 @@ import akka.stream.javadsl.Flow;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
 import com.lightbend.lagom.javadsl.persistence.ReadSide;
 import com.lightbend.lagom.javadsl.persistence.cassandra.CassandraSession;
+import io.vavr.collection.List;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
+import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
+import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
 import org.spongepowered.downloads.artifact.group.GroupEvent;
 import org.spongepowered.downloads.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
@@ -28,6 +31,8 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.stream.Collectors;
 
 @Singleton
 public class SonatypeSynchronizer {
@@ -56,7 +61,7 @@ public class SonatypeSynchronizer {
         system.scheduler()
             .scheduleAtFixedRate(
                 Duration.ofMinutes(1), // Don't bother resyncing immediately, just give SOAD a minute to load up
-                Duration.ofHours(1),   // And check, on the hour
+                Duration.ofMinutes(5),   // And check, every 5 minutes
                 this::syncAndUpdateArtifacts,
                 system.dispatcher()
             );
@@ -87,9 +92,7 @@ public class SonatypeSynchronizer {
         final var coordinates = new ArtifactCoordinates(groupId, artifact);
         return this.getGlobalRegistry()
             .<NotUsed>ask(
-                replyTo -> {
-                    return new ManageCommand.Add(coordinates, replyTo);
-                },
+                replyTo -> new ManageCommand.Add(coordinates, replyTo),
                 Duration.ofSeconds(2)
             )
             .thenCompose(notUsed -> this.fetchAndRegisterVersions(coordinates))
@@ -100,12 +103,31 @@ public class SonatypeSynchronizer {
 
     private void syncAndUpdateArtifacts() {
         LOGGER.log(Level.INFO, "Ticking");
-        this.getGlobalRegistry()
-            .ask(ManageCommand.GetAllArtifacts::new, Duration.ofSeconds(1))
-            .thenAccept(artifacts -> artifacts.toJavaParallelStream()
-                .map(this::fetchAndRegisterVersions)
-                .forEach(CompletableFuture::join)
-            ).toCompletableFuture()
+        this.artifactService.getGroups()
+            .invoke()
+            .thenApply(groups -> ((GroupsResponse.Available) groups).groups)
+            .thenApply(groups ->
+                groups
+                    .map(group -> this.artifactService.getArtifacts(group.groupCoordinates)
+                        .invoke()
+                        .toCompletableFuture()
+                        .thenApply(artifactsResponse -> {
+                            if (!(artifactsResponse instanceof GetArtifactsResponse.ArtifactsAvailable)) {
+                                return List.<ArtifactCoordinates>empty();
+                            }
+                            final var artifactIds = ((GetArtifactsResponse.ArtifactsAvailable) artifactsResponse).artifactIds();
+                            return artifactIds.map(
+                                artifactId -> new ArtifactCoordinates(group.groupCoordinates, artifactId));
+                        })
+                    )
+                    .map(CompletableFuture::join))
+            .thenApply(list -> list.flatMap(List::toStream))
+            .thenCompose(list -> CompletableFuture.allOf(
+                list.map(this::fetchAndRegisterVersions)
+                    .toJavaArray(CompletableFuture[]::new)
+                )
+            )
+            .toCompletableFuture()
             .join();
     }
 
@@ -117,7 +139,8 @@ public class SonatypeSynchronizer {
                     .forEach(
                         coords -> this.versionsService.registerArtifactCollection(coords.groupId, coords.artifactId)
                             .handleRequestHeader(
-                                requestHeader -> requestHeader.withHeader(AuthUtils.INTERNAL_HEADER_KEY,
+                                requestHeader -> requestHeader.withHeader(
+                                    AuthUtils.INTERNAL_HEADER_KEY,
                                     AuthUtils.INTERNAL_HEADER_SECRET
                                 ))
                             .invoke(new VersionRegistration.Register.Version(coords))

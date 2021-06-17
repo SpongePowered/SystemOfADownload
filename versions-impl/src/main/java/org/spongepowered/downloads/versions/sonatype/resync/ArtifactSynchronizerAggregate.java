@@ -5,15 +5,13 @@ import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
 import akka.japi.function.Function;
 import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
-import akka.persistence.typed.javadsl.Effect;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
+import akka.persistence.typed.javadsl.ReplyEffect;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.sonatype.client.SonatypeClient;
-
-import java.time.LocalDateTime;
 
 public final class ArtifactSynchronizerAggregate
     extends EventSourcedBehaviorWithEnforcedReplies<Resync, SynchronizeEvent, SyncState> {
@@ -56,14 +54,14 @@ public final class ArtifactSynchronizerAggregate
 
     @Override
     public CommandHandlerWithReply<Resync, SynchronizeEvent, SyncState> commandHandler() {
-        final var builder = this.newCommandHandlerBuilder()
+        final var builder = this.newCommandHandlerWithReplyBuilder()
             .forAnyState()
             .onCommand(Resync.class, this::handleResync);
-        return null;
+        return builder.build();
     }
 
-    private Effect<SynchronizeEvent, SyncState> handleResync(SyncState state, Resync cmd) {
-        return this.client.getArtifactMetadata(state.groupId, state.artifactId)
+    private ReplyEffect<SynchronizeEvent, SyncState> handleResync(SyncState state, Resync cmd) {
+        return this.client.getArtifactMetadata(state.groupId.replace(".", "/"), state.artifactId)
             .mapTry(metadata -> {
                 if (metadata.versioning().lastUpdated.equals(state.lastUpdated)) {
                     return this.Effect()
