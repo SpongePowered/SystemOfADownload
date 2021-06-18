@@ -30,6 +30,7 @@ import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+import org.spongepowered.downloads.versions.api.models.GetVersionResponse;
 import org.spongepowered.downloads.versions.api.models.GetVersionsResponse;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 
@@ -171,5 +172,13 @@ public interface ACCommand extends Jsonable {
                 "groupId=" + this.groupId + ", " +
                 "artifactId=" + this.artifactId + ']';
         }
+    }
+
+    final record GetSpecificVersion(
+        String sanitizedGroupId,
+        String sanitizedArtifactId,
+        String version,
+        ActorRef<GetVersionResponse> replyTo
+    ) implements ACCommand {
     }
 }

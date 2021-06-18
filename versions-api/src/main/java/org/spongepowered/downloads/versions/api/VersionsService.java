@@ -32,14 +32,22 @@ import com.lightbend.lagom.javadsl.api.broker.Topic;
 import com.lightbend.lagom.javadsl.api.broker.kafka.KafkaProperties;
 import com.lightbend.lagom.javadsl.api.transport.Method;
 import org.spongepowered.downloads.versions.api.event.VersionedArtifactEvent;
+import org.spongepowered.downloads.versions.api.models.GetVersionResponse;
 import org.spongepowered.downloads.versions.api.models.GetVersionsResponse;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import org.taymyr.lagom.javadsl.openapi.OpenAPIService;
 import org.taymyr.lagom.javadsl.openapi.OpenAPIUtils;
 
+import java.util.Optional;
+
 public interface VersionsService extends OpenAPIService {
 
-    ServiceCall<NotUsed, GetVersionsResponse> getArtifactVersions(String groupId, String artifactId);
+    ServiceCall<NotUsed, GetVersionsResponse> getArtifactVersions(
+        String groupId, String artifactId, Optional<String> tags, Optional<Integer> limit,
+        Optional<Integer> offset
+    );
+
+    ServiceCall<NotUsed, GetVersionResponse> getArtifactVersion(String groupId, String artifactId, String version);
 
     ServiceCall<VersionRegistration.Register, VersionRegistration.Response> registerArtifactCollection(
         String groupId, String artifactId
@@ -51,8 +59,9 @@ public interface VersionsService extends OpenAPIService {
     default Descriptor descriptor() {
         return OpenAPIUtils.withOpenAPI(Service.named("versions")
             .withCalls(
-                Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions", this::getArtifactVersions),
-                Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts/:artifactId/versions", this::registerArtifactCollection)
+                Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions?tags&limit&offset", this::getArtifactVersions),
+                Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts/:artifactId/versions", this::registerArtifactCollection),
+                Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions/:version", this::getArtifactVersion)
              )
             .withTopics(
                 Service.topic("versioned_artifact_activity", this::topic)

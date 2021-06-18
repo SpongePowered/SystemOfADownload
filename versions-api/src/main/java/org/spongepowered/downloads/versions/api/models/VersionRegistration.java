@@ -105,38 +105,10 @@ public final class VersionRegistration {
     public interface Response extends Jsonable {
 
         @JsonDeserialize
-        final class ArtifactAlreadyRegistered implements Response {
-
-            @JsonProperty(required = true)
-            public final ArtifactCoordinates coordinates;
-
-            public ArtifactAlreadyRegistered(ArtifactCoordinates coordinates) {
-                this.coordinates = coordinates;
-            }
-
-            @Override
-            public String toString() {
-                return new StringJoiner(", ", ArtifactAlreadyRegistered.class.getSimpleName() + "[", "]")
-                    .add("coordinates=" + coordinates)
-                    .toString();
-            }
-
-            @Override
-            public boolean equals(final Object o) {
-                if (this == o) {
-                    return true;
-                }
-                if (o == null || getClass() != o.getClass()) {
-                    return false;
-                }
-                ArtifactAlreadyRegistered that = (ArtifactAlreadyRegistered) o;
-                return Objects.equals(coordinates, that.coordinates);
-            }
-
-            @Override
-            public int hashCode() {
-                return Objects.hash(coordinates);
-            }
+        record ArtifactAlreadyRegistered(
+            @JsonProperty(required = true) ArtifactCoordinates coordinates
+        )
+            implements Response {
         }
 
         @JsonDeserialize
@@ -169,14 +141,8 @@ public final class VersionRegistration {
         }
 
         @JsonDeserialize
-        final class GroupMissing implements Response {
+        record GroupMissing(@JsonProperty(required = true) String groupId) implements Response {
 
-            @JsonProperty(required = true)
-            public final String groupId;
-
-            public GroupMissing(String groupId) {
-                this.groupId = groupId;
-            }
         }
     }
 }

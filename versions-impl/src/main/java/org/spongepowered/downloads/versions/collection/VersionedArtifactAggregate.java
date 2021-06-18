@@ -32,15 +32,17 @@ import akka.persistence.typed.javadsl.CommandHandlerWithReply;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
+import com.lightbend.lagom.javadsl.api.transport.NotFound;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
 import io.vavr.collection.HashMap;
 import io.vavr.collection.Map;
-import io.vavr.collection.SortedMap;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
+import org.spongepowered.downloads.versions.api.models.GetVersionResponse;
 import org.spongepowered.downloads.versions.api.models.GetVersionsResponse;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -94,6 +96,13 @@ public final class VersionedArtifactAggregate
         builder.forState(ACState::isRegistered)
             .onCommand(ACCommand.RegisterCollection.class, this::handleRegisterCommand)
             .onCommand(ACCommand.RegisterArtifact.class, (cmd) -> this.Effect().reply(cmd.replyTo, NotUsed.notUsed()))
+            .onCommand(ACCommand.GetSpecificVersion.class, (state, cmd) -> {
+                final var versionedCollection = state.collection().get(cmd.version());
+                if (versionedCollection.isEmpty()) {
+                    return this.Effect().reply(cmd.replyTo(), new GetVersionResponse.VersionMissing(cmd.version()));
+                }
+                return this.Effect().reply(cmd.replyTo(), new GetVersionResponse.VersionInfo(versionedCollection.get()));
+            })
         ;
         builder.forAnyState()
             .onCommand(ACCommand.RegisterVersion.class, this::handleRegisterVersion)
@@ -105,7 +114,7 @@ public final class VersionedArtifactAggregate
     private ReplyEffect<ACEvent, ACState> handleRegisterVersion(
         final ACState state, final ACCommand.RegisterVersion cmd
     ) {
-        if (state.collection.containsKey(cmd.coordinates.version)) {
+        if (state.collection().containsKey(cmd.coordinates.version)) {
             return this.Effect().reply(
                 cmd.replyTo,
                 new VersionRegistration.Response.ArtifactAlreadyRegistered(cmd.coordinates.asArtifactCoordinates())
@@ -122,18 +131,18 @@ public final class VersionedArtifactAggregate
         final ACState state,
         final ACCommand.RegisterCollection cmd
     ) {
-        if (!state.coordinates.groupId.equals(cmd.collection.coordinates.groupId)) {
+        if (!state.coordinates().groupId.equals(cmd.collection.coordinates.groupId)) {
             return this.Effect().reply(
                 cmd.replyTo, new VersionRegistration.Response.GroupMissing(cmd.collection.coordinates.groupId));
         }
         final var events = new ArrayList<ACEvent>();
-        if (!state.collection.get(cmd.collection.coordinates.version)
+        if (!state.collection().get(cmd.collection.coordinates.version)
             .exists(existing -> existing.getArtifactComponents().equals(cmd.collection.getArtifactComponents()))) {
             events.add(new ACEvent.CollectionRegistered(cmd.collection));
         }
         return this.Effect().persist(events).thenReply(cmd.replyTo, (s) -> {
             if (events.isEmpty()) {
-                return new VersionRegistration.Response.ArtifactAlreadyRegistered(s.coordinates);
+                return new VersionRegistration.Response.ArtifactAlreadyRegistered(s.coordinates());
             }
             return new VersionRegistration.Response.RegisteredArtifact(
                 cmd.collection.artifactComponents, cmd.collection.coordinates);
@@ -153,15 +162,18 @@ public final class VersionedArtifactAggregate
     private ACState updateCoordinates(
         final ACState state, final ACEvent.ArtifactCoordinatesUpdated event
     ) {
-        return new ACState(event.coordinates, state.collection, false);
+        return new ACState(event.coordinates, state.collection(), false);
     }
 
     private ACState updateVersionRegistered(
         final ACState state, final ACEvent.ArtifactVersionRegistered event
     ) {
-        final Map<String, ArtifactCollection> newMap = state.collection.computeIfAbsent(
-            event.version, (version) -> event.collection)._2;
-        final var sorted = newMap.toSortedMap(String::compareTo, (key) -> key._1, (tuple) -> tuple._2);
+        final Map<String, ArtifactCollection> newMap = state
+            .collection()
+            .computeIfAbsent(event.version, (version) -> event.collection)
+            ._2;
+        final var sorted = newMap
+            .toSortedMap(Comparator.reverseOrder(), (key) -> key._1, (tuple) -> tuple._2);
         return new ACState(
             event.collection.coordinates.asArtifactCoordinates(),
             sorted,
@@ -173,7 +185,7 @@ public final class VersionedArtifactAggregate
         final ACState state, final ACEvent.CollectionRegistered event
     ) {
         final var version = event.collection.coordinates.version;
-        final var updatedComponents = state.collection.get(version)
+        final var updatedComponents = state.collection().get(version)
             .map(ArtifactCollection::getArtifactComponents)
             .map(existing -> existing.merge(
                 event.collection.getArtifactComponents(),
@@ -187,18 +199,18 @@ public final class VersionedArtifactAggregate
             )
             .getOrElse(event.collection::getArtifactComponents);
         final var updatedCollection = new ArtifactCollection(updatedComponents, event.collection.coordinates);
-        final var updatedVersionedCollections = state.collection.put(version, updatedCollection);
-        return new ACState(state.coordinates, updatedVersionedCollections, false);
+        final var updatedVersionedCollections = state.collection().put(version, updatedCollection);
+        return new ACState(state.coordinates(), updatedVersionedCollections, false);
     }
 
     private ReplyEffect<ACEvent, ACState> respondToGetVersions(
         final ACState state,
         final ACCommand.GetVersions cmd
     ) {
-        if (!state.coordinates.artifactId.equalsIgnoreCase(cmd.artifactId)) {
+        if (!state.coordinates().artifactId.equalsIgnoreCase(cmd.artifactId)) {
             return this.Effect().reply(cmd.replyTo, new GetVersionsResponse.ArtifactUnknown(cmd.artifactId));
         }
-        return this.Effect().reply(cmd.replyTo, new GetVersionsResponse.VersionsAvailable(state.collection));
+        return this.Effect().reply(cmd.replyTo, new GetVersionsResponse.VersionsAvailable(state.collection()));
     }
 
 }
