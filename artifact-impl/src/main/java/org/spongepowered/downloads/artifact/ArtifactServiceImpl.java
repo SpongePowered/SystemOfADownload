@@ -68,7 +68,7 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
     AuthenticatedInternalService {
 
     private static final Logger LOGGER = LogManager.getLogger(ArtifactServiceImpl.class);
-    private final Duration askTimeout = Duration.ofSeconds(5);
+    private final Duration askTimeout = Duration.ofHours(5);
     private final Config securityConfig;
     private final ClusterSharding clusterSharding;
     private final PersistentEntityRegistry persistentEntityRegistry;
@@ -100,7 +100,6 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
             )
         );
         this.persistentEntityRegistry = persistentEntityRegistry;
-
     }
 
     @Override
@@ -148,11 +147,12 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
                     if (!(response instanceof ArtifactRegistration.Response.ArtifactRegistered)) {
                        return CompletableFuture.completedFuture(response);
                     }
+                    LOGGER.log(Level.INFO, "Registering details {}", registration);
                     final var coordinates = ((ArtifactRegistration.Response.ArtifactRegistered) response).coordinates;
                     return this.getDetailsEntity(
                         coordinates.groupId, coordinates.artifactId)
                         .<NotUsed>ask(
-                            replyTo -> new DetailsCommand.RegisterArtifact(coordinates, replyTo), this.askTimeout)
+                            replyTo -> new DetailsCommand.RegisterArtifact(coordinates, registration.displayName, replyTo), this.askTimeout)
                         .thenApply(notUsed -> response);
                 });
         });
@@ -178,7 +178,7 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
         final String artifactId
     ) {
         return notUsed -> this.getDetailsEntity(groupId, artifactId)
-            .ask(replyTo -> new DetailsCommand.GetArtifactDetails(artifactId, replyTo), Duration.ofSeconds(1));
+            .ask(replyTo -> new DetailsCommand.GetArtifactDetails(artifactId, replyTo), this.askTimeout);
     }
 
     @Override

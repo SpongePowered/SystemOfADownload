@@ -117,7 +117,7 @@ public class SonatypeWebhookServiceImpl extends AbstractOpenAPIService implement
                             .ask(replyTo -> new ArtifactSagaCommand.StartProcessing(webhookData,
                                 coordinates,
                                 replyTo
-                            ), Duration.ofSeconds(10));
+                            ), Duration.ofHours(10));
                     })
                     .thenApply(response -> Pair.create(ResponseHeader.OK, "success"));
             }

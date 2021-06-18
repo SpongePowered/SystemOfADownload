@@ -20,10 +20,12 @@ public interface DetailsCommand extends Jsonable {
 
     final class RegisterArtifact implements DetailsCommand {
         public final ArtifactCoordinates coordinates;
+        public final String displayName;
         public final ActorRef<NotUsed> replyTo;
 
-        public RegisterArtifact(final ArtifactCoordinates coordinates, final ActorRef<NotUsed> replyTo) {
+        public RegisterArtifact(final ArtifactCoordinates coordinates, final String displayName, final ActorRef<NotUsed> replyTo) {
             this.coordinates = coordinates;
+            this.displayName = displayName;
             this.replyTo = replyTo;
         }
     }

@@ -51,8 +51,8 @@ public interface VersionsService extends OpenAPIService {
     default Descriptor descriptor() {
         return OpenAPIUtils.withOpenAPI(Service.named("versions")
             .withCalls(
-                Service.restCall(Method.GET, "/api/v1/groups/:groupId/artifacts/:artifactId/versions", this::getArtifactVersions),
-                Service.restCall(Method.POST, "/api/v1/groups/:groupId/artifacts/:artifactId/versions", this::registerArtifactCollection)
+                Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions", this::getArtifactVersions),
+                Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts/:artifactId/versions", this::registerArtifactCollection)
              )
             .withTopics(
                 Service.topic("versioned_artifact_activity", this::topic)

@@ -24,6 +24,9 @@
  */
 package org.spongepowered.downloads.versions.collection;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.serialization.CompressedJsonable;
 import io.vavr.collection.HashMap;
 import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
@@ -33,22 +36,26 @@ import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import java.util.Objects;
 import java.util.StringJoiner;
 
-public class ACState {
+@JsonDeserialize
+public class ACState implements CompressedJsonable {
 
     public final ArtifactCoordinates coordinates;
     public final Map<String, ArtifactCollection> collection;
+    private final boolean unregistered;
 
     public static ACState empty() {
-        return new ACState(new ArtifactCoordinates("com.example", "example"), HashMap.empty());
+        return new ACState(new ArtifactCoordinates("com.example", "example"), HashMap.empty(), true);
     }
 
-    public ACState(final ArtifactCoordinates coordinates, final Map<String, ArtifactCollection> collection) {
+    @JsonCreator
+    public ACState(final ArtifactCoordinates coordinates, final Map<String, ArtifactCollection> collection, final boolean unregistered) {
         this.coordinates = coordinates;
         this.collection = collection;
+        this.unregistered = unregistered;
     }
 
     public boolean isRegistered() {
-        return !"com.example".equals(this.coordinates.groupId);
+        return !this.unregistered;
     }
 
     @Override

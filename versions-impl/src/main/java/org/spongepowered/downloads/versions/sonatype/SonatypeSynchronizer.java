@@ -16,6 +16,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
 import org.spongepowered.downloads.artifact.group.GroupEvent;
@@ -37,9 +38,6 @@ import java.util.stream.Collectors;
 @Singleton
 public class SonatypeSynchronizer {
 
-    private final ActorSystem system;
-    private final PersistentEntityRegistry registry;
-    private final CassandraSession cassandraSession;
     private final ArtifactService artifactService;
     private final VersionsService versionsService;
     private final ClusterSharding clusterSharding;
@@ -47,24 +45,13 @@ public class SonatypeSynchronizer {
 
     @Inject
     public SonatypeSynchronizer(
-        final ActorSystem system, final PersistentEntityRegistry registry,
+        final ActorSystem system,
         final ArtifactService artifactService,
         final VersionsService versionsService,
-        final ClusterSharding clusterSharding,
-        final CassandraSession cassandraSession,
-        final ReadSide readSide
+        final ClusterSharding clusterSharding
     ) {
-        this.system = system;
-        this.registry = registry;
         this.artifactService = artifactService;
         this.versionsService = versionsService;
-        system.scheduler()
-            .scheduleAtFixedRate(
-                Duration.ofMinutes(1), // Don't bother resyncing immediately, just give SOAD a minute to load up
-                Duration.ofMinutes(5),   // And check, every 5 minutes
-                this::syncAndUpdateArtifacts,
-                system.dispatcher()
-            );
         this.clusterSharding = clusterSharding;
         this.clusterSharding.init(
             Entity.of(
@@ -78,9 +65,16 @@ public class SonatypeSynchronizer {
                 GlobalManagedArtifacts::create
             )
         );
-        this.cassandraSession = cassandraSession;
-        this.artifactService.groupTopic()
-            .subscribe().atLeastOnce(Flow.fromFunction(this::onGroupEvent));
+        artifactService.groupTopic()
+            .subscribe()
+            .atLeastOnce(Flow.fromFunction(this::onGroupEvent));
+        system.scheduler()
+            .scheduleAtFixedRate(
+                Duration.ofMinutes(1), // Don't bother resyncing immediately, just give SOAD a minute to load up
+                Duration.ofMinutes(5),   // And check, every 5 minutes
+                this::syncAndUpdateArtifacts,
+                system.dispatcher()
+            );
     }
 
     private Done onGroupEvent(GroupEvent groupEvent) {
@@ -93,15 +87,16 @@ public class SonatypeSynchronizer {
         return this.getGlobalRegistry()
             .<NotUsed>ask(
                 replyTo -> new ManageCommand.Add(coordinates, replyTo),
-                Duration.ofSeconds(2)
+                Duration.ofHours(2)
             )
-            .thenCompose(notUsed -> this.fetchAndRegisterVersions(coordinates))
+            .thenCompose(notUsed -> this.fetchAndRegisterVersions(CompletableFuture.completedFuture(coordinates)))
             .toCompletableFuture()
             .join();
     }
 
 
     private void syncAndUpdateArtifacts() {
+        final var start = System.currentTimeMillis();
         LOGGER.log(Level.INFO, "Ticking");
         this.artifactService.getGroups()
             .invoke()
@@ -123,32 +118,43 @@ public class SonatypeSynchronizer {
                     .map(CompletableFuture::join))
             .thenApply(list -> list.flatMap(List::toStream))
             .thenCompose(list -> CompletableFuture.allOf(
-                list.map(this::fetchAndRegisterVersions)
+                list
+                    .map(coordinates -> this.getGlobalRegistry().
+                            <NotUsed>ask(replyTo -> new ManageCommand.Add(coordinates, replyTo), Duration.ofMinutes(1))
+                            .thenApply(notUsed -> coordinates)
+                    )
+                    .map(this::fetchAndRegisterVersions)
+
                     .toJavaArray(CompletableFuture[]::new)
                 )
             )
             .toCompletableFuture()
             .join();
+        final var end = System.currentTimeMillis();
+        final var duration = Duration.ofMillis(end - start);
+        LOGGER.log(Level.INFO, "Done, completed in {}", duration);
     }
 
-    private CompletableFuture<Done> fetchAndRegisterVersions(ArtifactCoordinates coordinates) {
-        return this.getResyncEntity(coordinates.groupId, coordinates.artifactId)
-            .ask(Resync::new, Duration.ofSeconds(30))
-            .thenCompose(mavenCoordinates -> {
-                mavenCoordinates.toJavaParallelStream()
-                    .forEach(
-                        coords -> this.versionsService.registerArtifactCollection(coords.groupId, coords.artifactId)
-                            .handleRequestHeader(
-                                requestHeader -> requestHeader.withHeader(
-                                    AuthUtils.INTERNAL_HEADER_KEY,
-                                    AuthUtils.INTERNAL_HEADER_SECRET
-                                ))
-                            .invoke(new VersionRegistration.Register.Version(coords))
-                            .toCompletableFuture()
-                            .join());
-                return CompletableFuture.completedFuture(Done.done());
-            })
-            .toCompletableFuture();
+    private CompletableFuture<Done> fetchAndRegisterVersions(CompletionStage<ArtifactCoordinates> future) {
+        return future
+            .thenCompose(coordinates -> this.getResyncEntity(coordinates.groupId, coordinates.artifactId)
+                .<List<MavenCoordinates>>ask(replyTo -> new Resync(coordinates, replyTo), Duration.ofHours(30))
+                .thenCompose(mavenCoordinates -> {
+                    mavenCoordinates.toJavaParallelStream()
+                        .forEach(
+                            coords -> this.versionsService.registerArtifactCollection(coords.groupId, coords.artifactId)
+                                .handleRequestHeader(
+                                    requestHeader -> requestHeader.withHeader(
+                                        AuthUtils.INTERNAL_HEADER_KEY,
+                                        AuthUtils.INTERNAL_HEADER_SECRET
+                                    ))
+                                .invoke(new VersionRegistration.Register.Version(coords))
+                                .toCompletableFuture()
+                                .join());
+                    return CompletableFuture.completedFuture(Done.done());
+                })
+                .toCompletableFuture()
+        ).toCompletableFuture();
     }
 
     private EntityRef<Resync> getResyncEntity(final String groupId, final String artifactId) {

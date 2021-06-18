@@ -27,4 +27,16 @@ public interface DetailsEvent extends AggregateEvent<DetailsEvent>, Jsonable {
             this.coordinates = coordinates;
         }
     }
+
+    @JsonDeserialize
+    final class ArtifactDetailsUpdated implements DetailsEvent {
+        public final ArtifactCoordinates coordinates;
+        public final String displayName;
+
+        @JsonCreator
+        public ArtifactDetailsUpdated(final ArtifactCoordinates coordinates, final String displayName) {
+            this.coordinates = coordinates;
+            this.displayName = displayName;
+        }
+    }
 }

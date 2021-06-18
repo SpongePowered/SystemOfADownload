@@ -1,5 +1,8 @@
 package org.spongepowered.downloads.artifact.group.state;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.serialization.CompressedJsonable;
 import io.vavr.collection.HashSet;
 import io.vavr.collection.Set;
 import org.spongepowered.downloads.artifact.api.Group;
@@ -7,13 +10,15 @@ import org.spongepowered.downloads.utils.UUIDType5;
 
 import java.util.UUID;
 
-public class PopulatedState implements GroupState {
+@JsonDeserialize
+public class PopulatedState implements GroupState, CompressedJsonable {
     public final String groupCoordinates;
     public final String name;
     public final String website;
     public final Set<String> artifacts;
     public final UUID groupId;
 
+    @JsonCreator
     public PopulatedState(
         final String groupCoordinates, final String name, final String website, final Set<String> artifacts
     ) {

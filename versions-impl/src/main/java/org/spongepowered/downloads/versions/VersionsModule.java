@@ -38,8 +38,8 @@ public class VersionsModule extends AbstractModule implements ServiceGuiceSuppor
 
     @Override
     protected void configure() {
-        this.bindClient(ArtifactService.class);
         this.bindService(VersionsService.class, VersionsServiceImpl.class);
+        this.bindClient(ArtifactService.class);
         this.bind(SonatypeSynchronizer.class).asEagerSingleton();
     }
 

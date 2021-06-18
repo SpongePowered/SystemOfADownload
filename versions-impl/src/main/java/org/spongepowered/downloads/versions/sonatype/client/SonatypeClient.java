@@ -87,7 +87,8 @@ public class SonatypeClient {
 
         final var xmlmapper = new XmlMapper();
         xmlmapper.registerModule(new VavrModule());
-        return Try.of(() -> httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream()))
+        return Try.of(() -> httpClient.send(request, HttpResponse.BodyHandlers.ofString()))
+            .filter(response -> response.statusCode() == 200)
             .map(HttpResponse::body)
             .mapTry(is -> xmlmapper.readValue(is, ArtifactMavenMetadata.class));
     }

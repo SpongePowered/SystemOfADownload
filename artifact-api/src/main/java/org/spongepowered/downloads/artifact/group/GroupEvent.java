@@ -25,6 +25,9 @@
 package org.spongepowered.downloads.artifact.group;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
@@ -36,6 +39,11 @@ import java.io.Serial;
 import java.util.Objects;
 import java.util.StringJoiner;
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(GroupEvent.GroupRegistered.class),
+    @JsonSubTypes.Type(GroupEvent.ArtifactRegistered.class),
+})
 public interface GroupEvent extends AggregateEvent<GroupEvent>, Jsonable {
 
     AggregateEventShards<GroupEvent> TAG = AggregateEventTag.sharded(GroupEvent.class, 10);
@@ -47,6 +55,7 @@ public interface GroupEvent extends AggregateEvent<GroupEvent>, Jsonable {
 
     String groupId();
 
+    @JsonTypeName("group-registered")
     @JsonDeserialize
     final class GroupRegistered implements GroupEvent {
         @Serial private static final long serialVersionUID = 0L;
@@ -96,6 +105,7 @@ public interface GroupEvent extends AggregateEvent<GroupEvent>, Jsonable {
 
     }
 
+    @JsonTypeName("artifact-registered")
     @JsonDeserialize
     final class ArtifactRegistered implements GroupEvent {
 

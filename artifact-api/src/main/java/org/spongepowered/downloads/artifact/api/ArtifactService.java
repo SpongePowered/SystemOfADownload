@@ -91,7 +91,7 @@ public interface ArtifactService extends OpenAPIService {
                 Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId", this::getArtifactDetails)
             )
             .withTopics(
-                Service.topic("group_activity", this::groupTopic)
+                Service.topic("group-activity", this::groupTopic)
                     .withProperty(KafkaProperties.partitionKeyStrategy(), GroupEvent::groupId)
             )
             .withAutoAcl(true)

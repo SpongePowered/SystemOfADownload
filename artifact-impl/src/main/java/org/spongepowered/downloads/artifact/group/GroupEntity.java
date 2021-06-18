@@ -34,6 +34,7 @@ import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventHandlerBuilder;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
+import akka.persistence.typed.javadsl.RetentionCriteria;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
 import io.vavr.collection.HashSet;
 import io.vavr.control.Try;
@@ -125,6 +126,16 @@ public class GroupEntity
             .onCommand(GroupCommand.GetGroup.class, this::respondToGetGroup)
             .onCommand(GroupCommand.GetArtifacts.class, this::respondToGetVersions);
         return builder.build();
+    }
+
+    @Override
+    public RetentionCriteria retentionCriteria() {
+        return RetentionCriteria.snapshotEvery(1, 2);
+    }
+
+    @Override
+    public Set<String> tagsFor(final GroupEvent groupEvent) {
+        return this.tagger.apply(groupEvent);
     }
 
     private ReplyEffect<GroupEvent, GroupState> respondToRegisterGroup(

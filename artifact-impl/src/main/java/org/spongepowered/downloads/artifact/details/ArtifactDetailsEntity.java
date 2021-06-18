@@ -12,6 +12,8 @@ import org.spongepowered.downloads.artifact.details.state.DetailsState;
 import org.spongepowered.downloads.artifact.details.state.EmptyState;
 import org.spongepowered.downloads.artifact.details.state.PopulatedState;
 
+import java.util.List;
+
 public class ArtifactDetailsEntity
     extends EventSourcedBehaviorWithEnforcedReplies<DetailsCommand, DetailsEvent, DetailsState> {
     public static EntityTypeKey<DetailsCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(
@@ -43,7 +45,10 @@ public class ArtifactDetailsEntity
         builder.forAnyState()
             .onEvent(
                 DetailsEvent.ArtifactRegistered.class,
-                (state, event) -> new PopulatedState(state.coordinates(), state.displayName(), state.website(), state.gitRepository(), state.issues())
+                (state, event) -> new PopulatedState(event.coordinates, state.displayName(), state.website(), state.gitRepository(), state.issues())
+            )
+            .onEvent(DetailsEvent.ArtifactDetailsUpdated.class,
+                (state, event) -> new PopulatedState(event.coordinates, event.displayName, state.website(), state.gitRepository(), state.issues())
             );
 
         return builder.build();
@@ -68,7 +73,7 @@ public class ArtifactDetailsEntity
             .onCommand(
                 DetailsCommand.RegisterArtifact.class,
                 (cmd) -> this.Effect()
-                    .persist(new DetailsEvent.ArtifactRegistered(cmd.coordinates))
+                    .persist(List.of(new DetailsEvent.ArtifactRegistered(cmd.coordinates), new DetailsEvent.ArtifactDetailsUpdated(cmd.coordinates, cmd.displayName)))
                     .thenReply(cmd.replyTo, (state) -> NotUsed.notUsed())
             );
 

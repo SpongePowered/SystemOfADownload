@@ -56,7 +56,7 @@ public class ArtifactProcessorEntity
     public static final Marker EVENT_TRIGGER = MarkerManager.getMarker("EVENT_TRIGGERED");
     public static final Marker ARTIFACT_RESOLUTION = MarkerManager.getMarker("COLLISION_RESOLUTION");
     public static EntityTypeKey<ArtifactSagaCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(
-        ArtifactSagaCommand.class, "ArtifactCollection");
+        ArtifactSagaCommand.class, "ArtifactSaga");
     private final String groupId;
     private final Function<ScrapedArtifactEvent, Set<String>> tagger;
 
@@ -101,9 +101,11 @@ public class ArtifactProcessorEntity
         this.tagger = AkkaTaggerAdapter.fromLagom(context, ScrapedArtifactEvent.INSTANCE);
 
     }
+
+
     @Override
     public RetentionCriteria retentionCriteria() {
-        return RetentionCriteria.snapshotEvery(100, 2);
+        return RetentionCriteria.snapshotEvery(1, 2);
     }
 
     @Override

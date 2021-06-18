@@ -58,9 +58,12 @@ public final class VersionRegistration {
             }
         }
 
+        @JsonDeserialize
         final class Version implements Register {
+            @JsonProperty
             public final MavenCoordinates coordinates;
 
+            @JsonCreator
             public Version(final MavenCoordinates coordinates) {
                 this.coordinates = coordinates;
             }

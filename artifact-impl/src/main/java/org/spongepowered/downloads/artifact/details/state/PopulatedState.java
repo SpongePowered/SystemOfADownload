@@ -1,8 +1,12 @@
 package org.spongepowered.downloads.artifact.details.state;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.serialization.CompressedJsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
-public final class PopulatedState implements DetailsState {
+@JsonDeserialize
+public final class PopulatedState implements DetailsState, CompressedJsonable {
 
     public final ArtifactCoordinates coordinates;
     public final String displayName;
@@ -10,6 +14,7 @@ public final class PopulatedState implements DetailsState {
     public final String gitRepository;
     public final String issues;
 
+    @JsonCreator
     public PopulatedState(
         final ArtifactCoordinates coordinates, final String displayName, final String website,
         final String gitRepository,

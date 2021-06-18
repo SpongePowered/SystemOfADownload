@@ -53,6 +53,7 @@
                     <cassandraPort>9042</cassandraPort>
                     <serviceLocatorEnabled>true</serviceLocatorEnabled>
                     <kafkaPort>9092</kafkaPort>
+                    <zookeeperPort>2181</zookeeperPort>
                     <kafkaEnabled>false</kafkaEnabled>
                 </configuration>
             </plugin>

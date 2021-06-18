@@ -61,7 +61,9 @@ public final class ArtifactSynchronizerAggregate
     }
 
     private ReplyEffect<SynchronizeEvent, SyncState> handleResync(SyncState state, Resync cmd) {
-        return this.client.getArtifactMetadata(state.groupId.replace(".", "/"), state.artifactId)
+        final var groupId = !state.groupId.equals(cmd.coordinates.groupId) ? cmd.coordinates.groupId : state.groupId;
+        final var artifactId = !state.artifactId.equals(cmd.coordinates.artifactId) ? cmd.coordinates.artifactId : state.artifactId;
+        return this.client.getArtifactMetadata(groupId.replace(".", "/"), artifactId)
             .mapTry(metadata -> {
                 if (metadata.versioning().lastUpdated.equals(state.lastUpdated)) {
                     return this.Effect()
@@ -71,7 +73,7 @@ public final class ArtifactSynchronizerAggregate
                     .persist(new SynchronizeEvent.SynchronizedArtifacts(metadata, metadata.versioning().lastUpdated))
                     .thenReply(cmd.replyTo, stateToCoordinates);
             })
-            .get();
+            .getOrElseGet((ignored) -> this.Effect().reply(cmd.replyTo, List.empty()));
     }
 
 }
