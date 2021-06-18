@@ -20,16 +20,16 @@
 
     <profiles>
         <profile>
-            <id>java14</id>
+            <id>java16</id>
             <activation>
                 <!-- This will activate if the build runs using a jdk version number that matches the prefix given. -->
-                <jdk>14</jdk>
+                <jdk>16</jdk>
             </activation>
             <properties>
                 <!-- Using Lagom prefix to avoid conflicts with others -->
-                <lagom.jdk.source>14</lagom.jdk.source>
-                <lagom.jdk.target>14</lagom.jdk.target>
-                <lagom.docker.image>adoptopenjdk/openjdk14</lagom.docker.image>
+                <lagom.jdk.source>16</lagom.jdk.source>
+                <lagom.jdk.target>16</lagom.jdk.target>
+                <lagom.docker.image>adoptopenjdk/openjdk16</lagom.docker.image>
             </properties>
         </profile>
     </profiles>
@@ -77,7 +77,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.8.1</version>
                 <configuration>
-                    <release>14</release>
+                    <release>16</release>
                     <compilerArgs>
                         <arg>-parameters</arg>
                     </compilerArgs>
@@ -238,6 +238,6 @@
         <vavr.version>0.10.3</vavr.version>
         <version.number>${git.commit.time}.${git.commit.id.abbrev}</version.number>
         <mycila.license.version>4.0.rc2</mycila.license.version>
-        <lagom.docker.image>adoptopenjdk/openjdk14</lagom.docker.image>
+        <lagom.docker.image>adoptopenjdk/openjdk16</lagom.docker.image>
     </properties>
 </project>
