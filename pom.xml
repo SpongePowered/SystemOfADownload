@@ -18,6 +18,21 @@
 
     <packaging>pom</packaging>
 
+    <profiles>
+        <profile>
+            <id>java14</id>
+            <activation>
+                <!-- This will activate if the build runs using a jdk version number that matches the prefix given. -->
+                <jdk>14</jdk>
+            </activation>
+            <properties>
+                <!-- Using Lagom prefix to avoid conflicts with others -->
+                <lagom.jdk.source>14</lagom.jdk.source>
+                <lagom.jdk.target>14</lagom.jdk.target>
+                <lagom.docker.image>adoptopenjdk/openjdk14</lagom.docker.image>
+            </properties>
+        </profile>
+    </profiles>
     <modules>
         <module>utils</module>
         <module>artifact-api</module>
@@ -119,6 +134,47 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <version>0.33.0</version>
+                <configuration>
+                    <skip>true</skip>
+                    <images>
+                        <image>
+                            <name>%a:%l</name>
+                            <build>
+                                <from>${lagom.docker.image}</from>
+                                <tags>
+                                    <tag>${version.number}</tag>
+                                    <tag>latest</tag>
+                                </tags>
+                                <assembly>
+                                    <descriptorRef>artifact-with-dependencies</descriptorRef>
+                                </assembly>
+                            </build>
+                        </image>
+                    </images>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>pl.project13.maven</groupId>
+                <artifactId>git-commit-id-plugin</artifactId>
+                <version>2.2.6</version>
+                <executions>
+                    <execution>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <dateFormat>yyyyMMdd-HHmmss</dateFormat>
+                    <dotGitDirectory>${project.basedir}/.git</dotGitDirectory>
+                    <generateGitPropertiesFile>false</generateGitPropertiesFile>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
@@ -180,6 +236,8 @@
         <pac4j.version>3.7.0</pac4j.version>
         <lagom.pac4j.version>2.1.0</lagom.pac4j.version>
         <vavr.version>0.10.3</vavr.version>
+        <version.number>${git.commit.time}.${git.commit.id.abbrev}</version.number>
         <mycila.license.version>4.0.rc2</mycila.license.version>
+        <lagom.docker.image>adoptopenjdk/openjdk14</lagom.docker.image>
     </properties>
 </project>

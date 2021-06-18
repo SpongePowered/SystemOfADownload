@@ -45,10 +45,5 @@
             <artifactId>vavr-jackson</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>io.vavr</groupId>
-            <artifactId>vavr-jackson</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 </project>

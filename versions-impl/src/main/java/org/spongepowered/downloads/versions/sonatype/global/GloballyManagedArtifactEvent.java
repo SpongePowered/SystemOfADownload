@@ -1,5 +1,7 @@
 package org.spongepowered.downloads.versions.sonatype.global;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
@@ -15,10 +17,12 @@ public interface GloballyManagedArtifactEvent extends Jsonable, AggregateEvent<G
         return INSTANCE;
     }
 
+    @JsonDeserialize
     static final class Registered implements GloballyManagedArtifactEvent {
 
         public final ArtifactCoordinates coordinates;
 
+        @JsonCreator
         public Registered(final ArtifactCoordinates coordinates) {
             this.coordinates = coordinates;
         }
