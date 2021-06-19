@@ -90,6 +90,11 @@ public final class VersionRegistration {
             @JsonProperty(required = true) ArtifactCoordinates coordinates
         )
             implements Response {
+
+            @JsonCreator
+            public ArtifactAlreadyRegistered(@JsonProperty(required = true) final ArtifactCoordinates coordinates) {
+                this.coordinates = coordinates;
+            }
         }
 
         @JsonDeserialize

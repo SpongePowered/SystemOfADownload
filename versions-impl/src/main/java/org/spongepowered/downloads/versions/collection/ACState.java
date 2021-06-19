@@ -28,21 +28,30 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.CompressedJsonable;
 import io.vavr.collection.HashMap;
 import io.vavr.collection.Map;
+import io.vavr.collection.SortedMap;
+import io.vavr.collection.TreeMap;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagValue;
 
+import java.util.Comparator;
 import java.util.Objects;
 import java.util.StringJoiner;
 
 @JsonDeserialize
 public record ACState(ArtifactCoordinates coordinates,
-                      Map<String, ArtifactTagValue> collection,
+                      SortedMap<String, ArtifactTagValue> collection,
                       boolean unregistered,
                       Map<String, ArtifactTagEntry> tags) implements CompressedJsonable {
 
     public static ACState empty() {
-        return new ACState(new ArtifactCoordinates("com.example", "example"), HashMap.empty(), true, HashMap.empty());
+        return new ACState(
+            new ArtifactCoordinates("com.example", "example"),
+            TreeMap.empty(Comparator.comparing(ComparableVersion::new)),
+            true,
+            HashMap.empty()
+        );
     }
 
     public boolean isRegistered() {

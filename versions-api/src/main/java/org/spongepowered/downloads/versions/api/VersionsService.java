@@ -55,6 +55,7 @@ public interface VersionsService extends OpenAPIService {
     );
 
     ServiceCall<TagRegistration.Register, TagRegistration.Response> registerArtifactTag(String groupId, String artifactId);
+    ServiceCall<TagRegistration.Register, TagRegistration.Response> updateArtifactTag(String groupId, String artifactId);
 
     Topic<VersionedArtifactEvent> topic();
 
@@ -65,6 +66,7 @@ public interface VersionsService extends OpenAPIService {
                 Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions?tags&limit&offset", this::getArtifactVersions),
                 Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts/:artifactId/versions", this::registerArtifactCollection),
                 Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts/:artifactId/tags", this::registerArtifactTag),
+                Service.restCall(Method.PATCH, "/api/v2/groups/:groupId/artifacts/:artifactId/tags", this::updateArtifactTag),
                 Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions/:version", this::getArtifactVersion)
              )
             .withTopics(

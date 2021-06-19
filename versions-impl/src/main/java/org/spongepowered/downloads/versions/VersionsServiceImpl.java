@@ -180,6 +180,19 @@ public class VersionsServiceImpl extends AbstractOpenAPIService implements Versi
     }
 
     @Override
+    public ServiceCall<TagRegistration.Register, TagRegistration.Response> updateArtifactTag(
+        final String groupId,
+        final String artifactId
+    ) {
+        return this.authorize(AuthUtils.Types.JWT, AuthUtils.Roles.ADMIN, profile -> registration -> {
+            final String sanitizedGroupId = groupId.toLowerCase(Locale.ROOT);
+            final String sanitizedArtifactId = artifactId.toLowerCase(Locale.ROOT);
+            return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
+                .ask(replyTo -> new ACCommand.UpdateArtifactTag(registration.entry(), replyTo), this.streamTimeout);
+        });
+    }
+
+    @Override
     public Topic<VersionedArtifactEvent> topic() {
         return TopicProducer.taggedStreamWithOffset(
             VersionedArtifactEvent.TAG.allTags(),

@@ -63,6 +63,7 @@ public interface ACCommand extends Jsonable {
     }
 
     final record RegisterArtifactTag(ArtifactTagEntry entry, ActorRef<TagRegistration.Response> replyTo) implements ACCommand {}
+    final record UpdateArtifactTag(ArtifactTagEntry entry, ActorRef<TagRegistration.Response> replyTo) implements ACCommand {}
 
     record GetVersions(String groupId, String artifactId, Optional<String> tags,
                        Optional<Integer> limit, Optional<Integer> offset,
