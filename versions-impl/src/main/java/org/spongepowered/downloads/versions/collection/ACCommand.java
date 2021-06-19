@@ -32,11 +32,13 @@ import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.GetVersionResponse;
 import org.spongepowered.downloads.versions.api.models.GetVersionsResponse;
+import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
+import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
 
 import java.io.Serial;
 import java.util.Objects;
-import java.util.StringJoiner;
+import java.util.Optional;
 
 public interface ACCommand extends Jsonable {
 
@@ -54,47 +56,13 @@ public interface ACCommand extends Jsonable {
         }
     }
 
-    final class RegisterVersion implements ACCommand {
+    record RegisterVersion(MavenCoordinates coordinates,
+                           ActorRef<VersionRegistration.Response> replyTo)
+        implements ACCommand {
 
-        @Serial private static final long serialVersionUID = 457417727863485472L;
-
-        public final MavenCoordinates coordinates;
-        public final ActorRef<VersionRegistration.Response> replyTo;
-
-
-        public RegisterVersion(
-            final MavenCoordinates coordinates,
-            final ActorRef<VersionRegistration.Response> replyTo
-        ) {
-            this.coordinates = coordinates;
-            this.replyTo = replyTo;
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            RegisterVersion that = (RegisterVersion) o;
-            return Objects.equals(coordinates, that.coordinates) && Objects.equals(replyTo, that.replyTo);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(coordinates, replyTo);
-        }
-
-        @Override
-        public String toString() {
-            return new StringJoiner(", ", RegisterVersion.class.getSimpleName() + "[", "]")
-                .add("coordinates=" + coordinates)
-                .add("replyTo=" + replyTo)
-                .toString();
-        }
     }
+
+    final record RegisterArtifactTag(ArtifactTagEntry entry, ActorRef<TagRegistration.Response> replyTo) implements ACCommand {}
 
     final class RegisterCollection implements ACCommand {
         @Serial private static final long serialVersionUID = 0L;
@@ -133,45 +101,10 @@ public interface ACCommand extends Jsonable {
         }
     }
 
-    final class GetVersions implements ACCommand {
-        @Serial private static final long serialVersionUID = 0L;
-        public final String groupId;
-        public final String artifactId;
-        public final ActorRef<GetVersionsResponse> replyTo;
-
-        public GetVersions(
-            final String groupId, final String artifactId,
-            final ActorRef<GetVersionsResponse> replyTo
-        ) {
-            this.groupId = groupId;
-            this.artifactId = artifactId;
-            this.replyTo = replyTo;
-        }
-
-        @Override
-        public boolean equals(final Object obj) {
-            if (obj == this) {
-                return true;
-            }
-            if (obj == null || obj.getClass() != this.getClass()) {
-                return false;
-            }
-            final var that = (GetVersions) obj;
-            return Objects.equals(this.groupId, that.groupId) &&
-                Objects.equals(this.artifactId, that.artifactId);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(this.groupId, this.artifactId);
-        }
-
-        @Override
-        public String toString() {
-            return "GetVersions[" +
-                "groupId=" + this.groupId + ", " +
-                "artifactId=" + this.artifactId + ']';
-        }
+    record GetVersions(String groupId, String artifactId, Optional<String> tags,
+                       Optional<Integer> limit, Optional<Integer> offset,
+                       ActorRef<GetVersionsResponse> replyTo)
+        implements ACCommand {
     }
 
     final record GetSpecificVersion(

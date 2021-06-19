@@ -25,6 +25,10 @@
 package org.spongepowered.downloads.versions.collection;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
@@ -34,10 +38,30 @@ import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
 
 import java.io.Serial;
 import java.util.Objects;
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
+@JsonSubTypes({
+    @JsonSubTypes.Type(
+        value = ACEvent.ArtifactTagRegistered.class,
+        name = "tag-registered"
+    ),
+    @JsonSubTypes.Type(
+        value = ACEvent.ArtifactCoordinatesUpdated.class,
+        name = "updated-coordinates"
+    ),
+    @JsonSubTypes.Type(
+        value = ACEvent.ArtifactVersionRegistered.class,
+        name = "version-registered"
+    ),
+    @JsonSubTypes.Type(
+        value = ACEvent.CollectionRegistered.class,
+        name = "collection-registered"
+    ),
+})
 public interface ACEvent extends Jsonable, AggregateEvent<ACEvent> {
     AggregateEventShards<ACEvent> INSTANCE = AggregateEventTag.sharded(ACEvent.class, 10);
 
@@ -148,5 +172,10 @@ public interface ACEvent extends Jsonable, AggregateEvent<ACEvent> {
             return "CollectionRegistered[" +
                 "collection=" + this.collection + ']';
         }
+    }
+
+    @JsonDeserialize
+    final record ArtifactTagRegistered(@JsonProperty("entry") ArtifactTagEntry entry) implements ACEvent {
+
     }
 }

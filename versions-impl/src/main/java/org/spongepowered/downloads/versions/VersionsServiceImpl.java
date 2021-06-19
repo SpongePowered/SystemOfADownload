@@ -30,6 +30,7 @@ import org.spongepowered.downloads.versions.api.VersionsService;
 import org.spongepowered.downloads.versions.api.event.VersionedArtifactEvent;
 import org.spongepowered.downloads.versions.api.models.GetVersionResponse;
 import org.spongepowered.downloads.versions.api.models.GetVersionsResponse;
+import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import org.spongepowered.downloads.versions.collection.ACCommand;
 import org.spongepowered.downloads.versions.collection.VersionedArtifactAggregate;
@@ -107,7 +108,7 @@ public class VersionsServiceImpl extends AbstractOpenAPIService implements Versi
         });
         return notUsed -> this.getCollection(sanitizedGroupId, sanitizedArtifactId)
             .<GetVersionsResponse>ask(
-                replyTo -> new ACCommand.GetVersions(sanitizedGroupId, sanitizedArtifactId, replyTo),
+                replyTo -> new ACCommand.GetVersions(sanitizedGroupId, sanitizedArtifactId, tags, limit, offset, replyTo),
                 this.streamTimeout
             ).thenApply(response -> {
                 if (response instanceof GetVersionsResponse.ArtifactUnknown a) {
@@ -119,15 +120,8 @@ public class VersionsServiceImpl extends AbstractOpenAPIService implements Versi
                 if (!(response instanceof GetVersionsResponse.VersionsAvailable v)) {
                     throw new TransportException(TransportErrorCode.InternalServerError, new ExceptionMessage("Something went wrong", "bad response"));
                 }
-                // TODO - Tags
-                final var rawMap = v.artifacts();
-                final var offsetedMap = offset.filter(i -> i > 0)
-                    .map(rawMap::drop)
-                    .orElse(rawMap);
-                final var limitedMap = limit.filter(i -> i > 0)
-                    .map(offsetedMap::take)
-                    .orElse(offsetedMap);
-                return new GetVersionsResponse.VersionsAvailable(limitedMap);
+
+                return v;
             });
     }
 
@@ -161,22 +155,33 @@ public class VersionsServiceImpl extends AbstractOpenAPIService implements Versi
         return this.authorize(AuthUtils.Types.JWT, AuthUtils.Roles.ADMIN, profile -> registration -> {
             final String sanitizedGroupId = groupId.toLowerCase(Locale.ROOT);
             final String sanitizedArtifactId = artifactId.toLowerCase(Locale.ROOT);
-            if (registration instanceof VersionRegistration.Register.Collection) {
+            if (registration instanceof VersionRegistration.Register.Collection c) {
                 return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
                     .ask(
-                        replyTo -> new ACCommand.RegisterCollection(
-                            ((VersionRegistration.Register.Collection) registration).collection, replyTo),
+                        replyTo -> new ACCommand.RegisterCollection(c.collection(), replyTo),
                         this.streamTimeout
                     );
-            } else if (registration instanceof VersionRegistration.Register.Version) {
+            } else if (registration instanceof VersionRegistration.Register.Version v) {
                 return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
                     .ask(
-                        replyTo -> new ACCommand.RegisterVersion(
-                            ((VersionRegistration.Register.Version) registration).coordinates, replyTo),
+                        replyTo -> new ACCommand.RegisterVersion(v.coordinates, replyTo),
                         this.streamTimeout
                     );
             }
             throw new NotFound("group missing");
+        });
+    }
+
+    @Override
+    public ServiceCall<TagRegistration.Register, TagRegistration.Response> registerArtifactTag(
+        final String groupId,
+        final String artifactId
+    ) {
+        return this.authorize(AuthUtils.Types.JWT, AuthUtils.Roles.ADMIN, profile -> registration -> {
+            final String sanitizedGroupId = groupId.toLowerCase(Locale.ROOT);
+            final String sanitizedArtifactId = artifactId.toLowerCase(Locale.ROOT);
+            return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
+                .ask(replyTo -> new ACCommand.RegisterArtifactTag(registration.entry(), replyTo), this.streamTimeout);
         });
     }
 

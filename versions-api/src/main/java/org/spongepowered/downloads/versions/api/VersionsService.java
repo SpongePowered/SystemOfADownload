@@ -34,6 +34,7 @@ import com.lightbend.lagom.javadsl.api.transport.Method;
 import org.spongepowered.downloads.versions.api.event.VersionedArtifactEvent;
 import org.spongepowered.downloads.versions.api.models.GetVersionResponse;
 import org.spongepowered.downloads.versions.api.models.GetVersionsResponse;
+import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import org.taymyr.lagom.javadsl.openapi.OpenAPIService;
 import org.taymyr.lagom.javadsl.openapi.OpenAPIUtils;
@@ -53,6 +54,8 @@ public interface VersionsService extends OpenAPIService {
         String groupId, String artifactId
     );
 
+    ServiceCall<TagRegistration.Register, TagRegistration.Response> registerArtifactTag(String groupId, String artifactId);
+
     Topic<VersionedArtifactEvent> topic();
 
     @Override
@@ -61,6 +64,7 @@ public interface VersionsService extends OpenAPIService {
             .withCalls(
                 Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions?tags&limit&offset", this::getArtifactVersions),
                 Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts/:artifactId/versions", this::registerArtifactCollection),
+                Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts/:artifactId/tags", this::registerArtifactTag),
                 Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions/:version", this::getArtifactVersion)
              )
             .withTopics(

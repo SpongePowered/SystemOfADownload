@@ -32,19 +32,26 @@ import akka.persistence.typed.javadsl.CommandHandlerWithReply;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
-import com.lightbend.lagom.javadsl.api.transport.NotFound;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
 import io.vavr.collection.HashMap;
 import io.vavr.collection.Map;
+import io.vavr.collection.List;
+import io.vavr.control.Try;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.versions.api.models.GetVersionResponse;
 import org.spongepowered.downloads.versions.api.models.GetVersionsResponse;
+import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
+import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class VersionedArtifactAggregate
     extends EventSourcedBehaviorWithEnforcedReplies<ACCommand, ACEvent, ACState> {
@@ -81,6 +88,7 @@ public final class VersionedArtifactAggregate
             .onEvent(ACEvent.ArtifactVersionRegistered.class, this::updateVersionRegistered);
         builder.forState(ACState::isRegistered)
             .onEvent(ACEvent.CollectionRegistered.class, this::updateCollections)
+            .onEvent(ACEvent.ArtifactTagRegistered.class, this::updateArtifactTag)
         ;
         return builder.build();
     }
@@ -103,6 +111,7 @@ public final class VersionedArtifactAggregate
                 }
                 return this.Effect().reply(cmd.replyTo(), new GetVersionResponse.VersionInfo(versionedCollection.get()));
             })
+            .onCommand(ACCommand.RegisterArtifactTag.class, this::handlRegisterTag)
         ;
         builder.forAnyState()
             .onCommand(ACCommand.RegisterVersion.class, this::handleRegisterVersion)
@@ -114,17 +123,17 @@ public final class VersionedArtifactAggregate
     private ReplyEffect<ACEvent, ACState> handleRegisterVersion(
         final ACState state, final ACCommand.RegisterVersion cmd
     ) {
-        if (state.collection().containsKey(cmd.coordinates.version)) {
+        if (state.collection().containsKey(cmd.coordinates().version)) {
             return this.Effect().reply(
-                cmd.replyTo,
-                new VersionRegistration.Response.ArtifactAlreadyRegistered(cmd.coordinates.asArtifactCoordinates())
+                cmd.replyTo(),
+                new VersionRegistration.Response.ArtifactAlreadyRegistered(cmd.coordinates().asArtifactCoordinates())
             );
         }
         return this.Effect()
-            .persist(new ACEvent.ArtifactVersionRegistered(cmd.coordinates.version,
-                new ArtifactCollection(HashMap.empty(), cmd.coordinates)
+            .persist(new ACEvent.ArtifactVersionRegistered(cmd.coordinates().version,
+                new ArtifactCollection(HashMap.empty(), cmd.coordinates())
             ))
-            .thenReply(cmd.replyTo, (s) -> new VersionRegistration.Response.RegisteredArtifact(cmd.coordinates));
+            .thenReply(cmd.replyTo(), (s) -> new VersionRegistration.Response.RegisteredArtifact(cmd.coordinates()));
     }
 
     private ReplyEffect<ACEvent, ACState> handleRegisterCommand(
@@ -158,11 +167,23 @@ public final class VersionedArtifactAggregate
             .thenReply(cmd.replyTo, (s) -> NotUsed.notUsed());
     }
 
+    private ReplyEffect<ACEvent, ACState> handlRegisterTag(
+        final ACState state,
+        final ACCommand.RegisterArtifactTag cmd
+    ) {
+        if (state.tags().containsKey(cmd.entry().name().toLowerCase(Locale.ROOT))) {
+            return this.Effect().reply(cmd.replyTo(), new TagRegistration.Response.TagAlreadyRegistered(cmd.entry().name()));
+        }
+        return this.Effect()
+            .persist(new ACEvent.ArtifactTagRegistered(cmd.entry()))
+            .thenReply(cmd.replyTo(), (s) -> new TagRegistration.Response.TagSuccessfullyRegistered());
+    }
+
 
     private ACState updateCoordinates(
         final ACState state, final ACEvent.ArtifactCoordinatesUpdated event
     ) {
-        return new ACState(event.coordinates, state.collection(), false);
+        return new ACState(event.coordinates, state.collection(), false, HashMap.empty());
     }
 
     private ACState updateVersionRegistered(
@@ -177,7 +198,8 @@ public final class VersionedArtifactAggregate
         return new ACState(
             event.collection.coordinates.asArtifactCoordinates(),
             sorted,
-            false
+            false,
+            HashMap.empty()
         );
     }
 
@@ -200,17 +222,55 @@ public final class VersionedArtifactAggregate
             .getOrElse(event.collection::getArtifactComponents);
         final var updatedCollection = new ArtifactCollection(updatedComponents, event.collection.coordinates);
         final var updatedVersionedCollections = state.collection().put(version, updatedCollection);
-        return new ACState(state.coordinates(), updatedVersionedCollections, false);
+        return new ACState(state.coordinates(), updatedVersionedCollections, false, HashMap.empty());
+    }
+
+    private ACState updateArtifactTag(
+        final ACState state,
+        final ACEvent.ArtifactTagRegistered event
+    ) {
+        final var tagMap = state.tags().put(event.entry().name().toLowerCase(Locale.ROOT), event.entry());
+        return new ACState(state.coordinates(), state.collection(), false, tagMap);
     }
 
     private ReplyEffect<ACEvent, ACState> respondToGetVersions(
         final ACState state,
         final ACCommand.GetVersions cmd
     ) {
-        if (!state.coordinates().artifactId.equalsIgnoreCase(cmd.artifactId)) {
-            return this.Effect().reply(cmd.replyTo, new GetVersionsResponse.ArtifactUnknown(cmd.artifactId));
+        if (!state.coordinates().groupId.equalsIgnoreCase(cmd.groupId())) {
+            return this.Effect().reply(cmd.replyTo(), new GetVersionsResponse.GroupUnknown(cmd.groupId()));
         }
-        return this.Effect().reply(cmd.replyTo, new GetVersionsResponse.VersionsAvailable(state.collection()));
+        if (!state.coordinates().artifactId.equalsIgnoreCase(cmd.artifactId())) {
+            return this.Effect().reply(cmd.replyTo(), new GetVersionsResponse.ArtifactUnknown(cmd.artifactId()));
+        }
+
+        final var discoveredTags = cmd.tags().map(raw -> raw.split(",")).map(List::of).orElse(List.of())
+            .map(tagVal -> tagVal.split(":"))
+            .filter(array -> array.length == 2)
+            .toMap(array -> array[0].toLowerCase(Locale.ROOT), array -> array[1]);
+        final var stateTagsRequested = state.tags().filterKeys(discoveredTags::containsKey);
+        final Predicate<String> artifactLevelFilter = (artifactString) -> {
+            final var tuple2s = stateTagsRequested
+                .mapValues(tag -> {
+                    final var expectedGroup = tag.matchingGroup();
+                    final var matcher = Pattern.compile(tag.regex()).matcher(artifactString);
+                    if (matcher.find()) {
+                        return Try.of(() -> matcher.group(expectedGroup))
+                            .getOrElse("");
+                    }
+                    return "";
+
+                });
+            return tuple2s.containsAll(discoveredTags);
+        };
+        final var rawMap = state.collection().filterKeys(artifactLevelFilter);
+        final var offsetedMap = cmd.offset().filter(i -> i > 0)
+            .map(rawMap::drop)
+            .orElse(rawMap);
+        final var limitedMap = cmd.limit().filter(i -> i > 0)
+            .map(offsetedMap::take)
+            .orElse(offsetedMap);
+        return this.Effect().reply(cmd.replyTo(), new GetVersionsResponse.VersionsAvailable(limitedMap));
     }
 
 }

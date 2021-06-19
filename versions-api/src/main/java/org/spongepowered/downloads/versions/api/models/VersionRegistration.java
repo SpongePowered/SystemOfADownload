@@ -28,34 +28,15 @@ public final class VersionRegistration {
     })
     public interface Register {
 
-        final class Collection implements Register {
-
-            @Schema(required = true) @JsonProperty
-            public final ArtifactCollection collection;
+        record Collection(
+            @Schema(required = true) @JsonProperty ArtifactCollection collection)
+            implements Register {
 
             @JsonCreator
             public Collection(@Schema(required = true) final ArtifactCollection collection) {
                 this.collection = collection;
             }
 
-            @Override
-            public boolean equals(final Object obj) {
-                if (obj == this) return true;
-                if (obj == null || obj.getClass() != this.getClass()) return false;
-                final var that = (Collection) obj;
-                return Objects.equals(this.collection, that.collection);
-            }
-
-            @Override
-            public int hashCode() {
-                return Objects.hash(this.collection);
-            }
-
-            @Override
-            public String toString() {
-                return "RegisterCollection[" +
-                    "collection=" + this.collection + ']';
-            }
         }
 
         @JsonDeserialize

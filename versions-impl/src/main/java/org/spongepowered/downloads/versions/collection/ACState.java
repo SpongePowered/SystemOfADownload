@@ -30,6 +30,7 @@ import io.vavr.collection.HashMap;
 import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
+import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
 
 import java.util.Objects;
 import java.util.StringJoiner;
@@ -37,10 +38,11 @@ import java.util.StringJoiner;
 @JsonDeserialize
 public record ACState(ArtifactCoordinates coordinates,
                       Map<String, ArtifactCollection> collection,
-                      boolean unregistered) implements CompressedJsonable {
+                      boolean unregistered,
+                      Map<String, ArtifactTagEntry> tags) implements CompressedJsonable {
 
     public static ACState empty() {
-        return new ACState(new ArtifactCoordinates("com.example", "example"), HashMap.empty(), true);
+        return new ACState(new ArtifactCoordinates("com.example", "example"), HashMap.empty(), true, HashMap.empty());
     }
 
     public boolean isRegistered() {
