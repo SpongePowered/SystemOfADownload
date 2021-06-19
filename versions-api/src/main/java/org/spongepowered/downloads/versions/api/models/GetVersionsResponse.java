@@ -30,6 +30,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
+import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagValue;
 
 import java.util.Objects;
 
@@ -51,7 +52,7 @@ public interface GetVersionsResponse {
 
     @JsonSerialize
     record VersionsAvailable(
-        @JsonProperty Map<String, ArtifactCollection> artifacts
+        @JsonProperty Map<String, ArtifactTagValue> artifacts
     ) implements GetVersionsResponse {
 
     }

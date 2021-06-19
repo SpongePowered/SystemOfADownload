@@ -155,13 +155,7 @@ public class VersionsServiceImpl extends AbstractOpenAPIService implements Versi
         return this.authorize(AuthUtils.Types.JWT, AuthUtils.Roles.ADMIN, profile -> registration -> {
             final String sanitizedGroupId = groupId.toLowerCase(Locale.ROOT);
             final String sanitizedArtifactId = artifactId.toLowerCase(Locale.ROOT);
-            if (registration instanceof VersionRegistration.Register.Collection c) {
-                return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
-                    .ask(
-                        replyTo -> new ACCommand.RegisterCollection(c.collection(), replyTo),
-                        this.streamTimeout
-                    );
-            } else if (registration instanceof VersionRegistration.Register.Version v) {
+            if (registration instanceof VersionRegistration.Register.Version v) {
                 return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
                     .ask(
                         replyTo -> new ACCommand.RegisterVersion(v.coordinates, replyTo),

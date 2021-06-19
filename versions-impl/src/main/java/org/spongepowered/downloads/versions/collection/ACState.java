@@ -28,16 +28,16 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.CompressedJsonable;
 import io.vavr.collection.HashMap;
 import io.vavr.collection.Map;
-import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
+import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagValue;
 
 import java.util.Objects;
 import java.util.StringJoiner;
 
 @JsonDeserialize
 public record ACState(ArtifactCoordinates coordinates,
-                      Map<String, ArtifactCollection> collection,
+                      Map<String, ArtifactTagValue> collection,
                       boolean unregistered,
                       Map<String, ArtifactTagEntry> tags) implements CompressedJsonable {
 

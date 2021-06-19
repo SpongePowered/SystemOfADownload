@@ -64,43 +64,6 @@ public interface ACCommand extends Jsonable {
 
     final record RegisterArtifactTag(ArtifactTagEntry entry, ActorRef<TagRegistration.Response> replyTo) implements ACCommand {}
 
-    final class RegisterCollection implements ACCommand {
-        @Serial private static final long serialVersionUID = 0L;
-        public final ArtifactCollection collection;
-        public final ActorRef<VersionRegistration.Response> replyTo;
-
-        public RegisterCollection(
-            final ArtifactCollection collection,
-            final ActorRef<VersionRegistration.Response> replyTo
-        ) {
-            this.collection = collection;
-            this.replyTo = replyTo;
-        }
-
-        @Override
-        public boolean equals(final Object obj) {
-            if (obj == this) {
-                return true;
-            }
-            if (obj == null || obj.getClass() != this.getClass()) {
-                return false;
-            }
-            final var that = (RegisterCollection) obj;
-            return Objects.equals(this.collection, that.collection);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(this.collection);
-        }
-
-        @Override
-        public String toString() {
-            return "Register[" +
-                "collection=" + this.collection + ']';
-        }
-    }
-
     record GetVersions(String groupId, String artifactId, Optional<String> tags,
                        Optional<Integer> limit, Optional<Integer> offset,
                        ActorRef<GetVersionsResponse> replyTo)

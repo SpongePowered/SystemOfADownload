@@ -28,13 +28,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 
 import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.regex.Pattern;
 
 @JsonDeserialize
-public final class MavenCoordinates {
+public final class MavenCoordinates implements Comparable<MavenCoordinates> {
 
     private static final Pattern MAVEN_REGEX = Pattern.compile("[\\w.]+");
 
@@ -61,6 +62,9 @@ public final class MavenCoordinates {
 
     @JsonIgnore
     public final VersionType versionType;
+
+    @JsonIgnore
+    private final ComparableVersion mavenVersion;
 
     /**
      * Parses a set of maven formatted coordinates as per
@@ -111,6 +115,7 @@ public final class MavenCoordinates {
         this.artifactId = artifactId;
         this.version = version;
         this.versionType = VersionType.fromVersion(version);
+        this.mavenVersion = new ComparableVersion(version);
     }
 
     @JsonCreator
@@ -123,6 +128,7 @@ public final class MavenCoordinates {
         this.artifactId = artifactId;
         this.version = version;
         this.versionType = VersionType.fromVersion(version);
+        this.mavenVersion = new ComparableVersion(version);
     }
 
     @JsonIgnore
@@ -169,5 +175,18 @@ public final class MavenCoordinates {
     @Override
     public int hashCode() {
         return Objects.hash(this.groupId, this.artifactId, this.version);
+    }
+
+    @Override
+    public int compareTo(final MavenCoordinates o) {
+        final var group = this.groupId.compareTo(o.groupId);
+        if (group != 0) {
+            return group;
+        }
+        final var artifact = this.artifactId.compareTo(o.artifactId);
+        if (artifact != 0) {
+            return artifact;
+        }
+        return this.mavenVersion.compareTo(o.mavenVersion);
     }
 }

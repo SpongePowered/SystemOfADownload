@@ -105,15 +105,11 @@ public interface ACEvent extends Jsonable, AggregateEvent<ACEvent> {
 
     final class ArtifactVersionRegistered implements ACEvent {
         @Serial private static final long serialVersionUID = 0L;
-        public final String version;
-        public final ArtifactCollection collection;
+        public final MavenCoordinates version;
 
         @JsonCreator
-        public ArtifactVersionRegistered(
-            final String version, final ArtifactCollection collection
-        ) {
+        public ArtifactVersionRegistered(final MavenCoordinates version) {
             this.version = version;
-            this.collection = collection;
         }
 
         @Override
