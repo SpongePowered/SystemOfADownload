@@ -27,6 +27,8 @@ package org.spongepowered.downloads.auth;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.name.Named;
+import com.lightbend.lagom.javadsl.api.ServiceLocator;
+import com.lightbend.lagom.javadsl.client.ConfigurationServiceLocator;
 import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
 import org.ldaptive.ConnectionConfig;
 import org.ldaptive.DefaultConnectionFactory;
@@ -49,6 +51,7 @@ import org.pac4j.ldap.profile.service.LdapProfileService;
 import org.spongepowered.downloads.auth.api.AuthService;
 import org.spongepowered.downloads.auth.api.SOADAuth;
 import org.spongepowered.downloads.utils.AuthUtils;
+import play.Environment;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -72,8 +75,19 @@ public final class AuthModule extends AbstractModule implements ServiceGuiceSupp
     private final String ldapBaseUserDn = Objects.requireNonNullElse(System.getenv("LDAP_BASE_USER_DN"), "dc=spongepowered,dc=org");
     private final String ldapSoadOu = Objects.requireNonNullElse(System.getenv("LDAP_SOAD_OU"), "soad");
 
+    private final Environment environment;
+    private final com.typesafe.config.Config config;
+
+    public AuthModule(final Environment environment, final com.typesafe.config.Config config) {
+        this.environment = environment;
+        this.config = config;
+    }
+
     @Override
     protected void configure() {
+        if (this.environment.isProd()) {
+            this.bind(ServiceLocator.class).to(ConfigurationServiceLocator.class);
+        }
         this.bindService(AuthService.class, AuthServiceImpl.class);
     }
 

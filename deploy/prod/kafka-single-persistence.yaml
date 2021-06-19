@@ -1,0 +1,45 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+    name: soad-cluster
+spec:
+    kafka:
+        replicas: 3
+        listeners:
+            - name: plain
+              port: 9092
+              type: internal
+              tls: false
+            - name: tls
+              port: 9093
+              tls: true
+              type: internal
+              authentication:
+                  type: tls
+            - name: external
+              port: 9094
+              type: nodeport
+              tls: false
+        config:
+            offsets.topic.replication.factor: 1
+            transaction.state.log.replication.factor: 1
+            transaction.state.log.min.isr: 1
+        storage:
+            type: persistent-claim
+            size: 2Gi
+            deleteClaim: false
+        readinessProbe:
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+        livenessProbe:
+            initialDelaySeconds: 60
+            timeoutSeconds: 10
+    zookeeper:
+        replicas: 1
+        storage:
+            type: persistent-claim
+            size: 2Gi
+            deleteClaim: false
+    entityOperator:
+        topicOperator: {}
+        userOperator: {}
