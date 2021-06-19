@@ -116,7 +116,13 @@
                                 <exclude>**/README</exclude>
                                 <exclude>src/test/resources/**</exclude>
                                 <exclude>src/main/resources/**</exclude>
-                                <exclude>*.xml</exclude>
+                                <exclude>.run/**</exclude>
+                                <exclude>**/*.xml</exclude>
+                                <exclude>**/*.yaml</exclude>
+                                <exclude>**/*.yml</exclude>
+                                <exclude>.editorconfig</exclude>
+                                <exclude>LICENSE.txt</exclude>
+                                <exclude>config/**</exclude>
                             </excludes>
                         </licenseSet>
                     </licenseSets>
