@@ -35,17 +35,16 @@ import org.spongepowered.downloads.versions.api.event.VersionedArtifactEvent;
 import org.spongepowered.downloads.versions.api.models.GetVersionResponse;
 import org.spongepowered.downloads.versions.api.models.GetVersionsResponse;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
+import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
-import org.taymyr.lagom.javadsl.openapi.OpenAPIService;
-import org.taymyr.lagom.javadsl.openapi.OpenAPIUtils;
 
 import java.util.Optional;
 
-public interface VersionsService extends OpenAPIService {
+public interface VersionsService extends Service {
 
     ServiceCall<NotUsed, GetVersionsResponse> getArtifactVersions(
         String groupId, String artifactId, Optional<String> tags, Optional<Integer> limit,
-        Optional<Integer> offset
+        Optional<Integer> offset, Optional<Boolean> recommended
     );
 
     ServiceCall<NotUsed, GetVersionResponse> getArtifactVersion(String groupId, String artifactId, String version);
@@ -57,24 +56,26 @@ public interface VersionsService extends OpenAPIService {
     ServiceCall<TagRegistration.Register, TagRegistration.Response> registerArtifactTag(String groupId, String artifactId);
     ServiceCall<TagRegistration.Register, TagRegistration.Response> updateArtifactTag(String groupId, String artifactId);
 
+    ServiceCall<TagVersion.Request, TagVersion.Response> tagVersion(String groupId, String artifactId);
+
     Topic<VersionedArtifactEvent> topic();
 
     @Override
     default Descriptor descriptor() {
-        return OpenAPIUtils.withOpenAPI(Service.named("versions")
+        return Service.named("versions")
             .withCalls(
-                Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions?tags&limit&offset", this::getArtifactVersions),
+                Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions?tags&limit&offset&recommended", this::getArtifactVersions),
                 Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts/:artifactId/versions", this::registerArtifactCollection),
                 Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts/:artifactId/tags", this::registerArtifactTag),
                 Service.restCall(Method.PATCH, "/api/v2/groups/:groupId/artifacts/:artifactId/tags", this::updateArtifactTag),
-                Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions/:version", this::getArtifactVersion)
+                Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions/:version", this::getArtifactVersion),
+                Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts/:artifactId/promotion", this::tagVersion)
              )
             .withTopics(
                 Service.topic("versioned_artifact_activity", this::topic)
                     .withProperty(KafkaProperties.partitionKeyStrategy(), VersionedArtifactEvent::asMavenCoordinates)
             )
-            .withAutoAcl(true)
-        );
+            .withAutoAcl(true);
     }
 
 }

@@ -34,7 +34,7 @@ import org.spongepowered.downloads.artifact.api.Group;
 
 import java.util.Objects;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
     @JsonSubTypes.Type(value = GroupsResponse.Available.class, name = "Groups")
 })

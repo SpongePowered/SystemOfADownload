@@ -33,7 +33,7 @@ import org.spongepowered.downloads.artifact.api.Group;
 
 import java.util.Objects;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
     @JsonSubTypes.Type(value = GroupResponse.Missing.class, name = "MissingGroup"),
     @JsonSubTypes.Type(value = GroupResponse.Available.class, name = "Group")

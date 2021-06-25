@@ -28,7 +28,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
@@ -61,6 +60,10 @@ import java.util.Objects;
         value = ACEvent.CollectionRegistered.class,
         name = "collection-registered"
     ),
+    @JsonSubTypes.Type(
+        value = ACEvent.PromotionSettingModified.class,
+        name = "promotion-settings-modified"
+    )
 })
 public interface ACEvent extends Jsonable, AggregateEvent<ACEvent> {
     AggregateEventShards<ACEvent> INSTANCE = AggregateEventTag.sharded(ACEvent.class, 10);
@@ -173,5 +176,9 @@ public interface ACEvent extends Jsonable, AggregateEvent<ACEvent> {
     @JsonDeserialize
     final record ArtifactTagRegistered(@JsonProperty("entry") ArtifactTagEntry entry) implements ACEvent {
 
+    }
+
+    @JsonDeserialize
+    final record PromotionSettingModified(String regex, boolean enableManualPromotion) implements ACEvent {
     }
 }

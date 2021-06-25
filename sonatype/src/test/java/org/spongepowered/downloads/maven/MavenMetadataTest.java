@@ -28,7 +28,7 @@ package org.spongepowered.downloads.maven;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import io.vavr.collection.List;
 import io.vavr.jackson.datatype.VavrModule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.spongepowered.downloads.maven.artifact.ArtifactMavenMetadata;
 import org.spongepowered.downloads.maven.artifact.Versioning;
 

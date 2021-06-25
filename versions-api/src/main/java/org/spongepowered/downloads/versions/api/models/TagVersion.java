@@ -24,29 +24,52 @@
  */
 package org.spongepowered.downloads.versions.api.models;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
+import io.vavr.collection.List;
 
-public interface TagRegistration {
-
-    @JsonDeserialize
-    final record Register(@JsonProperty("tag") ArtifactTagEntry entry) {}
+public interface TagVersion {
 
     @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
     @JsonSubTypes({
-        @JsonSubTypes.Type(value = Response.TagAlreadyRegistered.class, name = "AlreadyRegistered"),
-        @JsonSubTypes.Type(value = Response.TagSuccessfullyRegistered.class, name = "Success")
+        @JsonSubTypes.Type(value = Request.SetRecommendationRegex.class, name = "recommendation")
+    })
+    interface Request {
+
+        @JsonDeserialize
+        final record SetRecommendationRegex(
+            String regex,
+            List<String> valid,
+            List<String> invalid,
+            boolean enableManualMarking
+        ) implements Request {
+
+            @JsonCreator
+            public SetRecommendationRegex(
+                @JsonProperty(required = true) final String regex,
+                @JsonProperty(required = true) final List<String> valid,
+                @JsonProperty(required = true) final List<String> invalid,
+                @JsonProperty(required = true) final boolean enableManualMarking
+            ) {
+                this.regex = regex;
+                this.enableManualMarking = enableManualMarking;
+                this.valid = valid;
+                this.invalid = invalid;
+            }
+        }
+    }
+
+    @JsonSubTypes({
+        @JsonSubTypes.Type(value = TagVersion.Response.TagSuccessfullyRegistered.class, name = "Success")
     })
     interface Response {
 
-        final record TagAlreadyRegistered(@JsonProperty String name) implements TagRegistration.Response {}
-
         @JsonSerialize
-        final record TagSuccessfullyRegistered() implements TagRegistration.Response {}
+        final record TagSuccessfullyRegistered() implements TagVersion.Response {}
 
     }
 }

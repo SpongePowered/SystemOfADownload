@@ -27,17 +27,16 @@ package org.spongepowered.downloads.versions.collection;
 import akka.NotUsed;
 import akka.actor.typed.ActorRef;
 import com.lightbend.lagom.serialization.Jsonable;
-import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.GetVersionResponse;
 import org.spongepowered.downloads.versions.api.models.GetVersionsResponse;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
+import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
 
 import java.io.Serial;
-import java.util.Objects;
 import java.util.Optional;
 
 public interface ACCommand extends Jsonable {
@@ -62,12 +61,17 @@ public interface ACCommand extends Jsonable {
 
     }
 
-    final record RegisterArtifactTag(ArtifactTagEntry entry, ActorRef<TagRegistration.Response> replyTo) implements ACCommand {}
-    final record UpdateArtifactTag(ArtifactTagEntry entry, ActorRef<TagRegistration.Response> replyTo) implements ACCommand {}
+    final record RegisterArtifactTag(ArtifactTagEntry entry, ActorRef<TagRegistration.Response> replyTo)
+        implements ACCommand {
+    }
 
-    record GetVersions(String groupId, String artifactId, Optional<String> tags,
-                       Optional<Integer> limit, Optional<Integer> offset,
-                       ActorRef<GetVersionsResponse> replyTo)
+    final record UpdateArtifactTag(ArtifactTagEntry entry, ActorRef<TagRegistration.Response> replyTo)
+        implements ACCommand {
+    }
+
+    final record GetVersions(String groupId, String artifactId, Optional<String> tags,
+                             Optional<Integer> limit, Optional<Integer> offset,
+                             Optional<Boolean> recommended, ActorRef<GetVersionsResponse> replyTo)
         implements ACCommand {
     }
 
@@ -76,6 +80,13 @@ public interface ACCommand extends Jsonable {
         String sanitizedArtifactId,
         String version,
         ActorRef<GetVersionResponse> replyTo
+    ) implements ACCommand {
+    }
+
+    final record RegisterPromotion(
+        String regex,
+        ActorRef<TagVersion.Response> replyTo,
+        boolean enableManualMarking
     ) implements ACCommand {
     }
 }

@@ -45,7 +45,7 @@ import java.util.StringJoiner;
 public final class VersionRegistration {
 
 
-    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
     @JsonSubTypes({
         @JsonSubTypes.Type(value = Register.Collection.class, name = "Collection"),
         @JsonSubTypes.Type(value = Register.Version.class, name = "Version"),
@@ -101,7 +101,7 @@ public final class VersionRegistration {
 
     }
 
-    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
     @JsonSubTypes({
         @JsonSubTypes.Type(value = Response.GroupMissing.class, name = "GroupMissing"),
         @JsonSubTypes.Type(value = Response.ArtifactAlreadyRegistered.class, name = "AlreadyRegistered"),

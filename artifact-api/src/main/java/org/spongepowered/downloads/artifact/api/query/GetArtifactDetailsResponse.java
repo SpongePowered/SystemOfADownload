@@ -35,7 +35,7 @@ import java.util.Objects;
 import java.util.StringJoiner;
 
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
     @JsonSubTypes.Type(value = GetArtifactDetailsResponse.GroupMissing.class, name = "UnknownGroup"),
     @JsonSubTypes.Type(value = GetArtifactDetailsResponse.ArtifactMissing.class, name = "UnknownArtifact"),

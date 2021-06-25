@@ -33,7 +33,7 @@ import io.vavr.collection.List;
 
 import java.util.Objects;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
     @JsonSubTypes.Type(value = GetArtifactsResponse.GroupMissing.class, name = "UnknownGroup"),
     @JsonSubTypes.Type(value = GetArtifactsResponse.ArtifactsAvailable.class, name = "Artifacts"),

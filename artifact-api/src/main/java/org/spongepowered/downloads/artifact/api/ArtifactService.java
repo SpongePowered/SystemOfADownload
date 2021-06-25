@@ -31,11 +31,6 @@ import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.broker.Topic;
 import com.lightbend.lagom.javadsl.api.broker.kafka.KafkaProperties;
 import com.lightbend.lagom.javadsl.api.transport.Method;
-import io.swagger.v3.oas.annotations.OpenAPIDefinition;
-import io.swagger.v3.oas.annotations.info.Contact;
-import io.swagger.v3.oas.annotations.info.Info;
-import io.swagger.v3.oas.annotations.info.License;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactDetailsResponse;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
@@ -43,29 +38,11 @@ import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
 import org.spongepowered.downloads.artifact.group.GroupEvent;
-import org.taymyr.lagom.javadsl.openapi.OpenAPIService;
-import org.taymyr.lagom.javadsl.openapi.OpenAPIUtils;
 
-@OpenAPIDefinition(
-    info = @Info(
-        title = "ArtifactService",
-        description = "Manages indexing of Artifacts by a Maven Coordinate oriented fashion",
-        contact = @Contact(
-            name = "SpongePowered",
-            url = "https://spongepowered.org/",
-            email = "dev@spongepowered.org"
-        ),
-        license = @License(
-            name = "MIT - The MIT License",
-            url = "https://opensource.org/licenses/MIT"
-        )
-    ),
-    tags = @Tag(name = "organization",
-        description = "Organization related services")
-)
-public interface ArtifactService extends OpenAPIService {
+public interface ArtifactService extends Service {
 
     ServiceCall<NotUsed, GetArtifactsResponse> getArtifacts(String groupId);
+
     ServiceCall<ArtifactRegistration.RegisterArtifact, ArtifactRegistration.Response> registerArtifacts(
         String groupId
     );
@@ -73,6 +50,7 @@ public interface ArtifactService extends OpenAPIService {
     ServiceCall<GroupRegistration.RegisterGroupRequest, GroupRegistration.Response> registerGroup();
 
     ServiceCall<NotUsed, GroupResponse> getGroup(String groupId);
+
     ServiceCall<NotUsed, GroupsResponse> getGroups();
 
     ServiceCall<NotUsed, GetArtifactDetailsResponse> getArtifactDetails(String groupId, String artifactId);
@@ -81,7 +59,7 @@ public interface ArtifactService extends OpenAPIService {
 
     @Override
     default Descriptor descriptor() {
-        return OpenAPIUtils.withOpenAPI(Service.named("artifacts")
+        return Service.named("artifacts")
             .withCalls(
                 Service.restCall(Method.GET, "/api/v2/groups/:groupId", this::getGroup),
                 Service.restCall(Method.GET, "/api/v2/groups", this::getGroups),
@@ -94,8 +72,7 @@ public interface ArtifactService extends OpenAPIService {
                 Service.topic("group-activity", this::groupTopic)
                     .withProperty(KafkaProperties.partitionKeyStrategy(), GroupEvent::groupId)
             )
-            .withAutoAcl(true)
-        );
+            .withAutoAcl(true);
     }
 
 }

@@ -26,31 +26,42 @@ package org.spongepowered.downloads.versions.collection;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.CompressedJsonable;
+import io.vavr.Tuple2;
 import io.vavr.collection.HashMap;
 import io.vavr.collection.Map;
 import io.vavr.collection.SortedMap;
 import io.vavr.collection.TreeMap;
+import io.vavr.control.Try;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagValue;
 
 import java.util.Comparator;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.StringJoiner;
+import java.util.function.Function;
+import java.util.regex.Pattern;
 
 @JsonDeserialize
-public record ACState(ArtifactCoordinates coordinates,
-                      SortedMap<String, ArtifactTagValue> collection,
-                      boolean unregistered,
-                      Map<String, ArtifactTagEntry> tags) implements CompressedJsonable {
+public record ACState(
+    ArtifactCoordinates coordinates,
+    SortedMap<String, ArtifactTagValue> collection,
+    boolean unregistered,
+    Map<String, ArtifactTagEntry> tags,
+    String promotionRegex,
+    boolean manualPromotionAllowed
+) implements CompressedJsonable {
 
     public static ACState empty() {
         return new ACState(
             new ArtifactCoordinates("com.example", "example"),
-            TreeMap.empty(Comparator.comparing(ComparableVersion::new)),
+            TreeMap.empty(Comparator.comparing(ComparableVersion::new).reversed()),
             true,
-            HashMap.empty()
+            HashMap.empty(),
+            "",
+            false
         );
     }
 
@@ -58,6 +69,51 @@ public record ACState(ArtifactCoordinates coordinates,
         return !this.unregistered;
     }
 
+    public ACState withVersion(String version) {
+        final var versionMap = this.collection
+            .computeIfAbsent(version, convertArtifactVersionToTagValues(this, this.tags))
+            ._2
+            .toSortedMap(Comparator.comparing(ComparableVersion::new).reversed(), Tuple2::_1, Tuple2::_2);
+        return new ACState(
+            this.coordinates,
+            versionMap,
+            this.unregistered,
+            this.tags,
+            "",
+            false
+        );
+    }
+
+    public ACState withTag(ArtifactTagEntry entry) {
+        final var tagMap = this.tags().put(entry.name().toLowerCase(Locale.ROOT), entry);
+        final var versionedTags = this.collection
+            .replaceAll((version, values) -> convertArtifactVersionToTagValues(this, tagMap).apply(version));
+        return new ACState(
+            this.coordinates,
+            versionedTags,
+            this.unregistered,
+            tagMap,
+            "",
+            false
+        );
+    }
+
+    private Function<String, ArtifactTagValue> convertArtifactVersionToTagValues(
+        ACState state, Map<String, org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry> tagMap
+    ) {
+        return version -> {
+            final Map<String, String> tagValues = tagMap.mapValues(tag -> {
+                final var expectedGroup = tag.matchingGroup();
+                final var matcher = Pattern.compile(tag.regex()).matcher(version);
+                if (matcher.find()) {
+                    return Try.of(() -> matcher.group(expectedGroup))
+                        .getOrElse("");
+                }
+                return "";
+            });
+            return new ArtifactTagValue(state.coordinates().version(version), tagValues, false);
+        };
+    }
     @Override
     public boolean equals(final Object o) {
         if (this == o) {
@@ -83,5 +139,31 @@ public record ACState(ArtifactCoordinates coordinates,
             .add("coordinates=" + coordinates)
             .add("collection=" + collection)
             .toString();
+    }
+
+    public ACState withPromotionDetails(String regex, boolean enableManualPromotion) {
+        final var pattern = Pattern.compile(regex);
+        final var versionedTags = this.collection
+            .replaceAll((version, value) -> value.promote(pattern.matcher(version).find()))
+            .toSortedMap(Comparator.comparing(ComparableVersion::new).reversed(), Tuple2::_1, Tuple2::_2);
+        return new ACState(
+            this.coordinates,
+            versionedTags,
+            false,
+            this.tags,
+            regex,
+            enableManualPromotion
+        );
+    }
+
+    public ACState withCoordinates(ArtifactCoordinates coordinates) {
+        return new ACState(
+            coordinates,
+            this.collection,
+            false,
+            this.tags,
+            "",
+            false
+        );
     }
 }

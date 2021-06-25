@@ -34,12 +34,14 @@ import com.google.inject.Inject;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.broker.Topic;
 import com.lightbend.lagom.javadsl.api.deser.ExceptionMessage;
+import com.lightbend.lagom.javadsl.api.transport.BadRequest;
 import com.lightbend.lagom.javadsl.api.transport.NotFound;
 import com.lightbend.lagom.javadsl.api.transport.TransportErrorCode;
 import com.lightbend.lagom.javadsl.api.transport.TransportException;
 import com.lightbend.lagom.javadsl.broker.TopicProducer;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
 import com.lightbend.lagom.javadsl.server.ServerServiceCall;
+import io.vavr.control.Try;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -55,16 +57,18 @@ import org.spongepowered.downloads.versions.api.event.VersionedArtifactEvent;
 import org.spongepowered.downloads.versions.api.models.GetVersionResponse;
 import org.spongepowered.downloads.versions.api.models.GetVersionsResponse;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
+import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import org.spongepowered.downloads.versions.collection.ACCommand;
 import org.spongepowered.downloads.versions.collection.VersionedArtifactAggregate;
-import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
 
 import java.time.Duration;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-public class VersionsServiceImpl extends AbstractOpenAPIService implements VersionsService,
+public class VersionsServiceImpl implements VersionsService,
     AuthenticatedInternalService {
     private static final Logger LOGGER = LogManager.getLogger("VersionService");
     private final PersistentEntityRegistry persistentEntityRegistry;
@@ -123,7 +127,8 @@ public class VersionsServiceImpl extends AbstractOpenAPIService implements Versi
         final String artifactId,
         final Optional<String> tags,
         final Optional<Integer> limit,
-        final Optional<Integer> offset
+        final Optional<Integer> offset,
+        final Optional<Boolean> recommended
     ) {
         final String sanitizedGroupId = groupId.toLowerCase(Locale.ROOT);
         final String sanitizedArtifactId = artifactId.toLowerCase(Locale.ROOT);
@@ -132,7 +137,8 @@ public class VersionsServiceImpl extends AbstractOpenAPIService implements Versi
         });
         return notUsed -> this.getCollection(sanitizedGroupId, sanitizedArtifactId)
             .<GetVersionsResponse>ask(
-                replyTo -> new ACCommand.GetVersions(sanitizedGroupId, sanitizedArtifactId, tags, limit, offset, replyTo),
+                replyTo -> new ACCommand.GetVersions(
+                    sanitizedGroupId, sanitizedArtifactId, tags, limit, offset, recommended, replyTo),
                 this.streamTimeout
             ).thenApply(response -> {
                 if (response instanceof GetVersionsResponse.ArtifactUnknown a) {
@@ -142,7 +148,10 @@ public class VersionsServiceImpl extends AbstractOpenAPIService implements Versi
                     throw new NotFound(String.format("unknown group: %s", g.groupId()));
                 }
                 if (!(response instanceof GetVersionsResponse.VersionsAvailable v)) {
-                    throw new TransportException(TransportErrorCode.InternalServerError, new ExceptionMessage("Something went wrong", "bad response"));
+                    throw new TransportException(
+                        TransportErrorCode.InternalServerError,
+                        new ExceptionMessage("Something went wrong", "bad response")
+                    );
                 }
 
                 return v;
@@ -213,6 +222,39 @@ public class VersionsServiceImpl extends AbstractOpenAPIService implements Versi
             final String sanitizedArtifactId = artifactId.toLowerCase(Locale.ROOT);
             return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
                 .ask(replyTo -> new ACCommand.UpdateArtifactTag(registration.entry(), replyTo), this.streamTimeout);
+        });
+    }
+
+    @Override
+    public ServiceCall<TagVersion.Request, TagVersion.Response> tagVersion(
+        final String groupId,
+        final String artifactId
+    ) {
+        return this.authorize(AuthUtils.Types.JWT, AuthUtils.Roles.ADMIN, profile -> request -> {
+            if (!(request instanceof TagVersion.Request.SetRecommendationRegex s)) {
+               throw new BadRequest("unknown request");
+            }
+            final var regex = Try.of(() -> Pattern.compile(s.regex()));
+            final var validFailures = s.valid()
+                .filter(valid -> regex.map(pattern -> pattern.matcher(valid))
+                    .mapTry(Matcher::find)
+                    .map(b -> !b)
+                    .getOrElse(true) // If exception, keep the version as failed
+                );
+            final var invalidSuccesses = s.invalid()
+                .filter(invalid -> regex
+                    .map(pattern -> pattern.matcher(invalid))
+                    .mapTry(Matcher::find)
+                    .getOrElse(true)
+                );
+            if (!validFailures.isEmpty()) {
+                throw new BadRequest("expected valid versions did not match regex: " + validFailures);
+            }
+            if (!invalidSuccesses.isEmpty()) {
+                throw new BadRequest("expected invalid versions matched regex successfully:" + invalidSuccesses);
+            }
+            return this.getCollection(groupId, artifactId)
+                .ask(replyTo -> new ACCommand.RegisterPromotion(s.regex(), replyTo, s.enableManualMarking()), this.streamTimeout);
         });
     }
 

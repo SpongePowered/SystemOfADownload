@@ -25,7 +25,6 @@
 package org.spongepowered.downloads.maven.artifact;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -33,7 +32,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.Objects;
 
 @JsonDeserialize
-@JsonIgnoreProperties("modelVersion")
+@JsonIgnoreProperties(value = "modelVersion", ignoreUnknown = true)
 public final class ArtifactMavenMetadata {
     private final String groupId;
     private final String artifactId;

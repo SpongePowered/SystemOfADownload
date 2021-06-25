@@ -22,21 +22,21 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.api.models.tags;
+package org.spongepowered.downloads.artifact.api;
 
-import io.vavr.collection.Map;
-import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
-public final record ArtifactTagValue(
-    MavenCoordinates coordinates,
-    Map<String, String> tagValues,
-    boolean recommended
-) {
-    public ArtifactTagValue promote(boolean promoted) {
-        return new ArtifactTagValue(
-            this.coordinates,
-            this.tagValues,
-            promoted
-        );
+@JsonDeserialize
+public enum Ordering {
+    Ascending("asc"),
+    Descending("desc");
+
+    @JsonValue
+    public final String representation;
+
+
+    Ordering(final String representation) {
+        this.representation = representation;
     }
 }

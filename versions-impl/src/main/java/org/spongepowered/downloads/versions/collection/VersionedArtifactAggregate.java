@@ -36,24 +36,18 @@ import akka.persistence.typed.javadsl.RetentionCriteria;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
 import io.vavr.collection.HashMap;
 import io.vavr.collection.List;
-import io.vavr.collection.Map;
-import io.vavr.collection.SortedMap;
-import io.vavr.control.Try;
-import org.apache.maven.artifact.versioning.ComparableVersion;
-import org.jetbrains.annotations.NotNull;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.versions.api.models.GetVersionResponse;
 import org.spongepowered.downloads.versions.api.models.GetVersionsResponse;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
+import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagValue;
 
-import java.util.Comparator;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.regex.Pattern;
 
 public final class VersionedArtifactAggregate
     extends EventSourcedBehaviorWithEnforcedReplies<ACCommand, ACEvent, ACState> {
@@ -86,10 +80,18 @@ public final class VersionedArtifactAggregate
     public EventHandler<ACState, ACEvent> eventHandler() {
         final var builder = this.newEventHandlerBuilder();
         builder.forAnyState()
-            .onEvent(ACEvent.ArtifactCoordinatesUpdated.class, this::updateCoordinates)
-            .onEvent(ACEvent.ArtifactVersionRegistered.class, this::updateVersionRegistered);
+            .onEvent(ACEvent.ArtifactCoordinatesUpdated.class,
+                (state3, event3) -> state3.withCoordinates(event3.coordinates)
+            )
+            .onEvent(ACEvent.ArtifactVersionRegistered.class,
+                (state2, event2) -> state2.withVersion(event2.version.version)
+            )
+            ;
         builder.forState(ACState::isRegistered)
-            .onEvent(ACEvent.ArtifactTagRegistered.class, this::updateArtifactTag)
+            .onEvent(ACEvent.ArtifactTagRegistered.class, (state1, event1) -> state1.withTag(event1.entry()))
+            .onEvent(ACEvent.PromotionSettingModified.class,
+                (state, event) -> state.withPromotionDetails(event.regex(), event.enableManualPromotion())
+            )
         ;
         return builder.build();
     }
@@ -115,6 +117,7 @@ public final class VersionedArtifactAggregate
                 .getOrElse(this.Effect().reply(cmd.replyTo(), new GetVersionResponse.VersionMissing(cmd.version()))))
             .onCommand(ACCommand.RegisterArtifactTag.class, this::handlRegisterTag)
             .onCommand(ACCommand.UpdateArtifactTag.class, this::handleUpdateTag)
+            .onCommand(ACCommand.RegisterPromotion.class, this::handlePromotionSetting)
         ;
         builder.forAnyState()
             .onCommand(ACCommand.RegisterVersion.class, this::handleRegisterVersion)
@@ -158,6 +161,15 @@ public final class VersionedArtifactAggregate
             .thenReply(cmd.replyTo(), (s) -> new TagRegistration.Response.TagSuccessfullyRegistered());
     }
 
+    private ReplyEffect<ACEvent, ACState> handlePromotionSetting(
+        final ACState state,
+        final ACCommand.RegisterPromotion cmd
+    ) {
+        return this.Effect()
+            .persist(new ACEvent.PromotionSettingModified(cmd.regex(), cmd.enableManualMarking()))
+            .thenReply(cmd.replyTo(), (s) -> new TagVersion.Response.TagSuccessfullyRegistered());
+    }
+
     private ReplyEffect<ACEvent, ACState> handleUpdateTag(
         final ACState state,
         final ACCommand.UpdateArtifactTag cmd
@@ -167,56 +179,6 @@ public final class VersionedArtifactAggregate
             .thenReply(cmd.replyTo(), (s) -> new TagRegistration.Response.TagSuccessfullyRegistered());
     }
 
-
-    private ACState updateCoordinates(
-        final ACState state, final ACEvent.ArtifactCoordinatesUpdated event
-    ) {
-        return new ACState(event.coordinates, state.collection(), false, HashMap.empty());
-    }
-
-    private ACState updateVersionRegistered(
-        final ACState state, final ACEvent.ArtifactVersionRegistered event
-    ) {
-        final var newMap = state
-            .collection()
-            .computeIfAbsent(event.version.version, convertArtifactVersionToTagValues(state, state.tags()))
-            ._2;
-        return new ACState(
-            event.version.asArtifactCoordinates(),
-            newMap,
-            false,
-            HashMap.empty()
-        );
-    }
-
-    private ACState updateArtifactTag(
-        final ACState state,
-        final ACEvent.ArtifactTagRegistered event
-    ) {
-        final var tagMap = state.tags().put(event.entry().name().toLowerCase(Locale.ROOT), event.entry());
-        final SortedMap<String, ArtifactTagValue> newTagValues = state.collection().keySet()
-            .toMap(version -> version, convertArtifactVersionToTagValues(state, tagMap))
-            .toSortedMap(Comparator.comparing(ComparableVersion::new).reversed(), (key) -> key._1, (tuple) -> tuple._2);
-        return new ACState(state.coordinates(), newTagValues, false, tagMap);
-    }
-
-    @NotNull
-    private Function<String, ArtifactTagValue> convertArtifactVersionToTagValues(
-        ACState state, Map<String, org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry> tagMap
-    ) {
-        return version -> {
-            final Map<String, String> tagValues = tagMap.mapValues(tag -> {
-                final var expectedGroup = tag.matchingGroup();
-                final var matcher = Pattern.compile(tag.regex()).matcher(version);
-                if (matcher.find()) {
-                    return Try.of(() -> matcher.group(expectedGroup))
-                        .getOrElse("");
-                }
-                return "";
-            });
-            return new ArtifactTagValue(state.coordinates().version(version), tagValues);
-        };
-    }
 
     private ReplyEffect<ACEvent, ACState> respondToGetVersions(
         final ACState state,
@@ -236,7 +198,10 @@ public final class VersionedArtifactAggregate
         final Predicate<ArtifactTagValue> artifactLevelFilter = (tagValue) -> tagValue.tagValues()
             .filterKeys(discoveredTags::containsKey)
             .containsAll(discoveredTags);
-        final var rawMap = state.collection().filterValues(artifactLevelFilter);
+        final var collection = cmd.recommended()
+            .map(recommended -> state.collection().filterValues(v -> v.recommended() == recommended))
+            .orElseGet(state::collection);
+        final var rawMap = collection.filterValues(artifactLevelFilter);
         final var offsetedMap = cmd.offset().filter(i -> i > 0)
             .map(rawMap::drop)
             .orElse(rawMap);

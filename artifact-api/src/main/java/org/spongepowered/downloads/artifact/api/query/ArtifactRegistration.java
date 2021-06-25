@@ -83,7 +83,7 @@ public final class ArtifactRegistration {
         }
     }
 
-    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
     @JsonSubTypes({
         @JsonSubTypes.Type(value = Response.GroupMissing.class, name = "UnknownGroup"),
         @JsonSubTypes.Type(value = Response.ArtifactRegistered.class, name = "RegisteredArtifact"),
