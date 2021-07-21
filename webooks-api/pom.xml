@@ -10,6 +10,7 @@
     </parent>
 
     <artifactId>systemofadownload-webhooks-api</artifactId>
+    <version>${parent.version}</version>
 
     <packaging>jar</packaging>
 

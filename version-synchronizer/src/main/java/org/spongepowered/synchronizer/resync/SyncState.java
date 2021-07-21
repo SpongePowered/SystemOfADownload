@@ -22,19 +22,27 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.sonatype.resync;
+package org.spongepowered.synchronizer.resync;
 
-import akka.actor.typed.ActorRef;
-import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
-import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+import org.spongepowered.downloads.maven.artifact.ArtifactMavenMetadata;
+import org.spongepowered.downloads.maven.artifact.Versioning;
 
-public final class Resync {
-    public final ActorRef<List<MavenCoordinates>> replyTo;
-    public final ArtifactCoordinates coordinates;
+final class SyncState {
 
-    public Resync(ArtifactCoordinates coordinates, ActorRef<List<MavenCoordinates>> replyTo) {
-        this.coordinates = coordinates;
-        this.replyTo = replyTo;
+    public final String groupId;
+    public final String artifactId;
+    public final String lastUpdated;
+    public final ArtifactMavenMetadata versions;
+
+    static final SyncState EMPTY = new SyncState("", new ArtifactMavenMetadata("", "", new Versioning()));
+
+    public SyncState(
+        final String lastUpdated,
+        final ArtifactMavenMetadata versions
+    ) {
+        this.lastUpdated = lastUpdated;
+        this.versions = versions;
+        this.groupId = versions.groupId();
+        this.artifactId = versions.artifactId();
     }
 }

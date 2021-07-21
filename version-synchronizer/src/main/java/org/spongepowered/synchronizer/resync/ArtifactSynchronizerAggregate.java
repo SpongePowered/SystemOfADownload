@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.sonatype.resync;
+package org.spongepowered.synchronizer.resync;
 
 import akka.cluster.sharding.typed.javadsl.EntityContext;
 import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
@@ -35,7 +35,7 @@ import akka.persistence.typed.javadsl.ReplyEffect;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
-import org.spongepowered.downloads.versions.sonatype.client.SonatypeClient;
+import org.spongepowered.synchronizer.client.SonatypeClient;
 
 public final class ArtifactSynchronizerAggregate
     extends EventSourcedBehaviorWithEnforcedReplies<Resync, SynchronizeEvent, SyncState> {
@@ -85,19 +85,19 @@ public final class ArtifactSynchronizerAggregate
     }
 
     private ReplyEffect<SynchronizeEvent, SyncState> handleResync(SyncState state, Resync cmd) {
-        final var groupId = !state.groupId.equals(cmd.coordinates.groupId) ? cmd.coordinates.groupId : state.groupId;
-        final var artifactId = !state.artifactId.equals(cmd.coordinates.artifactId) ? cmd.coordinates.artifactId : state.artifactId;
+        final var groupId = !state.groupId.equals(cmd.coordinates().groupId) ? cmd.coordinates().groupId : state.groupId;
+        final var artifactId = !state.artifactId.equals(cmd.coordinates().artifactId) ? cmd.coordinates().artifactId : state.artifactId;
         return this.client.getArtifactMetadata(groupId.replace(".", "/"), artifactId)
             .mapTry(metadata -> {
                 if (metadata.versioning().lastUpdated.equals(state.lastUpdated)) {
                     return this.Effect()
-                        .reply(cmd.replyTo, List.empty());
+                        .reply(cmd.replyTo(), stateToCoordinates.apply(state));
                 }
                 return this.Effect()
                     .persist(new SynchronizeEvent.SynchronizedArtifacts(metadata, metadata.versioning().lastUpdated))
-                    .thenReply(cmd.replyTo, stateToCoordinates);
+                    .thenReply(cmd.replyTo(), stateToCoordinates);
             })
-            .getOrElseGet((ignored) -> this.Effect().reply(cmd.replyTo, List.empty()));
+            .getOrElseGet((ignored) -> this.Effect().reply(cmd.replyTo(), List.empty()));
     }
 
 }

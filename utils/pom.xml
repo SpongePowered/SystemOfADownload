@@ -10,6 +10,7 @@
     </parent>
 
     <artifactId>systemofadownload-utils</artifactId>
+    <version>${parent.version}</version>
 
     <packaging>jar</packaging>
 
@@ -20,7 +21,7 @@
         </dependency>
         <dependency>
             <groupId>org.pac4j</groupId>
-            <artifactId>lagom-pac4j_2.13</artifactId>
+            <artifactId>lagom-pac4j_${scala.binary.version}</artifactId>
             <version>${lagom.pac4j.version}</version>
         </dependency>
         <dependency>

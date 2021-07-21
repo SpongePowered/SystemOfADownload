@@ -1,33 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-                      http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>org.spongepowered</groupId>
         <artifactId>systemofadownload</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>systemofadownload-webhooks</artifactId>
+    <artifactId>systemofadownload-version-synchronizer</artifactId>
     <version>${parent.version}</version>
 
-    <packaging>jar</packaging>
-
     <dependencies>
-        <!-- Project Modules -->
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-artifact-api</artifactId>
+            <artifactId>systemofadownload-versions-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-webhooks-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.spongepowered</groupId>
             <artifactId>systemofadownload-auth-api</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -41,13 +34,12 @@
             <artifactId>systemofadownload-sonatype</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <!-- JGit -->
         <dependency>
-            <groupId>org.eclipse.jgit</groupId>
-            <artifactId>org.eclipse.jgit</artifactId>
-            <version>5.9.0.202009080501-r</version>
+            <groupId>org.spongepowered</groupId>
+            <artifactId>systemofadownload-artifact-api</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
         </dependency>
-
         <!-- Lagom Dependencies -->
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
@@ -60,6 +52,14 @@
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
+            <artifactId>lagom-javadsl-persistence-cassandra_${scala.binary.version}</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.lightbend.lagom</groupId>
+            <artifactId>lagom-javadsl-kafka-broker_${scala.binary.version}</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-logback_${scala.binary.version}</artifactId>
         </dependency>
         <dependency>
@@ -67,57 +67,39 @@
             <artifactId>play-akka-http-server_${scala.binary.version}</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-stream-typed_${scala.binary.version}</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-javadsl-testkit_${scala.binary.version}</artifactId>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-persistence-cassandra_${scala.binary.version}</artifactId>
-            <version>${lagom.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-pubsub_${scala.binary.version}</artifactId>
-            <version>${lagom.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-kafka-broker_${scala.binary.version}</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
-            <artifactId>jackson-dataformat-xml</artifactId>
-            <version>${jackson.version}</version>
         </dependency>
         <!-- Language Features -->
         <dependency>
             <groupId>io.vavr</groupId>
             <artifactId>vavr</artifactId>
         </dependency>
-
         <dependency>
             <groupId>io.vavr</groupId>
             <artifactId>vavr-jackson</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.taymyr.lagom</groupId>
-            <artifactId>lagom-openapi-java-impl_${scala.binary.version}</artifactId>
         </dependency>
         <!-- Auth -->
         <dependency>
             <groupId>org.pac4j</groupId>
             <artifactId>lagom-pac4j_${scala.binary.version}</artifactId>
         </dependency>
-
-        <!-- Nexus -->
+        <!-- Swagger impl -->
         <dependency>
-            <groupId>org.sonatype.nexus</groupId>
-            <artifactId>nexus-webhooks</artifactId>
-            <version>3.29.2-02</version>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-xml</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
-
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -126,7 +108,7 @@
                 <groupId>com.lightbend.lagom</groupId>
                 <artifactId>lagom-maven-plugin</artifactId>
                 <configuration>
-                    <lagomService>true</lagomService>
+                    <playService>true</playService>
                 </configuration>
             </plugin>
         </plugins>

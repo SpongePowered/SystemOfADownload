@@ -42,7 +42,6 @@
         <module>webhooks</module>
         <module>integration-tests</module>
         <module>sonatype</module>
-        <module>webooks-api</module>
         <module>auth-api</module>
         <module>auth-impl</module>
         <module>auth-common</module>
@@ -228,6 +227,21 @@
                 <groupId>com.fasterxml.jackson.dataformat</groupId>
                 <artifactId>jackson-dataformat-xml</artifactId>
                 <version>2.10.4</version>
+            </dependency>
+            <dependency>
+                <groupId>com.typesafe.akka</groupId>
+                <artifactId>akka-stream-typed_${scala.binary.version}</artifactId>
+                <version>${akka.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hibernate</groupId>
+                <artifactId>hibernate-core</artifactId>
+                <version>5.5.4.Final</version>
+            </dependency>
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>42.2.18</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

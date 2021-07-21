@@ -10,6 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>systemofadownload-auth-common</artifactId>
+    <version>${parent.version}</version>
 
     <dependencies>
         <dependency>
@@ -37,7 +38,7 @@
         </dependency>
         <dependency>
             <groupId>org.pac4j</groupId>
-            <artifactId>lagom-pac4j_2.13</artifactId>
+            <artifactId>lagom-pac4j_${scala.binary.version}</artifactId>
             <version>${lagom.pac4j.version}</version>
         </dependency>
         <dependency>

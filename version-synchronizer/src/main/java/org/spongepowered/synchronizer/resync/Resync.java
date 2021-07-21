@@ -22,33 +22,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.sonatype.global;
+package org.spongepowered.synchronizer.resync;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
-import com.lightbend.lagom.serialization.Jsonable;
+import akka.actor.typed.ActorRef;
+import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 
-public interface GloballyManagedArtifactEvent extends Jsonable, AggregateEvent<GloballyManagedArtifactEvent> {
-    AggregateEventShards<GloballyManagedArtifactEvent> INSTANCE = AggregateEventTag.sharded(GloballyManagedArtifactEvent.class, 10);
+public record Resync(
+    ArtifactCoordinates coordinates,
+    ActorRef<List<MavenCoordinates>> replyTo
+) {
 
-    @Override
-    default AggregateEventTagger<GloballyManagedArtifactEvent> aggregateTag() {
-        return INSTANCE;
-    }
-
-    @JsonDeserialize
-    static final class Registered implements GloballyManagedArtifactEvent {
-
-        public final ArtifactCoordinates coordinates;
-
-        @JsonCreator
-        public Registered(final ArtifactCoordinates coordinates) {
-            this.coordinates = coordinates;
-        }
-    }
 }

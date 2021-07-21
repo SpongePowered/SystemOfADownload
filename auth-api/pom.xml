@@ -10,6 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>systemofadownload-auth-api</artifactId>
+    <version>${parent.version}</version>
 
     <dependencies>
         <dependency>
@@ -32,7 +33,7 @@
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-server_2.13</artifactId>
+            <artifactId>lagom-javadsl-server_${scala.binary.version}</artifactId>
         </dependency>
     </dependencies>
 </project>

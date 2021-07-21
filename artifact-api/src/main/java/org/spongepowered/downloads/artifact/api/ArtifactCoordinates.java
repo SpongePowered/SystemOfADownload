@@ -80,4 +80,8 @@ public final class ArtifactCoordinates {
     public MavenCoordinates version(String version) {
         return MavenCoordinates.parse(new StringJoiner(":").add(this.groupId).add(this.artifactId).add(version).toString());
     }
+
+    public String asMavenString() {
+        return this.groupId + ":" + this.artifactId;
+    }
 }

@@ -10,6 +10,7 @@
     </parent>
 
     <artifactId>systemofadownload-artifact-api</artifactId>
+    <version>${parent.version}</version>
 
     <packaging>jar</packaging>
 

@@ -22,12 +22,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions;
+package org.spongepowered.synchronizer;
 
+import akka.actor.typed.ActorRef;
+import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import com.google.inject.AbstractModule;
+import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.inject.Provides;
-import com.lightbend.lagom.javadsl.api.ServiceLocator;
-import com.lightbend.lagom.javadsl.client.ConfigurationServiceLocator;
+import com.google.inject.TypeLiteral;
+import com.lightbend.lagom.javadsl.api.ServiceInfo;
 import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
 import org.pac4j.core.config.Config;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
@@ -35,24 +39,26 @@ import org.spongepowered.downloads.auth.api.SOADAuth;
 import org.spongepowered.downloads.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
 import play.Environment;
+import play.api.libs.concurrent.AkkaGuiceSupport;
 
-public class VersionsModule extends AbstractModule implements ServiceGuiceSupport {
+public class SynchronizerModule extends AbstractModule  implements ServiceGuiceSupport, AkkaGuiceSupport {
 
     private final Environment environment;
     private final com.typesafe.config.Config config;
 
-    public VersionsModule(final Environment environment, final com.typesafe.config.Config config) {
+    public SynchronizerModule(final Environment environment, final com.typesafe.config.Config config) {
         this.environment = environment;
         this.config = config;
     }
 
     @Override
     protected void configure() {
-        if (this.environment.isProd()) {
-            this.bind(ServiceLocator.class).to(ConfigurationServiceLocator.class);
-        }
-        this.bindService(VersionsService.class, VersionsServiceImpl.class);
+        this.bindClient(VersionsService.class);
         this.bindClient(ArtifactService.class);
+        this.bindServiceInfo(ServiceInfo.of("Sonatype-Synchronizer"));
+        this.bind(new TypeLiteral<ActorRef<SonatypeSynchronizer.Command>>(){})
+            .toProvider(SynchronizerProvider.class)
+            .asEagerSingleton();
     }
 
     @Provides
@@ -61,4 +67,30 @@ public class VersionsModule extends AbstractModule implements ServiceGuiceSuppor
         return AuthUtils.createConfig();
     }
 
+    public static class SynchronizerProvider implements Provider<ActorRef<SonatypeSynchronizer.Command>> {
+        private final ArtifactService artifactService;
+        private final VersionsService versionsService;
+        private final ClusterSharding clusterSharding;
+
+        @Inject
+        public SynchronizerProvider(
+            final ArtifactService artifactService,
+            final VersionsService versionsService,
+            final ClusterSharding clusterSharding
+        ) {
+            this.artifactService = artifactService;
+            this.versionsService = versionsService;
+            this.clusterSharding = clusterSharding;
+        }
+
+        @Override
+        public ActorRef<SonatypeSynchronizer.Command> get() {
+            return akka.actor.typed.ActorSystem.create(
+                SonatypeSynchronizer.create(
+                    this.artifactService,
+                    this.versionsService,
+                    this.clusterSharding
+                ), "Synchronizer");
+        }
+    }
 }
