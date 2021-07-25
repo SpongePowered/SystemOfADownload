@@ -10,7 +10,6 @@
     </parent>
 
     <artifactId>systemofadownload-webhooks-api</artifactId>
-    <version>${parent.version}</version>
 
     <packaging>jar</packaging>
 
@@ -56,11 +55,6 @@
             <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-javadsl-testkit_${scala.binary.version}</artifactId>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-persistence-cassandra_${scala.binary.version}</artifactId>
-            <version>${lagom.version}</version>
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>

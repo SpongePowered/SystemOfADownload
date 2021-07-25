@@ -31,7 +31,6 @@ import io.vavr.collection.HashMap;
 import io.vavr.collection.Map;
 import io.vavr.collection.SortedMap;
 import io.vavr.collection.TreeMap;
-import io.vavr.control.Try;
 import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
@@ -102,15 +101,8 @@ public record ACState(
         ACState state, Map<String, org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry> tagMap
     ) {
         return version -> {
-            final Map<String, String> tagValues = tagMap.mapValues(tag -> {
-                final var expectedGroup = tag.matchingGroup();
-                final var matcher = Pattern.compile(tag.regex()).matcher(version);
-                if (matcher.find()) {
-                    return Try.of(() -> matcher.group(expectedGroup))
-                        .getOrElse("");
-                }
-                return "";
-            });
+            final var mavenCoordinates = state.coordinates.version(version);
+            final Map<String, String> tagValues = tagMap.mapValues(tag -> tag.generateValue(mavenCoordinates).tagValue());
             return new ArtifactTagValue(state.coordinates().version(version), tagValues, false);
         };
     }

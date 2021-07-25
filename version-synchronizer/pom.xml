@@ -11,7 +11,6 @@
     </parent>
 
     <artifactId>systemofadownload-version-synchronizer</artifactId>
-    <version>${parent.version}</version>
 
     <dependencies>
         <dependency>
@@ -52,7 +51,19 @@
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-persistence-cassandra_${scala.binary.version}</artifactId>
+            <artifactId>lagom-javadsl-persistence-jpa_${scala.binary.version}</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.inject</groupId>
+            <artifactId>guice</artifactId>
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>

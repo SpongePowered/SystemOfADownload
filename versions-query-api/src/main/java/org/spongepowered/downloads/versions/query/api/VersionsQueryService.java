@@ -22,30 +22,32 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.api.models;
+package org.spongepowered.downloads.versions.query.api;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import org.spongepowered.downloads.artifact.api.ArtifactCollection;
+import akka.NotUsed;
+import com.lightbend.lagom.javadsl.api.Descriptor;
+import com.lightbend.lagom.javadsl.api.Service;
+import com.lightbend.lagom.javadsl.api.ServiceCall;
+import com.lightbend.lagom.javadsl.api.transport.Method;
+import org.spongepowered.downloads.versions.query.api.models.QueryVersions;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(
-        value = GetVersionResponse.VersionInfo.class,
-        name = "Version"
-    ),
-    @JsonSubTypes.Type(
-        value = GetVersionResponse.VersionMissing.class,
-        name = "Missing"
-    )
-})
-public interface GetVersionResponse {
+import java.util.Optional;
 
-    @JsonSerialize
-    final record VersionInfo(@JsonProperty("components") ArtifactCollection collection) implements GetVersionResponse {
+public interface VersionsQueryService extends Service {
+
+    ServiceCall<NotUsed, QueryVersions.VersionInfo> artifactVersions(
+        String groupId, String artifactId, Optional<String> tags, Optional<Integer> limit,
+        Optional<Integer> offset, Optional<Boolean> recommended);
+
+    ServiceCall<NotUsed, QueryVersions.VersionDetails> versionDetails(String groupId, String artifactId, String version);
+
+    @Override
+    default Descriptor descriptor() {
+        return Service.named("version-query")
+            .withCalls(
+                Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions?tags&limit&offset&recommended", this::artifactVersions),
+                Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions/:version", this::versionDetails)
+                )
+            .withAutoAcl(true);
     }
-    @JsonSerialize
-    final record VersionMissing(@JsonProperty String version) implements GetVersionResponse { }
 }

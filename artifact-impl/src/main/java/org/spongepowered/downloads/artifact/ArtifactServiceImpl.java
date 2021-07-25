@@ -28,10 +28,13 @@ import akka.NotUsed;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.Entity;
 import akka.cluster.sharding.typed.javadsl.EntityRef;
+import akka.japi.Pair;
 import com.google.inject.Inject;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.broker.Topic;
 import com.lightbend.lagom.javadsl.broker.TopicProducer;
+import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
+import com.lightbend.lagom.javadsl.persistence.Offset;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
 import com.lightbend.lagom.javadsl.server.ServerServiceCall;
 import org.apache.logging.log4j.Level;
@@ -40,7 +43,7 @@ import org.apache.logging.log4j.Logger;
 import org.pac4j.core.config.Config;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
-import org.spongepowered.downloads.artifact.api.Group;
+import org.spongepowered.downloads.artifact.api.event.GroupUpdate;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactDetailsResponse;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
@@ -60,9 +63,10 @@ import org.spongepowered.downloads.utils.AuthUtils;
 import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
 
 import java.time.Duration;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 
 public class ArtifactServiceImpl extends AbstractOpenAPIService implements ArtifactService,
     AuthenticatedInternalService {
@@ -182,11 +186,27 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
     }
 
     @Override
-    public Topic<GroupEvent> groupTopic() {
+    public Topic<GroupUpdate> groupTopic() {
         return TopicProducer.taggedStreamWithOffset(
             GroupEvent.TAG.allTags(),
-            this.persistentEntityRegistry::eventStream
+            (AggregateEventTag<GroupEvent> aggregateTag, Offset fromOffset) ->
+                this.persistentEntityRegistry.eventStream(aggregateTag, fromOffset)
+                    .mapConcat(ArtifactServiceImpl::convertEvent)
         );
+    }
+
+    private static List<Pair<GroupUpdate, Offset>> convertEvent(Pair<GroupEvent, Offset> pair) {
+        if (pair.first() instanceof GroupEvent.ArtifactRegistered a) {
+            return Collections.singletonList(
+                Pair.create(
+                    new GroupUpdate.ArtifactRegistered(new ArtifactCoordinates(a.groupId, a.artifact)),
+                    pair.second()
+                ));
+        } else if (pair.first() instanceof GroupEvent.GroupRegistered g) {
+            return Collections.singletonList(
+                Pair.create(new GroupUpdate.GroupRegistered(g.groupId, g.name, g.website), pair.second()));
+        }
+        return Collections.emptyList();
     }
 
     private EntityRef<GroupCommand> getGroupEntity(final String groupId) {

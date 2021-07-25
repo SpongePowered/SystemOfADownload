@@ -10,7 +10,6 @@
     </parent>
 
     <artifactId>systemofadownload-webhooks</artifactId>
-    <version>${parent.version}</version>
 
     <packaging>jar</packaging>
 
@@ -73,13 +72,19 @@
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-persistence-cassandra_${scala.binary.version}</artifactId>
-            <version>${lagom.version}</version>
+            <artifactId>lagom-javadsl-persistence-jdbc_${scala.binary.version}</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.inject</groupId>
+            <artifactId>guice</artifactId>
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-javadsl-pubsub_${scala.binary.version}</artifactId>
-            <version>${lagom.version}</version>
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>

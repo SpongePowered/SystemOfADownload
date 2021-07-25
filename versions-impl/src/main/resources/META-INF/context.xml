@@ -1,0 +1,4 @@
+<Resource name="default"
+          auth="Container"
+          url="jdbc:postgres://admin:password@localhost:5432/default?searchpath=version"
+          />

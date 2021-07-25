@@ -10,7 +10,6 @@
     </parent>
 
     <artifactId>systemofadownload-versions-api</artifactId>
-    <version>${parent.version}</version>
 
     <packaging>jar</packaging>
 
@@ -31,20 +30,12 @@
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-persistence-cassandra_${scala.binary.version}</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-javadsl-jackson_${scala.binary.version}</artifactId>
         </dependency>
         <!-- Language Features -->
         <dependency>
             <groupId>io.vavr</groupId>
             <artifactId>vavr</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.vavr</groupId>
-            <artifactId>vavr-jackson</artifactId>
         </dependency>
         <!-- Generates handy swagger docs to publish -->
         <dependency>

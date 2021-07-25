@@ -31,13 +31,13 @@ import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.broker.Topic;
 import com.lightbend.lagom.javadsl.api.broker.kafka.KafkaProperties;
 import com.lightbend.lagom.javadsl.api.transport.Method;
+import org.spongepowered.downloads.artifact.api.event.GroupUpdate;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactDetailsResponse;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
-import org.spongepowered.downloads.artifact.group.GroupEvent;
 
 public interface ArtifactService extends Service {
 
@@ -55,7 +55,7 @@ public interface ArtifactService extends Service {
 
     ServiceCall<NotUsed, GetArtifactDetailsResponse> getArtifactDetails(String groupId, String artifactId);
 
-    Topic<GroupEvent> groupTopic();
+    Topic<GroupUpdate> groupTopic();
 
     @Override
     default Descriptor descriptor() {
@@ -70,7 +70,7 @@ public interface ArtifactService extends Service {
             )
             .withTopics(
                 Service.topic("group-activity", this::groupTopic)
-                    .withProperty(KafkaProperties.partitionKeyStrategy(), GroupEvent::groupId)
+                    .withProperty(KafkaProperties.partitionKeyStrategy(), GroupUpdate::groupId)
             )
             .withAutoAcl(true);
     }

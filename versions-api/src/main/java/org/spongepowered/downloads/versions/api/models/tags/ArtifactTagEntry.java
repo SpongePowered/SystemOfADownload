@@ -27,6 +27,10 @@ package org.spongepowered.downloads.versions.api.models.tags;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.vavr.control.Try;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+
+import java.util.regex.Pattern;
 
 @JsonDeserialize
 public record ArtifactTagEntry(
@@ -36,13 +40,19 @@ public record ArtifactTagEntry(
 ) {
 
     @JsonCreator
-    public ArtifactTagEntry(
-        @JsonProperty(required = true) String name,
-        @JsonProperty(required = true) int matchingGroup,
-        @JsonProperty(required = true) String regex
-    ) {
-        this.name = name;
-        this.matchingGroup = matchingGroup;
-        this.regex = regex;
+    public ArtifactTagEntry {
+    }
+
+    public VersionTagValue generateValue(MavenCoordinates coordinates) {
+        final var expectedGroup = this.matchingGroup();
+        final var matcher = Pattern.compile(this.regex()).matcher(coordinates.version);
+        final String value;
+        if (matcher.find()) {
+            value = Try.of(() -> matcher.group(expectedGroup))
+                .getOrElse("");
+        } else {
+            value = "";
+        }
+        return new VersionTagValue(coordinates, this, value);
     }
 }

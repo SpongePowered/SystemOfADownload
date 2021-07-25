@@ -34,6 +34,7 @@ import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.auth.api.SOADAuth;
 import org.spongepowered.downloads.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
+import org.spongepowered.downloads.versions.readside.VersionReadSidePersistence;
 import play.Environment;
 
 public class VersionsModule extends AbstractModule implements ServiceGuiceSupport {
@@ -53,6 +54,8 @@ public class VersionsModule extends AbstractModule implements ServiceGuiceSuppor
         }
         this.bindService(VersionsService.class, VersionsServiceImpl.class);
         this.bindClient(ArtifactService.class);
+
+        this.bind(VersionReadSidePersistence.class).asEagerSingleton();
     }
 
     @Provides

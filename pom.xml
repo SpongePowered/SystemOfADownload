@@ -38,8 +38,10 @@
         <module>artifact-api</module>
         <module>artifact-impl</module>
         <module>versions-api</module>
+        <module>versions-query-api</module>
+        <module>versions-query-impl</module>
         <module>versions-impl</module>
-        <module>webhooks</module>
+        <module>version-synchronizer</module>
         <module>integration-tests</module>
         <module>sonatype</module>
         <module>auth-api</module>
@@ -254,12 +256,13 @@
 
         <jackson.version>2.10.4</jackson.version>
         <lagom.openapi.version>1.2.2</lagom.openapi.version>
-        <lagom.version>1.6.4</lagom.version>
+        <lagom.version>1.6.5</lagom.version>
         <pac4j.version>3.7.0</pac4j.version>
         <lagom.pac4j.version>2.1.0</lagom.pac4j.version>
         <vavr.version>0.10.3</vavr.version>
         <version.number>${git.commit.time}.${git.commit.id.abbrev}</version.number>
         <mycila.license.version>4.0.rc2</mycila.license.version>
+        <akka.version>2.6.14</akka.version>
         <lagom.docker.image>adoptopenjdk/openjdk16</lagom.docker.image>
     </properties>
 </project>

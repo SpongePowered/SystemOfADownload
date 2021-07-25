@@ -22,44 +22,53 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.api.models;
+package org.spongepowered.downloads.artifact.api.event;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.vavr.collection.Map;
-import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagValue;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.serialization.Jsonable;
+import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
+
+import java.io.Serial;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
-    @JsonSubTypes.Type(
-        value = GetVersionsResponse.VersionsAvailable.class,
-        name = "Artifacts"
-    ),
-    @JsonSubTypes.Type(
-        value = GetVersionsResponse.GroupUnknown.class,
-        name = "UnknownGroup"),
-    @JsonSubTypes.Type(
-        value = GetVersionsResponse.ArtifactUnknown.class,
-        name = "UnknownArtifact"
-    )
+    @JsonSubTypes.Type(GroupUpdate.GroupRegistered.class),
+    @JsonSubTypes.Type(GroupUpdate.ArtifactRegistered.class),
 })
-public interface GetVersionsResponse {
+public interface GroupUpdate extends Jsonable {
 
-    @JsonSerialize
-    record VersionsAvailable(
-        @JsonProperty Map<String, ArtifactTagValue> artifacts
-    ) implements GetVersionsResponse {
+    String groupId();
+
+    @JsonTypeName("group-registered")
+    @JsonDeserialize
+    record GroupRegistered(String groupId, String name, String website)
+        implements GroupUpdate {
+
+        @JsonCreator
+        public GroupRegistered {
+        }
 
     }
 
-    @JsonSerialize
-    record GroupUnknown(@JsonProperty String groupId) implements GetVersionsResponse {
+    @JsonTypeName("artifact-registered")
+    @JsonDeserialize
+    final record ArtifactRegistered(ArtifactCoordinates coordinates) implements GroupUpdate {
 
+        @Serial private static final long serialVersionUID = 6319289932327553919L;
+
+        @JsonCreator
+        public ArtifactRegistered {
+        }
+
+
+        @Override
+        public String groupId() {
+            return this.coordinates.groupId;
+        }
     }
 
-    @JsonSerialize
-    record ArtifactUnknown(@JsonProperty String artifactId) implements GetVersionsResponse {
-    }
 }

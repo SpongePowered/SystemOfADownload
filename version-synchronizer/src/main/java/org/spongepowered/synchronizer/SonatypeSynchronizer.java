@@ -41,17 +41,14 @@ import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.artifact.api.Group;
+import org.spongepowered.downloads.artifact.api.event.GroupUpdate;
 import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
-import org.spongepowered.downloads.artifact.group.GroupEvent;
 import org.spongepowered.downloads.versions.api.VersionsService;
 import org.spongepowered.synchronizer.actor.ArtifactSyncWorker;
 import org.spongepowered.synchronizer.actor.RequestArtifactsToSync;
 import org.spongepowered.synchronizer.resync.ArtifactSynchronizerAggregate;
 
-import java.text.SimpleDateFormat;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Locale;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -60,12 +57,11 @@ public final class SonatypeSynchronizer {
     public interface Command {
     }
 
-    private static final record GatherGroupArtifacts(Instant startedTimestamp) implements SonatypeSynchronizer.Command {
+    private static final record GatherGroupArtifacts() implements SonatypeSynchronizer.Command {
     }
 
     private static final record WrappedArtifactsToSync(
-        List<ArtifactCoordinates> artifactCoordinates,
-        Instant startedTimestamp) implements SonatypeSynchronizer.Command {
+        List<ArtifactCoordinates> artifactCoordinates) implements SonatypeSynchronizer.Command {
     }
 
     public static Behavior<SonatypeSynchronizer.Command> create(
@@ -89,12 +85,12 @@ public final class SonatypeSynchronizer {
                 "group-event-subscriber",
                 DispatcherSelector.defaultDispatcher()
             );
-            final Flow<GroupEvent, Done, NotUsed> actorAsk = ActorFlow.ask(4,
+            final Flow<GroupUpdate, Done, NotUsed> actorAsk = ActorFlow.ask(4,
                 registrationRef, Duration.ofMinutes(4), (g, b) -> {
-                    if (!(g instanceof GroupEvent.ArtifactRegistered a)) {
+                    if (!(g instanceof GroupUpdate.ArtifactRegistered a)) {
                         return new ArtifactSyncWorker.Ignored(b);
                     }
-                    return new ArtifactSyncWorker.PerformResync(new ArtifactCoordinates(a.groupId, a.artifact), b);
+                    return new ArtifactSyncWorker.PerformResync(a.coordinates(), b);
                 }
             );
             artifactService.groupTopic()
@@ -104,8 +100,8 @@ public final class SonatypeSynchronizer {
             // subscribe to the topic
             return Behaviors.withTimers(timers -> {
                 timers.startTimerWithFixedDelay(
-                    new GatherGroupArtifacts(Instant.now()), Duration.ofMinutes(5));
-                timers.startSingleTimer(new GatherGroupArtifacts(Instant.now()), Duration.ofMinutes(1));
+                    new GatherGroupArtifacts(), Duration.ofMinutes(5));
+                timers.startSingleTimer(new GatherGroupArtifacts(), Duration.ofMinutes(1));
                 return timedSync(artifactService, versionsService, clusterSharding);
             });
         });
@@ -150,22 +146,15 @@ public final class SonatypeSynchronizer {
                     requester,
                     Duration.ofSeconds(30),
                     RequestArtifactsToSync.GatherGroupArtifacts::new
-                )
-                    .log("Receiving Gather Group Artifacts");
+                );
 
                 final var registrationFlow = ActorFlow.ask(
                     syncWorker,
                     Duration.ofMinutes(20),
                     ArtifactSyncWorker.PerformResync::new
-                ).log("Finished PerformResync");
+                );
                 return Behaviors.receive(Command.class)
                     .onMessage(WrappedArtifactsToSync.class, result -> {
-                        ctx.getLog().info(
-                            "Items to sync: \n{}", result.artifactCoordinates.map(a -> a.asMavenString() + "\n"));
-                        final var totalTime = Duration.between(Instant.now(), result.startedTimestamp);
-                        final var format = new SimpleDateFormat("HH:mm:ss.SSS", Locale.ROOT);
-                        final var formattedTime = format.format(totalTime);
-                        ctx.getLog().info("Total durtion took {}", formattedTime);
                         Source.from(result.artifactCoordinates)
                             .async()
                             .via(registrationFlow.async())
@@ -189,8 +178,7 @@ public final class SonatypeSynchronizer {
                             if (exception != null) {
                                 ctx.getLog().error("Failed to process sync", exception);
                             }
-                            ctx.getLog().info("Received artifacts to sync");
-                            return new WrappedArtifactsToSync(ok, g.startedTimestamp);
+                            return new WrappedArtifactsToSync(ok);
                         });
                         return Behaviors.same();
                     })

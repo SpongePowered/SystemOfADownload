@@ -29,15 +29,12 @@ import akka.actor.typed.ActorRef;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
-import org.spongepowered.downloads.versions.api.models.GetVersionResponse;
-import org.spongepowered.downloads.versions.api.models.GetVersionsResponse;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
 
 import java.io.Serial;
-import java.util.Optional;
 
 public interface ACCommand extends Jsonable {
 
@@ -67,20 +64,6 @@ public interface ACCommand extends Jsonable {
 
     final record UpdateArtifactTag(ArtifactTagEntry entry, ActorRef<TagRegistration.Response> replyTo)
         implements ACCommand {
-    }
-
-    final record GetVersions(String groupId, String artifactId, Optional<String> tags,
-                             Optional<Integer> limit, Optional<Integer> offset,
-                             Optional<Boolean> recommended, ActorRef<GetVersionsResponse> replyTo)
-        implements ACCommand {
-    }
-
-    final record GetSpecificVersion(
-        String sanitizedGroupId,
-        String sanitizedArtifactId,
-        String version,
-        ActorRef<GetVersionResponse> replyTo
-    ) implements ACCommand {
     }
 
     final record RegisterPromotion(

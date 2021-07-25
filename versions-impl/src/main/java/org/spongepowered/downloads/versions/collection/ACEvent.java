@@ -38,6 +38,7 @@ import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
+import org.spongepowered.downloads.versions.api.models.tags.VersionTagValue;
 
 import java.io.Serial;
 import java.util.Objects;
@@ -65,7 +66,7 @@ import java.util.Objects;
         name = "promotion-settings-modified"
     )
 })
-public interface ACEvent extends Jsonable, AggregateEvent<ACEvent> {
+public interface ACEvent extends AggregateEvent<ACEvent>, Jsonable {
     AggregateEventShards<ACEvent> INSTANCE = AggregateEventTag.sharded(ACEvent.class, 10);
 
     @Override
@@ -174,10 +175,14 @@ public interface ACEvent extends Jsonable, AggregateEvent<ACEvent> {
     }
 
     @JsonDeserialize
-    final record ArtifactTagRegistered(@JsonProperty("entry") ArtifactTagEntry entry) implements ACEvent {
+    final record ArtifactTagRegistered(ArtifactCoordinates coordinates, @JsonProperty("entry") ArtifactTagEntry entry) implements ACEvent {
 
     }
 
+    @JsonDeserialize
+    final record VersionTagged(MavenCoordinates coordinates, VersionTagValue versionTagValue) implements ACEvent {
+
+    }
     @JsonDeserialize
     final record PromotionSettingModified(String regex, boolean enableManualPromotion) implements ACEvent {
     }
