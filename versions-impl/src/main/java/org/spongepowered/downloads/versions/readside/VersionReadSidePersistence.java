@@ -67,10 +67,10 @@ public class VersionReadSidePersistence {
                 .setGlobalPrepare(this::createSchema)
                 .setEventHandler(ACEvent.ArtifactCoordinatesUpdated.class, (em, artifactCreated) -> {
                     final var coordinates = artifactCreated.coordinates;
-                    final var artifactQuery = em.createQuery(
-                        """
-                        select a from Artifact a where a.artifactId = :artifactId and a.groupId = :groupId
-                        """, JpaArtifact.class);
+                    final var artifactQuery = em.createNamedQuery(
+                        "Artifact.selectByGroupAndArtifact",
+                        JpaArtifact.class
+                    );
                     final var singleResult = artifactQuery.setParameter("groupId", coordinates.groupId)
                         .setParameter("artifactId", coordinates.artifactId)
                         .setMaxResults(1)
@@ -92,35 +92,21 @@ public class VersionReadSidePersistence {
                     query.setParameter("artifactId", coordinates.artifactId);
                     final var artifact = query.getSingleResult();
                     final var version = coordinates.version;
-                    final var artifactVersion = artifact.getVersions().stream().filter(
-                        v -> v.getVersion().equals(version)).findFirst()
+                    em.createNamedQuery(
+                        "ArtifactVersion.findByVersion",
+                        JpaArtifactVersion.class
+                    )
+                        .setParameter("artifactId", artifact.getId())
+                        .setParameter("version", version)
+                        .setMaxResults(1)
+                        .getResultList()
+                        .stream().findFirst()
                         .orElseGet(() -> {
                             final var jpaArtifactVersion = new JpaArtifactVersion();
                             jpaArtifactVersion.setVersion(version);
                             artifact.addVersion(jpaArtifactVersion);
                             return jpaArtifactVersion;
                         });
-                    final var rowsAffected = em.createNativeQuery(
-                        """
-                        insert into version_tags (version_id, tag_id, tag_value) (
-                            select 
-                            version.id                                                                                version_id,
-                            artifact_tag.internal_id                                                                  tag_id,
-                            ((regexp_match(version.version, artifact_tag.tag_regex))[artifact_tag.use_capture_group]) tag_value
-                            from artifact_versions version
-                            inner join artifacts a on a.id = version.artifact_id
-                            inner join artifact_tags artifact_tag on a.group_id = artifact_tag.group_id and a.artifact_id = artifact_tag.artifact_id
-                            where a.group_id = :groupId
-                            and a.artifact_id = :artifactId
-                            and version.version = :version
-                        )
-                        """
-                    ).setParameter("groupId", coordinates.groupId)
-                        .setParameter("artifactId", coordinates.artifactId)
-                        .setParameter("version", coordinates.version)
-                        .getFirstResult();
-                    System.out.println("rows affected for version update: " + rowsAffected);
-
                 })
                 .setEventHandler(ACEvent.ArtifactTagRegistered.class, (em, tagRegistered) -> {
                     final var coordinates = tagRegistered.coordinates();
@@ -143,24 +129,6 @@ public class VersionReadSidePersistence {
                     jpaTag.setRegex(tag.regex());
                     jpaTag.setName(tag.name());
                     jpaTag.setGroup(tag.matchingGroup());
-                    final var rowsAffected = em.createNativeQuery(
-                        """
-                        insert into version_tags (version_id, tag_id, tag_value) (
-                            select version.id                                                                                version_id,
-                                   artifact_tag.internal_id                                                                  tag_id,
-                                   ((regexp_match(version.version, artifact_tag.tag_regex))[artifact_tag.use_capture_group]) tag_value
-                            from artifact_versions version
-                                     inner join artifacts a on version.artifact_id = a.id
-                                     inner join artifact_tags artifact_tag
-                                                on a.artifact_id = artifact_tag.artifact_id and artifact_tag.group_id = a.group_id
-                            where a.group_id = :groupId
-                              and a.artifact_id = :artifactId
-                        )
-                        """)
-                        .setParameter("groupId", coordinates.groupId)
-                        .setParameter("artifactId", coordinates.artifactId)
-                        .getFirstResult();
-                    System.out.println("rows affected for tag update: " + rowsAffected);
                 })
                 .setEventHandler(ACEvent.VersionTagged.class, (em, versionTagged) -> {
 

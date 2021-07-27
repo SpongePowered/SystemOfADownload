@@ -53,16 +53,16 @@
         <plugins>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
-                <version>3.1.1</version>
+                <version>3.3.0</version>
             </plugin>
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>2.22.2</version>
+                <version>3.0.0-M5</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-install-plugin</artifactId>
-                <version>2.5.2</version>
+                <version>3.0.0-M1</version>
             </plugin>
             <plugin>
                 <groupId>com.lightbend.lagom</groupId>
@@ -165,6 +165,26 @@
                     <generateGitPropertiesFile>false</generateGitPropertiesFile>
                 </configuration>
             </plugin>
+            <plugin>
+                <inherited>false</inherited>
+                <groupId>org.liquibase</groupId>
+                <artifactId>liquibase-maven-plugin</artifactId>
+                <version>4.4.2</version>
+                <configuration>
+                    <username>${env.DB_USERNAME}</username>
+                    <password>${env.DB_PASSWORD}</password>
+                    <url>${env.DB_URL}</url>
+                    <driver>org.postgresql.Driver</driver>
+                    <propertyFile>src/main/resources/liquibase/liquibase.properties</propertyFile>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.postgresql</groupId>
+                        <artifactId>postgresql</artifactId>
+                        <version>${postgres.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
         </plugins>
     </build>
 
@@ -243,7 +263,7 @@
             <dependency>
                 <groupId>org.postgresql</groupId>
                 <artifactId>postgresql</artifactId>
-                <version>42.2.18</version>
+                <version>${postgres.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -264,5 +284,6 @@
         <mycila.license.version>4.0.rc2</mycila.license.version>
         <akka.version>2.6.14</akka.version>
         <lagom.docker.image>adoptopenjdk/openjdk16</lagom.docker.image>
+        <postgres.version>42.2.18</postgres.version>
     </properties>
 </project>

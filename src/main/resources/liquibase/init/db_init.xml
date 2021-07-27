@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.4.xsd">
+    <preConditions>
+        <runningAs username="admin"/>
+    </preConditions>
+
+    <changeSet id="20210725-1" author="gabizou" onValidationFail="HALT">
+        <comment>Set up the world</comment>
+        <sql dbms="postgresql" stripComments="true">
+            create schema version
+            <comment>Create the schema we're going to do our read-side persistence</comment>
+        </sql>
+        <rollback>
+            <sql dbms="postgresql">
+                drop schema version
+            </sql>
+        </rollback>
+    </changeSet>
+    <changeSet id="20210725-2" author="gabizou">
+        <createTable tableName="artifacts" schemaName="version">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" unique="true"/>
+            </column>
+            <column name="group_id" type="varchar(255)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="grouped_artifact"/>
+            </column>
+            <column name="artifact_id" type="varchar(255)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="grouped_artifact"/>
+            </column>
+            <column name="display_name" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet id="20210725-3" author="gabizou">
+        <createTable tableName="artifact_tags" schemaName="version">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="artifact_id" type="bigint">
+                <constraints nullable="false"
+                             referencedTableSchemaName="version"
+                             referencedColumnNames="id"
+                             referencedTableName="artifacts"
+                             foreignKeyName="artifacts_id_fk"
+                             unique="true"
+                             uniqueConstraintName="artifact_tag_unique_index"/>
+            </column>
+            <column name="tag_name" type="varchar(16)">
+                <constraints nullable="false"
+                             unique="true"
+                             uniqueConstraintName="artifact_tag_unique_index"/>
+            </column>
+            <column name="tag_regex" type="text"/>
+            <column name="use_capture_group" type="int"/>
+        </createTable>
+    </changeSet>
+    <changeSet id="20210725-4" author="gabizou">
+        <createTable tableName="artifact_versions" schemaName="version">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="artifact_id" type="bigint">
+                <constraints nullable="false"
+                             referencedTableName="artifacts"
+                             referencedTableSchemaName="version"
+                             referencedColumnNames="id"
+                             foreignKeyName="artifact_id_fk"
+                             unique="true"
+                             uniqueConstraintName="artifact_version_unique_idx"
+                />
+            </column>
+            <column name="version" type="varchar(255)">
+                <constraints nullable="false"
+                             unique="true"
+                             uniqueConstraintName="artifact_version_unique_idx"/>
+            </column>
+        </createTable>
+    </changeSet>
+    <changeSet id="20210725-5" author="gabizou">
+        <comment>Create the versioned tags view that the query side will be using</comment>
+        <sqlFile dbms="postgresql"
+                 stripComments="true"
+                 encoding="UTF-8"
+                 path="2_create_materialized_view.sql"
+                 relativeToChangelogFile="true"/>
+        <rollback>
+            <sqlFile dbms="postgresql"
+                     stripComments="true"
+                     encoding="UTF-8"
+                     path="2_create_materialized_view_rollback.sql"
+                     relativeToChangelogFile="true"/>
+        </rollback>
+    </changeSet>
+    <changeSet id="20210725-6" author="gabizou">
+        <createIndex tableName="versioned_tags" indexName="versioned_tag_value_idx" schemaName="version">
+            <column name="maven_group_id"/>
+            <column name="maven_artifact_id"/>
+            <column name="tag_name"/>
+            <column name="tag_value"/>
+        </createIndex>
+    </changeSet>
+    <changeSet id="20210725-7" author="gabizou">
+        <comment>Add the trigger function to refresh the above materialized view</comment>
+        <sqlFile dbms="postgresql" stripComments="true"
+                 encoding="UTF-8"
+                 path="3_create_materialized_view_trigger_function.sql"
+                 relativeToChangelogFile="true"
+        />
+        <rollback>
+            <sqlFile path="3_create_materialized_view_trigger_function_rollback.sql"
+                     dbms="postgresql"
+                     relativeToChangelogFile="true"/>
+        </rollback>
+    </changeSet>
+    <changeSet id="20210725-8" author="gabizou">
+        <sqlFile path="4_add_trigger_functions_to_artifact_versions.sql"
+                 dbms="postgresql"
+                 stripComments="true"
+                 relativeToChangelogFile="true"/>
+        <rollback>
+            set search_path to version;
+            drop trigger if exists updated_artifact_trigger on version.artifact_versions;
+            set search_path to public;
+        </rollback>
+    </changeSet>
+    <changeSet id="20210725-9" author="gabizou">
+        <sqlFile path="5_add_trigger_function_to_artifact_tag_table.sql"
+                 dbms="postgresql"
+                 stripComments="true"
+                 relativeToChangelogFile="true"/>
+        <rollback>
+            <sql dbms="postgresql">
+            set search_path to version;
+            drop trigger if exists updated_tag_trigger on version.artifact_tags cascade;
+            set search_path to public;
+            </sql>
+        </rollback>
+    </changeSet>
+    <changeSet id="20210726-10" author="gabizou">
+        <createView viewName="versioned_artifacts"
+                    schemaName="version"
+                    >
+            select distinct a.artifact_id, a.group_id, v.version
+            from version.artifacts a inner join version.artifact_versions v on a.id = v.artifact_id
+        </createView>
+    </changeSet>
+</databaseChangeLog>

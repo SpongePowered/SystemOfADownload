@@ -24,68 +24,56 @@
  */
 package org.spongepowered.downloads.versions.query.impl.models;
 
-import javax.persistence.CascadeType;
+import org.hibernate.annotations.Immutable;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.ForeignKey;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
+import javax.persistence.NamedQueries;
+import javax.persistence.NamedQuery;
 import javax.persistence.Table;
-import javax.persistence.UniqueConstraint;
 import java.io.Serializable;
-import java.util.HashSet;
 import java.util.Objects;
-import java.util.Set;
 
-@Entity(name = "ArtifactVersion")
-@Table(name = "artifact_versions",
-    schema = "version",
-    uniqueConstraints = @UniqueConstraint(
-        columnNames = {"artifact_id", "version"},
-        name = "artifact_version_unique_idx")
-)
-public class JpaArtifactVersion implements Serializable {
+@Immutable
+@Entity(name = "VersionedArtifactView")
+@Table(name = "versioned_artifacts",
+    schema = "version")
+@NamedQueries({
+    @NamedQuery(
+        name = "VersionedArtifactView.count",
+        query = """
+                select count(v) from VersionedArtifactView v
+                where v.groupId = :groupId and v.artifactId = :artifactId
+                 """
+    ),
+    @NamedQuery(
+        name = "VersionedArtifactView.findByArtifact",
+        query = """
+                select v from VersionedArtifactView v where v.artifactId = :artifactId and v.groupId = :groupId
+                """
+    )
+})
+public class JpaVersionedArtifactView implements Serializable {
 
     @Id
-    @Column(name = "id",
-        nullable = false)
-    private long id;
+    @Column(name = "artifact_id",
+        updatable = false)
+    private String artifactId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "artifact_id",
-        foreignKey = @ForeignKey(name = "artifact_versions_artifact_id_fkey"),
-        nullable = false)
-    private JpaArtifact artifact;
+    @Id
+    @Column(name = "group_id",
+        updatable = false)
+    private String groupId;
 
-    @OneToMany(
-        mappedBy = "version",
-        cascade = CascadeType.REFRESH,
-        orphanRemoval = true,
-        targetEntity = JpaVersionTagValue.class
-    )
-    private final Set<JpaVersionTagValue> tagValues = new HashSet<>();
-
+    @Id
     @Column(name = "version",
-        nullable = false)
+        updatable = false)
     private String version;
 
-    void setArtifact(final JpaArtifact artifact) {
-        this.artifact = artifact;
-    }
-
-    public String getVersion() {
-        return version;
-    }
-
-    public void setVersion(final String version) {
-        this.version = version;
-    }
-
-    public Set<JpaVersionTagValue> getTagValues() {
-        return this.tagValues;
+    public MavenCoordinates toMavenCoordinates() {
+        return new MavenCoordinates(this.groupId, this.artifactId, this.version);
     }
 
     @Override
@@ -96,15 +84,13 @@ public class JpaArtifactVersion implements Serializable {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        JpaArtifactVersion that = (JpaArtifactVersion) o;
-        return id == that.id && Objects.equals(artifact, that.artifact) && Objects.equals(
-            version, that.version);
+        JpaVersionedArtifactView that = (JpaVersionedArtifactView) o;
+        return Objects.equals(artifactId, that.artifactId) && Objects.equals(
+            groupId, that.groupId) && Objects.equals(version, that.version);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, artifact, version);
+        return Objects.hash(artifactId, groupId, version);
     }
-
 }
-

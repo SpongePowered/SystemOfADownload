@@ -24,7 +24,6 @@
  */
 package org.spongepowered.downloads.versions.readside;
 
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
@@ -32,12 +31,8 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
-import javax.persistence.JoinColumns;
 import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
 import javax.persistence.Table;
-import java.util.HashSet;
-import java.util.Set;
 
 @Entity(name = "ArtifactTag")
 @Table(name = "artifact_tags",
@@ -46,14 +41,11 @@ public class JpaArtifactTag {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "internal_id")
+    @Column(name = "id")
     private int id;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
-    @JoinColumns({
-        @JoinColumn(name = "group_id", referencedColumnName = "group_id", nullable = false),
-        @JoinColumn(name = "artifact_id", referencedColumnName = "artifact_id", nullable = false)
-    })
+    @JoinColumn(name = "artifact_id", referencedColumnName = "id", nullable = false)
     private JpaArtifact artifact;
 
     @Column(name = "tag_name",
@@ -65,14 +57,6 @@ public class JpaArtifactTag {
 
     @Column(name = "use_capture_group")
     private int group;
-
-    @OneToMany(
-        mappedBy = "tag",
-        orphanRemoval = true,
-        cascade = CascadeType.ALL,
-        targetEntity = JpaVersionTagValue.class
-    )
-    private Set<JpaVersionTagValue> versionTags  = new HashSet<>();
 
     public JpaArtifactTag() {
     }
@@ -109,8 +93,4 @@ public class JpaArtifactTag {
         this.group = group;
     }
 
-    public void addVersion(JpaVersionTagValue versionTagValue) {
-        this.versionTags.add(versionTagValue);
-        versionTagValue.setTag(this);
-    }
 }

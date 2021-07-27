@@ -24,7 +24,6 @@
  */
 package org.spongepowered.downloads.versions.readside;
 
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
@@ -34,13 +33,11 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
-import javax.persistence.OneToMany;
+import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 import java.io.Serializable;
-import java.util.HashSet;
 import java.util.Objects;
-import java.util.Set;
 
 @Entity(name = "ArtifactVersion")
 @Table(name = "artifact_versions",
@@ -48,6 +45,13 @@ import java.util.Set;
     uniqueConstraints = @UniqueConstraint(
         columnNames = {"artifact_id", "version"},
         name = "artifact_version_unique_idx")
+)
+@NamedQuery(
+    name = "ArtifactVersion.findByVersion",
+    query =
+        """
+        select distinct v from ArtifactVersion v where v.artifact.id = :artifactId and v.version = :version
+        """
 )
 class JpaArtifactVersion implements Serializable {
 
@@ -62,14 +66,6 @@ class JpaArtifactVersion implements Serializable {
         foreignKey = @ForeignKey(name = "artifact_versions_artifact_id_fkey"),
         nullable = false)
     private JpaArtifact artifact;
-
-    @OneToMany(
-        mappedBy = "version",
-        cascade = CascadeType.ALL,
-        orphanRemoval = true,
-        targetEntity = JpaVersionTagValue.class
-    )
-    private final Set<JpaVersionTagValue> tagValues = new HashSet<>();
 
     @Column(name = "version",
         nullable = false)
@@ -91,14 +87,6 @@ class JpaArtifactVersion implements Serializable {
         this.version = version;
     }
 
-    public Set<JpaVersionTagValue> getTagValues() {
-        return this.tagValues;
-    }
-
-    public void addTagValue(JpaVersionTagValue versionTagValue) {
-        this.tagValues.add(versionTagValue);
-        versionTagValue.setVersion(this);
-    }
 
     @Override
     public boolean equals(final Object o) {

@@ -33,33 +33,30 @@ import com.lightbend.lagom.javadsl.api.transport.TransportException;
 import com.lightbend.lagom.javadsl.persistence.jpa.JpaSession;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
+import io.vavr.Value;
 import io.vavr.collection.HashMap;
 import io.vavr.collection.List;
-import org.apache.maven.artifact.versioning.ComparableVersion;
+import io.vavr.collection.Map;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.query.api.VersionsQueryService;
 import org.spongepowered.downloads.versions.query.api.models.QueryVersions;
 import org.spongepowered.downloads.versions.query.api.models.TagCollection;
-import org.spongepowered.downloads.versions.query.impl.models.JpaArtifact;
-import org.spongepowered.downloads.versions.query.impl.models.JpaArtifactVersion;
+import org.spongepowered.downloads.versions.query.impl.models.JpaTaggedVersion;
+import org.spongepowered.downloads.versions.query.impl.models.JpaVersionedArtifactView;
 
 import javax.inject.Inject;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceException;
-import javax.persistence.TypedQuery;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.Set;
-import java.util.StringJoiner;
+import java.util.function.Function;
 
-public class VersionQueryServiceImpl implements VersionsQueryService {
-
-    private final JpaSession session;
+public record VersionQueryServiceImpl(JpaSession session)
+    implements VersionsQueryService {
 
     @Inject
-    public VersionQueryServiceImpl(final JpaSession session) {
-        this.session = session;
+    public VersionQueryServiceImpl {
     }
 
 
@@ -86,19 +83,6 @@ public class VersionQueryServiceImpl implements VersionsQueryService {
     private static record ParameterizedTag(String tagName, String tagValue) {
     }
 
-    private static record ParameterizedTagQuery(String tagNameKey, String tagNameValue, String tagValueKey,
-                                                String tagValue) {
-        String createQueryString() {
-            return "t.name = :" + tagNameKey + " and vt.tag = t and vt.value = :" + tagValueKey;
-        }
-
-        public void injectToQuery(TypedQuery<JpaArtifact> query) {
-            System.out.printf("TagName %s is %s with value %s being %s\n", this.tagNameKey, tagNameValue, tagValueKey, tagValue);
-            query.setParameter(tagNameKey, tagNameValue);
-            query.setParameter(tagValueKey, tagValue);
-        }
-    }
-
     private static QueryVersions.VersionInfo selectArtifactVersions(
         final EntityManager em, final String groupId,
         final String artifactId,
@@ -111,62 +95,69 @@ public class VersionQueryServiceImpl implements VersionsQueryService {
         }
 
         final int limit = limitOpt.map(l -> Math.min(Math.max(l, 1), 25)).orElse(25);
-        final int offset = offsetOpt.map(o -> Math.min(o, 0)).orElse(0);
+        final int offset = offsetOpt.map(o -> Math.max(o, 0)).orElse(0);
 
         final var sanitizedGroupId = groupId.toLowerCase(Locale.ROOT);
         final var sanitizedArtifactId = artifactId.toLowerCase(Locale.ROOT);
         try {
-            final var discoveredTags = tags.map(rw -> rw.split(",")).map(List::of).orElseGet(List::of)
+            final var discoveredTags = tags.map(rw -> rw.split(","))
+                .map(List::of).orElseGet(List::of)
                 .map(tag -> tag.split(":"))
                 .filter(array -> array.length == 2)
                 .map(array -> new ParameterizedTag(array[0].toLowerCase(Locale.ROOT), array[1].strip()));
-            final java.util.List<ParameterizedTagQuery> parameterJoining = new ArrayList<>();
-            for (int i = 0; i < discoveredTags.size(); i++) {
-                final var parameterizedTag = discoveredTags.get(i);
-                parameterJoining.add(new ParameterizedTagQuery("tagName" + i, parameterizedTag.tagName, "tagValue" + i,
-                    parameterizedTag.tagValue
-                ));
-            }
-            final String completedQueryString;
-            if (!parameterJoining.isEmpty()) {
-                final var partialPQLString =
-                """
-                select a from Artifact a where exists (
-                    select v from a.versions v
-                    inner join a.tags t
-                    inner join v.tagValues vt
-                    where (a.groupId = :groupId and a.artifactId = :artifactId
-                """;
-                final var joiner = new StringJoiner(") and (", " and (", ")");
-                parameterJoining.forEach(param -> joiner.add(param.createQueryString()));
-                completedQueryString = partialPQLString + joiner + "))";
-            } else {
-                completedQueryString =
-                """
-                select a from Artifact a where exists (
-                    select v from a.versions v
-                    inner join a.tags t
-                    inner join v.tagValues vt
-                    where (a.groupId = :groupId and a.artifactId = :artifactId)
-                )                             
-                """;
-            }
-            System.out.println("Completed query:\n" + completedQueryString + "\n\n");
-            final var query = em.createQuery(
-                completedQueryString,
-                JpaArtifact.class
-            );
-            query.setParameter("groupId", sanitizedGroupId);
-            query.setParameter("artifactId", sanitizedArtifactId);
-            if (!parameterJoining.isEmpty()) {
-                parameterJoining.forEach(param -> param.injectToQuery(query));
-            }
-            if (query.getResultList().isEmpty()) {
-                throw new NotFound("unknown artifact");
-            }
-            final var artifact = query.getSingleResult();
 
-            return convertToVersions(artifact.getVersions(), limit, offset);
+            // basically, don't do any filters, just do a limit and offset on versioned artifact
+            // if available
+            if (discoveredTags.isEmpty()) {
+                final int totalCount = em.createNamedQuery("VersionedArtifactView.count", Long.class)
+                    .setParameter("groupId", sanitizedGroupId)
+                    .setParameter("artifactId", sanitizedArtifactId)
+                    .getSingleResult().intValue();
+                final var untaggedVersions = em.createNamedQuery(
+                    "VersionedArtifactView.findByArtifact", JpaVersionedArtifactView.class
+                )
+                    .setParameter("artifactId", sanitizedArtifactId)
+                    .setParameter("groupId", sanitizedGroupId)
+                    .getResultList();
+                final var mappedByCoordinates = untaggedVersions.stream()
+                    .map(JpaVersionedArtifactView::toMavenCoordinates)
+                    .sorted(Comparator.reverseOrder())
+                    .collect(List.collector())
+                    .drop(offset)
+                    .take(limit);
+                final var versionsWithTags = mappedByCoordinates
+                    .toSortedMap(Comparator.reverseOrder(), MavenCoordinates::asStandardCoordinates, fetchTagCollectionByCoordinates(em));
+                return new QueryVersions.VersionInfo(versionsWithTags, offset, limit, totalCount);
+            }
+            // Otherwise, get the tagged versions that match the given tags
+            // which is a little advanced, because we'll have to literally gather the versioned values
+            // that match the tags, then do a shake down
+            final var map = discoveredTags.map(tag ->
+                em.createNamedQuery("TaggedVersion.findAllMatchingTagValues", JpaTaggedVersion.class)
+                    .setParameter("groupId", sanitizedGroupId)
+                    .setParameter("artifactId", sanitizedArtifactId)
+                    .setParameter("tagName", tag.tagName)
+                    .setParameter("tagValue", tag.tagValue + "%")
+                    .getResultStream()
+                    .map(tv -> Tuple.of(tv.asMavenCoordinates(), Tuple.of(tv.getTagName(), tv.getTagValue())))
+                    .collect(List.collector())
+            ).flatMap(Value::toStream);
+            var versionedTags = HashMap.<MavenCoordinates, Map<String, String>>empty();
+
+            for (final Tuple2<MavenCoordinates, Tuple2<String, String>> tagged : map) {
+                versionedTags = versionedTags.put(tagged.map(Function.identity(), HashMap::of), Map::merge);
+            }
+            final var wantedTagNames = discoveredTags.map(ParameterizedTag::tagName);
+            final var allSortedVersions = versionedTags
+                .filter((coordinates, tagMap) -> tagMap.keySet().containsAll(wantedTagNames))
+                .keySet()
+                .toSortedSet(Comparator.reverseOrder());
+            final var allFound = allSortedVersions
+                .drop(offset)
+                .take(limit)
+                .toSortedMap(Function.identity(), fetchTagCollectionByCoordinates(em))
+                .mapKeys(MavenCoordinates::asStandardCoordinates);
+            return new QueryVersions.VersionInfo(allFound, offset, limit, allSortedVersions.size());
 
         } catch (PersistenceException e) {
             throw new TransportException(
@@ -174,27 +165,24 @@ public class VersionQueryServiceImpl implements VersionsQueryService {
         }
     }
 
-    private static QueryVersions.VersionInfo convertToVersions(
-        final Set<JpaArtifactVersion> versions,
-        final int limit,
-        final int offset
+    private static Function<MavenCoordinates, TagCollection> fetchTagCollectionByCoordinates(
+        EntityManager em
     ) {
-        final var size = versions.size();
-        final var taggedVersions = versions.stream()
-            .collect(HashMap.collector(JpaArtifactVersion::getVersion, v -> {
-                final var tagValues = v.getTagValues().stream()
-                    .map(tv -> Tuple.of(tv.getTag().getName(), tv.getValue()))
-                    .collect(HashMap.collector());
-                return new TagCollection(tagValues, false);
-            }));
-        final var trimmed = taggedVersions.toSortedMap(
-            Comparator.comparing(ComparableVersion::new).reversed(), Tuple2::_1, Tuple2::_2)
-            .toList()
-            .drop(offset)
-            .take(limit)
-            .toSortedMap(Tuple2::_1, Tuple2::_2);
-        return new QueryVersions.VersionInfo(trimmed, offset, limit, size);
-
+        return coordinates ->
+        {
+            final var results = em.createNamedQuery(
+                "TaggedVersion.findAllForVersion",
+                JpaTaggedVersion.class
+            ).setParameter("groupId", coordinates.groupId)
+                .setParameter("artifactId", coordinates.artifactId)
+                .setParameter("version", coordinates.version)
+                .setMaxResults(10)
+                .getResultList();
+            final var tuple2Stream = results.stream().map(
+                taggedVersion -> Tuple.of(taggedVersion.getTagName(), taggedVersion.getTagValue()));
+            return new TagCollection(tuple2Stream
+                .collect(HashMap.collector()), false);
+        };
     }
 
 }

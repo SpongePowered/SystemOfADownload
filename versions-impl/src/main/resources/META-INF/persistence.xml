@@ -5,7 +5,6 @@
         <class>org.spongepowered.downloads.versions.readside.JpaArtifactVersion</class>
         <class>org.spongepowered.downloads.versions.readside.JpaArtifact</class>
         <class>org.spongepowered.downloads.versions.readside.JpaArtifactTag</class>
-        <class>org.spongepowered.downloads.versions.readside.JpaVersionTagValue</class>
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
         <properties>
             <property name="hibernate.connection.driver_class" value="org.postgresql.Driver"/>
@@ -13,7 +12,6 @@
 <!--            <property name="hibernate.connection.username" value="admin"/>-->
 <!--            <property name="hibernate.connection.password" value="password"/>-->
             <property name="hibernate.default_schema" value="version"/>
-            <property name="hibernate.show_sql" value="true"/>
             <property name="hibernate.dialect" value="org.hibernate.dialect.PostgreSQL10Dialect"/>
         </properties>
     </persistence-unit>
