@@ -37,6 +37,7 @@ import io.vavr.Value;
 import io.vavr.collection.HashMap;
 import io.vavr.collection.List;
 import io.vavr.collection.Map;
+import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.query.api.VersionsQueryService;
 import org.spongepowered.downloads.versions.query.api.models.QueryVersions;
@@ -121,12 +122,17 @@ public record VersionQueryServiceImpl(JpaSession session)
                     .getResultList();
                 final var mappedByCoordinates = untaggedVersions.stream()
                     .map(JpaVersionedArtifactView::toMavenCoordinates)
-                    .sorted(Comparator.reverseOrder())
+                    .sorted(Comparator.comparing((MavenCoordinates coords) -> {
+                        return new ComparableVersion(coords.version);
+                    }).reversed())
                     .collect(List.collector())
                     .drop(offset)
                     .take(limit);
                 final var versionsWithTags = mappedByCoordinates
-                    .toSortedMap(Comparator.reverseOrder(), MavenCoordinates::asStandardCoordinates, fetchTagCollectionByCoordinates(em));
+                    .toSortedMap(
+                        Comparator.comparing(ComparableVersion::new).reversed(), coords -> coords.version,
+                        fetchTagCollectionByCoordinates(em)
+                    );
                 return new QueryVersions.VersionInfo(versionsWithTags, offset, limit, totalCount);
             }
             // Otherwise, get the tagged versions that match the given tags
@@ -151,12 +157,15 @@ public record VersionQueryServiceImpl(JpaSession session)
             final var allSortedVersions = versionedTags
                 .filter((coordinates, tagMap) -> tagMap.keySet().containsAll(wantedTagNames))
                 .keySet()
-                .toSortedSet(Comparator.reverseOrder());
+                .map(MavenCoordinates::asStandardCoordinates)
+                .toSortedSet(Comparator.comparing(ComparableVersion::new).reversed());
             final var allFound = allSortedVersions
                 .drop(offset)
                 .take(limit)
+                .map(MavenCoordinates::new)
                 .toSortedMap(Function.identity(), fetchTagCollectionByCoordinates(em))
-                .mapKeys(MavenCoordinates::asStandardCoordinates);
+                .mapKeys(coords -> coords.version)
+                .toSortedMap(Comparator.comparing(ComparableVersion::new).reversed(), Tuple2::_1, Tuple2::_2);
             return new QueryVersions.VersionInfo(allFound, offset, limit, allSortedVersions.size());
 
         } catch (PersistenceException e) {

@@ -82,12 +82,6 @@
         </dependency>
         <!-- Swagger impl -->
         <dependency>
-            <groupId>org.spongepowered</groupId>
-            <artifactId>systemofadownload-artifact-api</artifactId>
-            <version>1.0-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-xml</artifactId>
             <version>${jackson.version}</version>

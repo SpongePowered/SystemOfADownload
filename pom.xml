@@ -235,20 +235,20 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.7.2</version>
+                <version>${junit.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.junit.jupiter</groupId>
                 <artifactId>junit-jupiter</artifactId>
-                <version>5.7.2</version>
+                <version>${junit.version}</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.dataformat</groupId>
                 <artifactId>jackson-dataformat-xml</artifactId>
-                <version>2.10.4</version>
+                <version>${jackson.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.typesafe.akka</groupId>
@@ -258,7 +258,7 @@
             <dependency>
                 <groupId>org.hibernate</groupId>
                 <artifactId>hibernate-core</artifactId>
-                <version>5.5.4.Final</version>
+                <version>${hibernate.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.postgresql</groupId>
@@ -273,17 +273,18 @@
 
         <scala.binary.version>2.13</scala.binary.version>
         <swagger.version>2.1.1</swagger.version>
-
+        <junit.version>5.7.2</junit.version>
         <jackson.version>2.10.4</jackson.version>
         <lagom.openapi.version>1.2.2</lagom.openapi.version>
         <lagom.version>1.6.5</lagom.version>
         <pac4j.version>3.7.0</pac4j.version>
-        <lagom.pac4j.version>2.1.0</lagom.pac4j.version>
+        <lagom.pac4j.version>2.2.1</lagom.pac4j.version>
         <vavr.version>0.10.3</vavr.version>
         <version.number>${git.commit.time}.${git.commit.id.abbrev}</version.number>
         <mycila.license.version>4.0.rc2</mycila.license.version>
         <akka.version>2.6.14</akka.version>
         <lagom.docker.image>adoptopenjdk/openjdk16</lagom.docker.image>
         <postgres.version>42.2.18</postgres.version>
+        <hibernate.version>5.5.4.Final</hibernate.version>
     </properties>
 </project>

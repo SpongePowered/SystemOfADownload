@@ -14,4 +14,8 @@ from artifact_versions version
          inner join artifact_tags artifact_tag
                     on a.id = artifact_tag.artifact_id
 ;
+create unique index on versioned_tags (
+                                       maven_group_id, maven_artifact_id,
+                                       maven_version, tag_name
+    );
 set search_path to public;
