@@ -265,6 +265,11 @@
                 <artifactId>postgresql</artifactId>
                 <version>${postgres.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.google.inject</groupId>
+                <artifactId>guice</artifactId>
+                <version>${guice.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -286,5 +291,6 @@
         <lagom.docker.image>adoptopenjdk/openjdk16</lagom.docker.image>
         <postgres.version>42.2.18</postgres.version>
         <hibernate.version>5.5.4.Final</hibernate.version>
+        <guice.version>5.0.1</guice.version>
     </properties>
 </project>

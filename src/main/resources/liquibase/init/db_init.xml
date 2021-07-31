@@ -107,7 +107,6 @@
     <changeSet id="20210725-7" author="gabizou">
         <comment>Add the trigger function to refresh the above materialized view</comment>
         <sqlFile dbms="postgresql" stripComments="true"
-                 encoding="UTF-8"
                  path="3_create_materialized_view_trigger_function.sql"
                  relativeToChangelogFile="true"
         />
@@ -117,36 +116,54 @@
                      relativeToChangelogFile="true"/>
         </rollback>
     </changeSet>
-    <changeSet id="20210725-8" author="gabizou">
-        <sqlFile path="4_add_trigger_functions_to_artifact_versions.sql"
-                 dbms="postgresql"
-                 stripComments="true"
-                 relativeToChangelogFile="true"/>
-        <rollback>
-            set search_path to version;
-            drop trigger if exists updated_artifact_trigger on version.artifact_versions;
-            set search_path to public;
-        </rollback>
+    <changeSet id="20210729-8" author="gabizou">
+        <createTable tableName="artifact_recommendations"
+                     schemaName="version">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="artifact_id" type="bigint">
+                <constraints nullable="false"
+                             referencedTableName="artifacts"
+                             referencedTableSchemaName="version"
+                             referencedColumnNames="id"
+                             foreignKeyName="artifact_id_fk"
+                />
+            </column>
+            <column name="recommendation_regex"
+                    type="varchar(255)"
+            />
+            <column name="allow_manual_promotion"
+                    type="boolean"
+                    defaultValueBoolean="false"/>
+        </createTable>
+        <addColumn tableName="artifact_versions" schemaName="version">
+            <column name="recommended" type="boolean" defaultValueBoolean="false"/>
+            <column name="manual_recommendation" type="boolean" defaultValueBoolean="false"/>
+        </addColumn>
+        <createIndex tableName="artifact_recommendations"
+                     indexName="artifact_recommendation_idx"
+                     schemaName="version"
+                     unique="true">
+            <column name="artifact_id"/>
+        </createIndex>
     </changeSet>
-    <changeSet id="20210725-9" author="gabizou">
-        <sqlFile path="5_add_trigger_function_to_artifact_tag_table.sql"
-                 dbms="postgresql"
-                 stripComments="true"
-                 relativeToChangelogFile="true"/>
-        <rollback>
-            <sql dbms="postgresql">
-            set search_path to version;
-            drop trigger if exists updated_tag_trigger on version.artifact_tags cascade;
-            set search_path to public;
-            </sql>
-        </rollback>
-    </changeSet>
-    <changeSet id="20210726-10" author="gabizou">
+    <changeSet id="20210726-9" author="gabizou">
         <createView viewName="versioned_artifacts"
                     schemaName="version"
                     >
-            select distinct a.artifact_id, a.group_id, v.version
+            select distinct a.artifact_id, a.group_id, v.version, v.recommended, v.manual_recommendation
             from version.artifacts a inner join version.artifact_versions v on a.id = v.artifact_id
         </createView>
     </changeSet>
+    <changeSet id="20210729-10" author="gabizou">
+        <sqlFile path="12_create_recommendation_update_function.sql"
+                 relativeToChangelogFile="true"/>
+        <rollback>
+            <sqlFile path="12_rollback_create_recommendation_update_function.sql"
+                     relativeToChangelogFile="true"/>
+        </rollback>
+    </changeSet>
+
+
 </databaseChangeLog>

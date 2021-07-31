@@ -31,8 +31,10 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Index;
+import javax.persistence.MapsId;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
 import javax.persistence.Table;
 import java.io.Serializable;
 import java.util.HashSet;
@@ -89,6 +91,14 @@ public class JpaArtifact implements Serializable {
         mappedBy = "artifact")
     private Set<JpaArtifactVersion> versions = new HashSet<>();
 
+    @OneToOne(
+        targetEntity = JpaArtifactRegexRecommendation.class,
+        cascade = CascadeType.ALL,
+        orphanRemoval = true,
+        mappedBy = "artifact"
+    )
+    private JpaArtifactRegexRecommendation regexRecommendation;
+
     public int getId() {
         return id;
     }
@@ -132,6 +142,13 @@ public class JpaArtifact implements Serializable {
 
     public void setVersions(final Set<JpaArtifactVersion> versions) {
         this.versions = versions;
+    }
+
+    public void setRecommendation(
+        final JpaArtifactRegexRecommendation regexRecommendation
+    ) {
+        this.regexRecommendation = regexRecommendation;
+        regexRecommendation.setArtifact(this);
     }
 
     @Override

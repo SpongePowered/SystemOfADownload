@@ -34,6 +34,7 @@ import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
 import akka.persistence.typed.javadsl.RetentionCriteria;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
+import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
@@ -106,12 +107,13 @@ public final class VersionedArtifactAggregate
         final var builder = this.newCommandHandlerWithReplyBuilder();
         builder.forState(ACState::isRegistered)
             .onCommand(ACCommand.RegisterArtifact.class, (cmd) -> this.Effect().reply(cmd.replyTo, NotUsed.notUsed()))
+            .onCommand(ACCommand.RegisterVersion.class, this::handleRegisterVersion)
             .onCommand(ACCommand.RegisterArtifactTag.class, this::handlRegisterTag)
             .onCommand(ACCommand.UpdateArtifactTag.class, this::handleUpdateTag)
             .onCommand(ACCommand.RegisterPromotion.class, this::handlePromotionSetting)
         ;
         builder.forAnyState()
-            .onCommand(ACCommand.RegisterVersion.class, this::handleRegisterVersion)
+            .onCommand(ACCommand.RegisterVersion.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new VersionRegistration.Response.GroupMissing(cmd.coordinates().groupId)))
             .onCommand(ACCommand.RegisterArtifact.class, this::handleRegisterArtifact);
         return builder.build();
     }
@@ -160,7 +162,7 @@ public final class VersionedArtifactAggregate
         final ACCommand.RegisterPromotion cmd
     ) {
         return this.Effect()
-            .persist(new ACEvent.PromotionSettingModified(cmd.regex(), cmd.enableManualMarking()))
+            .persist(new ACEvent.PromotionSettingModified(state.coordinates(), cmd.regex(), cmd.enableManualMarking()))
             .thenReply(cmd.replyTo(), (s) -> new TagVersion.Response.TagSuccessfullyRegistered());
     }
 

@@ -1,9 +1,9 @@
 set search_path to version;
-create or replace function refreshVersionedTags() returns trigger as
+create or replace function refreshVersionedTags() returns int as
 '
     begin
-        refresh materialized view concurrently version.versioned_tags;
-        return null;
+        refresh materialized view version.versioned_tags;
+        return 1;
     end;
 ' language plpgsql;
 

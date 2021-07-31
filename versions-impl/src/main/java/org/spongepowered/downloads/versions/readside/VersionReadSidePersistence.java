@@ -24,6 +24,12 @@
  */
 package org.spongepowered.downloads.versions.readside;
 
+import akka.actor.ActorSystem;
+import akka.actor.typed.ActorRef;
+import akka.actor.typed.Behavior;
+import akka.actor.typed.SupervisorStrategy;
+import akka.actor.typed.javadsl.Adapter;
+import akka.actor.typed.javadsl.Behaviors;
 import com.google.common.collect.ImmutableMap;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.ReadSide;
@@ -31,12 +37,14 @@ import com.lightbend.lagom.javadsl.persistence.ReadSideProcessor;
 import com.lightbend.lagom.javadsl.persistence.jpa.JpaReadSide;
 import com.lightbend.lagom.javadsl.persistence.jpa.JpaSession;
 import org.pcollections.PSequence;
+import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.versions.collection.ACEvent;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.persistence.EntityManager;
 import javax.persistence.Persistence;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Singleton
 public class VersionReadSidePersistence {
@@ -55,10 +63,17 @@ public class VersionReadSidePersistence {
     static final class VersionWriter extends ReadSideProcessor<ACEvent> {
 
         private final JpaReadSide readSide;
+        private final ActorRef<VersionedTagWorker.Command> refresher;
+
+        private static final AtomicInteger counter = new AtomicInteger();
 
         @Inject
-        VersionWriter(final JpaReadSide readSide) {
+        VersionWriter(final JpaReadSide readSide, final JpaSession session, final ActorSystem system) {
             this.readSide = readSide;
+            final var taggedWorker = VersionedTagWorker.create(session);
+            final var commandBehavior = Behaviors.supervise(taggedWorker).onFailure(SupervisorStrategy.restart());
+            this.refresher = Adapter.spawn(
+                system.classicSystem(), commandBehavior, "version-tag-db-worker-" + counter.incrementAndGet());
         }
 
         @Override
@@ -93,9 +108,9 @@ public class VersionReadSidePersistence {
                     final var artifact = query.getSingleResult();
                     final var version = coordinates.version;
                     em.createNamedQuery(
-                        "ArtifactVersion.findByVersion",
-                        JpaArtifactVersion.class
-                    )
+                            "ArtifactVersion.findByVersion",
+                            JpaArtifactVersion.class
+                        )
                         .setParameter("artifactId", artifact.getId())
                         .setParameter("version", version)
                         .setMaxResults(1)
@@ -105,6 +120,7 @@ public class VersionReadSidePersistence {
                             final var jpaArtifactVersion = new JpaArtifactVersion();
                             jpaArtifactVersion.setVersion(version);
                             artifact.addVersion(jpaArtifactVersion);
+                            refresher.tell(new VersionedTagWorker.RefreshVersionTags());
                             return jpaArtifactVersion;
                         });
                 })
@@ -129,9 +145,36 @@ public class VersionReadSidePersistence {
                     jpaTag.setRegex(tag.regex());
                     jpaTag.setName(tag.name());
                     jpaTag.setGroup(tag.matchingGroup());
+                    refresher.tell(new VersionedTagWorker.RefreshVersionTags());
                 })
                 .setEventHandler(ACEvent.VersionTagged.class, (em, versionTagged) -> {
 
+                })
+                .setEventHandler(ACEvent.PromotionSettingModified.class, (em, promotion) -> {
+                    final var coordinates = promotion.coordinates();
+                    final var artifactQuery = em.createNamedQuery(
+                        "Artifact.selectWithTags",
+                        JpaArtifact.class
+                    );
+
+                    artifactQuery.setParameter("groupId", coordinates.groupId);
+                    artifactQuery.setParameter("artifactId", coordinates.artifactId);
+                    final var artifact = artifactQuery.getSingleResult();
+                    final var recommendation = em.createNamedQuery(
+                            "RegexRecommendation.findByArtifact", JpaArtifactRegexRecommendation.class)
+                        .setParameter("artifactId", artifact.getId())
+                        .getResultList()
+                        .stream()
+                        .findFirst()
+                        .orElseGet(() -> {
+                            final var regexRecommendation = new JpaArtifactRegexRecommendation();
+                            artifact.setRecommendation(regexRecommendation);
+                            return regexRecommendation;
+                        });
+                    recommendation.setRegex(promotion.regex());
+                    recommendation.setManual(promotion.enableManualPromotion());
+
+                    refresher.tell(new VersionedTagWorker.RefreshVersionRecommendation(promotion.coordinates()));
                 })
                 .build();
         }

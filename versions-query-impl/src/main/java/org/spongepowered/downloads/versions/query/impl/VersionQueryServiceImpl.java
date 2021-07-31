@@ -114,6 +114,9 @@ public record VersionQueryServiceImpl(JpaSession session)
                     .setParameter("groupId", sanitizedGroupId)
                     .setParameter("artifactId", sanitizedArtifactId)
                     .getSingleResult().intValue();
+                if (totalCount <= 0) {
+                    throw new NotFound("group or artifact not found");
+                }
                 final var untaggedVersions = em.createNamedQuery(
                     "VersionedArtifactView.findByArtifact", JpaVersionedArtifactView.class
                 )
@@ -148,6 +151,9 @@ public record VersionQueryServiceImpl(JpaSession session)
                     .map(tv -> Tuple.of(tv.asMavenCoordinates(), Tuple.of(tv.getTagName(), tv.getTagValue())))
                     .collect(List.collector())
             ).flatMap(Value::toStream);
+            if (map.isEmpty()) {
+                throw new NotFound("group or artifact not found");
+            }
             var versionedTags = HashMap.<MavenCoordinates, Map<String, String>>empty();
 
             for (final Tuple2<MavenCoordinates, Tuple2<String, String>> tagged : map) {

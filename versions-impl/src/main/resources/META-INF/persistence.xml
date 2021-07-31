@@ -5,6 +5,7 @@
         <class>org.spongepowered.downloads.versions.readside.JpaArtifactVersion</class>
         <class>org.spongepowered.downloads.versions.readside.JpaArtifact</class>
         <class>org.spongepowered.downloads.versions.readside.JpaArtifactTag</class>
+        <class>org.spongepowered.downloads.versions.readside.JpaArtifactRegexRecommendation</class>
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
         <properties>
             <property name="hibernate.connection.driver_class" value="org.postgresql.Driver"/>

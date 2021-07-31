@@ -184,6 +184,6 @@ public interface ACEvent extends AggregateEvent<ACEvent>, Jsonable {
 
     }
     @JsonDeserialize
-    final record PromotionSettingModified(String regex, boolean enableManualPromotion) implements ACEvent {
+    final record PromotionSettingModified(ArtifactCoordinates coordinates, String regex, boolean enableManualPromotion) implements ACEvent {
     }
 }
