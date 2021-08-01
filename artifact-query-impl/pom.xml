@@ -1,64 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-                      http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>org.spongepowered</groupId>
         <artifactId>systemofadownload</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>systemofadownload-artifact-impl</artifactId>
-
-    <packaging>jar</packaging>
+    <artifactId>artifact-query-impl</artifactId>
 
     <dependencies>
         <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-artifact-api</artifactId>
+            <groupId>org.spongepowered</groupId>
+            <artifactId>artifact-query-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-auth-api</artifactId>
+            <artifactId>systemofadownload-versions-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-auth-common</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-sonatype</artifactId>
+            <artifactId>systemofadownload-versions-query-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <!-- Lagom Dependencies -->
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-log4j2_${scala.binary.version}</artifactId>
-            <version>${lagom.version}</version>
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-javadsl-server_${scala.binary.version}</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-persistence-jpa_${scala.binary.version}</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.hibernate</groupId>
-            <artifactId>hibernate-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.google.inject</groupId>
-            <artifactId>guice</artifactId>
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
@@ -77,6 +54,18 @@
             <artifactId>lagom-javadsl-testkit_${scala.binary.version}</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.lightbend.lagom</groupId>
+            <artifactId>lagom-javadsl-persistence-jpa_${scala.binary.version}</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
         <!-- Language Features -->
         <dependency>
             <groupId>io.vavr</groupId>
@@ -93,16 +82,13 @@
         </dependency>
         <!-- Swagger impl -->
         <dependency>
-            <groupId>org.taymyr.lagom</groupId>
-            <artifactId>lagom-openapi-java-impl_${scala.binary.version}</artifactId>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-xml</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.spongepowered</groupId>
-            <artifactId>systemofadownload-artifact-api</artifactId>
-            <version>1.0-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
+
     </dependencies>
+
 
     <build>
         <plugins>
@@ -115,4 +101,5 @@
             </plugin>
         </plugins>
     </build>
+
 </project>

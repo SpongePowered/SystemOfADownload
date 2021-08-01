@@ -45,7 +45,6 @@ import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.artifact.api.event.GroupUpdate;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
-import org.spongepowered.downloads.artifact.api.query.GetArtifactDetailsResponse;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
@@ -174,15 +173,6 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
     @Override
     public ServiceCall<NotUsed, GroupsResponse> getGroups() {
         return notUsed -> this.getGlobalEntity().ask(GlobalCommand.GetGroups::new, this.askTimeout);
-    }
-
-    @Override
-    public ServiceCall<NotUsed, GetArtifactDetailsResponse> getArtifactDetails(
-        final String groupId,
-        final String artifactId
-    ) {
-        return notUsed -> this.getDetailsEntity(groupId, artifactId)
-            .ask(replyTo -> new DetailsCommand.GetArtifactDetails(artifactId, replyTo), this.askTimeout);
     }
 
     @Override

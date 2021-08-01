@@ -31,7 +31,6 @@ import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
-import org.spongepowered.downloads.artifact.api.query.GetArtifactDetailsResponse;
 import org.spongepowered.downloads.artifact.details.state.DetailsState;
 import org.spongepowered.downloads.artifact.details.state.EmptyState;
 import org.spongepowered.downloads.artifact.details.state.PopulatedState;
@@ -82,39 +81,22 @@ public class ArtifactDetailsEntity
     public CommandHandlerWithReply<DetailsCommand, DetailsEvent, DetailsState> commandHandler() {
         final var builder = this.newCommandHandlerWithReplyBuilder();
 
-        builder.forNullState()
-            .onCommand(
-                DetailsCommand.GetArtifactDetails.class,
-                (cmd) -> this.Effect()
-                    .reply(cmd.replyTo, new GetArtifactDetailsResponse.ArtifactMissing(cmd.artifactId))
-            );
+        builder.forNullState();
         builder.forStateType(EmptyState.class)
-            .onCommand(
-                DetailsCommand.GetArtifactDetails.class,
-                (cmd) -> this.Effect()
-                    .reply(cmd.replyTo, new GetArtifactDetailsResponse.ArtifactMissing(cmd.artifactId))
-            )
             .onCommand(
                 DetailsCommand.RegisterArtifact.class,
                 (cmd) -> this.Effect()
-                    .persist(List.of(new DetailsEvent.ArtifactRegistered(cmd.coordinates), new DetailsEvent.ArtifactDetailsUpdated(cmd.coordinates, cmd.displayName)))
-                    .thenReply(cmd.replyTo, (state) -> NotUsed.notUsed())
+                    .persist(List.of(
+                        new DetailsEvent.ArtifactRegistered(cmd.coordinates()),
+                        new DetailsEvent.ArtifactDetailsUpdated(cmd.coordinates(), cmd.displayName())
+                    ))
+                    .thenReply(cmd.replyTo(), (state) -> NotUsed.notUsed())
             );
 
         builder.forStateType(PopulatedState.class)
-            .onCommand(DetailsCommand.RegisterArtifact.class, (s, cmd) -> this.Effect().reply(cmd.replyTo, NotUsed.notUsed()))
             .onCommand(
-                DetailsCommand.GetArtifactDetails.class,
-                (s, cmd) -> this.Effect().reply(
-                    cmd.replyTo,
-                    new GetArtifactDetailsResponse.RetrievedArtifact(
-                        s.coordinates(),
-                        s.displayName(),
-                        s.website(),
-                        s.gitRepository(),
-                        s.issues()
-                    )
-                )
+                DetailsCommand.RegisterArtifact.class,
+                (s, cmd) -> this.Effect().reply(cmd.replyTo(), NotUsed.notUsed())
             );
 
         return builder.build();

@@ -33,7 +33,6 @@ import com.lightbend.lagom.javadsl.api.broker.kafka.KafkaProperties;
 import com.lightbend.lagom.javadsl.api.transport.Method;
 import org.spongepowered.downloads.artifact.api.event.GroupUpdate;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
-import org.spongepowered.downloads.artifact.api.query.GetArtifactDetailsResponse;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
@@ -53,8 +52,6 @@ public interface ArtifactService extends Service {
 
     ServiceCall<NotUsed, GroupsResponse> getGroups();
 
-    ServiceCall<NotUsed, GetArtifactDetailsResponse> getArtifactDetails(String groupId, String artifactId);
-
     Topic<GroupUpdate> groupTopic();
 
     @Override
@@ -65,8 +62,7 @@ public interface ArtifactService extends Service {
                 Service.restCall(Method.GET, "/api/v2/groups", this::getGroups),
                 Service.restCall(Method.POST, "/api/v2/groups", this::registerGroup),
                 Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts", this::getArtifacts),
-                Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts", this::registerArtifacts),
-                Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId", this::getArtifactDetails)
+                Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts", this::registerArtifacts)
             )
             .withTopics(
                 Service.topic("group-activity", this::groupTopic)

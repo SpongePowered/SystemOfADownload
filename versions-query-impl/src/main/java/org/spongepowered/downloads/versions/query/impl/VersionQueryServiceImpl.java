@@ -42,6 +42,7 @@ import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.query.api.VersionsQueryService;
+import org.spongepowered.downloads.versions.query.api.models.QueryLatest;
 import org.spongepowered.downloads.versions.query.api.models.QueryVersions;
 import org.spongepowered.downloads.versions.query.api.models.TagCollection;
 import org.spongepowered.downloads.versions.query.impl.models.JpaTaggedVersion;
@@ -91,6 +92,33 @@ public record VersionQueryServiceImpl(JpaSession session)
     }
 
     @Override
+    public ServiceCall<NotUsed, QueryLatest.VersionInfo> latestArtifact(
+        final String groupId,
+        final String artifactId,
+        final Optional<String> tags,
+        final Optional<Boolean> recommended
+    ) {
+        return request -> this.session.withTransaction(
+            t -> {
+                if (groupId.isBlank() || artifactId.isBlank()) {
+                    throw new NotFound("unknown artifact");
+                }
+                try {
+                    final var query = new VersionQuery(groupId, artifactId, tags, recommended.orElse(true));
+
+                    final var info = query.tags.isEmpty() ? getUntaggedVersions(t, query) : getTaggedVersions(t, query);
+                    final var version = info.artifacts().keySet().head();
+                    final var head = info.artifacts().values().head();
+                    return new QueryLatest.VersionInfo(
+                        query.coordinates.version(version), head.tagValues(), head.recommended());
+                } catch (PersistenceException e) {
+                    throw new TransportException(
+                        TransportErrorCode.InternalServerError, new ExceptionMessage("Internal Server Error", ""));
+                }
+            });
+    }
+
+    @Override
     public ServiceCall<NotUsed, QueryVersions.VersionDetails> versionDetails(
         final String groupId, final String artifactId, final String version
     ) {
@@ -106,6 +134,21 @@ public record VersionQueryServiceImpl(JpaSession session)
         int offset,
         Optional<Boolean> recommended,
         List<ParameterizedTag> tags) {
+
+        VersionQuery(
+            String groupId, String artifactId,
+            Optional<String> tags,
+            boolean recommended
+        ) {
+            this(
+                new ArtifactCoordinates(groupId.toLowerCase(Locale.ROOT), artifactId.toLowerCase(Locale.ROOT)),
+                25,
+                0,
+                Optional.of(recommended),
+                gatherTags(tags)
+            );
+        }
+
         VersionQuery(
             String groupId, String artifactId,
             final Optional<String> tags,

@@ -22,44 +22,30 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact;
+package org.spongepowered.downloads.artifacts.query.impl;
 
 import com.google.inject.AbstractModule;
-import com.google.inject.Provides;
 import com.lightbend.lagom.javadsl.api.ServiceLocator;
 import com.lightbend.lagom.javadsl.client.ConfigurationServiceLocator;
 import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
-import org.pac4j.core.config.Config;
-import org.spongepowered.downloads.artifact.api.ArtifactService;
-import org.spongepowered.downloads.artifact.readside.ArtifactReadside;
-import org.spongepowered.downloads.auth.api.SOADAuth;
-import org.spongepowered.downloads.utils.AuthUtils;
+import org.spongepowered.downloads.artifacts.query.api.ArtifactQueryService;
 import play.Environment;
 
-public class ArtifactModule extends AbstractModule implements ServiceGuiceSupport {
+public class ArtifactsQueryModule extends AbstractModule implements ServiceGuiceSupport {
 
     private final Environment environment;
     private final com.typesafe.config.Config config;
 
-    public ArtifactModule(final Environment environment, final com.typesafe.config.Config config) {
+    public ArtifactsQueryModule(final Environment environment, final com.typesafe.config.Config config) {
         this.environment = environment;
         this.config = config;
     }
-
 
     @Override
     protected void configure() {
         if (this.environment.isProd()) {
             this.bind(ServiceLocator.class).to(ConfigurationServiceLocator.class);
         }
-        this.bindService(ArtifactService.class, ArtifactServiceImpl.class);
-        this.bind(ArtifactReadside.class).asEagerSingleton();
+        this.bindService(ArtifactQueryService.class, ArtifactQueryServiceImpl.class);
     }
-
-    @Provides
-    @SOADAuth
-    protected Config configProvider() {
-        return AuthUtils.createConfig();
-    }
-
 }

@@ -22,49 +22,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.query.api;
+package org.spongepowered.downloads.artifacts.query.api;
 
 import akka.NotUsed;
 import com.lightbend.lagom.javadsl.api.Descriptor;
 import com.lightbend.lagom.javadsl.api.Service;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.transport.Method;
-import org.spongepowered.downloads.versions.query.api.models.QueryLatest;
-import org.spongepowered.downloads.versions.query.api.models.QueryVersions;
 
-import java.util.Optional;
+public interface ArtifactQueryService extends Service {
 
-public interface VersionsQueryService extends Service {
-
-    ServiceCall<NotUsed, QueryVersions.VersionInfo> artifactVersions(
-        String groupId, String artifactId, Optional<String> tags, Optional<Integer> limit,
-        Optional<Integer> offset, Optional<Boolean> recommended
-    );
-
-    ServiceCall<NotUsed, QueryLatest.VersionInfo> latestArtifact(
-        String groupId, String artifactId, Optional<String> tags, Optional<Boolean> recommended
-    );
-
-    ServiceCall<NotUsed, QueryVersions.VersionDetails> versionDetails(
-        String groupId, String artifactId, String version
-    );
+    ServiceCall<NotUsed, GetArtifactDetailsResponse> getArtifactDetails(String groupId, String artifactId);
 
     @Override
     default Descriptor descriptor() {
-        return Service.named("version-query")
+        return Service.named("artifact-query")
             .withCalls(
-                Service.restCall(
-                    Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions?tags&limit&offset&recommended",
-                    this::artifactVersions
-                ),
-                Service.restCall(
-                    Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions/:version",
-                    this::versionDetails
-                ),
-                Service.restCall(
-                    Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/latest?tags&recommended",
-                    this::latestArtifact
-                )
+                Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId", this::getArtifactDetails)
             )
             .withAutoAcl(true);
     }

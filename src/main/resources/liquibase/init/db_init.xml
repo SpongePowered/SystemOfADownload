@@ -190,6 +190,27 @@
             <column name="manually_recommended"/>
         </createIndex>
     </changeSet>
+    <changeSet id="20210801-13" author="gabizou">
+        <addColumn tableName="artifacts" schemaName="version">
+            <column name="website" type="text"/>
+            <column name="git_repository" type="text"/>
+            <column name="issues" type="text"/>
+        </addColumn>
+    </changeSet>
+    <changeSet id="20210801-14" author="gabizou">
+        <createView viewName="artifact_tag_values" schemaName="version">
+            select distinct a.group_id, a.artifact_id, t.tag_name, vt.tag_value
+            from version.artifacts a
+            inner join version.artifact_tags t on a.id = t.artifact_id
+            inner join version.versioned_tags vt on vt.tag_name = t.tag_name and vt.maven_group_id = a.group_id and
+            vt.maven_artifact_id = a.artifact_id and vt.tag_value is not null
+        </createView>
+        <rollback>
+            <sql dbms="postgresql">
+                drop view if exists version.artifact_tag_values
+            </sql>
+        </rollback>
+    </changeSet>
 
 
 </databaseChangeLog>

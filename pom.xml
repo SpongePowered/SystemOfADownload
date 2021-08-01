@@ -37,6 +37,8 @@
         <module>utils</module>
         <module>artifact-api</module>
         <module>artifact-impl</module>
+        <module>artifact-query-api</module>
+        <module>artifact-query-impl</module>
         <module>versions-api</module>
         <module>versions-query-api</module>
         <module>versions-query-impl</module>

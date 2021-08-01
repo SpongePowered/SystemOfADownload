@@ -22,17 +22,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.details;
+package org.spongepowered.downloads.versions.query.api.models;
 
-import akka.NotUsed;
-import akka.actor.typed.ActorRef;
-import com.lightbend.lagom.serialization.Jsonable;
-import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.vavr.collection.Map;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 
-public interface DetailsCommand extends Jsonable {
+public interface QueryLatest {
 
-    record RegisterArtifact(ArtifactCoordinates coordinates,
-                            String displayName, ActorRef<NotUsed> replyTo)
-        implements DetailsCommand {
+    @JsonSerialize
+    record VersionInfo(MavenCoordinates coordinates,
+                       Map<String, String> tagValues,
+                       boolean recommended
+    ) {
     }
+
 }
