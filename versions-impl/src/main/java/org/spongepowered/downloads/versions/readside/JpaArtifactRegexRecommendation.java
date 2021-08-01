@@ -35,11 +35,12 @@ import javax.persistence.OneToOne;
 import javax.persistence.Table;
 
 @Entity(name = "RegexBasedRecommendation")
-@Table(name = "artifact_recommendations", schema = "version")
+@Table(name = "artifact_recommendations",
+    schema = "version")
 @NamedQuery(name = "RegexRecommendation.findByArtifact",
-query = """
-select r from RegexBasedRecommendation r where r.artifact.id = :artifactId
-""")
+    query = """
+            select r from RegexBasedRecommendation r where r.artifact.id = :artifactId
+            """)
 public class JpaArtifactRegexRecommendation {
 
     @Id
@@ -47,10 +48,13 @@ public class JpaArtifactRegexRecommendation {
     private long id;
 
     @OneToOne
-    @JoinColumn(name = "artifact_id", referencedColumnName = "id", nullable = false)
+    @JoinColumn(name = "artifact_id",
+        referencedColumnName = "id",
+        nullable = false)
     private JpaArtifact artifact;
 
-    @Column(name = "recommendation_regex", nullable = false)
+    @Column(name = "recommendation_regex",
+        nullable = false)
     private String regex;
 
     @Column(name = "allow_manual_promotion")

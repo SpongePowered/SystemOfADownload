@@ -55,6 +55,7 @@ import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import org.spongepowered.downloads.versions.collection.ACCommand;
 import org.spongepowered.downloads.versions.collection.ACEvent;
+import org.spongepowered.downloads.versions.collection.InvalidRequest;
 import org.spongepowered.downloads.versions.collection.VersionedArtifactAggregate;
 
 import java.time.Duration;
@@ -70,7 +71,7 @@ public class VersionsServiceImpl implements VersionsService,
     private final Config securityConfig;
     private final ClusterSharding clusterSharding;
     private final ArtifactService artifactService;
-    private final Duration streamTimeout = Duration.ofHours(30);
+    private final Duration streamTimeout = Duration.ofSeconds(30);
 
     @Inject
     public VersionsServiceImpl(
@@ -126,10 +127,15 @@ public class VersionsServiceImpl implements VersionsService,
             final String sanitizedArtifactId = artifactId.toLowerCase(Locale.ROOT);
             if (registration instanceof VersionRegistration.Register.Version v) {
                 return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
-                    .ask(
+                    .<VersionRegistration.Response>ask(
                         replyTo -> new ACCommand.RegisterVersion(v.coordinates, replyTo),
                         this.streamTimeout
-                    );
+                    ).thenApply(response -> {
+                        if (response instanceof InvalidRequest) {
+                            throw new NotFound("unknown artifact or group");
+                        }
+                        return response;
+                    });
             }
             throw new NotFound("group missing");
         });
@@ -144,7 +150,14 @@ public class VersionsServiceImpl implements VersionsService,
             final String sanitizedGroupId = groupId.toLowerCase(Locale.ROOT);
             final String sanitizedArtifactId = artifactId.toLowerCase(Locale.ROOT);
             return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
-                .ask(replyTo -> new ACCommand.RegisterArtifactTag(registration.entry(), replyTo), this.streamTimeout);
+                .<TagRegistration.Response>ask(
+                    replyTo -> new ACCommand.RegisterArtifactTag(registration.entry(), replyTo), this.streamTimeout)
+                .thenApply(response -> {
+                    if (response instanceof InvalidRequest) {
+                        throw new NotFound("unknown artifact or group");
+                    }
+                    return response;
+                });
         });
     }
 
@@ -157,7 +170,14 @@ public class VersionsServiceImpl implements VersionsService,
             final String sanitizedGroupId = groupId.toLowerCase(Locale.ROOT);
             final String sanitizedArtifactId = artifactId.toLowerCase(Locale.ROOT);
             return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
-                .ask(replyTo -> new ACCommand.UpdateArtifactTag(registration.entry(), replyTo), this.streamTimeout);
+                .<TagRegistration.Response>ask(
+                    replyTo -> new ACCommand.UpdateArtifactTag(registration.entry(), replyTo), this.streamTimeout)
+                .thenApply(response -> {
+                    if (response instanceof InvalidRequest) {
+                        throw new NotFound("unknown artifact or group");
+                    }
+                    return response;
+                });
         });
     }
 
@@ -190,7 +210,16 @@ public class VersionsServiceImpl implements VersionsService,
                 throw new BadRequest("expected invalid versions matched regex successfully:" + invalidSuccesses);
             }
             return this.getCollection(groupId, artifactId)
-                .ask(replyTo -> new ACCommand.RegisterPromotion(s.regex(), replyTo, s.enableManualMarking()), this.streamTimeout);
+                .<TagVersion.Response>ask(
+                    replyTo -> new ACCommand.RegisterPromotion(s.regex(), replyTo, s.enableManualMarking()),
+                    this.streamTimeout
+                )
+                .thenApply(response -> {
+                    if (response instanceof InvalidRequest) {
+                        throw new NotFound("unknown artifact or group");
+                    }
+                    return response;
+                });
         });
     }
 

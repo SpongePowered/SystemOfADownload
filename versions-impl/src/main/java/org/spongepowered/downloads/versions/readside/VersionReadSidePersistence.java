@@ -26,7 +26,6 @@ package org.spongepowered.downloads.versions.readside;
 
 import akka.actor.ActorSystem;
 import akka.actor.typed.ActorRef;
-import akka.actor.typed.Behavior;
 import akka.actor.typed.SupervisorStrategy;
 import akka.actor.typed.javadsl.Adapter;
 import akka.actor.typed.javadsl.Behaviors;
@@ -37,7 +36,6 @@ import com.lightbend.lagom.javadsl.persistence.ReadSideProcessor;
 import com.lightbend.lagom.javadsl.persistence.jpa.JpaReadSide;
 import com.lightbend.lagom.javadsl.persistence.jpa.JpaSession;
 import org.pcollections.PSequence;
-import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.versions.collection.ACEvent;
 
 import javax.inject.Inject;
@@ -146,9 +144,6 @@ public class VersionReadSidePersistence {
                     jpaTag.setName(tag.name());
                     jpaTag.setGroup(tag.matchingGroup());
                     refresher.tell(new VersionedTagWorker.RefreshVersionTags());
-                })
-                .setEventHandler(ACEvent.VersionTagged.class, (em, versionTagged) -> {
-
                 })
                 .setEventHandler(ACEvent.PromotionSettingModified.class, (em, promotion) -> {
                     final var coordinates = promotion.coordinates();

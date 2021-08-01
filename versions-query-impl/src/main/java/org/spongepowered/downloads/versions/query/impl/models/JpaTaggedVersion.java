@@ -29,7 +29,11 @@ import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinColumns;
+import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.Table;
@@ -57,6 +61,18 @@ import java.util.Objects;
             and view.tagName = :tagName
             and view.tagValue like :tagValue
             """
+    ),
+    @NamedQuery(
+        name = "TaggedVersion.findMatchingTagValuesAndRecommendation",
+        query =
+            """
+            select view from TaggedVersion view
+            where view.mavenGroupId = :groupId
+            and view.mavenArtifactId = :artifactId
+            and view.tagName = :tagName
+            and view.tagValue like :tagValue
+            and (view.recommended = :recommended or view.manuallyRecommended = :recommended)
+            """
     )
 })
 public class JpaTaggedVersion implements Serializable {
@@ -78,15 +94,46 @@ public class JpaTaggedVersion implements Serializable {
     private String mavenArtifactId;
 
     @Id
-    @Column(name = "maven_version", updatable = false)
+    @Column(name = "maven_version",
+        updatable = false)
     private String version;
 
     @Id
-    @Column(name = "tag_name", updatable = false)
+    @Column(name = "tag_name",
+        updatable = false)
     private String tagName;
 
-    @Column(name = "tag_value", updatable = false)
+    @Column(name = "tag_value",
+        updatable = false)
     private String tagValue;
+
+    @Column(name = "regex_recommended",
+        updatable = false)
+    private boolean recommended;
+
+    @Column(name = "manually_recommended",
+        updatable = false)
+    private boolean manuallyRecommended;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumns({
+        @JoinColumn(name = "maven_version",
+            referencedColumnName = "version",
+            nullable = false,
+            updatable = false,
+            insertable = false),
+        @JoinColumn(name = "maven_group_id",
+            referencedColumnName = "group_id",
+            nullable = false,
+            updatable = false,
+            insertable = false),
+        @JoinColumn(name = "maven_artifact_id",
+            referencedColumnName = "artifact_id",
+            nullable = false,
+            updatable = false,
+            insertable = false)
+    })
+    private JpaVersionedArtifactView versionView;
 
     public String getTagName() {
         return tagName;

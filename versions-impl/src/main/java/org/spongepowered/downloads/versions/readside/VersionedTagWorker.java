@@ -49,7 +49,11 @@ public final class VersionedTagWorker {
     private static final record TimedOut() implements Command {
     }
 
-    private static final record Completed(Data data) implements Command {
+    private static final record Completed(Data data, boolean updatedVersionedTags, int rowsAffected)
+        implements Command {
+    }
+
+    private static final record Failed(Data data) implements Command {
     }
 
     private static final record Data(Optional<Instant> refreshVersions,
@@ -74,60 +78,69 @@ public final class VersionedTagWorker {
         return Behaviors.setup(ctx -> Behaviors.receive(Command.class)
             .onMessage(
                 RefreshVersionTags.class,
-                cmd -> waiting(new Data(Optional.of(Instant.now()), HashSet.empty()), session)
+                cmd -> timed(new Data(Optional.of(Instant.now()), HashSet.empty()), session)
             )
             .onMessage(
                 RefreshVersionRecommendation.class,
-                cmd -> waiting(new Data(Optional.empty(), HashSet.of(cmd.coordinates)), session)
+                cmd -> timed(new Data(Optional.empty(), HashSet.of(cmd.coordinates)), session)
             )
             .onMessage(Completed.class, cmd -> {
-                ctx.getLog().info("Completee refresh of {}", cmd.data);
+                ctx.getLog().info("Completed refresh of {}, affected {}", cmd.data, cmd.rowsAffected);
                 return Behaviors.same();
+            })
+            .onMessage(Failed.class, cmd -> {
+                ctx.getLog().warn("Recovering from failed update, will re-attempt");
+                return timed(cmd.data, session);
             })
             .build()
         );
     }
 
-    private static Behavior<Command> waiting(
+    private static Behavior<Command> timed(
         final Data data, final JpaSession session
     ) {
         return Behaviors.setup(ctx -> Behaviors.withTimers(timers -> {
-            timers.startSingleTimer(new TimedOut(), Duration.ofMinutes(1));
-            return Behaviors.receive(Command.class)
-                .onMessage(
-                    RefreshVersionTags.class,
-                    cmd -> waiting(data.requestedRefreshVersions(), session)
-                )
-                .onMessage(
-                    RefreshVersionRecommendation.class,
-                    cmd -> waiting(data.updateArtifactRecommendation(cmd.coordinates), session)
-                )
-                .onMessage(TimedOut.class, timeout -> {
-                    final boolean refreshVersionTags = data.refreshVersions.isPresent();
-                    ctx.pipeToSelf(session.withTransaction(em -> {
-                        if (refreshVersionTags) {
-                            em.createNativeQuery("refresh materialized view version.versioned_tags;")
-                                .executeUpdate();
-                        }
-                        if (!data.refreshRecommendations.isEmpty()) {
-                            data.refreshRecommendations.forEach(coordinates -> {
-                                final var rowsAffected = em.createNativeQuery(
-                                        "select version.refreshVersionRecommendations(:artifactId, :groupId)")
-                                    .setParameter("artifactId", coordinates.artifactId)
-                                    .setParameter("groupId", coordinates.groupId)
-                                    .getFirstResult();
-                            });
-                        }
-                        return new Completed(data);
-                    }), (msg, throwable) -> {
-                        if (throwable != null) {
-                            ctx.getLog().error("Failed to handle updating artifacts, aborting", throwable);
-                        }
-                        return msg;
-                    });
-                    return idle(session);
-                })
-                .build();
+            timers.startSingleTimer(new TimedOut(), Duration.ofSeconds(10));
+            return waiting(data, session);
         }));
+    }
+
+    private static Behavior<Command> waiting(
+        final Data data, final JpaSession session
+    ) {
+        return Behaviors.setup(ctx -> Behaviors.receive(Command.class)
+            .onMessage(
+                RefreshVersionTags.class,
+                cmd -> waiting(data.requestedRefreshVersions(), session)
+            )
+            .onMessage(
+                RefreshVersionRecommendation.class,
+                cmd -> waiting(data.updateArtifactRecommendation(cmd.coordinates), session)
+            )
+            .onMessage(TimedOut.class, timeout -> {
+                ctx.pipeToSelf(session.withTransaction(em -> {
+                    final var updatedVersionedTags = data.refreshVersions
+                        .map(time -> em
+                            .createNativeQuery("select version.refreshversionedtags()")
+                            .getSingleResult())
+                        .isPresent();
+                    final int rowsAffected = data.refreshRecommendations
+                        .map(coordinates -> em.createNativeQuery(
+                                "select version.refreshVersionRecommendations(:artifactId, :groupId)")
+                            .setParameter("artifactId", coordinates.artifactId)
+                            .setParameter("groupId", coordinates.groupId)
+                            .getSingleResult())
+                        .sum().intValue();
+                    return new Completed(data, updatedVersionedTags, rowsAffected);
+                }), (msg, throwable) -> {
+                    if (throwable != null) {
+                        ctx.getLog().error("Failed to handle updating artifacts, aborting", throwable);
+                        return new Failed(data);
+                    }
+                    return msg;
+                });
+                return idle(session);
+            })
+            .build());
     }
 }

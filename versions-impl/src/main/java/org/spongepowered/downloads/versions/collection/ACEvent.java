@@ -34,11 +34,9 @@ import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
-import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
-import org.spongepowered.downloads.versions.api.models.tags.VersionTagValue;
 
 import java.io.Serial;
 import java.util.Objects;
@@ -56,10 +54,6 @@ import java.util.Objects;
     @JsonSubTypes.Type(
         value = ACEvent.ArtifactVersionRegistered.class,
         name = "version-registered"
-    ),
-    @JsonSubTypes.Type(
-        value = ACEvent.CollectionRegistered.class,
-        name = "collection-registered"
     ),
     @JsonSubTypes.Type(
         value = ACEvent.PromotionSettingModified.class,
@@ -141,49 +135,12 @@ public interface ACEvent extends AggregateEvent<ACEvent>, Jsonable {
     }
 
     @JsonDeserialize
-    final class CollectionRegistered implements ACEvent {
-        @Serial private static final long serialVersionUID = 0L;
-        public final ArtifactCollection collection;
-
-        @JsonCreator
-        public CollectionRegistered(final ArtifactCollection collection) {
-            this.collection = collection;
-        }
-
-        @Override
-        public boolean equals(final Object obj) {
-            if (obj == this) {
-                return true;
-            }
-            if (obj == null || obj.getClass() != this.getClass()) {
-                return false;
-            }
-            final var that = (CollectionRegistered) obj;
-            return Objects.equals(this.collection, that.collection);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(this.collection);
-        }
-
-        @Override
-        public String toString() {
-            return "CollectionRegistered[" +
-                "collection=" + this.collection + ']';
-        }
-    }
-
-    @JsonDeserialize
     final record ArtifactTagRegistered(ArtifactCoordinates coordinates, @JsonProperty("entry") ArtifactTagEntry entry) implements ACEvent {
 
     }
 
     @JsonDeserialize
-    final record VersionTagged(MavenCoordinates coordinates, VersionTagValue versionTagValue) implements ACEvent {
-
-    }
-    @JsonDeserialize
-    final record PromotionSettingModified(ArtifactCoordinates coordinates, String regex, boolean enableManualPromotion) implements ACEvent {
+    final record PromotionSettingModified(ArtifactCoordinates coordinates, String regex, boolean enableManualPromotion)
+        implements ACEvent {
     }
 }

@@ -24,17 +24,22 @@
  */
 package org.spongepowered.downloads.versions.query.impl.models;
 
+import io.vavr.Tuple;
+import io.vavr.collection.HashMap;
 import org.hibernate.annotations.Immutable;
-import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+import org.spongepowered.downloads.versions.query.api.models.TagCollection;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import java.io.Serializable;
 import java.util.Objects;
+import java.util.Set;
 
 @Immutable
 @Entity(name = "VersionedArtifactView")
@@ -49,9 +54,31 @@ import java.util.Objects;
                  """
     ),
     @NamedQuery(
+        name = "VersionedArtifactView.recommendedCount",
+        query = """
+                select count(v) from VersionedArtifactView v
+                where v.groupId = :groupId and v.artifactId = :artifactId and v.recommended = :recommended
+                """
+    ),
+    @NamedQuery(
         name = "VersionedArtifactView.findByArtifact",
         query = """
                 select v from VersionedArtifactView v where v.artifactId = :artifactId and v.groupId = :groupId
+                """
+    ),
+    @NamedQuery(
+        name = "VersionedArtifactView.findByArtifactAndRecommendation",
+        query = """
+                select v from VersionedArtifactView v
+                where v.artifactId = :artifactId and v.groupId = :groupId and (v.recommended = :recommended or v.manuallyRecommended = :recommended)
+                """
+    ),
+    @NamedQuery(
+        name = "VersionedArtifactView.findExplicitly",
+        query = """
+                select v from VersionedArtifactView v
+                inner join fetch v.tags
+                where v.artifactId = :artifactId and v.groupId = :groupId and v.version = :version
                 """
     )
 })
@@ -72,8 +99,34 @@ public class JpaVersionedArtifactView implements Serializable {
         updatable = false)
     private String version;
 
-    public MavenCoordinates toMavenCoordinates() {
-        return new MavenCoordinates(this.groupId, this.artifactId, this.version);
+    @Column(name = "recommended")
+    private boolean recommended;
+
+    @Column(name = "manual_recommendation")
+    private boolean manuallyRecommended;
+
+    @OneToMany(
+        targetEntity = JpaTaggedVersion.class,
+        cascade = CascadeType.ALL,
+        orphanRemoval = true,
+        mappedBy = "versionView")
+    private Set<JpaTaggedVersion> tags;
+
+
+    public Set<JpaTaggedVersion> getTags() {
+        return tags;
+    }
+
+    public String version() {
+        return this.version;
+    }
+
+    public TagCollection asTagCollection() {
+        final var results = this.getTags();
+        final var tuple2Stream = results.stream().map(
+            taggedVersion -> Tuple.of(taggedVersion.getTagName(), taggedVersion.getTagValue()));
+        return new TagCollection(tuple2Stream
+            .collect(HashMap.collector()), this.recommended);
     }
 
     @Override
@@ -93,4 +146,5 @@ public class JpaVersionedArtifactView implements Serializable {
     public int hashCode() {
         return Objects.hash(artifactId, groupId, version);
     }
+
 }

@@ -164,6 +164,32 @@
                      relativeToChangelogFile="true"/>
         </rollback>
     </changeSet>
+    <changeSet id="20210731-11" author="gabizou">
+        <comment>Remove and re-create the materialized view with recommendations</comment>
+        <sqlFile path="11_recreate-versioned-tags-materialized-view.sql"
+                 relativeToChangelogFile="true"/>
+        <rollback>
+            <sqlFile path="11_recreted-versioned-tags-materialized-view_rollback.sql"
+                     relativeToChangelogFile="true"/>
+        </rollback>
+    </changeSet>
+    <changeSet id="20210731-12" author="gabizou">
+        <comment>Re-create the indexes, now with the new one</comment>
+        <createIndex tableName="versioned_tags" indexName="versioned_tag_value_idx" schemaName="version">
+            <column name="maven_group_id"/>
+            <column name="maven_artifact_id"/>
+            <column name="tag_name"/>
+            <column name="tag_value"/>
+        </createIndex>
+        <createIndex tableName="versioned_tags" indexName="versioned_tag_recommended_value_idx" schemaName="version">
+            <column name="maven_group_id"/>
+            <column name="maven_artifact_id"/>
+            <column name="tag_name"/>
+            <column name="tag_value"/>
+            <column name="regex_recommended"/>
+            <column name="manually_recommended"/>
+        </createIndex>
+    </changeSet>
 
 
 </databaseChangeLog>

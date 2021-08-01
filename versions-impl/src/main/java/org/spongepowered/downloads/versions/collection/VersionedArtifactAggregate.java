@@ -34,18 +34,16 @@ import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
 import akka.persistence.typed.javadsl.RetentionCriteria;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
-import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 
-import java.util.ArrayList;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
 
 public final class VersionedArtifactAggregate
-    extends EventSourcedBehaviorWithEnforcedReplies<ACCommand, ACEvent, ACState> {
+    extends EventSourcedBehaviorWithEnforcedReplies<ACCommand, ACEvent, State> {
 
     public static EntityTypeKey<ACCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(ACCommand.class, "VersionedArtifact");
     private final Function<ACEvent, Set<String>> tagger;
@@ -67,25 +65,23 @@ public final class VersionedArtifactAggregate
     }
 
     @Override
-    public ACState emptyState() {
-        return ACState.empty();
+    public State emptyState() {
+        return State.empty();
     }
 
     @Override
-    public EventHandler<ACState, ACEvent> eventHandler() {
+    public EventHandler<State, ACEvent> eventHandler() {
         final var builder = this.newEventHandlerBuilder();
-        builder.forAnyState()
-            .onEvent(ACEvent.ArtifactCoordinatesUpdated.class,
-                (state3, event3) -> state3.withCoordinates(event3.coordinates)
-            )
-            .onEvent(ACEvent.ArtifactVersionRegistered.class,
+        builder.forStateType(State.Empty.class)
+            .onEvent(ACEvent.ArtifactCoordinatesUpdated.class, State.Empty::register);
+        builder.forStateType(State.ACState.class)
+            .onEvent(ACEvent.ArtifactTagRegistered.class, (state1, event1) -> state1.withTag(event1.entry()))
+            .onEvent(
+                ACEvent.ArtifactVersionRegistered.class,
                 (state2, event2) -> state2.withVersion(event2.version.version)
             )
-            ;
-        builder.forState(ACState::isRegistered)
-            .onEvent(ACEvent.ArtifactTagRegistered.class, (state1, event1) -> state1.withTag(event1.entry()))
-            .onEvent(ACEvent.VersionTagged.class, (state, event) -> state)
-            .onEvent(ACEvent.PromotionSettingModified.class,
+            .onEvent(
+                ACEvent.PromotionSettingModified.class,
                 (state, event) -> state.withPromotionDetails(event.regex(), event.enableManualPromotion())
             )
         ;
@@ -103,23 +99,33 @@ public final class VersionedArtifactAggregate
     }
 
     @Override
-    public CommandHandlerWithReply<ACCommand, ACEvent, ACState> commandHandler() {
+    public CommandHandlerWithReply<ACCommand, ACEvent, State> commandHandler() {
         final var builder = this.newCommandHandlerWithReplyBuilder();
-        builder.forState(ACState::isRegistered)
+        builder.forStateType(State.Empty.class)
+            .onCommand(ACCommand.RegisterArtifact.class, this::handleRegisterArtifact)
+            .onCommand(
+                ACCommand.RegisterArtifactTag.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest()))
+            .onCommand(
+                ACCommand.RegisterVersion.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest()))
+            .onCommand(
+                ACCommand.RegisterArtifactTag.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest()))
+            .onCommand(
+                ACCommand.UpdateArtifactTag.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest()))
+            .onCommand(
+                ACCommand.RegisterPromotion.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest()))
+        ;
+        builder.forStateType(State.ACState.class)
             .onCommand(ACCommand.RegisterArtifact.class, (cmd) -> this.Effect().reply(cmd.replyTo, NotUsed.notUsed()))
             .onCommand(ACCommand.RegisterVersion.class, this::handleRegisterVersion)
             .onCommand(ACCommand.RegisterArtifactTag.class, this::handlRegisterTag)
             .onCommand(ACCommand.UpdateArtifactTag.class, this::handleUpdateTag)
             .onCommand(ACCommand.RegisterPromotion.class, this::handlePromotionSetting)
         ;
-        builder.forAnyState()
-            .onCommand(ACCommand.RegisterVersion.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new VersionRegistration.Response.GroupMissing(cmd.coordinates().groupId)))
-            .onCommand(ACCommand.RegisterArtifact.class, this::handleRegisterArtifact);
         return builder.build();
     }
 
-    private ReplyEffect<ACEvent, ACState> handleRegisterVersion(
-        final ACState state, final ACCommand.RegisterVersion cmd
+    private ReplyEffect<ACEvent, State> handleRegisterVersion(
+        final State.ACState state, final ACCommand.RegisterVersion cmd
     ) {
         if (state.collection().containsKey(cmd.coordinates().version)) {
             return this.Effect().reply(
@@ -132,8 +138,8 @@ public final class VersionedArtifactAggregate
             .thenReply(cmd.replyTo(), (s) -> new VersionRegistration.Response.RegisteredArtifact(cmd.coordinates()));
     }
 
-    private ReplyEffect<ACEvent, ACState> handleRegisterArtifact(
-        final ACState state,
+    private ReplyEffect<ACEvent, State> handleRegisterArtifact(
+        final State.Empty state,
         final ACCommand.RegisterArtifact cmd
     ) {
         return this.Effect()
@@ -141,24 +147,21 @@ public final class VersionedArtifactAggregate
             .thenReply(cmd.replyTo, (s) -> NotUsed.notUsed());
     }
 
-    private ReplyEffect<ACEvent, ACState> handlRegisterTag(
-        final ACState state,
+    private ReplyEffect<ACEvent, State> handlRegisterTag(
+        final State.ACState state,
         final ACCommand.RegisterArtifactTag cmd
     ) {
         if (state.tags().containsKey(cmd.entry().name().toLowerCase(Locale.ROOT))) {
-            return this.Effect().reply(cmd.replyTo(), new TagRegistration.Response.TagAlreadyRegistered(cmd.entry().name()));
+            return this.Effect().reply(
+                cmd.replyTo(), new TagRegistration.Response.TagAlreadyRegistered(cmd.entry().name()));
         }
-        final var events = new ArrayList<ACEvent>();
-        events.add(new ACEvent.ArtifactTagRegistered(state.coordinates(), cmd.entry()));
-        state.collection()
-            .forEach((version, tag) -> events.add(new ACEvent.VersionTagged(tag.coordinates(), cmd.entry().generateValue(state.coordinates().version(version)))));
         return this.Effect()
-            .persist(events)
+            .persist(new ACEvent.ArtifactTagRegistered(state.coordinates(), cmd.entry()))
             .thenReply(cmd.replyTo(), (s) -> new TagRegistration.Response.TagSuccessfullyRegistered());
     }
 
-    private ReplyEffect<ACEvent, ACState> handlePromotionSetting(
-        final ACState state,
+    private ReplyEffect<ACEvent, State> handlePromotionSetting(
+        final State.ACState state,
         final ACCommand.RegisterPromotion cmd
     ) {
         return this.Effect()
@@ -166,8 +169,8 @@ public final class VersionedArtifactAggregate
             .thenReply(cmd.replyTo(), (s) -> new TagVersion.Response.TagSuccessfullyRegistered());
     }
 
-    private ReplyEffect<ACEvent, ACState> handleUpdateTag(
-        final ACState state,
+    private ReplyEffect<ACEvent, State> handleUpdateTag(
+        final State.ACState state,
         final ACCommand.UpdateArtifactTag cmd
     ) {
         return this.Effect()
