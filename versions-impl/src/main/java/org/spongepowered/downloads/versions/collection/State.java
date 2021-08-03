@@ -28,11 +28,14 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.CompressedJsonable;
 import io.vavr.Tuple2;
 import io.vavr.collection.HashMap;
+import io.vavr.collection.List;
 import io.vavr.collection.Map;
 import io.vavr.collection.SortedMap;
 import io.vavr.collection.TreeMap;
 import org.apache.maven.artifact.versioning.ComparableVersion;
+import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagValue;
 
@@ -65,6 +68,7 @@ interface State {
     final record ACState(
         ArtifactCoordinates coordinates,
         SortedMap<String, ArtifactTagValue> collection,
+        Map<String, List<Artifact>> versionedArtifacts,
         boolean unregistered,
         Map<String, ArtifactTagEntry> tags,
         String promotionRegex,
@@ -72,7 +76,7 @@ interface State {
     ) implements CompressedJsonable, State {
 
         ACState(ArtifactCoordinates coordinates) {
-            this(coordinates, TreeMap.empty(), false, HashMap.empty(), "", false);
+            this(coordinates, TreeMap.empty(), HashMap.empty(), false, HashMap.empty(), "", false);
         }
 
         public boolean isRegistered() {
@@ -87,6 +91,7 @@ interface State {
             return new ACState(
                 this.coordinates,
                 versionMap,
+                this.versionedArtifacts,
                 this.unregistered,
                 this.tags,
                 "",
@@ -101,6 +106,7 @@ interface State {
             return new ACState(
                 this.coordinates,
                 versionedTags,
+                this.versionedArtifacts,
                 this.unregistered,
                 tagMap,
                 "",
@@ -154,6 +160,7 @@ interface State {
             return new ACState(
                 this.coordinates,
                 versionedTags,
+                this.versionedArtifacts,
                 false,
                 this.tags,
                 regex,
@@ -161,14 +168,21 @@ interface State {
             );
         }
 
-        public ACState withCoordinates(ArtifactCoordinates coordinates) {
+        public ACState withAddedArtifacts(MavenCoordinates coordinates, List<Artifact> newArtifacts) {
+            final var existing = this.versionedArtifacts.get(coordinates.version)
+                .getOrElse(List::empty);
+            final var existingArtifactsByClassifier = existing.toMap(Artifact::classifier, Function.identity());
+            final var newArtifactList = existing.appendAll(
+                newArtifacts.filter(artifact -> existingArtifactsByClassifier.containsKey(artifact.classifier())));
+            final var versionedArtifacts = this.versionedArtifacts.put(coordinates.version, newArtifactList);
             return new ACState(
-                coordinates,
+                this.coordinates,
                 this.collection,
+                versionedArtifacts,
                 false,
                 this.tags,
-                "",
-                false
+                this.promotionRegex,
+                this.manualPromotionAllowed
             );
         }
     }

@@ -34,6 +34,7 @@ import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
 import akka.persistence.typed.javadsl.RetentionCriteria;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
+import io.vavr.collection.List;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
@@ -41,6 +42,7 @@ import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 public final class VersionedArtifactAggregate
     extends EventSourcedBehaviorWithEnforcedReplies<ACCommand, ACEvent, State> {
@@ -61,7 +63,6 @@ public final class VersionedArtifactAggregate
                 context.getEntityId() // <- business id
             ));
         this.tagger = AkkaTaggerAdapter.fromLagom(context, ACEvent.INSTANCE);
-
     }
 
     @Override
@@ -83,6 +84,10 @@ public final class VersionedArtifactAggregate
             .onEvent(
                 ACEvent.PromotionSettingModified.class,
                 (state, event) -> state.withPromotionDetails(event.regex(), event.enableManualPromotion())
+            )
+            .onEvent(
+                ACEvent.VersionedCollectionAdded.class,
+                (state, event) -> state.withAddedArtifacts(event.collection().coordinates(), event.newArtifacts())
             )
         ;
         return builder.build();
@@ -113,6 +118,9 @@ public final class VersionedArtifactAggregate
                 ACCommand.UpdateArtifactTag.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest()))
             .onCommand(
                 ACCommand.RegisterPromotion.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest()))
+            .onCommand(
+                ACCommand.RegisterCollection.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest())
+            )
         ;
         builder.forStateType(State.ACState.class)
             .onCommand(ACCommand.RegisterArtifact.class, (cmd) -> this.Effect().reply(cmd.replyTo, NotUsed.notUsed()))
@@ -120,6 +128,7 @@ public final class VersionedArtifactAggregate
             .onCommand(ACCommand.RegisterArtifactTag.class, this::handlRegisterTag)
             .onCommand(ACCommand.UpdateArtifactTag.class, this::handleUpdateTag)
             .onCommand(ACCommand.RegisterPromotion.class, this::handlePromotionSetting)
+            .onCommand(ACCommand.RegisterCollection.class, this::handleRegisterCollection)
         ;
         return builder.build();
     }
@@ -130,12 +139,29 @@ public final class VersionedArtifactAggregate
         if (state.collection().containsKey(cmd.coordinates().version)) {
             return this.Effect().reply(
                 cmd.replyTo(),
-                new VersionRegistration.Response.ArtifactAlreadyRegistered(cmd.coordinates().asArtifactCoordinates())
+                new VersionRegistration.Response.ArtifactAlreadyRegistered(cmd.coordinates())
             );
         }
         return this.Effect()
             .persist(new ACEvent.ArtifactVersionRegistered(cmd.coordinates()))
             .thenReply(cmd.replyTo(), (s) -> new VersionRegistration.Response.RegisteredArtifact(cmd.coordinates()));
+    }
+
+    private ReplyEffect<ACEvent, State> handleRegisterCollection(
+        final State.ACState state, final ACCommand.RegisterCollection cmd
+    ) {
+        if (!state.collection().containsKey(cmd.collection().coordinates().version)) {
+            return this.Effect().reply(cmd.replyTo(), new InvalidRequest());
+        }
+        final var existing = state.versionedArtifacts().get(cmd.collection().coordinates().version)
+            .getOrElse(List::empty);
+        final var newArtifacts = cmd.collection().components().filter(Predicate.not(existing::contains));
+        return this.Effect()
+            .persist(new ACEvent.VersionedCollectionAdded(state.coordinates(), cmd.collection(), newArtifacts))
+            .thenReply(
+                cmd.replyTo(),
+                (s) -> new VersionRegistration.Response.RegisteredArtifact(cmd.collection().coordinates())
+            );
     }
 
     private ReplyEffect<ACEvent, State> handleRegisterArtifact(

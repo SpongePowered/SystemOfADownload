@@ -22,25 +22,24 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.api;
+package org.spongepowered.synchronizer;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import akka.actor.Extension;
+import com.typesafe.config.Config;
 
-import java.net.URI;
-import java.util.Optional;
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
-@JsonSerialize
-public final record Artifact(
-    @JsonProperty Optional<String> classifier,
-    @JsonProperty URI downloadUrl,
-    @JsonProperty String md5,
-    @JsonProperty String sha1,
-    @JsonProperty String extension
-) {
-    @JsonCreator
-    public Artifact {
+public class AssetRetrievalSettings implements Extension {
+    public final String repository;
+    public final Duration timeout;
+    public final int retryCount;
+
+    public AssetRetrievalSettings(Config config) {
+        this.repository = config.getString("systemofadownload.synchronizer.worker.assets.repository");
+        this.retryCount = config.getInt("systemofadownload.synchronizer.worker.assets.retry");
+        final var seconds = config.getDuration(
+            "systemofadownload.synchronizer.worker.assets.timeout", TimeUnit.SECONDS);
+        this.timeout = Duration.ofSeconds(seconds);
     }
-
 }

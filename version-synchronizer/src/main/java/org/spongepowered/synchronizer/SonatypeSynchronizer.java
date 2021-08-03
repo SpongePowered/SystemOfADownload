@@ -29,6 +29,7 @@ import akka.NotUsed;
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.DispatcherSelector;
+import akka.actor.typed.SupervisorStrategy;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Routers;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
@@ -37,6 +38,7 @@ import akka.stream.javadsl.Flow;
 import akka.stream.javadsl.Sink;
 import akka.stream.javadsl.Source;
 import akka.stream.typed.javadsl.ActorFlow;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
@@ -44,8 +46,10 @@ import org.spongepowered.downloads.artifact.api.Group;
 import org.spongepowered.downloads.artifact.api.event.GroupUpdate;
 import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
 import org.spongepowered.downloads.versions.api.VersionsService;
+import org.spongepowered.downloads.versions.api.models.ArtifactUpdate;
 import org.spongepowered.synchronizer.actor.ArtifactSyncWorker;
 import org.spongepowered.synchronizer.actor.RequestArtifactsToSync;
+import org.spongepowered.synchronizer.actor.VersionedComponentWorker;
 import org.spongepowered.synchronizer.resync.ArtifactSynchronizerAggregate;
 
 import java.time.Duration;
@@ -67,9 +71,11 @@ public final class SonatypeSynchronizer {
     public static Behavior<SonatypeSynchronizer.Command> create(
         final ArtifactService artifactService,
         final VersionsService versionsService,
-        final ClusterSharding clusterSharding
+        final ClusterSharding clusterSharding,
+        final ObjectMapper mapper
     ) {
         return Behaviors.setup(context -> {
+            final AssetRetrievalSettings settings = WorkerSettingsExtension.SettingsProvider.get(context.getSystem());
             clusterSharding
                 .init(
                     Entity.of(
@@ -97,12 +103,35 @@ public final class SonatypeSynchronizer {
                 .subscribe()
                 .atLeastOnce(actorAsk);
 
+            final var componentPool = Routers.pool(
+                4,
+                Behaviors.supervise(VersionedComponentWorker.gatherComponents(versionsService, settings, mapper))
+                    .onFailure(
+                        SupervisorStrategy.restartWithBackoff(Duration.ofMinutes(1), Duration.ofMinutes(10), 0.1))
+            );
+            final var componentRef = context.spawn(
+                componentPool,
+                "version-component-registration",
+                DispatcherSelector.defaultDispatcher()
+            );
+            final Flow<ArtifactUpdate, Done, NotUsed> versionedFlow = ActorFlow.ask(4,
+                componentRef, Duration.ofMinutes(4), (g, b) -> {
+                    if (!(g instanceof ArtifactUpdate.ArtifactVersionRegistered a)) {
+                        return new VersionedComponentWorker.Ignored(b);
+                    }
+                    return new VersionedComponentWorker.GatherComponentsForArtifact(a.coordinates(), b);
+                }
+            );
+            versionsService.artifactUpdateTopic()
+                .subscribe()
+                .atLeastOnce(versionedFlow);
+
             // subscribe to the topic
             return Behaviors.withTimers(timers -> {
                 timers.startTimerWithFixedDelay(
                     new GatherGroupArtifacts(), Duration.ofMinutes(5));
                 timers.startSingleTimer(new GatherGroupArtifacts(), Duration.ofMinutes(1));
-                return timedSync(artifactService, versionsService, clusterSharding);
+                return timedSync(artifactService, versionsService, clusterSharding, settings, mapper);
             });
         });
     }
@@ -110,7 +139,9 @@ public final class SonatypeSynchronizer {
     private static Behavior<Command> timedSync(
         final ArtifactService artifactService,
         final VersionsService versionsService,
-        final ClusterSharding clusterSharding
+        final ClusterSharding clusterSharding,
+        final AssetRetrievalSettings settings,
+        final ObjectMapper mapper
     ) {
         final AtomicInteger integer = new AtomicInteger();
         return Behaviors.setup((ctx) -> {

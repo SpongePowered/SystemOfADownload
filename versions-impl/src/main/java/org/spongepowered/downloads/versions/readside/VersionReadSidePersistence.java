@@ -36,12 +36,14 @@ import com.lightbend.lagom.javadsl.persistence.ReadSideProcessor;
 import com.lightbend.lagom.javadsl.persistence.jpa.JpaReadSide;
 import com.lightbend.lagom.javadsl.persistence.jpa.JpaSession;
 import org.pcollections.PSequence;
+import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.versions.collection.ACEvent;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.persistence.EntityManager;
 import javax.persistence.Persistence;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Singleton
@@ -171,7 +173,48 @@ public class VersionReadSidePersistence {
 
                     refresher.tell(new VersionedTagWorker.RefreshVersionRecommendation(promotion.coordinates()));
                 })
+                .setEventHandler(ACEvent.VersionedCollectionAdded.class, (em, event) -> {
+                    final var coordinates = event.collection().coordinates();
+                    final var version = em.createNamedQuery(
+                            "ArtifactVersion.findByCoordinates",
+                            JpaArtifactVersion.class
+                        )
+                        .setParameter("groupId", coordinates.groupId)
+                        .setParameter("artifactId", coordinates.artifactId)
+                        .setParameter("version", coordinates.version)
+                        .setMaxResults(1)
+                        .getSingleResult();
+                    event.newArtifacts()
+                        .forEach(asset -> {
+                            final var versionedAsset = findOrCreateVersionedAsset(em, version, asset);
+                            versionedAsset.setDownloadUrl(asset.downloadUrl().toString());
+                            versionedAsset.setMd5(asset.md5().getBytes(StandardCharsets.UTF_8));
+                            versionedAsset.setSha1(asset.sha1().getBytes(StandardCharsets.UTF_8));
+                            versionedAsset.setExtension(asset.extension());
+                        });
+                })
                 .build();
+        }
+
+        private static JpaVersionedArtifactAsset findOrCreateVersionedAsset(
+            EntityManager em, JpaArtifactVersion version, Artifact asset
+        ) {
+            return em.createNamedQuery(
+                    "VersionedAsset.findByVersion",
+                    JpaVersionedArtifactAsset.class
+                )
+                .setParameter("id", version.getId())
+                .setParameter("classifier", asset.classifier().orElse(""))
+                .setParameter("extension", asset.extension())
+                .setMaxResults(1)
+                .getResultStream()
+                .findFirst()
+                .orElseGet(() -> {
+                    final var jpaAsset = new JpaVersionedArtifactAsset();
+                    jpaAsset.setClassifier(asset.classifier().orElse(""));
+                    version.addAsset(jpaAsset);
+                    return jpaAsset;
+                });
         }
 
         private void createSchema(EntityManager em) {

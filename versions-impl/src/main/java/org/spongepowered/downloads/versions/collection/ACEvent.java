@@ -34,6 +34,9 @@ import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
+import io.vavr.collection.List;
+import org.spongepowered.downloads.artifact.api.Artifact;
+import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
@@ -135,12 +138,20 @@ public interface ACEvent extends AggregateEvent<ACEvent>, Jsonable {
     }
 
     @JsonDeserialize
-    final record ArtifactTagRegistered(ArtifactCoordinates coordinates, @JsonProperty("entry") ArtifactTagEntry entry) implements ACEvent {
+    final record ArtifactTagRegistered(ArtifactCoordinates coordinates, @JsonProperty("entry") ArtifactTagEntry entry)
+        implements ACEvent {
 
     }
 
     @JsonDeserialize
     final record PromotionSettingModified(ArtifactCoordinates coordinates, String regex, boolean enableManualPromotion)
         implements ACEvent {
+    }
+
+    @JsonDeserialize
+    final record VersionedCollectionAdded(
+        ArtifactCoordinates coordinates, ArtifactCollection collection,
+        List<Artifact> newArtifacts
+    ) implements ACEvent {
     }
 }

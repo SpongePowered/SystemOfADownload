@@ -27,35 +27,16 @@ package org.spongepowered.downloads.artifact.api;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.vavr.collection.Map;
+import io.vavr.collection.List;
 
 @JsonDeserialize
-public final class ArtifactCollection {
-
-    @Schema(required = false, description = "A map of artifact kind to artifact information")
-    @JsonProperty(value = "components")
-    public final Map<String, Artifact> artifactComponents;
-
-    @Schema(
-        required = false,
-        description = "The group for an artifact collection"
-    )
-    @JsonProperty
-    public final MavenCoordinates coordinates;
+public final record ArtifactCollection(
+    @JsonProperty("assets") List<Artifact> components,
+    @JsonProperty("coordinates") MavenCoordinates coordinates
+) {
 
     @JsonCreator
-    public ArtifactCollection(
-        @JsonProperty("components") final Map<String, Artifact> components,
-        @JsonProperty("coordinates") final MavenCoordinates coordinates
-    ) {
-        this.artifactComponents = components;
-        this.coordinates = coordinates;
-    }
-
-
-    public Map<String, Artifact> getArtifactComponents() {
-        return this.artifactComponents;
+    public ArtifactCollection {
     }
 
 }

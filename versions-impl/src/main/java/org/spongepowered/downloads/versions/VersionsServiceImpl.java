@@ -128,7 +128,7 @@ public class VersionsServiceImpl implements VersionsService,
             if (registration instanceof VersionRegistration.Register.Version v) {
                 return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
                     .<VersionRegistration.Response>ask(
-                        replyTo -> new ACCommand.RegisterVersion(v.coordinates, replyTo),
+                        replyTo -> new ACCommand.RegisterVersion(v.coordinates(), replyTo),
                         this.streamTimeout
                     ).thenApply(response -> {
                         if (response instanceof InvalidRequest) {
@@ -137,7 +137,18 @@ public class VersionsServiceImpl implements VersionsService,
                         return response;
                     });
             }
-            throw new NotFound("group missing");
+            if (registration instanceof VersionRegistration.Register.Collection c) {
+                return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
+                    .<VersionRegistration.Response>ask(
+                        replyTo -> new ACCommand.RegisterCollection(c.collection(), replyTo), this.streamTimeout)
+                    .thenApply(response -> {
+                        if (response instanceof InvalidRequest) {
+                            throw new NotFound("unknown artifact or group");
+                        }
+                        return response;
+                    });
+            }
+            throw new BadRequest("unknown registration request");
         });
     }
 

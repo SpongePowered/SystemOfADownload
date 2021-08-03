@@ -27,6 +27,7 @@ package org.spongepowered.downloads.versions.collection;
 import akka.NotUsed;
 import akka.actor.typed.ActorRef;
 import com.lightbend.lagom.serialization.Jsonable;
+import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
@@ -71,5 +72,9 @@ public interface ACCommand extends Jsonable {
         ActorRef<TagVersion.Response> replyTo,
         boolean enableManualMarking
     ) implements ACCommand {
+    }
+
+    final record RegisterCollection(ArtifactCollection collection, ActorRef<VersionRegistration.Response> replyTo)
+        implements ACCommand {
     }
 }

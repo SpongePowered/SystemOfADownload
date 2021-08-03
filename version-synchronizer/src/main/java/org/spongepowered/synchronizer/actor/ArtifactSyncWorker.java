@@ -136,9 +136,9 @@ public final class ArtifactSyncWorker {
             .onMessage(PerformResync.class, msg -> {
                 ctx.pipeToSelf(
                     clusterSharding.entityRefFor(
-                        ArtifactSynchronizerAggregate.ENTITY_TYPE_KEY,
-                        msg.coordinates.groupId + ":" + msg.coordinates.artifactId
-                    )
+                            ArtifactSynchronizerAggregate.ENTITY_TYPE_KEY,
+                            msg.coordinates.groupId + ":" + msg.coordinates.artifactId
+                        )
                         .<List<MavenCoordinates>>ask(
                             replyTo -> new Resync(msg.coordinates, replyTo), Duration.ofMinutes(3)),
                     (ok, exception) -> {
@@ -215,11 +215,11 @@ public final class ArtifactSyncWorker {
                             return new FailedRegistration(msg.coordinates, msg.replyTo);
                         }
                         if (ok instanceof VersionRegistration.Response.ArtifactAlreadyRegistered) {
-                            return new Completed(msg.coordinates, msg.replyTo);
-                        } else if (ok instanceof VersionRegistration.Response.GroupMissing m) {
-                            return new FailedRegistration(msg.coordinates, msg.replyTo);
-                        } else if (ok instanceof VersionRegistration.Response.RegisteredArtifact r) {
                             return new Redundant(msg.coordinates, msg.replyTo);
+                        } else if (ok instanceof VersionRegistration.Response.GroupMissing) {
+                            return new FailedRegistration(msg.coordinates, msg.replyTo);
+                        } else if (ok instanceof VersionRegistration.Response.RegisteredArtifact) {
+                            return new Completed(msg.coordinates, msg.replyTo);
                         }
                         return new FailedRegistration(msg.coordinates, msg.replyTo);
                     }
@@ -227,7 +227,7 @@ public final class ArtifactSyncWorker {
                 return Behaviors.same();
             })
             .onMessage(FailedRegistration.class, msg -> {
-                ctx.getLog().error("Somehow got to impossible state with regstrtion handling");
+                ctx.getLog().error("Somehow got to impossible state with registration handling");
                 msg.replyTo.tell(NotUsed.notUsed());
                 return Behaviors.same();
             })

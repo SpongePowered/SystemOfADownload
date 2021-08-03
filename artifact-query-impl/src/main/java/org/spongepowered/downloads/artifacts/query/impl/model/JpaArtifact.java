@@ -102,8 +102,6 @@ public class JpaArtifact implements Serializable {
     @OneToMany(fetch = FetchType.EAGER,
         targetEntity = JpaArtifactTagValue.class)
     @JoinColumns({
-        @JoinColumn(name = "id",
-            referencedColumnName = "id"),
         @JoinColumn(name = "artifact_id",
             referencedColumnName = "artifact_id"),
         @JoinColumn(name = "group_id",

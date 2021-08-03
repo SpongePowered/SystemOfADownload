@@ -53,7 +53,6 @@ public class JpaArtifactTagValue {
     abused JoinColumns.
      */
     static final class Identifier implements Serializable {
-        long id;
         String artifactId;
         String groupId;
         String tagName;
@@ -68,21 +67,19 @@ public class JpaArtifactTagValue {
                 return false;
             }
             Identifier that = (Identifier) o;
-            return id == that.id && Objects.equals(artifactId, that.artifactId) && Objects.equals(
+            return Objects.equals(artifactId, that.artifactId) && Objects.equals(
                 groupId, that.groupId) && Objects.equals(tagName, that.tagName) && Objects.equals(
                 tagValue, that.tagValue);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(id, artifactId, groupId, tagName, tagValue);
+            return Objects.hash(artifactId, groupId, tagName, tagValue);
         }
     }
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumns({
-        @JoinColumn(name = "id",
-            referencedColumnName = "id"),
         @JoinColumn(name = "artifact_id",
             referencedColumnName = "artifact_id"),
         @JoinColumn(name = "group_id",
@@ -100,11 +97,6 @@ public class JpaArtifactTagValue {
         insertable = false,
         updatable = false)
     private String groupId;
-    @Id
-    @Column(name = "id",
-        insertable = false,
-        updatable = false)
-    private long id;
 
     @Id
     @Column(name = "tag_name",

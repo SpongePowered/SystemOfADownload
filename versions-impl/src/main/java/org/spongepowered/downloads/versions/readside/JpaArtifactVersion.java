@@ -24,6 +24,7 @@
  */
 package org.spongepowered.downloads.versions.readside;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
@@ -33,11 +34,15 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
+import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 import java.io.Serializable;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 @Entity(name = "ArtifactVersion")
 @Table(name = "artifact_versions",
@@ -46,13 +51,24 @@ import java.util.Objects;
         columnNames = {"artifact_id", "version"},
         name = "artifact_version_unique_idx")
 )
-@NamedQuery(
-    name = "ArtifactVersion.findByVersion",
-    query =
-        """
-        select distinct v from ArtifactVersion v where v.artifact.id = :artifactId and v.version = :version
-        """
-)
+@NamedQueries({
+    @NamedQuery(
+        name = "ArtifactVersion.findByVersion",
+        query =
+            """
+            select distinct v from ArtifactVersion v where v.artifact.id = :artifactId and v.version = :version
+            """
+    ),
+
+    @NamedQuery(
+        name = "ArtifactVersion.findByCoordinates",
+        query =
+            """
+            select distinct v from ArtifactVersion v 
+            where v.artifact.groupId = :groupId and v.artifact.artifactId = :artifactId and v.version = :version
+            """
+    )
+})
 class JpaArtifactVersion implements Serializable {
 
     @Id
@@ -71,6 +87,13 @@ class JpaArtifactVersion implements Serializable {
         nullable = false)
     private String version;
 
+    @OneToMany(
+        targetEntity = JpaVersionedArtifactAsset.class,
+        cascade = CascadeType.ALL,
+        orphanRemoval = true,
+        mappedBy = "versionedArtifact")
+    private Set<JpaVersionedArtifactAsset> assets = new HashSet<>();
+
     void setArtifact(final JpaArtifact artifact) {
         this.artifact = artifact;
     }
@@ -83,10 +106,18 @@ class JpaArtifactVersion implements Serializable {
         return version;
     }
 
+    public long getId() {
+        return id;
+    }
+
     public void setVersion(final String version) {
         this.version = version;
     }
 
+    public void addAsset(final JpaVersionedArtifactAsset asset) {
+        this.assets.add(asset);
+        asset.setVersion(this);
+    }
 
     @Override
     public boolean equals(final Object o) {

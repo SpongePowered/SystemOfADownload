@@ -22,25 +22,22 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.api;
+package org.spongepowered.downloads.sonatype;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.vavr.collection.List;
 
-import java.net.URI;
 import java.util.Optional;
 
-@JsonSerialize
-public final record Artifact(
-    @JsonProperty Optional<String> classifier,
-    @JsonProperty URI downloadUrl,
-    @JsonProperty String md5,
-    @JsonProperty String sha1,
-    @JsonProperty String extension
+@JsonDeserialize
+public record AssetSearchResponse(
+    @JsonProperty Optional<String> continuationToken,
+    @JsonProperty(required = true) List<Component.Asset> items
 ) {
-    @JsonCreator
-    public Artifact {
-    }
 
+    @JsonCreator
+    public AssetSearchResponse {
+    }
 }

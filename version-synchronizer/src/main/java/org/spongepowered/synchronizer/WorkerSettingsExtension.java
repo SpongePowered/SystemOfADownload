@@ -22,25 +22,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.api;
+package org.spongepowered.synchronizer;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import akka.actor.AbstractExtensionId;
+import akka.actor.ExtendedActorSystem;
+import akka.actor.ExtensionIdProvider;
 
-import java.net.URI;
-import java.util.Optional;
+class WorkerSettingsExtension extends AbstractExtensionId<AssetRetrievalSettings>
+    implements ExtensionIdProvider {
+    public static final WorkerSettingsExtension SettingsProvider = new WorkerSettingsExtension();
 
-@JsonSerialize
-public final record Artifact(
-    @JsonProperty Optional<String> classifier,
-    @JsonProperty URI downloadUrl,
-    @JsonProperty String md5,
-    @JsonProperty String sha1,
-    @JsonProperty String extension
-) {
-    @JsonCreator
-    public Artifact {
+    @Override
+    public AssetRetrievalSettings createExtension(final ExtendedActorSystem system) {
+        return new AssetRetrievalSettings(system.settings().config());
     }
 
+    @Override
+    public WorkerSettingsExtension lookup() {
+        return SettingsProvider;
+    }
 }

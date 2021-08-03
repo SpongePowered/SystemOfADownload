@@ -151,7 +151,7 @@
     <changeSet id="20210726-9" author="gabizou">
         <createView viewName="versioned_artifacts"
                     schemaName="version"
-                    >
+        >
             select distinct a.artifact_id, a.group_id, v.version, v.recommended, v.manual_recommendation
             from version.artifacts a inner join version.artifact_versions v on a.id = v.artifact_id
         </createView>
@@ -210,6 +210,60 @@
                 drop view if exists version.artifact_tag_values
             </sql>
         </rollback>
+    </changeSet>
+    <changeSet id="20210801-15" author="gabizou">
+        <createTable tableName="versioned_assets" schemaName="version">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true"
+                             primaryKeyName="versioned_asset_pk"/>
+            </column>
+            <column name="version_id" type="bigint">
+                <constraints foreignKeyName="version_id_fk"
+                             referencedTableSchemaName="version"
+                             referencedTableName="artifact_versions"
+                             referencedColumnNames="id"
+                             nullable="false"/>
+            </column>
+            <column name="classifier"
+                    type="varchar(255)"
+                    defaultValue=""
+                    defaultOnNull="true"/>
+            <column name="download_url"
+                    type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="extension" type="varchar(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="md5" type="bytea">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sha1" type="bytea">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="versioned_assets"
+                     indexName="versioned_asset_unique_idx"
+                     schemaName="version"
+                     unique="true">
+            <column name="version_id"/>
+            <column name="classifier"/>
+            <column name="extension"/>
+        </createIndex>
+    </changeSet>
+    <changeSet id="20210802-16" author="gabizou">
+        <createView viewName="artifact_versioned_assets" schemaName="version"
+                    encoding="UTF-8"
+                    replaceIfExists="true">
+            select
+            a.group_id,
+            a.artifact_id,
+            av.version,
+            va.classifier, va.extension, va.download_url, va.md5, va.sha1
+            from version.versioned_assets va
+            inner join version.artifact_versions av on av.id = va.version_id
+            inner join version.artifacts a on a.id = av.artifact_id
+        </createView>
     </changeSet>
 
 

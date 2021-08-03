@@ -26,6 +26,7 @@ package org.spongepowered.synchronizer;
 
 import akka.actor.typed.ActorRef;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
@@ -71,16 +72,19 @@ public class SynchronizerModule extends AbstractModule  implements ServiceGuiceS
         private final ArtifactService artifactService;
         private final VersionsService versionsService;
         private final ClusterSharding clusterSharding;
+        private final ObjectMapper mapper;
 
         @Inject
         public SynchronizerProvider(
             final ArtifactService artifactService,
             final VersionsService versionsService,
-            final ClusterSharding clusterSharding
+            final ClusterSharding clusterSharding,
+            final ObjectMapper mapper
         ) {
             this.artifactService = artifactService;
             this.versionsService = versionsService;
             this.clusterSharding = clusterSharding;
+            this.mapper = mapper;
         }
 
         @Override
@@ -89,7 +93,8 @@ public class SynchronizerModule extends AbstractModule  implements ServiceGuiceS
                 SonatypeSynchronizer.create(
                     this.artifactService,
                     this.versionsService,
-                    this.clusterSharding
+                    this.clusterSharding,
+                    this.mapper
                 ), "Synchronizer");
         }
     }
