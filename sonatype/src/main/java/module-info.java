@@ -26,5 +26,6 @@ module systemofadownload.sonatype {
     requires io.vavr;
     requires com.fasterxml.jackson.databind;
     exports org.spongepowered.downloads.maven;
+    exports org.spongepowered.downloads.maven.artifact;
     exports org.spongepowered.downloads.sonatype;
 }
