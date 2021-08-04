@@ -62,9 +62,9 @@ public final record ArtifactQueryServiceImpl(JpaSession session) implements Arti
                         final var tags = artifact.getTagValuesForReply();
                         return new GetArtifactDetailsResponse.RetrievedArtifact(
                             coordinates, artifact.getDisplayName(),
-                            null,
-                            null,
-                            null,
+                            artifact.getWebsite(),
+                            artifact.getGitRepo(),
+                            artifact.getIssues(),
                             tags
                         );
                     })

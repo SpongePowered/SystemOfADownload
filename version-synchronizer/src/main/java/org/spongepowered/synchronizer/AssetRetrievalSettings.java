@@ -26,6 +26,7 @@ package org.spongepowered.synchronizer;
 
 import akka.actor.Extension;
 import com.typesafe.config.Config;
+import io.vavr.collection.List;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -34,6 +35,7 @@ public class AssetRetrievalSettings implements Extension {
     public final String repository;
     public final Duration timeout;
     public final int retryCount;
+    public final List<String> filesToIndex;
 
     public AssetRetrievalSettings(Config config) {
         this.repository = config.getString("systemofadownload.synchronizer.worker.assets.repository");
@@ -41,5 +43,7 @@ public class AssetRetrievalSettings implements Extension {
         final var seconds = config.getDuration(
             "systemofadownload.synchronizer.worker.assets.timeout", TimeUnit.SECONDS);
         this.timeout = Duration.ofSeconds(seconds);
+        final var stringList = config.getStringList("systemofadownload.synchronizer.worker.assets.files-to-index");
+        this.filesToIndex = List.ofAll(stringList);
     }
 }

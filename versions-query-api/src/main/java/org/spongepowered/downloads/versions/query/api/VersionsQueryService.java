@@ -29,7 +29,6 @@ import com.lightbend.lagom.javadsl.api.Descriptor;
 import com.lightbend.lagom.javadsl.api.Service;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.transport.Method;
-import org.spongepowered.downloads.versions.query.api.models.QueryLatest;
 import org.spongepowered.downloads.versions.query.api.models.QueryVersions;
 
 import java.util.Optional;
@@ -41,7 +40,7 @@ public interface VersionsQueryService extends Service {
         Optional<Integer> offset, Optional<Boolean> recommended
     );
 
-    ServiceCall<NotUsed, QueryLatest.VersionInfo> latestArtifact(
+    ServiceCall<NotUsed, QueryVersions.VersionDetails> latestArtifact(
         String groupId, String artifactId, Optional<String> tags, Optional<Boolean> recommended
     );
 

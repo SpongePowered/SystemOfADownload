@@ -55,11 +55,11 @@ import java.util.concurrent.CompletableFuture;
 public final class VersionedComponentWorker {
     public static final String ASSET_SEARCH_ENDPOINT =
         """
-        /service/rest/v1/search/assets?maven.groupId=%s&maven.artifactId=%s&maven.baseVersion=%s
+        /service/rest/v1/search/assets?maven.groupId=%s&maven.artifactId=%s&maven.baseVersion=%s&maven.extension=%s
         """.trim();
     public static final String ASSET_SEARCH_WITH_TOKEN =
         """
-        /service/rest/v1/search/assets?continuationToken=%s&maven.groupId=%s&maven.artifactId=%s&maven.baseVersion=%s
+        /service/rest/v1/search/assets?continuationToken=%s&maven.groupId=%s&maven.artifactId=%s&maven.baseVersion=%s&maven.extension=%s
         """.trim();
 
     public interface Command {
@@ -123,11 +123,11 @@ public final class VersionedComponentWorker {
     ) {
         return Behaviors.setup(ctx -> Behaviors.receive(Command.class)
             .onMessage(GatherComponentsForArtifact.class, cmd -> {
-                ctx.ask(
+                config.filesToIndex.forEach(fileType -> ctx.ask(
                     ChildResponse.class,
                     gathererRef,
                     Duration.ofMinutes(10),
-                    ref -> new StartRequest(cmd.coordinates, ref, cmd.replyTo),
+                    ref -> new StartRequest(cmd.coordinates, fileType, ref, cmd.replyTo),
                     (response, throwable) -> {
                         if (throwable != null) {
                             return new FailedAssetRetrieval(cmd.coordinates, cmd.count + 1, cmd.replyTo);
@@ -138,7 +138,7 @@ public final class VersionedComponentWorker {
                         }
                         return response;
                     }
-                );
+                ));
                 return Behaviors.same();
             })
             .onMessage(ComponentsAvailable.class, available -> {
@@ -170,6 +170,7 @@ public final class VersionedComponentWorker {
 
     private static final record StartRequest(
         MavenCoordinates coordinates,
+        String fileType,
         ActorRef<ChildResponse> ref,
         ActorRef<Done> completedReplyTo
     ) implements Gather {
@@ -177,6 +178,7 @@ public final class VersionedComponentWorker {
 
     private static final record ContinueRequest(
         MavenCoordinates coordinates,
+        String fileType,
         List<Component.Asset> existing,
         String continuationToken,
         ActorRef<ChildResponse> replyTo,
@@ -214,9 +216,9 @@ public final class VersionedComponentWorker {
                         config.repository + ASSET_SEARCH_ENDPOINT,
                         req.coordinates.groupId,
                         req.coordinates.artifactId,
-                        req.coordinates.version
+                        req.coordinates.version,
+                        req.fileType
                     );
-                    ;
                     ctx.pipeToSelf(searchAssets(playMapper, client, formatted), (response, failure) -> {
                         if (failure != null) {
                             return new Failed(req.coordinates, List.empty(), req.ref, req.completedReplyTo);
@@ -224,7 +226,9 @@ public final class VersionedComponentWorker {
                         return response.continuationToken()
                             .<Gather>map(
                                 token -> new ContinueRequest(
-                                    req.coordinates, response.items(), token, req.ref, req.completedReplyTo))
+                                    req.coordinates, req.fileType, response.items(), token, req.ref,
+                                    req.completedReplyTo
+                                ))
                             .orElseGet(
                                 () -> new Completed(req.coordinates, response.items(), req.ref, req.completedReplyTo));
                     });
@@ -236,7 +240,8 @@ public final class VersionedComponentWorker {
                         cont.continuationToken,
                         cont.coordinates.groupId,
                         cont.coordinates.artifactId,
-                        cont.coordinates.version
+                        cont.coordinates.version,
+                        cont.fileType
                     );
                     ctx.pipeToSelf(searchAssets(playMapper, client, formatted), (response, throwable) -> {
                         if (throwable != null) {
@@ -246,7 +251,9 @@ public final class VersionedComponentWorker {
                         return response.continuationToken()
                             .<Gather>map(
                                 token -> new ContinueRequest(
-                                    cont.coordinates, completedAssets, token, cont.replyTo, cont.completedReplyTo))
+                                    cont.coordinates, cont.fileType, completedAssets, token, cont.replyTo,
+                                    cont.completedReplyTo
+                                ))
                             .orElseGet(() -> new Completed(cont.coordinates, completedAssets, cont.replyTo,
                                 cont.completedReplyTo
                             ));
@@ -308,18 +315,15 @@ public final class VersionedComponentWorker {
             .onMessage(AttemptRegistration.class, registration -> {
                 final var artifacts = registration.assets.map(asset ->
                         Try.of(() -> URI.create(asset.downloadUrl()))
-                            .map(downloadUri -> {
-                                if (asset.mavenData() != null) {
-                                    return Optional.of(new Artifact(
-                                        Optional.of(asset.mavenData().classifier()),
-                                        downloadUri,
-                                        asset.checksum().md5(),
-                                        asset.checksum().sha1(),
-                                        asset.mavenData().extension()
-                                    ));
-                                }
-                                return Optional.<Artifact>empty();
-                            })
+                            .map(downloadUri -> Optional.ofNullable(asset.mavenData())
+                                .map(data -> new Artifact(
+                                    Optional.ofNullable(data.classifier()),
+                                    downloadUri,
+                                    asset.checksum().md5(),
+                                    asset.checksum().sha1(),
+                                    asset.mavenData().extension()
+                                ))
+                            )
                             .filter(Optional::isPresent)
                             .map(Optional::get)
                             .toJavaOptional()

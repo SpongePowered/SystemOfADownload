@@ -25,13 +25,16 @@
 package org.spongepowered.downloads.versions.query.api.models;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.vavr.collection.List;
 import io.vavr.collection.Map;
+import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 
 public interface QueryLatest {
 
     @JsonSerialize
     record VersionInfo(MavenCoordinates coordinates,
+                       List<Artifact> assets,
                        Map<String, String> tagValues,
                        boolean recommended
     ) {

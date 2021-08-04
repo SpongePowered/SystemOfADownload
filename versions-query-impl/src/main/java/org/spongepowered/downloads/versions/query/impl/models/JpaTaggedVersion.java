@@ -71,7 +71,7 @@ import java.util.Objects;
             and view.mavenArtifactId = :artifactId
             and view.tagName = :tagName
             and view.tagValue like :tagValue
-            and (view.recommended = :recommended or view.manuallyRecommended = :recommended)
+            and (view.versionView.recommended = :recommended or view.versionView.manuallyRecommended = :recommended)
             """
     )
 })
@@ -107,14 +107,6 @@ public class JpaTaggedVersion implements Serializable {
         updatable = false)
     private String tagValue;
 
-    @Column(name = "regex_recommended",
-        updatable = false)
-    private boolean recommended;
-
-    @Column(name = "manually_recommended",
-        updatable = false)
-    private boolean manuallyRecommended;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumns({
         @JoinColumn(name = "maven_version",
@@ -145,6 +137,14 @@ public class JpaTaggedVersion implements Serializable {
 
     public MavenCoordinates asMavenCoordinates() {
         return new MavenCoordinates(this.mavenGroupId, this.mavenArtifactId, this.version);
+    }
+
+    public JpaVersionedArtifactView getVersion() {
+        return this.versionView;
+    }
+
+    public String getMavenVersion() {
+        return this.version;
     }
 
     @Override

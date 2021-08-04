@@ -26,7 +26,11 @@ package org.spongepowered.downloads.versions.query.impl.models;
 
 import io.vavr.Tuple;
 import io.vavr.collection.HashMap;
+import io.vavr.collection.List;
+import io.vavr.collection.Map;
 import org.hibernate.annotations.Immutable;
+import org.spongepowered.downloads.artifact.api.Artifact;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.query.api.models.TagCollection;
 
 import javax.persistence.CascadeType;
@@ -38,7 +42,10 @@ import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import java.io.Serializable;
+import java.net.URI;
+import java.util.Comparator;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 @Immutable
@@ -80,6 +87,15 @@ import java.util.Set;
                 inner join fetch v.tags
                 where v.artifactId = :artifactId and v.groupId = :groupId and v.version = :version
                 """
+    ),
+    @NamedQuery(
+        name = "VersionedArtifactView.findFullVersionDetails",
+        query = """
+                select v from VersionedArtifactView v
+                inner join fetch v.tags
+                inner join fetch v.assets
+                where v.artifactId = :artifactId and v.groupId = :groupId and v.version = :version
+                """
     )
 })
 public class JpaVersionedArtifactView implements Serializable {
@@ -112,6 +128,13 @@ public class JpaVersionedArtifactView implements Serializable {
         mappedBy = "versionView")
     private Set<JpaTaggedVersion> tags;
 
+    @OneToMany(
+        targetEntity = JpaVersionedAsset.class,
+        cascade = CascadeType.ALL,
+        orphanRemoval = true,
+        mappedBy = "versionView"
+    )
+    private Set<JpaVersionedAsset> assets;
 
     public Set<JpaTaggedVersion> getTags() {
         return tags;
@@ -121,12 +144,47 @@ public class JpaVersionedArtifactView implements Serializable {
         return this.version;
     }
 
+    public Map<String, String> getTagValues() {
+        final var results = this.getTags();
+        final var tuple2Stream = results.stream().map(
+            taggedVersion -> Tuple.of(taggedVersion.getTagName(), taggedVersion.getTagValue()));
+        return tuple2Stream
+            .collect(HashMap.collector());
+    }
+
     public TagCollection asTagCollection() {
         final var results = this.getTags();
         final var tuple2Stream = results.stream().map(
             taggedVersion -> Tuple.of(taggedVersion.getTagName(), taggedVersion.getTagValue()));
         return new TagCollection(tuple2Stream
             .collect(HashMap.collector()), this.recommended);
+    }
+
+    public boolean isRecommended() {
+        return this.recommended || this.manuallyRecommended;
+    }
+
+    public MavenCoordinates asMavenCoordinates() {
+        return new MavenCoordinates(this.groupId + ":" + this.artifactId + ":" + this.version);
+    }
+
+    Set<JpaVersionedAsset> getAssets() {
+        return assets;
+    }
+
+    public List<Artifact> asArtifactList() {
+        return this.getAssets()
+            .stream()
+            .map(
+                asset -> new Artifact(
+                    Optional.ofNullable(asset.getClassifier()),
+                    URI.create(asset.getDownloadUrl()),
+                    new String(asset.getMd5()),
+                    new String(asset.getSha1()),
+                    asset.getExtension()
+                )
+            ).collect(List.collector())
+            .sorted(Comparator.comparing(artifact -> artifact.classifier().orElse("")));
     }
 
     @Override

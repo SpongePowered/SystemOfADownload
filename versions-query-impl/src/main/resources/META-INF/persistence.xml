@@ -4,6 +4,7 @@
         <non-jta-data-source>DefaultDS</non-jta-data-source>
         <class>org.spongepowered.downloads.versions.query.impl.models.JpaTaggedVersion</class>
         <class>org.spongepowered.downloads.versions.query.impl.models.JpaVersionedArtifactView</class>
+        <class>org.spongepowered.downloads.versions.query.impl.models.JpaVersionedAsset</class>
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
         <properties>
             <property name="hibernate.connection.driver_class" value="org.postgresql.Driver"/>
