@@ -28,10 +28,26 @@ import akka.actor.typed.ActorRef;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+import org.spongepowered.downloads.maven.artifact.ArtifactMavenMetadata;
 
 public record Resync(
     ArtifactCoordinates coordinates,
     ActorRef<List<MavenCoordinates>> replyTo
-) {
+) implements Command {
 
+}
+
+interface Response extends Command {
+}
+
+record Failed() implements Response {
+}
+
+record Completed(ArtifactMavenMetadata metadata) implements Response {
+}
+
+record WrappedResync(
+    Response response,
+    ActorRef<List<MavenCoordinates>> replyTo
+) implements Response {
 }

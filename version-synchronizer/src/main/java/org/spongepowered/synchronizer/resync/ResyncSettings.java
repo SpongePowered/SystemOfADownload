@@ -24,30 +24,24 @@
  */
 package org.spongepowered.synchronizer.resync;
 
-import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
-import org.spongepowered.downloads.maven.artifact.ArtifactMavenMetadata;
-import org.spongepowered.downloads.maven.artifact.Versioning;
+import akka.actor.Extension;
+import com.typesafe.config.Config;
 
-final class SyncState {
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
-    public final String groupId;
-    public final String artifactId;
-    public final String lastUpdated;
-    public final ArtifactMavenMetadata versions;
+public class ResyncSettings implements Extension {
+    public final String repository;
+    public final Duration timeout;
+    public final int retryCount;
+    public final String agentName;
 
-    static final SyncState EMPTY = new SyncState("", new ArtifactMavenMetadata("", "", new Versioning()));
-
-    public SyncState(
-        final String lastUpdated,
-        final ArtifactMavenMetadata versions
-    ) {
-        this.lastUpdated = lastUpdated;
-        this.versions = versions;
-        this.groupId = versions.groupId();
-        this.artifactId = versions.artifactId();
-    }
-
-    ArtifactCoordinates coordinates() {
-        return new ArtifactCoordinates(this.groupId, this.artifactId);
+    public ResyncSettings(Config config) {
+        this.repository = config.getString("systemofadownload.synchronizer.resync.repository");
+        this.retryCount = config.getInt("systemofadownload.synchronizer.resync.retry");
+        final var seconds = config.getDuration(
+            "systemofadownload.synchronizer.resync.timeout", TimeUnit.SECONDS);
+        this.agentName = config.getString("systemofadownload.synchronizer.resync.agent-name");
+        this.timeout = Duration.ofSeconds(seconds);
     }
 }

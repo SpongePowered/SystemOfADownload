@@ -24,30 +24,21 @@
  */
 package org.spongepowered.synchronizer.resync;
 
-import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
-import org.spongepowered.downloads.maven.artifact.ArtifactMavenMetadata;
-import org.spongepowered.downloads.maven.artifact.Versioning;
+import akka.actor.AbstractExtensionId;
+import akka.actor.ExtendedActorSystem;
+import akka.actor.ExtensionIdProvider;
 
-final class SyncState {
+class ResyncExtension extends AbstractExtensionId<ResyncSettings>
+    implements ExtensionIdProvider {
+    public static final ResyncExtension SettingsProvider = new ResyncExtension();
 
-    public final String groupId;
-    public final String artifactId;
-    public final String lastUpdated;
-    public final ArtifactMavenMetadata versions;
-
-    static final SyncState EMPTY = new SyncState("", new ArtifactMavenMetadata("", "", new Versioning()));
-
-    public SyncState(
-        final String lastUpdated,
-        final ArtifactMavenMetadata versions
-    ) {
-        this.lastUpdated = lastUpdated;
-        this.versions = versions;
-        this.groupId = versions.groupId();
-        this.artifactId = versions.artifactId();
+    @Override
+    public ResyncSettings createExtension(final ExtendedActorSystem system) {
+        return new ResyncSettings(system.settings().config());
     }
 
-    ArtifactCoordinates coordinates() {
-        return new ArtifactCoordinates(this.groupId, this.artifactId);
+    @Override
+    public ResyncExtension lookup() {
+        return SettingsProvider;
     }
 }

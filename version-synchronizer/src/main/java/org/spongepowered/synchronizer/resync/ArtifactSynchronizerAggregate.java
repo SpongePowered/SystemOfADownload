@@ -24,27 +24,43 @@
  */
 package org.spongepowered.synchronizer.resync;
 
+import akka.actor.typed.Behavior;
+import akka.actor.typed.javadsl.ActorContext;
+import akka.actor.typed.javadsl.Behaviors;
 import akka.cluster.sharding.typed.javadsl.EntityContext;
 import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
-import akka.japi.function.Function;
 import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.MavenCoordinates;
-import org.spongepowered.synchronizer.client.SonatypeClient;
+import io.vavr.control.Try;
+import io.vavr.jackson.datatype.VavrModule;
+import org.spongepowered.downloads.maven.artifact.ArtifactMavenMetadata;
+
+import javax.xml.stream.XMLInputFactory;
+import java.io.Serial;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.StringJoiner;
+import java.util.concurrent.CompletableFuture;
 
 public final class ArtifactSynchronizerAggregate
-    extends EventSourcedBehaviorWithEnforcedReplies<Resync, SynchronizeEvent, SyncState> {
-    public static EntityTypeKey<Resync> ENTITY_TYPE_KEY = EntityTypeKey.create(Resync.class, "ArtifactSynchronizer");
-    static final Function<SyncState, List<MavenCoordinates>> stateToCoordinates = (s) -> s.versions.versioning().versions.map(
-        version -> MavenCoordinates.parse(s.groupId + ":" + s.artifactId + ":" + version));
-    private final SonatypeClient client;
+    extends EventSourcedBehaviorWithEnforcedReplies<Command, SynchronizeEvent, SyncState> {
+    public static EntityTypeKey<Command> ENTITY_TYPE_KEY = EntityTypeKey.create(Command.class, "ArtifactSynchronizer");
+    private final ActorContext<Command> ctx;
+    private final ResyncSettings settings;
+    private final HttpClient httpClient;
+    private final XmlMapper mapper;
 
-    public ArtifactSynchronizerAggregate(EntityContext<Resync> context) {
+    public ArtifactSynchronizerAggregate(
+        final EntityContext<Command> context, final ActorContext<Command> ctx,
+        final ResyncSettings settings
+    ) {
         super(
             // PersistenceId needs a typeHint (or namespace) and entityId,
             // we take then from the EntityContext
@@ -52,12 +68,23 @@ public final class ArtifactSynchronizerAggregate
                 context.getEntityTypeKey().name(), // <- type hint
                 context.getEntityId() // <- business id
             ));
-        final var mapper = new ObjectMapper();
-        this.client = SonatypeClient.configureClient(mapper).get();
+        this.ctx = ctx;
+        this.settings = settings;
+        final var mapper = new XmlMapper();
+        mapper.registerModule(new VavrModule());
+        this.httpClient = HttpClient.newBuilder()
+            .connectTimeout(this.settings.timeout)
+            .version(HttpClient.Version.HTTP_2)
+            .build();
+        this.mapper = mapper;
     }
 
-    public static ArtifactSynchronizerAggregate create(EntityContext<Resync> context) {
-        return new ArtifactSynchronizerAggregate(context);
+    public static Behavior<Command> create(EntityContext<Command> context) {
+        return Behaviors.setup(ctx -> {
+            final ResyncSettings settings = ResyncExtension.SettingsProvider.get(ctx.getSystem());
+
+            return new ArtifactSynchronizerAggregate(context, ctx, settings);
+        });
     }
 
     @Override
@@ -77,27 +104,99 @@ public final class ArtifactSynchronizerAggregate
     }
 
     @Override
-    public CommandHandlerWithReply<Resync, SynchronizeEvent, SyncState> commandHandler() {
+    public CommandHandlerWithReply<Command, SynchronizeEvent, SyncState> commandHandler() {
         final var builder = this.newCommandHandlerWithReplyBuilder()
             .forAnyState()
-            .onCommand(Resync.class, this::handleResync);
+            .onCommand(Resync.class, this::handleResync)
+            .onCommand(WrappedResync.class, this::handleResponse);
         return builder.build();
     }
 
-    private ReplyEffect<SynchronizeEvent, SyncState> handleResync(SyncState state, Resync cmd) {
-        final var groupId = !state.groupId.equals(cmd.coordinates().groupId) ? cmd.coordinates().groupId : state.groupId;
-        final var artifactId = !state.artifactId.equals(cmd.coordinates().artifactId) ? cmd.coordinates().artifactId : state.artifactId;
-        return this.client.getArtifactMetadata(groupId.replace(".", "/"), artifactId)
-            .mapTry(metadata -> {
-                if (metadata.versioning().lastUpdated.equals(state.lastUpdated)) {
-                    return this.Effect()
-                        .reply(cmd.replyTo(), stateToCoordinates.apply(state));
-                }
+    private ReplyEffect<SynchronizeEvent, SyncState> handleResponse(SyncState state, WrappedResync cmd) {
+        if (cmd.response() instanceof Failed) {
+            return this.Effect().reply(cmd.replyTo(), List.empty());
+        }
+        if (cmd.response() instanceof Completed c) {
+            final var metadata = c.metadata();
+            if (metadata.versioning().lastUpdated.equals(state.lastUpdated)) {
+                final var versionsToSync = state.versions.versioning()
+                    .versions.map(state.coordinates()::version);
                 return this.Effect()
-                    .persist(new SynchronizeEvent.SynchronizedArtifacts(metadata, metadata.versioning().lastUpdated))
-                    .thenReply(cmd.replyTo(), stateToCoordinates);
-            })
-            .getOrElseGet((ignored) -> this.Effect().reply(cmd.replyTo(), List.empty()));
+                    .reply(cmd.replyTo(), versionsToSync);
+            }
+            return this.Effect()
+                .persist(new SynchronizeEvent.SynchronizedArtifacts(metadata, metadata.versioning().lastUpdated))
+                .thenReply(cmd.replyTo(), s -> s.versions.versioning().versions.map(s.coordinates()::version));
+        }
+        return this.Effect().reply(cmd.replyTo(), List.empty());
+    }
+
+
+    private ReplyEffect<SynchronizeEvent, SyncState> handleResync(SyncState state, Resync cmd) {
+        final var groupId = !state.groupId.equals(cmd.coordinates().groupId)
+            ? cmd.coordinates().groupId
+            : state.groupId;
+        final var artifactId = !state.artifactId.equals(cmd.coordinates().artifactId)
+            ? cmd.coordinates().artifactId
+            : state.artifactId;
+        ctx.pipeToSelf(
+            getArtifactMetadata(groupId, artifactId),
+            (response, throwable) -> {
+                if (throwable != null) {
+                    if (throwable instanceof UnsupportedArtifactException ua) {
+                        this.ctx.getLog().warn(
+                            String.format("Unsupported artifact %s", state.coordinates()),
+                            throwable
+                        );
+                    } else {
+                        this.ctx.getLog().error(
+                            String.format("Unable to get maven-metadata.xml for artifact: %s", state.coordinates()),
+                            throwable
+                        );
+                    }
+                    return new WrappedResync(new Failed(), cmd.replyTo());
+                }
+                return new WrappedResync(new Completed(response), cmd.replyTo());
+            }
+        );
+        return this.Effect().noReply();
+    }
+
+    private static final class UnsupportedArtifactException extends Exception {
+
+
+        @Serial private static final long serialVersionUID = 4579607644429804821L;
+
+        public UnsupportedArtifactException(final String artifact, final String url) {
+            super(String.format("Unsupported artifact by id %s using url: %s", artifact, url));
+        }
+    }
+
+    private CompletableFuture<ArtifactMavenMetadata> getArtifactMetadata(String groupId, String artifactId) {
+        final var url = new StringJoiner("/", this.settings.repository, "")
+            .add(groupId.replace(".", "/"))
+            .add(artifactId)
+            .add("maven-metadata.xml")
+            .toString();
+        return Try.of(() -> URI.create(url))
+            .map(uri -> HttpRequest.newBuilder()
+                .uri(uri)
+                .header("User-Agent", this.settings.agentName)
+                .build())
+            .toCompletableFuture()
+            .thenCompose(request -> this.httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofInputStream())
+                .thenCompose(response -> Try.of(() -> response)
+                    .filterTry(
+                        r -> r.statusCode() == 200,
+                        () -> new UnsupportedArtifactException(groupId + ":" + artifactId, url)
+                    )
+                    .toCompletableFuture()
+                )
+                .thenApply(HttpResponse::body)
+                .thenApply(is -> Try.of(() -> XMLInputFactory.newFactory().createXMLStreamReader(is)).get())
+                .thenCompose(reader -> Try.of(
+                    () -> this.mapper.readValue(reader, ArtifactMavenMetadata.class)).toCompletableFuture())
+            );
     }
 
 }

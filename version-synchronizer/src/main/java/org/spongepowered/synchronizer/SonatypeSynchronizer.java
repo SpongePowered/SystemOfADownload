@@ -131,7 +131,7 @@ public final class SonatypeSynchronizer {
                 timers.startTimerWithFixedDelay(
                     new GatherGroupArtifacts(), Duration.ofMinutes(5));
                 timers.startSingleTimer(new GatherGroupArtifacts(), Duration.ofMinutes(1));
-                return timedSync(artifactService, versionsService, clusterSharding, settings, mapper);
+                return timedSync(artifactService, versionsService, clusterSharding);
             });
         });
     }
@@ -139,9 +139,7 @@ public final class SonatypeSynchronizer {
     private static Behavior<Command> timedSync(
         final ArtifactService artifactService,
         final VersionsService versionsService,
-        final ClusterSharding clusterSharding,
-        final AssetRetrievalSettings settings,
-        final ObjectMapper mapper
+        final ClusterSharding clusterSharding
     ) {
         final AtomicInteger integer = new AtomicInteger();
         return Behaviors.setup((ctx) -> {
