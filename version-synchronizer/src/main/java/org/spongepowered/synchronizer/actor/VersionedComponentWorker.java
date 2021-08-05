@@ -27,6 +27,7 @@ package org.spongepowered.synchronizer.actor;
 import akka.Done;
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
+import akka.actor.typed.DispatcherSelector;
 import akka.actor.typed.SupervisorStrategy;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Routers;
@@ -41,14 +42,12 @@ import org.spongepowered.downloads.sonatype.Component;
 import org.spongepowered.downloads.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
-import org.spongepowered.synchronizer.AssetRetrievalSettings;
 
 import java.net.URI;
 import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -98,19 +97,23 @@ public final class VersionedComponentWorker {
 
     public static Behavior<Command> gatherComponents(
         final VersionsService service,
-        final AssetRetrievalSettings config,
         final ObjectMapper mapper
     ) {
         return Behaviors.setup(ctx -> {
-            final var gathererPool = Routers.pool(4, idleFetcher(config, mapper));
+            final AssetSettingsExtension.AssetRetrievalSettings config = AssetSettingsExtension.SettingsProvider.get(
+                ctx.getSystem());
+            final var assetDispatcher = DispatcherSelector.fromConfig("asset-retrieval-dispatcher");
+            final var gathererPool = Routers.pool(config.poolSize, idleFetcher(config, mapper));
             final var gathererRef = ctx.spawn(
                 Behaviors.supervise(gathererPool).onFailure(SupervisorStrategy.restart()),
-                "search-versioned-components"
+                "search-versioned-components",
+                assetDispatcher
             );
-            final var assetRegisters = Routers.pool(4, registerAssets(service));
+            final var assetRegisters = Routers.pool(config.poolSize, registerAssets(service));
             final var assetRegistersRef = ctx.spawn(
                 Behaviors.supervise(assetRegisters).onFailure(SupervisorStrategy.restart()),
-                "versioned-asset-register"
+                "versioned-asset-register",
+                assetDispatcher
             );
             return idleGatherer(gathererRef, assetRegistersRef, config);
         });
@@ -119,14 +122,14 @@ public final class VersionedComponentWorker {
     private static Behavior<Command> idleGatherer(
         final ActorRef<Gather> gathererRef,
         final ActorRef<Registrar> assetRegistersRef,
-        final AssetRetrievalSettings config
+        final AssetSettingsExtension.AssetRetrievalSettings config
     ) {
         return Behaviors.setup(ctx -> Behaviors.receive(Command.class)
             .onMessage(GatherComponentsForArtifact.class, cmd -> {
                 config.filesToIndex.forEach(fileType -> ctx.ask(
                     ChildResponse.class,
                     gathererRef,
-                    Duration.ofMinutes(10),
+                    config.timeout,
                     ref -> new StartRequest(cmd.coordinates, fileType, ref, cmd.replyTo),
                     (response, throwable) -> {
                         if (throwable != null) {
@@ -203,11 +206,11 @@ public final class VersionedComponentWorker {
     }
 
     private static Behavior<Gather> idleFetcher(
-        final AssetRetrievalSettings config,
+        final AssetSettingsExtension.AssetRetrievalSettings config,
         final ObjectMapper playMapper
     ) {
         return Behaviors.setup(ctx -> {
-            final var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
+            final var client = HttpClient.newBuilder().connectTimeout(config.timeout)
                 .executor(ctx.getExecutionContext())
                 .build();
             return Behaviors.receive(Gather.class)

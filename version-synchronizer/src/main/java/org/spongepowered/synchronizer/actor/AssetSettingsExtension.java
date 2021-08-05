@@ -22,23 +22,48 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.synchronizer.resync;
+package org.spongepowered.synchronizer.actor;
 
 import akka.actor.AbstractExtensionId;
 import akka.actor.ExtendedActorSystem;
+import akka.actor.Extension;
 import akka.actor.ExtensionIdProvider;
+import com.typesafe.config.Config;
+import io.vavr.collection.List;
 
-class ResyncExtension extends AbstractExtensionId<ResyncSettings>
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+
+class AssetSettingsExtension extends AbstractExtensionId<AssetSettingsExtension.AssetRetrievalSettings>
     implements ExtensionIdProvider {
-    public static final ResyncExtension SettingsProvider = new ResyncExtension();
+    public static final AssetSettingsExtension SettingsProvider = new AssetSettingsExtension();
 
     @Override
-    public ResyncSettings createExtension(final ExtendedActorSystem system) {
-        return new ResyncSettings(system.settings().config().getConfig("systemofadownload.synchronizer.worker.resync"));
+    public AssetRetrievalSettings createExtension(final ExtendedActorSystem system) {
+        return new AssetRetrievalSettings(
+            system.settings().config().getConfig("systemofadownload.synchronizer.worker.assets"));
     }
 
     @Override
-    public ResyncExtension lookup() {
+    public AssetSettingsExtension lookup() {
         return SettingsProvider;
+    }
+
+    public static class AssetRetrievalSettings implements Extension {
+        public final String repository;
+        public final Duration timeout;
+        public final int retryCount;
+        public final List<String> filesToIndex;
+        public final int poolSize;
+
+        public AssetRetrievalSettings(Config config) {
+            this.repository = config.getString("repository");
+            this.retryCount = config.getInt("retry");
+            final var seconds = config.getDuration("timeout", TimeUnit.SECONDS);
+            this.timeout = Duration.ofSeconds(seconds);
+            final var stringList = config.getStringList("files-to-index");
+            this.filesToIndex = List.ofAll(stringList);
+            this.poolSize = config.getInt("pool-size");
+        }
     }
 }

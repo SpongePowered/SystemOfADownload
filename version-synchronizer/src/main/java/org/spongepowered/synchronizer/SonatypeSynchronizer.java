@@ -75,7 +75,7 @@ public final class SonatypeSynchronizer {
         final ObjectMapper mapper
     ) {
         return Behaviors.setup(context -> {
-            final AssetRetrievalSettings settings = WorkerSettingsExtension.SettingsProvider.get(context.getSystem());
+            final var settings = SynchronizationExtension.SettingsProvider.get(context.getSystem());
             clusterSharding
                 .init(
                     Entity.of(
@@ -83,16 +83,23 @@ public final class SonatypeSynchronizer {
                         ArtifactSynchronizerAggregate::create
                     )
                 );
+            // region Synchronize Artifact Versions from Maven
+
             final var syncWorkerBehavior = ArtifactSyncWorker.create(versionsService, clusterSharding);
-            final var pool = Routers.pool(4, syncWorkerBehavior);
+            final var pool = Routers.pool(
+                settings.reactiveSync.poolSize,
+                syncWorkerBehavior
+            );
 
             final var registrationRef = context.spawn(
                 pool,
                 "group-event-subscriber",
                 DispatcherSelector.defaultDispatcher()
             );
-            final Flow<GroupUpdate, Done, NotUsed> actorAsk = ActorFlow.ask(4,
-                registrationRef, Duration.ofMinutes(4), (g, b) -> {
+            final Flow<GroupUpdate, Done, NotUsed> actorAsk = ActorFlow.ask(
+                settings.reactiveSync.parallelism,
+                registrationRef, settings.reactiveSync.timeOut,
+                (g, b) -> {
                     if (!(g instanceof GroupUpdate.ArtifactRegistered a)) {
                         return new ArtifactSyncWorker.Ignored(b);
                     }
@@ -102,20 +109,24 @@ public final class SonatypeSynchronizer {
             artifactService.groupTopic()
                 .subscribe()
                 .atLeastOnce(actorAsk);
+            // endregion
 
+            // region Synchronize Versioned Assets through Sonatype Search
             final var componentPool = Routers.pool(
-                4,
-                Behaviors.supervise(VersionedComponentWorker.gatherComponents(versionsService, settings, mapper))
-                    .onFailure(
-                        SupervisorStrategy.restartWithBackoff(Duration.ofMinutes(1), Duration.ofMinutes(10), 0.1))
+                settings.asset.poolSize,
+                Behaviors.supervise(VersionedComponentWorker.gatherComponents(versionsService, mapper))
+                    .onFailure(settings.asset.backoff)
             );
             final var componentRef = context.spawn(
                 componentPool,
                 "version-component-registration",
                 DispatcherSelector.defaultDispatcher()
             );
-            final Flow<ArtifactUpdate, Done, NotUsed> versionedFlow = ActorFlow.ask(4,
-                componentRef, Duration.ofMinutes(4), (g, b) -> {
+            final Flow<ArtifactUpdate, Done, NotUsed> versionedFlow = ActorFlow.ask(
+                settings.asset.parallelism,
+                componentRef,
+                settings.asset.timeout,
+                (g, b) -> {
                     if (!(g instanceof ArtifactUpdate.ArtifactVersionRegistered a)) {
                         return new VersionedComponentWorker.Ignored(b);
                     }
@@ -125,12 +136,12 @@ public final class SonatypeSynchronizer {
             versionsService.artifactUpdateTopic()
                 .subscribe()
                 .atLeastOnce(versionedFlow);
+            // endregion
 
-            // subscribe to the topic
+            // Scheduled full resynchronization with maven and therefor sonatype
             return Behaviors.withTimers(timers -> {
-                timers.startTimerWithFixedDelay(
-                    new GatherGroupArtifacts(), Duration.ofMinutes(5));
-                timers.startSingleTimer(new GatherGroupArtifacts(), Duration.ofMinutes(1));
+                timers.startTimerWithFixedDelay(new GatherGroupArtifacts(), settings.versionSync.interval);
+                timers.startSingleTimer(new GatherGroupArtifacts(), settings.versionSync.startupDelay);
                 return timedSync(artifactService, versionsService, clusterSharding);
             });
         });
@@ -145,13 +156,12 @@ public final class SonatypeSynchronizer {
         return Behaviors.setup((ctx) -> {
             final var dispatch = DispatcherSelector.defaultDispatcher();
             final int i = integer.incrementAndGet();
-            final var requesterPool = Routers.pool(4, RequestArtifactsToSync.create(artifactService));
             final var requester = ctx.spawn(
-                requesterPool,
+                Behaviors.supervise(RequestArtifactsToSync.create(artifactService)).onFailure(
+                    SupervisorStrategy.restart()),
                 String.format("requester-%d-%d", i, System.currentTimeMillis()),
                 dispatch
             );
-
             final var artifactSyncPool = Routers.pool(
                 4,
                 ArtifactSyncWorker.create(versionsService, clusterSharding)

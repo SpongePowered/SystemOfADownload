@@ -22,23 +22,50 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.synchronizer;
+package org.spongepowered.synchronizer.actor;
 
 import akka.actor.AbstractExtensionId;
 import akka.actor.ExtendedActorSystem;
+import akka.actor.Extension;
+import akka.actor.ExtensionId;
 import akka.actor.ExtensionIdProvider;
+import com.typesafe.config.Config;
 
-class WorkerSettingsExtension extends AbstractExtensionId<AssetRetrievalSettings>
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+
+public class ArtifactSyncExtension extends AbstractExtensionId<ArtifactSyncExtension.Settings>
     implements ExtensionIdProvider {
-    public static final WorkerSettingsExtension SettingsProvider = new WorkerSettingsExtension();
+
+    public static final ArtifactSyncExtension SettingsProvider = new ArtifactSyncExtension();
 
     @Override
-    public AssetRetrievalSettings createExtension(final ExtendedActorSystem system) {
-        return new AssetRetrievalSettings(system.settings().config());
+    public Settings createExtension(final ExtendedActorSystem system) {
+        return new Settings(
+            system.settings().config().getConfig("systemofadownload.synchronizer.worker.version-registration"));
     }
 
+
     @Override
-    public WorkerSettingsExtension lookup() {
+    public ExtensionId<? extends Extension> lookup() {
         return SettingsProvider;
+    }
+
+    public static final class Settings implements Extension {
+
+        public final int poolSize;
+        public final int versionFanoutParallelism;
+        public final int parallelism;
+        public final Duration timeOut;
+        public final Duration individualTimeOut;
+
+        public Settings(Config config) {
+            this.poolSize = config.getInt("pool-size");
+            this.versionFanoutParallelism = config.getInt("fan-out-parallelism");
+            this.parallelism = config.getInt("parallelism");
+            this.timeOut = Duration.ofSeconds(config.getDuration("time-out", TimeUnit.SECONDS));
+            this.individualTimeOut = Duration.ofSeconds(config.getDuration("registration-time-out", TimeUnit.SECONDS));
+
+        }
     }
 }

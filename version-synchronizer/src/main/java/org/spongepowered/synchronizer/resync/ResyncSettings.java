@@ -37,11 +37,9 @@ public class ResyncSettings implements Extension {
     public final String agentName;
 
     public ResyncSettings(Config config) {
-        this.repository = config.getString("systemofadownload.synchronizer.resync.repository");
-        this.retryCount = config.getInt("systemofadownload.synchronizer.resync.retry");
-        final var seconds = config.getDuration(
-            "systemofadownload.synchronizer.resync.timeout", TimeUnit.SECONDS);
-        this.agentName = config.getString("systemofadownload.synchronizer.resync.agent-name");
-        this.timeout = Duration.ofSeconds(seconds);
+        this.repository = config.getString("repository");
+        this.retryCount = config.getInt("retry");
+        this.agentName = config.getString("agent-name");
+        this.timeout = Duration.ofSeconds(config.getDuration("timeout", TimeUnit.SECONDS));
     }
 }

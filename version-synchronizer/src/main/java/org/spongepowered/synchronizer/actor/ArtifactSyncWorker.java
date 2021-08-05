@@ -54,7 +54,6 @@ import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import org.spongepowered.synchronizer.resync.ArtifactSynchronizerAggregate;
 import org.spongepowered.synchronizer.resync.Resync;
 
-import java.time.Duration;
 import java.util.stream.IntStream;
 
 public final class ArtifactSyncWorker {
@@ -95,9 +94,10 @@ public final class ArtifactSyncWorker {
         final ClusterSharding clusterSharding
     ) {
         return Behaviors.setup(ctx -> {
+            final ArtifactSyncExtension.Settings settings = ArtifactSyncExtension.SettingsProvider.get(ctx.getSystem());
             final var dispatch = DispatcherSelector.defaultDispatcher();
             final var pool = Routers.pool(
-                4,
+                settings.poolSize,
                 Behaviors.supervise(registerNewVersion(versionService)).onFailure(SupervisorStrategy.restart())
             );
             final var registrationRef = ctx.spawn(
@@ -106,31 +106,29 @@ public final class ArtifactSyncWorker {
                 dispatch
             );
             final var flow = ActorFlow.ask(
-                4, registrationRef, Duration.ofSeconds(20),
+                settings.versionFanoutParallelism, registrationRef, settings.timeOut,
                 RequestSingleRegistration::new
             );
 
             final Flow<MavenCoordinates, NotUsed, NotUsed> fanOutVersions = Flow.fromGraph(
                 GraphDSL.create(b -> {
                     final UniformFanOutShape<MavenCoordinates, MavenCoordinates> balance = b.add(
-                        Balance.create(PARALLELISM));
-                    final UniformFanInShape<NotUsed, NotUsed> merge = b.add(Merge.create(PARALLELISM));
-                    IntStream.range(0, PARALLELISM)
+                        Balance.create(settings.parallelism));
+                    final UniformFanInShape<NotUsed, NotUsed> merge = b.add(Merge.create(settings.parallelism));
+                    IntStream.range(0, settings.parallelism)
                         .forEach(i -> b.from(balance.out(i))
-                            .via(b.add(
-                                flow.async().log(String.format("artifact-version-sync-worker-%d", i))))
+                            .via(b.add(flow.async()))
                             .toInlet(merge.in(i)));
                     return FlowShape.of(balance.in(), merge.out());
                 }));
-            return awaiting(clusterSharding, fanOutVersions);
+            return awaiting(clusterSharding, fanOutVersions, settings);
         });
     }
 
-    private static final int PARALLELISM = 16;
-
     private static Behavior<Command> awaiting(
         final ClusterSharding clusterSharding,
-        final Flow<MavenCoordinates, NotUsed, NotUsed> fanOutVersions
+        final Flow<MavenCoordinates, NotUsed, NotUsed> fanOutVersions,
+        final ArtifactSyncExtension.Settings settings
     ) {
         return Behaviors.setup(ctx -> Behaviors.receive(Command.class)
             .onMessage(PerformResync.class, msg -> {
@@ -140,7 +138,7 @@ public final class ArtifactSyncWorker {
                             msg.coordinates.groupId + ":" + msg.coordinates.artifactId
                         )
                         .<List<MavenCoordinates>>ask(
-                            replyTo -> new Resync(msg.coordinates, replyTo), Duration.ofMinutes(3)),
+                            replyTo -> new Resync(msg.coordinates, replyTo), settings.individualTimeOut),
                     (ok, exception) -> {
                         if (exception != null) {
                             ctx.getLog().error("Failed to resync by maven coordinates, may ask again", exception);
@@ -158,19 +156,19 @@ public final class ArtifactSyncWorker {
                         return new WrappedResult(msg.replyTo);
                     }
                 );
-                return awaiting(clusterSharding, fanOutVersions);
+                return awaiting(clusterSharding, fanOutVersions, settings);
             })
             .onMessage(WrappedResult.class, msg -> {
                 msg.replyTo.tell(Done.done());
-                return awaiting(clusterSharding, fanOutVersions);
+                return awaiting(clusterSharding, fanOutVersions, settings);
             })
             .onMessage(Ignored.class, msg -> {
                 msg.replyTo.tell(Done.done());
-                return awaiting(clusterSharding, fanOutVersions);
+                return awaiting(clusterSharding, fanOutVersions, settings);
             })
             .onMessage(Failed.class, msg -> {
                 msg.replyTo.tell(Done.done());
-                return awaiting(clusterSharding, fanOutVersions);
+                return awaiting(clusterSharding, fanOutVersions, settings);
             })
             .build());
     }

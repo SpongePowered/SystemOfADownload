@@ -24,26 +24,24 @@
  */
 package org.spongepowered.synchronizer;
 
+import akka.actor.AbstractExtensionId;
+import akka.actor.ExtendedActorSystem;
 import akka.actor.Extension;
-import com.typesafe.config.Config;
-import io.vavr.collection.List;
+import akka.actor.ExtensionId;
+import akka.actor.ExtensionIdProvider;
 
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
+public class SynchronizationExtension extends AbstractExtensionId<SynchronizerSettings> implements ExtensionIdProvider {
 
-public class AssetRetrievalSettings implements Extension {
-    public final String repository;
-    public final Duration timeout;
-    public final int retryCount;
-    public final List<String> filesToIndex;
+    public static final SynchronizationExtension SettingsProvider = new SynchronizationExtension();
 
-    public AssetRetrievalSettings(Config config) {
-        this.repository = config.getString("systemofadownload.synchronizer.worker.assets.repository");
-        this.retryCount = config.getInt("systemofadownload.synchronizer.worker.assets.retry");
-        final var seconds = config.getDuration(
-            "systemofadownload.synchronizer.worker.assets.timeout", TimeUnit.SECONDS);
-        this.timeout = Duration.ofSeconds(seconds);
-        final var stringList = config.getStringList("systemofadownload.synchronizer.worker.assets.files-to-index");
-        this.filesToIndex = List.ofAll(stringList);
+    @Override
+    public SynchronizerSettings createExtension(final ExtendedActorSystem system) {
+        return new SynchronizerSettings(system.settings().config().getConfig("systemofadownload.synchronizer"));
+    }
+
+
+    @Override
+    public ExtensionId<? extends Extension> lookup() {
+        return SettingsProvider;
     }
 }
