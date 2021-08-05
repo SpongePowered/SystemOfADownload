@@ -33,6 +33,10 @@
             <artifactId>pac4j-jwt</artifactId>
             <version>${pac4j.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.typesafe</groupId>
+            <artifactId>config</artifactId>
+        </dependency>
     </dependencies>
 
 </project>

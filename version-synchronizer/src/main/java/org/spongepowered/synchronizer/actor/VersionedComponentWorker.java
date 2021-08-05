@@ -109,7 +109,8 @@ public final class VersionedComponentWorker {
                 "search-versioned-components",
                 assetDispatcher
             );
-            final var assetRegisters = Routers.pool(config.poolSize, registerAssets(service));
+            final var auth = AuthUtils.configure(ctx.getSystem().settings().config());
+            final var assetRegisters = Routers.pool(config.poolSize, registerAssets(service, auth));
             final var assetRegistersRef = ctx.spawn(
                 Behaviors.supervise(assetRegisters).onFailure(SupervisorStrategy.restart()),
                 "versioned-asset-register",
@@ -312,7 +313,8 @@ public final class VersionedComponentWorker {
     }
 
     private static Behavior<Registrar> registerAssets(
-        final VersionsService service
+        final VersionsService service,
+        final AuthUtils auth
     ) {
         return Behaviors.setup(ctx -> Behaviors.receive(Registrar.class)
             .onMessage(AttemptRegistration.class, registration -> {
@@ -339,8 +341,8 @@ public final class VersionedComponentWorker {
                         registration.coordinates.groupId,
                         registration.coordinates.artifactId
                     ).handleRequestHeader(request -> request.withHeader(
-                        AuthUtils.INTERNAL_HEADER_KEY,
-                        AuthUtils.INTERNAL_HEADER_SECRET
+                        auth.internalHeaderKey(),
+                        auth.internalHeaderSecret()
                     ))
                     .invoke(new VersionRegistration.Register.Collection(collection));
 

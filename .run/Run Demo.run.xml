@@ -5,30 +5,18 @@
       <option name="myRunnerSettings">
         <MavenRunnerSettings>
           <option name="delegateBuildToMaven" value="false" />
-          <option name="environmentProperties">
-            <map>
-              <entry key="INTERNAL_HEADER" value="Pxg9YarPtLiJf2*dHVULKNkm*p7dR-Y_E!MVsp9Z6rBj" />
-              <entry key="INTERNAL_KEY" value="2ZpX4gzDh-x!oJMEDHgvziiGWbTMiyLCFWE4pn7NRW2Ed" />
-              <entry key="JWT-SIGNATURE-SECRET" value="12345678901234567890123456789012" />
-              <entry key="LDAP_BASE_USER_DN" value="ou=Users,dc=example,dc=com" />
-              <entry key="LDAP_URL" value="ldap://localhost:10389" />
-              <entry key="PUBLIC-REPO" value="maven-public" />
-              <entry key="RELEASE-REPO" value="maven-releases" />
-              <entry key="SNAPSHOT-REPO" value="maven-snapshots" />
-              <entry key="SONATYPE-URL" value="https://repo.spongepowered.org/service/rest/v1/" />
-              <entry key="SONATYPE_PASSWORD" value="OURM2psol@mopt!dwok" />
-              <entry key="SONATYPE_USERNAME" value="admin" />
-              <entry key="USE_DUMMY_LDAP" value="true" />
-            </map>
-          </option>
-          <option name="jreName" value="#USE_PROJECT_JDK" />
-          <option name="mavenProperties">
-            <map />
-          </option>
-          <option name="passParentEnv" value="true" />
-          <option name="runMavenInBackground" value="true" />
-          <option name="skipTests" value="false" />
-          <option name="vmOptions" value="--enable-preview --illegal-access=permit -XX:+FlightRecorder" />
+            <option name="environmentProperties">
+                <map/>
+            </option>
+            <option name="jreName" value="#USE_PROJECT_JDK"/>
+            <option name="mavenProperties">
+                <map/>
+            </option>
+            <option name="passParentEnv" value="false"/>
+            <option name="runMavenInBackground" value="true"/>
+            <option name="skipTests" value="false"/>
+            <option name="vmOptions"
+                    value="--enable-preview --illegal-access=permit -Dsystemofadownload.auth.use-dummy-ldap=true -Dsystemofadownload.auth.secrets.internal-header=2ZpX4gzDh-x!oJMEDHgvziiGWbTMiyLCFWE4pn7NRW2Ed -Dsystemofadownload.auth.secrets.internal-secret=Pxg9YarPtLiJf2*dHVULKNkm*p7dR-Y_E!MVsp9Z6rBj"/>
         </MavenRunnerSettings>
       </option>
       <option name="myRunnerParameters">

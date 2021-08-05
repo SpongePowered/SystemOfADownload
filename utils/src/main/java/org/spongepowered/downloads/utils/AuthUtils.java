@@ -44,77 +44,85 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 
-public final class AuthUtils {
-
-    private static final String ENCRYPTION_SECRET = System.getenv("JWT-ENCRYPTION-SECRET");
-    private static final String SIGNATURE_SECRET = System.getenv("JWT-SIGNATURE-SECRET");
-    private static final String NEXUS_WEBHOOK_SECRET = System.getenv("NEXUS_WEBHOOK_SECRET");
-    public static final String INTERNAL_HEADER_SECRET = System.getenv("INTERNAL_KEY");
-    public static final String INTERNAL_HEADER_KEY = System.getenv("INTERNAL_HEADER");
+public final record AuthUtils(String encryptionSecret, String signatureSecret,
+                              String nexusWebhookSecret, String internalHeaderSecret,
+                              String internalHeaderKey) {
 
     @SuppressWarnings("rawtypes")
-    public static Config createConfig(final Client... additionalClients) {
-        final var jwtClient = AuthUtils.createJwtClient();
+    public Config config(final Client... additionalClients) {
+        final var jwtClient = this.createJwtClient();
         final var config = new Config(List.<Client>of(jwtClient).appendAll(List.of(additionalClients)).asJava());
         config.getClients().setDefaultSecurityClients(jwtClient.getName());
-        AuthUtils.setAuthorizers(config);
+        this.setAuthorizers(config);
         return config;
     }
 
-    public static DirectClient<TokenCredentials, CommonProfile> createJwtClient() {
+
+    private DirectClient<TokenCredentials, CommonProfile> createJwtClient() {
         final var headerClient = new HeaderClient();
         headerClient.setName(AuthUtils.Types.JWT);
         headerClient.setHeaderName(HttpConstants.AUTHORIZATION_HEADER);
         headerClient.setPrefixHeader(HttpConstants.BEARER_HEADER_PREFIX);
 
         final var jwtAuthenticator = new JwtAuthenticator();
-        if (AuthUtils.SIGNATURE_SECRET != null) {
-            jwtAuthenticator.addSignatureConfiguration(AuthUtils.getSignatureConfiguration());
+        if (!this.signatureSecret.isBlank()) {
+            jwtAuthenticator.addSignatureConfiguration(this.getSignatureConfiguration());
         }
-        if (AuthUtils.ENCRYPTION_SECRET != null) {
-            jwtAuthenticator.addEncryptionConfiguration(AuthUtils.getEncryptionConfiguration());
+        if (!this.encryptionSecret.isBlank()) {
+            jwtAuthenticator.addEncryptionConfiguration(this.getEncryptionConfiguration());
         }
         headerClient.setAuthenticator(jwtAuthenticator); // this should provide the correct profile automagically.
         headerClient.setName(AuthUtils.Types.JWT);
         return headerClient;
     }
 
-    public static JwtGenerator<CommonProfile> createJwtGenerator() {
+    public JwtGenerator<CommonProfile> createJwtGenerator() {
         final var generator = new JwtGenerator<>();
-        if (AuthUtils.SIGNATURE_SECRET != null) {
-            generator.setSignatureConfiguration(AuthUtils.getSignatureConfiguration());
+        if (!this.signatureSecret.isBlank()) {
+            generator.setSignatureConfiguration(this.getSignatureConfiguration());
         }
-        if (AuthUtils.ENCRYPTION_SECRET != null) {
-            generator.setEncryptionConfiguration(AuthUtils.getEncryptionConfiguration());
+        if (!this.encryptionSecret.isBlank()) {
+            generator.setEncryptionConfiguration(this.getEncryptionConfiguration());
         }
         generator.setExpirationTime(Date.from(Instant.now().plus(10, ChronoUnit.MINUTES)));
         return generator;
     }
 
-    public static void setAuthorizers(final Config config) {
+    private void setAuthorizers(final Config config) {
         config.addAuthorizer(Roles.ADMIN, Authorizers.ADMIN);
         config.addAuthorizer(Roles.WEBHOOK, Authorizers.WEBHOOK);
     }
 
-    private static EncryptionConfiguration getEncryptionConfiguration() {
-        return new SecretEncryptionConfiguration(AuthUtils.ENCRYPTION_SECRET);
+    private EncryptionConfiguration getEncryptionConfiguration() {
+        return new SecretEncryptionConfiguration(this.encryptionSecret);
     }
 
-    private static SignatureConfiguration getSignatureConfiguration() {
-        return new SecretSignatureConfiguration(AuthUtils.SIGNATURE_SECRET);
+    private SignatureConfiguration getSignatureConfiguration() {
+        return new SecretSignatureConfiguration(this.signatureSecret);
     }
 
-    private static SignatureConfiguration getSonatypeSignatureConfiguration() {
-        return new SecretSignatureConfiguration(AuthUtils.NEXUS_WEBHOOK_SECRET);
+    private SignatureConfiguration getSonatypeSignatureConfiguration() {
+        return new SecretSignatureConfiguration(this.nexusWebhookSecret);
     }
 
-    private AuthUtils() {}
+    public static AuthUtils configure(com.typesafe.config.Config config) {
+        final var authConfig = config.getConfig("systemofadownload.auth.secrets");
+        final var encryptionSecret = authConfig.getString("encryption");
+        final var signatureSecret = authConfig.getString("signature");
+        final var nexusWebhookSecret = authConfig.getString("nexus-webhook");
+        final var internalHeaderKey = authConfig.getString("internal-header");
+        final var internalHeaderSecret = authConfig.getString("internal-secret");
+        return new AuthUtils(
+            encryptionSecret, signatureSecret, nexusWebhookSecret, internalHeaderSecret, internalHeaderKey);
+    }
 
     static final class Authorizers {
         static final Authorizer<CommonProfile> ADMIN =
-                (webContext, list) -> list.stream().anyMatch(x -> !x.isExpired() && x.getRoles().contains(AuthUtils.Roles.ADMIN));
+            (webContext, list) -> list.stream().anyMatch(
+                x -> !x.isExpired() && x.getRoles().contains(AuthUtils.Roles.ADMIN));
         static final Authorizer<CommonProfile> WEBHOOK =
-                (webContext, list) -> list.stream().anyMatch(x -> !x.isExpired() && x.getRoles().contains(AuthUtils.Roles.WEBHOOK));
+            (webContext, list) -> list.stream().anyMatch(
+                x -> !x.isExpired() && x.getRoles().contains(AuthUtils.Roles.WEBHOOK));
     }
 
     public static final class Types {

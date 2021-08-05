@@ -72,17 +72,20 @@ public class VersionsServiceImpl implements VersionsService,
     private final ClusterSharding clusterSharding;
     private final ArtifactService artifactService;
     private final Duration streamTimeout = Duration.ofSeconds(30);
+    private final AuthUtils auth;
 
     @Inject
     public VersionsServiceImpl(
         final ClusterSharding clusterSharding,
         final ArtifactService artifactService,
         final PersistentEntityRegistry persistentEntityRegistry,
-        @SOADAuth final Config securityConfig
+        @SOADAuth final Config securityConfig,
+        final AuthUtils auth
     ) {
         this.clusterSharding = clusterSharding;
         this.persistentEntityRegistry = persistentEntityRegistry;
         this.securityConfig = securityConfig;
+        this.auth = auth;
 
         this.clusterSharding.init(
             Entity.of(
@@ -258,5 +261,10 @@ public class VersionsServiceImpl implements VersionsService,
     private EntityRef<ACCommand> getCollection(final String groupId, final String artifactId) {
         return this.clusterSharding.entityRefFor(
             VersionedArtifactAggregate.ENTITY_TYPE_KEY, groupId + ":" + artifactId);
+    }
+
+    @Override
+    public AuthUtils auth() {
+        return this.auth;
     }
 }

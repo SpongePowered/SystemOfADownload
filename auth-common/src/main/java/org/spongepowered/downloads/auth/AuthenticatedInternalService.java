@@ -42,15 +42,22 @@ public interface AuthenticatedInternalService extends SecuredService {
         final Function<CommonProfile, ServerServiceCall<Request, Response>> serviceCall
     ) {
         return HeaderServiceCall.compose(requestHeader ->
-            requestHeader.getHeader(AuthUtils.INTERNAL_HEADER_KEY)
-                .filter(header -> header.equals(AuthUtils.INTERNAL_HEADER_SECRET))
+            requestHeader.getHeader(auth().internalHeaderKey())
+                .filter(header -> header.equals(auth().internalHeaderSecret()))
                 .map(verified -> new InternalApplicationProfile())
                 .map(serviceCall)
                 .orElseGet(() -> SecuredService.super.authorize(clientName, authorizerName, serviceCall))
         );
     }
 
-    default <Request, Response> ServiceCall<Request, Response> authorizeInvoke(final ServiceCall<Request, Response> call) {
-        return call.handleRequestHeader(requestHeader -> requestHeader.withHeader(AuthUtils.INTERNAL_HEADER_KEY, AuthUtils.INTERNAL_HEADER_SECRET));
+    default <Request, Response> ServiceCall<Request, Response> authorizeInvoke(
+        final ServiceCall<Request, Response> call
+    ) {
+        return call.handleRequestHeader(requestHeader -> requestHeader.withHeader(
+            this.auth().internalHeaderKey(),
+            this.auth().internalHeaderSecret()
+        ));
     }
+
+    AuthUtils auth();
 }

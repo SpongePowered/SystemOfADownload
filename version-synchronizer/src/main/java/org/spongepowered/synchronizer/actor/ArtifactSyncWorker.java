@@ -96,9 +96,10 @@ public final class ArtifactSyncWorker {
         return Behaviors.setup(ctx -> {
             final ArtifactSyncExtension.Settings settings = ArtifactSyncExtension.SettingsProvider.get(ctx.getSystem());
             final var dispatch = DispatcherSelector.defaultDispatcher();
+            final AuthUtils auth = AuthUtils.configure(ctx.getSystem().settings().config());
             final var pool = Routers.pool(
                 settings.poolSize,
-                Behaviors.supervise(registerNewVersion(versionService)).onFailure(SupervisorStrategy.restart())
+                Behaviors.supervise(registerNewVersion(versionService, auth)).onFailure(SupervisorStrategy.restart())
             );
             final var registrationRef = ctx.spawn(
                 pool,
@@ -191,7 +192,8 @@ public final class ArtifactSyncWorker {
     }
 
     private static Behavior<Child> registerNewVersion(
-        final VersionsService versionsService
+        final VersionsService versionsService,
+        final AuthUtils auth
     ) {
         return Behaviors.setup(ctx -> Behaviors.receive(Child.class)
             .onMessage(RequestSingleRegistration.class, msg -> {
@@ -199,8 +201,8 @@ public final class ArtifactSyncWorker {
                     versionsService.registerArtifactCollection(msg.coordinates.groupId, msg.coordinates.artifactId)
                         .handleRequestHeader(
                             requestHeader -> requestHeader.withHeader(
-                                AuthUtils.INTERNAL_HEADER_KEY,
-                                AuthUtils.INTERNAL_HEADER_SECRET
+                                auth.internalHeaderKey(),
+                                auth.internalHeaderSecret()
                             ))
                         .invoke(new VersionRegistration.Register.Version(msg.coordinates)),
                     (ok, failure) -> {

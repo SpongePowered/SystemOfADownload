@@ -55,7 +55,7 @@ import play.Environment;
 
 import java.time.Duration;
 import java.util.Collection;
-import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 // See: https://github.com/pac4j/lagom-pac4j-java-demo
 //
@@ -70,17 +70,31 @@ import java.util.Objects;
 // JWTs should be short lived anyway.
 public final class AuthModule extends AbstractModule implements ServiceGuiceSupport {
 
-    private final boolean useDummyCredentials = Objects.requireNonNullElse(System.getenv("USE_DUMMY_LDAP"), "false").equalsIgnoreCase("true");
-    private final String ldapUrl = Objects.requireNonNullElse(System.getenv("LDAP_URL"), "ldap://localhost:389");
-    private final String ldapBaseUserDn = Objects.requireNonNullElse(System.getenv("LDAP_BASE_USER_DN"), "dc=spongepowered,dc=org");
-    private final String ldapSoadOu = Objects.requireNonNullElse(System.getenv("LDAP_SOAD_OU"), "soad");
+    private final boolean useDummyCredentials;
+    private final String ldapUrl;
+    private final String ldapBaseUserDn;
+    private final String ldapSoadOu;
+
+    private final Duration connectionTimeout;
+    private final Duration responseTimeout;
+    private final Duration blockWaitTime;
 
     private final Environment environment;
     private final com.typesafe.config.Config config;
+    private final AuthUtils auth;
 
     public AuthModule(final Environment environment, final com.typesafe.config.Config config) {
         this.environment = environment;
-        this.config = config;
+        this.config = config.getConfig("systemofadownload.auth");
+        final var ldap = this.config.getConfig("ldap");
+        this.useDummyCredentials = this.config.getBoolean("use-dummy-ldap");
+        this.ldapUrl = ldap.getString("url");
+        this.ldapBaseUserDn = ldap.getString("base-user-on");
+        this.ldapSoadOu = ldap.getString("soad-ou");
+        this.connectionTimeout = Duration.ofMillis(ldap.getDuration("connection-timeout", TimeUnit.MILLISECONDS));
+        this.responseTimeout = Duration.ofSeconds(ldap.getDuration("response-timeout", TimeUnit.SECONDS));
+        this.blockWaitTime = Duration.ofSeconds(ldap.getDuration("wait-time", TimeUnit.SECONDS));
+        this.auth = AuthUtils.configure(config);
     }
 
     @Override
@@ -119,8 +133,8 @@ public final class AuthModule extends AbstractModule implements ServiceGuiceSupp
             final var dnResolver = new FormatDnResolver();
             dnResolver.setFormat("cn=%s," + this.ldapBaseUserDn);
             final var connectionConfig = new ConnectionConfig();
-            connectionConfig.setConnectTimeout(Duration.ofMillis(500));
-            connectionConfig.setResponseTimeout(Duration.ofSeconds(1));
+            connectionConfig.setConnectTimeout(this.connectionTimeout);
+            connectionConfig.setResponseTimeout(this.responseTimeout);
             connectionConfig.setLdapUrl(this.ldapUrl);
             final var connectionFactory = new DefaultConnectionFactory();
             connectionFactory.setConnectionConfig(connectionConfig);
@@ -134,7 +148,7 @@ public final class AuthModule extends AbstractModule implements ServiceGuiceSupp
             final var pruneStrategy = new IdlePruneStrategy();
             final var connectionPool = new BlockingConnectionPool();
             connectionPool.setPoolConfig(poolConfig);
-            connectionPool.setBlockWaitTime(Duration.ofSeconds(1));
+            connectionPool.setBlockWaitTime(this.blockWaitTime);
             connectionPool.setValidator(searchValidator);
             connectionPool.setPruneStrategy(pruneStrategy);
             connectionPool.setConnectionFactory(connectionFactory);
@@ -176,13 +190,13 @@ public final class AuthModule extends AbstractModule implements ServiceGuiceSupp
     @Provides
     @SOADAuth
     protected JwtGenerator<CommonProfile> provideJwtGenerator() {
-        return AuthUtils.createJwtGenerator();
+        return this.auth.createJwtGenerator();
     }
 
     @Provides
     @SOADAuth
     protected Config configProvider(@Named(AuthService.Providers.LDAP) final DirectClient<UsernamePasswordCredentials, CommonProfile> ldapClient) {
-        return AuthUtils.createConfig(ldapClient);
+        return this.auth.config(ldapClient);
     }
 
 }

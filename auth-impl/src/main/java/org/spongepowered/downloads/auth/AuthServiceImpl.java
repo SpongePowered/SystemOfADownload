@@ -38,25 +38,32 @@ import org.spongepowered.downloads.utils.AuthUtils;
 import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
 
 import java.sql.Date;
+import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 public final class AuthServiceImpl extends AbstractOpenAPIService implements AuthService, SecuredService {
 
     private final Config securityConfig;
     private final JwtGenerator<CommonProfile> profileJwtGenerator;
+    private final Duration expirationTime;
 
     @Inject
-    public AuthServiceImpl(@SOADAuth final Config config, @SOADAuth final JwtGenerator<CommonProfile> profileJwtGenerator) {
+    public AuthServiceImpl(
+        @SOADAuth final Config config, @SOADAuth final JwtGenerator<CommonProfile> profileJwtGenerator,
+        com.typesafe.config.Config applicationConfig
+    ) {
         this.securityConfig = config;
         this.profileJwtGenerator = profileJwtGenerator;
+        this.expirationTime = Duration.ofSeconds(
+            applicationConfig.getDuration("systemofadownload.auth.expiration", TimeUnit.SECONDS));
     }
 
     @Override
     public ServiceCall<NotUsed, AuthenticationRequest.Response> login() {
         return this.authorize(Providers.LDAP, AuthUtils.Roles.ADMIN, profile -> {
-            this.profileJwtGenerator.setExpirationTime(Date.from(Instant.now().plus(5, ChronoUnit.MINUTES)));
+            this.profileJwtGenerator.setExpirationTime(Date.from(Instant.now().plus(this.expirationTime)));
             return notUsed -> CompletableFuture.completedFuture(new AuthenticationRequest.Response(this.profileJwtGenerator.generate(profile)));
         });
     }

@@ -41,10 +41,12 @@ public class VersionsModule extends AbstractModule implements ServiceGuiceSuppor
 
     private final Environment environment;
     private final com.typesafe.config.Config config;
+    private final AuthUtils auth;
 
     public VersionsModule(final Environment environment, final com.typesafe.config.Config config) {
         this.environment = environment;
         this.config = config;
+        this.auth = AuthUtils.configure(config);
     }
 
     @Override
@@ -61,7 +63,12 @@ public class VersionsModule extends AbstractModule implements ServiceGuiceSuppor
     @Provides
     @SOADAuth
     protected Config configProvider() {
-        return AuthUtils.createConfig();
+        return this.auth.config();
+    }
+
+    @Provides
+    protected AuthUtils authProvider() {
+        return this.auth;
     }
 
 }

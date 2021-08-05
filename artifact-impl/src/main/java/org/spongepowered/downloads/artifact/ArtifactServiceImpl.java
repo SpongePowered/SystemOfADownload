@@ -75,15 +75,18 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
     private final Config securityConfig;
     private final ClusterSharding clusterSharding;
     private final PersistentEntityRegistry persistentEntityRegistry;
+    private final AuthUtils auth;
 
     @Inject
     public ArtifactServiceImpl(
         final ClusterSharding clusterSharding,
         final PersistentEntityRegistry persistentEntityRegistry,
+        final AuthUtils auth,
         @SOADAuth final Config securityConfig
     ) {
         this.clusterSharding = clusterSharding;
         this.securityConfig = securityConfig;
+        this.auth = auth;
         this.clusterSharding.init(
             Entity.of(
                 GroupEntity.ENTITY_TYPE_KEY,
@@ -216,4 +219,8 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
         return this.securityConfig;
     }
 
+    @Override
+    public AuthUtils auth() {
+        return this.auth;
+    }
 }
