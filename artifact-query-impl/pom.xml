@@ -13,33 +13,20 @@
     <artifactId>artifact-query-impl</artifactId>
 
     <dependencies>
+        <!-- The service we're implementing -->
         <dependency>
             <groupId>org.spongepowered</groupId>
             <artifactId>artifact-query-api</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-versions-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-versions-query-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
         <!-- Lagom Dependencies -->
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-log4j2_${scala.binary.version}</artifactId>
-        </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-javadsl-server_${scala.binary.version}</artifactId>
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-kafka-broker_${scala.binary.version}</artifactId>
+            <artifactId>lagom-javadsl-persistence-jpa_${scala.binary.version}</artifactId>
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
@@ -49,15 +36,7 @@
             <groupId>com.typesafe.play</groupId>
             <artifactId>play-akka-http-server_${scala.binary.version}</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-testkit_${scala.binary.version}</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-persistence-jpa_${scala.binary.version}</artifactId>
-        </dependency>
+        <!-- Database Dependencies -->
         <dependency>
             <groupId>org.hibernate</groupId>
             <artifactId>hibernate-core</artifactId>
@@ -69,26 +48,15 @@
         <!-- Language Features -->
         <dependency>
             <groupId>io.vavr</groupId>
-            <artifactId>vavr</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.vavr</groupId>
             <artifactId>vavr-jackson</artifactId>
         </dependency>
-        <!-- Auth -->
+        <!-- Test Dependencies -->
         <dependency>
-            <groupId>org.pac4j</groupId>
-            <artifactId>lagom-pac4j_${scala.binary.version}</artifactId>
+            <groupId>com.lightbend.lagom</groupId>
+            <artifactId>lagom-javadsl-testkit_${scala.binary.version}</artifactId>
+            <scope>test</scope>
         </dependency>
-        <!-- Swagger impl -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
-            <artifactId>jackson-dataformat-xml</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-
     </dependencies>
-
 
     <build>
         <plugins>
@@ -98,6 +66,31 @@
                 <configuration>
                     <lagomService>true</lagomService>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <configuration>
+                    <skip>false</skip>
+                    <images>
+                        <image>
+                            <build>
+                                <entryPoint>
+                                    ${play.docker.jvm.startup}
+                                </entryPoint>
+                            </build>
+                        </image>
+                    </images>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>build-docker-image</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

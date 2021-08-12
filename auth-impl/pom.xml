@@ -14,53 +14,23 @@
     <packaging>jar</packaging>
 
     <dependencies>
+        <!-- The Service we're implementing -->
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>systemofadownload-auth-api</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- Server Authentication Dependency -->
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-utils</artifactId>
+            <artifactId>systemofadownload-server-auth</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-log4j2_${scala.binary.version}</artifactId>
-            <version>${lagom.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.typesafe.play</groupId>
-            <artifactId>play-akka-http-server_${scala.binary.version}</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-server_${scala.binary.version}</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.pac4j</groupId>
-            <artifactId>lagom-pac4j_2.13</artifactId>
-            <version>${lagom.pac4j.version}</version>
-        </dependency>
+        <!-- LDAP dependency -->
         <dependency>
             <groupId>org.pac4j</groupId>
             <artifactId>pac4j-ldap</artifactId>
             <version>${pac4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.pac4j</groupId>
-            <artifactId>pac4j-http</artifactId>
-            <version>${pac4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.pac4j</groupId>
-            <artifactId>pac4j-jwt</artifactId>
-            <version>${pac4j.version}</version>
-        </dependency>
-        <!-- Swagger impl -->
-        <dependency>
-            <groupId>org.taymyr.lagom</groupId>
-            <artifactId>lagom-openapi-java-impl_${scala.binary.version}</artifactId>
         </dependency>
     </dependencies>
 
@@ -72,6 +42,31 @@
                 <configuration>
                     <lagomService>true</lagomService>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <configuration>
+                    <skip>false</skip>
+                    <images>
+                        <image>
+                            <build>
+                                <entryPoint>
+                                    ${play.docker.jvm.startup}
+                                </entryPoint>
+                            </build>
+                        </image>
+                    </images>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>build-docker-image</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

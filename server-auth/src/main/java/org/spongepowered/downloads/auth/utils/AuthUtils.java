@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.utils;
+package org.spongepowered.downloads.auth.utils;
 
 import io.vavr.collection.List;
 import org.pac4j.core.authorization.authorizer.Authorizer;

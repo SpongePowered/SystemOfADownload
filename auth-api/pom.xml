@@ -12,27 +12,16 @@
     <artifactId>systemofadownload-auth-api</artifactId>
 
     <dependencies>
+        <!-- Auth Dependency -->
+        <dependency>
+            <groupId>org.pac4j</groupId>
+            <artifactId>lagom-pac4j_${scala.binary.version}</artifactId>
+            <version>${lagom.pac4j.version}</version>
+        </dependency>
+        <!-- Lagom Dependency -->
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-javadsl-api_${scala.binary.version}</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.pac4j</groupId>
-            <artifactId>lagom-pac4j_2.13</artifactId>
-            <version>${lagom.pac4j.version}</version>
-        </dependency>
-        <!-- Generates handy swagger docs to publish -->
-        <dependency>
-            <groupId>org.taymyr.lagom</groupId>
-            <artifactId>lagom-openapi-java-api_${scala.binary.version}</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.swagger.core.v3</groupId>
-            <artifactId>swagger-annotations</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-server_${scala.binary.version}</artifactId>
         </dependency>
     </dependencies>
 </project>

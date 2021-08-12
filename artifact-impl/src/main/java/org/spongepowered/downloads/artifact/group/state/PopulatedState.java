@@ -27,12 +27,8 @@ package org.spongepowered.downloads.artifact.group.state;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.CompressedJsonable;
-import io.vavr.collection.HashSet;
 import io.vavr.collection.Set;
 import org.spongepowered.downloads.artifact.api.Group;
-import org.spongepowered.downloads.utils.UUIDType5;
-
-import java.util.UUID;
 
 @JsonDeserialize
 public class PopulatedState implements GroupState, CompressedJsonable {
@@ -40,7 +36,6 @@ public class PopulatedState implements GroupState, CompressedJsonable {
     public final String name;
     public final String website;
     public final Set<String> artifacts;
-    public final UUID groupId;
 
     @JsonCreator
     public PopulatedState(
@@ -49,7 +44,6 @@ public class PopulatedState implements GroupState, CompressedJsonable {
         this.groupCoordinates = groupCoordinates;
         this.name = name;
         this.website = website;
-        this.groupId = UUIDType5.nameUUIDFromNamespaceAndString(UUIDType5.NAMESPACE_OID, this.groupCoordinates);
         this.artifacts = artifacts;
     }
 

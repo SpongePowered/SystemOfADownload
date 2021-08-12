@@ -39,9 +39,6 @@ import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.Offset;
 import com.lightbend.lagom.javadsl.persistence.PersistentEntityRegistry;
 import com.lightbend.lagom.javadsl.server.ServerServiceCall;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.pac4j.core.config.Config;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
@@ -59,9 +56,8 @@ import org.spongepowered.downloads.artifact.group.GroupCommand;
 import org.spongepowered.downloads.artifact.group.GroupEntity;
 import org.spongepowered.downloads.artifact.group.GroupEvent;
 import org.spongepowered.downloads.auth.AuthenticatedInternalService;
-import org.spongepowered.downloads.auth.api.SOADAuth;
-import org.spongepowered.downloads.utils.AuthUtils;
-import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
+import org.spongepowered.downloads.auth.SOADAuth;
+import org.spongepowered.downloads.auth.utils.AuthUtils;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -69,10 +65,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 
-public class ArtifactServiceImpl extends AbstractOpenAPIService implements ArtifactService,
+public class ArtifactServiceImpl implements ArtifactService,
     AuthenticatedInternalService {
 
-    private static final Logger LOGGER = LogManager.getLogger(ArtifactServiceImpl.class);
     private final Duration askTimeout = Duration.ofHours(5);
     private final Config securityConfig;
     private final ClusterSharding clusterSharding;
@@ -118,11 +113,8 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
 
     @Override
     public ServiceCall<NotUsed, GetArtifactsResponse> getArtifacts(final String groupId) {
-        return none -> {
-            LOGGER.log(Level.DEBUG, String.format("Requesting artifacts for group id: %s", groupId));
-            return this.getGroupEntity(groupId)
-                .ask(replyTo -> new GroupCommand.GetArtifacts(groupId, replyTo), this.askTimeout);
-        };
+        return none -> this.getGroupEntity(groupId)
+            .ask(replyTo -> new GroupCommand.GetArtifacts(groupId, replyTo), this.askTimeout);
     }
 
     @Override
@@ -161,7 +153,6 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
                     if (!(response instanceof ArtifactRegistration.Response.ArtifactRegistered)) {
                        return CompletableFuture.completedFuture(response);
                     }
-                    LOGGER.log(Level.INFO, "Registering details {}", registration);
                     final var coordinates = ((ArtifactRegistration.Response.ArtifactRegistered) response).coordinates;
                     return this.getDetailsEntity(
                         coordinates.groupId, coordinates.artifactId)
@@ -175,7 +166,6 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
     @Override
     public ServiceCall<NotUsed, GroupResponse> getGroup(final String groupId) {
         return notUsed -> {
-            LOGGER.log(Level.INFO, String.format("Requesting group by id: %s", groupId));
             return this.getGroupEntity(groupId.toLowerCase(Locale.ROOT))
                 .ask(replyTo -> new GroupCommand.GetGroup(groupId, replyTo), this.askTimeout);
         };

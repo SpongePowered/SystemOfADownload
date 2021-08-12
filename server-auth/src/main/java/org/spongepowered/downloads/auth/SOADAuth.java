@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.auth.api;
+package org.spongepowered.downloads.auth;
 
 /**
  * Marker annotation to indicate that the returnable object should be the

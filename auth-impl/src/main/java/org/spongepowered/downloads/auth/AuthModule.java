@@ -49,8 +49,7 @@ import org.pac4j.http.client.direct.DirectBasicAuthClient;
 import org.pac4j.jwt.profile.JwtGenerator;
 import org.pac4j.ldap.profile.service.LdapProfileService;
 import org.spongepowered.downloads.auth.api.AuthService;
-import org.spongepowered.downloads.auth.api.SOADAuth;
-import org.spongepowered.downloads.utils.AuthUtils;
+import org.spongepowered.downloads.auth.utils.AuthUtils;
 import play.Environment;
 
 import java.time.Duration;

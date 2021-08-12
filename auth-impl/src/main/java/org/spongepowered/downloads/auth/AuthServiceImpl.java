@@ -33,9 +33,7 @@ import org.pac4j.jwt.profile.JwtGenerator;
 import org.pac4j.lagom.javadsl.SecuredService;
 import org.spongepowered.downloads.auth.api.AuthService;
 import org.spongepowered.downloads.auth.api.AuthenticationRequest;
-import org.spongepowered.downloads.auth.api.SOADAuth;
-import org.spongepowered.downloads.utils.AuthUtils;
-import org.taymyr.lagom.javadsl.openapi.AbstractOpenAPIService;
+import org.spongepowered.downloads.auth.utils.AuthUtils;
 
 import java.sql.Date;
 import java.time.Duration;
@@ -43,7 +41,7 @@ import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-public final class AuthServiceImpl extends AbstractOpenAPIService implements AuthService, SecuredService {
+public final class AuthServiceImpl implements AuthService, SecuredService {
 
     private final Config securityConfig;
     private final JwtGenerator<CommonProfile> profileJwtGenerator;

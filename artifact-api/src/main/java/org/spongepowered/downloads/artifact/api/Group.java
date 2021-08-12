@@ -25,37 +25,27 @@
 package org.spongepowered.downloads.artifact.api;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import io.swagger.v3.oas.annotations.media.Schema;
-import org.spongepowered.downloads.utils.UUIDType5;
 
 import java.util.Objects;
 import java.util.StringJoiner;
-import java.util.UUID;
 
 @JsonDeserialize
 public final class Group {
 
-    @Schema(required = true)
     @JsonProperty(required = true)
     public final String groupCoordinates;
-    @Schema(required = true)
     @JsonProperty(required = true)
     public final String name;
-    @Schema(required = true)
     @JsonProperty(required = true)
     public final String website;
-    @JsonIgnore
-    public final UUID groupId;
 
     @JsonCreator
     public Group(final String groupCoordinates, final String name, final String website) {
         this.groupCoordinates = groupCoordinates;
         this.name = name;
         this.website = website;
-        this.groupId = UUIDType5.nameUUIDFromNamespaceAndString(UUIDType5.NAMESPACE_OID, groupCoordinates);
     }
 
     public String getGroupCoordinates() {
@@ -68,10 +58,6 @@ public final class Group {
 
     public String getWebsite() {
         return this.website;
-    }
-
-    public UUID getGroupId() {
-        return this.groupId;
     }
 
     @Override

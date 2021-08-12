@@ -37,9 +37,9 @@ import io.vavr.control.Try;
 import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+import org.spongepowered.downloads.auth.utils.AuthUtils;
 import org.spongepowered.downloads.sonatype.AssetSearchResponse;
 import org.spongepowered.downloads.sonatype.Component;
-import org.spongepowered.downloads.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 

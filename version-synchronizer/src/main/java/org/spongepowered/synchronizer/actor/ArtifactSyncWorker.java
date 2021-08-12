@@ -48,7 +48,7 @@ import akka.stream.typed.javadsl.ActorFlow;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
-import org.spongepowered.downloads.utils.AuthUtils;
+import org.spongepowered.downloads.auth.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import org.spongepowered.synchronizer.resync.ArtifactSynchronizerAggregate;

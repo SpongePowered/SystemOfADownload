@@ -29,7 +29,7 @@ import com.lightbend.lagom.javadsl.server.HeaderServiceCall;
 import com.lightbend.lagom.javadsl.server.ServerServiceCall;
 import org.pac4j.core.profile.CommonProfile;
 import org.pac4j.lagom.javadsl.SecuredService;
-import org.spongepowered.downloads.utils.AuthUtils;
+import org.spongepowered.downloads.auth.utils.AuthUtils;
 
 import java.util.function.Function;
 

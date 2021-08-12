@@ -13,16 +13,7 @@
     <artifactId>systemofadownload-versions-query-impl</artifactId>
 
     <dependencies>
-        <dependency>
-            <groupId>org.spongepowered</groupId>
-            <artifactId>systemofadownload-artifact-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-versions-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
+        <!-- The Service we're implementing -->
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>systemofadownload-versions-query-api</artifactId>
@@ -51,13 +42,9 @@
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-testkit_${scala.binary.version}</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-javadsl-persistence-jpa_${scala.binary.version}</artifactId>
         </dependency>
+        <!-- Database Dependencies -->
         <dependency>
             <groupId>org.hibernate</groupId>
             <artifactId>hibernate-core</artifactId>
@@ -69,22 +56,13 @@
         <!-- Language Features -->
         <dependency>
             <groupId>io.vavr</groupId>
-            <artifactId>vavr</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.vavr</groupId>
             <artifactId>vavr-jackson</artifactId>
         </dependency>
-        <!-- Auth -->
+        <!-- Test Dependencies -->
         <dependency>
-            <groupId>org.pac4j</groupId>
-            <artifactId>lagom-pac4j_${scala.binary.version}</artifactId>
-        </dependency>
-        <!-- Swagger impl -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
-            <artifactId>jackson-dataformat-xml</artifactId>
-            <version>${jackson.version}</version>
+            <groupId>com.lightbend.lagom</groupId>
+            <artifactId>lagom-javadsl-testkit_${scala.binary.version}</artifactId>
+            <scope>test</scope>
         </dependency>
 
     </dependencies>
@@ -98,6 +76,29 @@
                 <configuration>
                     <lagomService>true</lagomService>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <configuration>
+                    <skip>false</skip>
+                    <images>
+                        <image>
+                            <build>
+                                <entryPoint>${play.docker.jvm.startup}</entryPoint>
+                            </build>
+                        </image>
+                    </images>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>build-docker-image</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

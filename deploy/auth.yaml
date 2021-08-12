@@ -1,0 +1,98 @@
+---
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+    name: "soad-auth-v1-0-0"
+    labels:
+        app: "soad-auth"
+        appVersion: "soad-auth-v1-0-0"
+    namespace: lagom
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            appVersion: "soad-auth-v1-0-0"
+    template:
+        metadata:
+            labels:
+                app: "soad-auth"
+                appVersion: "soad-auth-v1-0-0"
+        spec:
+            restartPolicy: Always
+            containers:
+                -   name: "account"
+                    image: "spongepowered/systemofadownload-auth-impl:latest"
+                    imagePullPolicy: Always
+                    env:
+                        -   name: "JAVA_OPTS"
+                            value: "
+-Dconfig.resource=production.conf
+-Dplay.http.secret.key={playSecret}
+-Dlogger.resource=logback-prod.xml
+-Dplay.server.pidfile.path=/dev/null
+-Dlagom.akka.discovery.service-name-mappings.elastic-search.lookup=
+  _http._tcp.elasticsearch.lagom.svc.cluster.local
+-Dlagom.akka.discovery.service-name-mappings.cas_native.lookup=
+  _cql._tcp.cassandra.lagom.svc.cluster.local
+-Dlagom.akka.discovery.service-name-mappings.kafka_native.lookup=
+  _broker._tcp.kafka.lagom.svc.cluster.local
+"
+                        -   name: "REQUIRED_CONTACT_POINT_NR"
+                            value: "{initialNumberOfReplicas}"
+                        -   name: "SERVICE_NAMESPACE"
+                            value: "lagom"
+                        -   name: "SERVICE_NAME"
+                            value: "account"
+                        -   name: "KUBERNETES_POD_IP"
+                            valueFrom:
+                                fieldRef:
+                                    fieldPath: "status.podIP"
+                    ports:
+                        -   containerPort: 9000
+                            name: http
+                        -   containerPort: 2552
+                            name: remoting
+                        -   containerPort: 8558
+                            name: management
+                    readinessProbe:
+                        httpGet:
+                            path: "/ready"
+                            port: "management"
+                        periodSeconds: 10
+                        initialDelaySeconds: 20
+                        failureThreshold: 4
+                    livenessProbe:
+                        httpGet:
+                            path: "/alive"
+                            port: "management"
+                        periodSeconds: 10
+                        initialDelaySeconds: 60
+                        failureThreshold: 2
+                    resources:
+                        requests:
+                            cpu: 0.5
+                            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: order
+    labels:
+        app: order
+spec:
+    ports:
+        -   name: "http"
+            port: 9000
+            nodePort: 31003
+            targetPort: 9000
+        -   name: "akka-remote"
+            port: 10001
+            protocol: TCP
+            targetPort: 10001
+        -   name: "akka-mgmt-http"
+            port: 10002
+            protocol: TCP
+            targetPort: 10002
+    selector:
+        app: order
+    type: NodePort

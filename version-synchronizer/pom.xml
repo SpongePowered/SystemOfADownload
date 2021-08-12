@@ -13,6 +13,7 @@
     <artifactId>systemofadownload-version-synchronizer</artifactId>
 
     <dependencies>
+        <!-- Modules we consume -->
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>systemofadownload-versions-api</artifactId>
@@ -20,12 +21,7 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-auth-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-auth-common</artifactId>
+            <artifactId>systemofadownload-server-auth</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -42,28 +38,7 @@
         <!-- Lagom Dependencies -->
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-log4j2_${scala.binary.version}</artifactId>
-            <version>${lagom.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-server_${scala.binary.version}</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-javadsl-persistence-jpa_${scala.binary.version}</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.hibernate</groupId>
-            <artifactId>hibernate-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.google.inject</groupId>
-            <artifactId>guice</artifactId>
         </dependency>
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
@@ -74,23 +49,24 @@
             <artifactId>lagom-logback_${scala.binary.version}</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.typesafe.play</groupId>
-            <artifactId>play-akka-http-server_${scala.binary.version}</artifactId>
-        </dependency>
-        <dependency>
             <groupId>com.typesafe.akka</groupId>
             <artifactId>akka-stream-typed_${scala.binary.version}</artifactId>
         </dependency>
+        <!-- Database dependencies -->
         <dependency>
-            <groupId>com.lightbend.lagom</groupId>
-            <artifactId>lagom-javadsl-testkit_${scala.binary.version}</artifactId>
-            <scope>test</scope>
+            <groupId>org.hibernate</groupId>
+            <artifactId>hibernate-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+        <!-- Java 16 bumped dependency -->
+        <dependency>
+            <groupId>com.google.inject</groupId>
+            <artifactId>guice</artifactId>
         </dependency>
         <!-- Language Features -->
-        <dependency>
-            <groupId>io.vavr</groupId>
-            <artifactId>vavr</artifactId>
-        </dependency>
         <dependency>
             <groupId>io.vavr</groupId>
             <artifactId>vavr-jackson</artifactId>
@@ -100,11 +76,17 @@
             <groupId>org.pac4j</groupId>
             <artifactId>lagom-pac4j_${scala.binary.version}</artifactId>
         </dependency>
-        <!-- Swagger impl -->
+        <!-- XML Deserialization -->
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-xml</artifactId>
             <version>${jackson.version}</version>
+        </dependency>
+        <!-- Test Dependencies -->
+        <dependency>
+            <groupId>com.lightbend.lagom</groupId>
+            <artifactId>lagom-javadsl-testkit_${scala.binary.version}</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -121,6 +103,31 @@
                 <configuration>
                     <playService>true</playService>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>io.fabric8</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <configuration>
+                    <skip>false</skip>
+                    <images>
+                        <image>
+                            <build>
+                                <entryPoint>
+                                    ${play.docker.jvm.startup}
+                                </entryPoint>
+                            </build>
+                        </image>
+                    </images>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>build-docker-image</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

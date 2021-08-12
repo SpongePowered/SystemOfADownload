@@ -14,11 +14,7 @@
     <packaging>jar</packaging>
 
     <dependencies>
-        <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>systemofadownload-utils</artifactId>
-            <version>${project.version}</version>
-        </dependency>
+        <!-- Lagom Dependencies -->
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-javadsl-api_${scala.binary.version}</artifactId>
@@ -31,15 +27,6 @@
         <dependency>
             <groupId>io.vavr</groupId>
             <artifactId>vavr</artifactId>
-        </dependency>
-        <!-- Generates handy swagger docs to publish -->
-        <dependency>
-            <groupId>org.taymyr.lagom</groupId>
-            <artifactId>lagom-openapi-java-api_${scala.binary.version}</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.swagger.core.v3</groupId>
-            <artifactId>swagger-annotations</artifactId>
         </dependency>
         <!-- Maven Dependency for Version Parsing -->
         <dependency>

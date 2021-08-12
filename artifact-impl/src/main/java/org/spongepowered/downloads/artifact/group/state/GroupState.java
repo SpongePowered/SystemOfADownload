@@ -24,12 +24,7 @@
  */
 package org.spongepowered.downloads.artifact.group.state;
 
-import io.vavr.collection.HashSet;
-import io.vavr.collection.Set;
 import org.spongepowered.downloads.artifact.api.Group;
-import org.spongepowered.downloads.utils.UUIDType5;
-
-import java.util.UUID;
 
 public interface GroupState {
 
