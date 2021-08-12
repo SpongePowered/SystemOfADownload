@@ -24,11 +24,13 @@
  */
 package org.spongepowered.downloads.artifact;
 
+import akka.Done;
 import akka.NotUsed;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.Entity;
 import akka.cluster.sharding.typed.javadsl.EntityRef;
 import akka.japi.Pair;
+import akka.persistence.typed.PersistenceId;
 import com.google.inject.Inject;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.broker.Topic;
@@ -96,13 +98,19 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
         this.clusterSharding.init(
             Entity.of(
                 GlobalRegistration.ENTITY_TYPE_KEY,
-                GlobalRegistration::create
+                ctx -> GlobalRegistration.create(
+                    ctx.getEntityId(),
+                    PersistenceId.of(ctx.getEntityTypeKey().name(), ctx.getEntityId())
+                )
             )
         );
         this.clusterSharding.init(
             Entity.of(
                 ArtifactDetailsEntity.ENTITY_TYPE_KEY,
-                ArtifactDetailsEntity::create
+                context -> ArtifactDetailsEntity.create(
+                    context.getEntityId(),
+                    PersistenceId.of(context.getEntityTypeKey().name(), context.getEntityId())
+                )
             )
         );
         this.persistentEntityRegistry = persistentEntityRegistry;
@@ -133,7 +141,7 @@ public class ArtifactServiceImpl extends AbstractOpenAPIService implements Artif
                     }
                     final var group = ((GroupRegistration.Response.GroupRegistered) response).group();
                     return this.getGlobalEntity()
-                        .<NotUsed>ask(replyTo -> new GlobalCommand.RegisterGroup(replyTo, group), this.askTimeout)
+                        .<Done>ask(replyTo -> new GlobalCommand.RegisterGroup(replyTo, group), this.askTimeout)
                         .thenApply(notUsed -> response);
 
                 });

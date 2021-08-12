@@ -24,20 +24,16 @@
  */
 package org.spongepowered.downloads.artifact.global;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.Group;
 
-import java.util.Objects;
+@JsonDeserialize
+public record GlobalState(List<Group> groups) implements Jsonable {
 
-public final class GlobalState {
-
-    public final List<Group> groups;
-
-    public GlobalState() {
-        this.groups = List.empty();
-    }
-
-    public GlobalState(final List<Group> groups) {
-        this.groups = Objects.requireNonNull(groups);
+    @JsonCreator
+    public GlobalState {
     }
 }

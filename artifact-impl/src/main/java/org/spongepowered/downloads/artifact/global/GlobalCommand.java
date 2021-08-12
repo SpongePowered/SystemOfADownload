@@ -24,31 +24,39 @@
  */
 package org.spongepowered.downloads.artifact.global;
 
-import akka.NotUsed;
+import akka.Done;
 import akka.actor.typed.ActorRef;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.Group;
 import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME,
+    property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(name = "Get",
+        value = GlobalCommand.GetGroups.class)
+})
 public interface GlobalCommand extends Jsonable {
 
-    final class GetGroups implements GlobalCommand {
-        public final ActorRef<GroupsResponse> replyTo;
+    @JsonDeserialize
+    record GetGroups(ActorRef<GroupsResponse> replyTo)
+        implements GlobalCommand {
 
-        public GetGroups(ActorRef<GroupsResponse> replyTo) {
-            this.replyTo = replyTo;
+        @JsonCreator
+        public GetGroups {
         }
     }
 
-    final class RegisterGroup implements GlobalCommand {
-        public final ActorRef<NotUsed> replyTo;
-        public final Group group;
+    @JsonDeserialize
+    record RegisterGroup(
+        ActorRef<Done> replyTo, Group group) implements GlobalCommand {
 
-        public RegisterGroup(
-            final ActorRef<NotUsed> replyTo, final Group group
-        ) {
-            this.replyTo = replyTo;
-            this.group = group;
+        @JsonCreator
+        public RegisterGroup {
         }
     }
 }

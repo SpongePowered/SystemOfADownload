@@ -59,7 +59,8 @@ public class SynchronizerModule extends AbstractModule  implements ServiceGuiceS
         this.bindClient(VersionsService.class);
         this.bindClient(ArtifactService.class);
         this.bindServiceInfo(ServiceInfo.of("Sonatype-Synchronizer"));
-        this.bind(new TypeLiteral<ActorRef<SonatypeSynchronizer.Command>>(){})
+        this.bind(new TypeLiteral<ActorRef<SonatypeSynchronizer.Command>>() {
+            })
             .toProvider(SynchronizerProvider.class)
             .asEagerSingleton();
     }

@@ -26,13 +26,20 @@ package org.spongepowered.downloads.artifact.details;
 
 import akka.NotUsed;
 import akka.actor.typed.ActorRef;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
 public interface DetailsCommand extends Jsonable {
 
+    @JsonDeserialize
     record RegisterArtifact(ArtifactCoordinates coordinates,
                             String displayName, ActorRef<NotUsed> replyTo)
         implements DetailsCommand {
+
+        @JsonCreator
+        public RegisterArtifact {
+        }
     }
 }

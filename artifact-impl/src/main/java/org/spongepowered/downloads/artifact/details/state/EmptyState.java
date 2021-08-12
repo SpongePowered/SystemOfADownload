@@ -24,10 +24,18 @@
  */
 package org.spongepowered.downloads.artifact.details.state;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
+@JsonDeserialize
 public final class EmptyState implements DetailsState {
     private static final ArtifactCoordinates empty = new ArtifactCoordinates("", "");
+
+    @JsonCreator
+    public EmptyState() {
+    }
+
     @Override
     public ArtifactCoordinates coordinates() {
         return empty;

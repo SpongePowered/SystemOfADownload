@@ -40,8 +40,10 @@ import javax.persistence.Table;
 public class JpaArtifactTag {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    @Column(name = "id",
+        updatable = false,
+        nullable = false)
     private int id;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)

@@ -4,7 +4,7 @@
       <option name="myGeneralSettings" />
       <option name="myRunnerSettings">
         <MavenRunnerSettings>
-          <option name="delegateBuildToMaven" value="false" />
+            <option name="delegateBuildToMaven" value="false"/>
             <option name="environmentProperties">
                 <map/>
             </option>

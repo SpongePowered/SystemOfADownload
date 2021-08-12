@@ -30,8 +30,10 @@ import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.DispatcherSelector;
 import akka.actor.typed.SupervisorStrategy;
+import akka.actor.typed.internal.receptionist.ReceptionistMessages;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Routers;
+import akka.actor.typed.receptionist.ServiceKey;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.Entity;
 import akka.stream.javadsl.Flow;
@@ -51,12 +53,15 @@ import org.spongepowered.synchronizer.actor.ArtifactSyncWorker;
 import org.spongepowered.synchronizer.actor.RequestArtifactsToSync;
 import org.spongepowered.synchronizer.actor.VersionedComponentWorker;
 import org.spongepowered.synchronizer.resync.ArtifactSynchronizerAggregate;
+import scala.Option;
 
 import java.time.Duration;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class SonatypeSynchronizer {
+
+    private static final ServiceKey<Command> key = ServiceKey.create(Command.class, "Synchronizer");
 
     public interface Command {
     }
@@ -75,6 +80,8 @@ public final class SonatypeSynchronizer {
         final ObjectMapper mapper
     ) {
         return Behaviors.setup(context -> {
+            context.getSystem().receptionist().tell(
+                new ReceptionistMessages.Register<>(key, context.getSelf(), Option.empty()));
             final var settings = SynchronizationExtension.SettingsProvider.get(context.getSystem());
             clusterSharding
                 .init(

@@ -24,60 +24,50 @@
  */
 package org.spongepowered.downloads.artifact.global;
 
-import akka.NotUsed;
-import akka.cluster.sharding.typed.javadsl.EntityContext;
+import akka.Done;
+import akka.actor.typed.Behavior;
+import akka.actor.typed.javadsl.ActorContext;
+import akka.actor.typed.javadsl.Behaviors;
 import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
 import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
-import akka.persistence.typed.javadsl.RetentionCriteria;
-import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
-
-import java.util.Set;
-import java.util.function.Function;
 
 public class GlobalRegistration
     extends EventSourcedBehaviorWithEnforcedReplies<GlobalCommand, GlobalEvent, GlobalState> {
 
     public static EntityTypeKey<GlobalCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(
         GlobalCommand.class, "GlobalEntity");
-    private static final Logger LOGGER = LogManager.getLogger("GlobalRegistration");
     private final String groupId;
-    private final Function<GlobalEvent, Set<String>> tagger;
+    private final ActorContext<GlobalCommand> ctx;
 
-    private GlobalRegistration(EntityContext<GlobalCommand> context) {
-        super(
-            // PersistenceId needs a typeHint (or namespace) and entityId,
-            // we take then from the EntityContext
-            PersistenceId.of(
-                context.getEntityTypeKey().name(), // <- type hint
-                context.getEntityId() // <- business id
-            ));
-        // we keep a copy of cartI
-        this.groupId = context.getEntityId();
-        this.tagger = AkkaTaggerAdapter.fromLagom(context, GlobalEvent.TAG);
-
+    private GlobalRegistration(ActorContext<GlobalCommand> ctx, String entityId, PersistenceId persistenceId) {
+        super(persistenceId);
+        this.ctx = ctx;
+        this.groupId = entityId;
     }
 
-    public static GlobalRegistration create(EntityContext<GlobalCommand> context) {
-        return new GlobalRegistration(context);
+    public static Behavior<GlobalCommand> create(String entityId, PersistenceId persistenceId) {
+        return Behaviors.setup(ctx -> new GlobalRegistration(ctx, entityId, persistenceId));
     }
 
     @Override
     public GlobalState emptyState() {
-        return new GlobalState();
+        return new GlobalState(List.empty());
     }
 
     @Override
     public EventHandler<GlobalState, GlobalEvent> eventHandler() {
         final var builder = this.newEventHandlerBuilder();
         builder.forAnyState()
-            .onEvent(GlobalEvent.GroupRegistered.class, (state, event) -> new GlobalState(state.groups.append(event.group)));
+            .onEvent(
+                GlobalEvent.GroupRegistered.class,
+                (state, event) -> new GlobalState(state.groups().append(event.group))
+            );
         return builder.build();
     }
 
@@ -87,7 +77,7 @@ public class GlobalRegistration
         builder.forAnyState()
             .onCommand(
                 GlobalCommand.GetGroups.class,
-                (state, cmd) -> this.Effect().reply(cmd.replyTo, new GroupsResponse.Available(state.groups))
+                (state, cmd) -> this.Effect().reply(cmd.replyTo(), new GroupsResponse.Available(state.groups()))
             )
             .onCommand(
                 GlobalCommand.RegisterGroup.class,
@@ -96,11 +86,14 @@ public class GlobalRegistration
         return builder.build();
     }
 
-    private ReplyEffect<GlobalEvent, GlobalState> handleRegisterGroup(GlobalState state, GlobalCommand.RegisterGroup cmd) {
-        if (!state.groups.contains(cmd.group)) {
-            return this.Effect().persist(new GlobalEvent.GroupRegistered(cmd.group)).thenReply(cmd.replyTo, (s) -> NotUsed.notUsed());
+    private ReplyEffect<GlobalEvent, GlobalState> handleRegisterGroup(
+        GlobalState state, GlobalCommand.RegisterGroup cmd
+    ) {
+        if (!state.groups().contains(cmd.group())) {
+            return this.Effect().persist(new GlobalEvent.GroupRegistered(cmd.group()))
+                .thenReply(cmd.replyTo(), (s) -> Done.done());
         }
-        return this.Effect().reply(cmd.replyTo, NotUsed.notUsed());
+        return this.Effect().reply(cmd.replyTo(), Done.done());
     }
 
 }

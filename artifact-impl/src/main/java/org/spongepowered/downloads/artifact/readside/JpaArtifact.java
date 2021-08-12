@@ -42,8 +42,10 @@ import java.util.Objects;
 public class JpaArtifact {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    @Column(name = "id",
+        updatable = false,
+        nullable = false)
     private long id;
 
     @Column(name = "group_id",

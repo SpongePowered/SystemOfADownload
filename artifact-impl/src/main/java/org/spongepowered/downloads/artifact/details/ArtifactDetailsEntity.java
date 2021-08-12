@@ -25,7 +25,9 @@
 package org.spongepowered.downloads.artifact.details;
 
 import akka.NotUsed;
-import akka.cluster.sharding.typed.javadsl.EntityContext;
+import akka.actor.typed.Behavior;
+import akka.actor.typed.javadsl.ActorContext;
+import akka.actor.typed.javadsl.Behaviors;
 import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
 import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
@@ -41,19 +43,17 @@ public class ArtifactDetailsEntity
     extends EventSourcedBehaviorWithEnforcedReplies<DetailsCommand, DetailsEvent, DetailsState> {
     public static EntityTypeKey<DetailsCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(
         DetailsCommand.class, "DetailsEntity");
+    private final String artifactId;
+    private final ActorContext<DetailsCommand> ctx;
 
-
-    private ArtifactDetailsEntity(EntityContext<DetailsCommand> context) {
-        super(
-            PersistenceId.of(
-                context.getEntityTypeKey().name(),
-                context.getEntityId()
-            ));
-
+    private ArtifactDetailsEntity(ActorContext<DetailsCommand> ctx, String entityId, PersistenceId persistenceId) {
+        super(persistenceId);
+        this.artifactId = entityId;
+        this.ctx = ctx;
     }
 
-    public static ArtifactDetailsEntity create(EntityContext<DetailsCommand> context) {
-        return new ArtifactDetailsEntity(context);
+    public static Behavior<DetailsCommand> create(String entityId, PersistenceId persistenceId) {
+        return Behaviors.setup(ctx -> new ArtifactDetailsEntity(ctx, entityId, persistenceId));
     }
 
     @Override

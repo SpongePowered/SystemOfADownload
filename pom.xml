@@ -200,6 +200,13 @@
                 <type>pom</type>
             </dependency>
             <dependency>
+                <groupId>com.typesafe.akka</groupId>
+                <artifactId>akka-bom_${scala.binary.version}</artifactId>
+                <version>${akka.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
                 <groupId>io.vavr</groupId>
                 <artifactId>vavr</artifactId>
                 <version>${vavr.version}</version>
@@ -255,6 +262,11 @@
             <dependency>
                 <groupId>com.typesafe.akka</groupId>
                 <artifactId>akka-stream-typed_${scala.binary.version}</artifactId>
+                <version>${akka.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.typesafe.akka</groupId>
+                <artifactId>akka-persistence-testkit_${scala.binary.version}</artifactId>
                 <version>${akka.version}</version>
             </dependency>
             <dependency>

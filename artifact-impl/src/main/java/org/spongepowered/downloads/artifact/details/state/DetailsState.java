@@ -24,14 +24,20 @@
  */
 package org.spongepowered.downloads.artifact.details.state;
 
+import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
-public interface DetailsState {
+public interface DetailsState extends Jsonable {
     ArtifactCoordinates coordinates();
+
     String displayName();
+
     String website();
+
     String gitRepository();
+
     String issues();
+
     boolean isEmpty();
 
 }

@@ -64,7 +64,7 @@ import java.util.Set;
         name = "ArtifactVersion.findByCoordinates",
         query =
             """
-            select distinct v from ArtifactVersion v 
+            select distinct v from ArtifactVersion v
             where v.artifact.groupId = :groupId and v.artifact.artifactId = :artifactId and v.version = :version
             """
     )
@@ -72,8 +72,9 @@ import java.util.Set;
 class JpaArtifactVersion implements Serializable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
     @Column(name = "id",
+        updatable = false,
         nullable = false)
     private long id;
 
