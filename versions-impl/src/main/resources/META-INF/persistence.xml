@@ -1,6 +1,14 @@
 <persistence xmlns="http://xmlns.jcp.org/xml/ns/persistence" version="2.2">
     <persistence-unit name="default" transaction-type="RESOURCE_LOCAL">
         <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
+        <exclude-unlisted-classes>true</exclude-unlisted-classes>
+        <properties>
+            <property name="hibernate.connection.driver_class" value="org.postgresql.Driver"/>
+            <property name="hibernate.dialect" value="org.hibernate.dialect.PostgreSQL10Dialect"/>
+        </properties>
+    </persistence-unit>
+    <persistence-unit name="artifacts" transaction-type="RESOURCE_LOCAL">
+        <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
         <non-jta-data-source>DefaultDS</non-jta-data-source>
         <class>org.spongepowered.downloads.versions.readside.JpaArtifactVersion</class>
         <class>org.spongepowered.downloads.versions.readside.JpaArtifact</class>
@@ -10,9 +18,6 @@
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
         <properties>
             <property name="hibernate.connection.driver_class" value="org.postgresql.Driver"/>
-            <property name="hibernate.connection.url" value="jdbc:postgresql://localhost:5432/journal"/>
-<!--            <property name="hibernate.connection.username" value="admin"/>-->
-<!--            <property name="hibernate.connection.password" value="password"/>-->
             <property name="hibernate.default_schema" value="version"/>
             <property name="hibernate.dialect" value="org.hibernate.dialect.PostgreSQL10Dialect"/>
         </properties>

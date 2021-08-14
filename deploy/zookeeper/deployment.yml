@@ -1,0 +1,32 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: zookeeper-deployment
+spec:
+    replicas: 1
+    selector:
+        matchLabels:
+            component: zookeeper
+    template:
+        metadata:
+            labels:
+                component: zookeeper
+        spec:
+            containers:
+                -   name: zookeeper
+                    image: zookeeper:3.7.0@sha256:c8f72ff2dc67594c5a094a784d422b33f71e1b7be139297aacb17af3c223c354
+                    resources:
+                        requests:
+                            memory: "64Mi"
+                            cpu: "125m"
+                        limits:
+                            memory: "128Mi"
+                            cpu: "250m"
+                    ports:
+                        - containerPort: 2181
+                    tty: true
+                    livenessProbe:
+                        exec:
+                            command:
+                                -   /opt/check.sh

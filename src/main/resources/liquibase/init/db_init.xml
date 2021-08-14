@@ -4,9 +4,6 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
          https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.4.xsd">
-    <preConditions>
-        <runningAs username="admin"/>
-    </preConditions>
 
     <changeSet id="20210725-1" author="gabizou" onValidationFail="HALT">
         <comment>Set up the world</comment>

@@ -1,0 +1,10 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+    namespace: lagom
+    name:

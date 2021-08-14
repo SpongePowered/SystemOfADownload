@@ -15,14 +15,3 @@ services:
             KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
         volumes:
             - ./target/kafka:/kafka
-    postgres:
-        image: library/postgres:13-alpine
-        ports:
-            - "5432:5432"
-        environment:
-            POSTGRES_USER: admin
-            POSTGRES_PASSWORD: password
-            POSTGRES_DB: journal
-        volumes:
-            - ./target/postgres:/var/lib/postgresql/data
-
