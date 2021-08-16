@@ -2,6 +2,10 @@ resource "kubernetes_deployment" "systemofadownload-postgres" {
     metadata {
         namespace = var.namespace
         name = var.name
+        labels = {
+            "prometheus.io/scrape" = "true"
+            environment = var.environment
+        }
     }
     spec {
         replicas = 1

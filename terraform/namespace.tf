@@ -7,7 +7,7 @@ resource "kubernetes_namespace" "namespace" {
 
         name = local.namespace_name
         labels = {
-            environment = "development"
+            environment = local.environment
         }
     }
 }

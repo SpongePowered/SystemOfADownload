@@ -1,5 +1,5 @@
 locals {
-    postgres_password_name = "postgres-password"
-    postgres_password_key = "password"
+    # todo - make these part of some dynamic environment file or something...
     namespace_name = "lagom"
+    environment = "development"
 }

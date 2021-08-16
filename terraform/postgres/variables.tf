@@ -32,11 +32,6 @@ variable "password_key" {
     default = "password"
 }
 
-resource "random_password" "password" {
-    length = 32
-    special = true
-}
-
 variable "password" {
     type = string
     sensitive = true
@@ -58,4 +53,8 @@ variable "storage_name" {
 variable "storage_claim" {
     type = string
     default = "pg-storage-claim"
+}
+
+variable "environment" {
+    type = string
 }
