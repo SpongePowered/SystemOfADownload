@@ -423,3 +423,5 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+#sbt
+.bsp
