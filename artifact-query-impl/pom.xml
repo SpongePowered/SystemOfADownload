@@ -36,6 +36,14 @@
             <groupId>com.typesafe.play</groupId>
             <artifactId>play-akka-http-server_${scala.binary.version}</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.lightbend.akka.discovery</groupId>
+            <artifactId>akka-discovery-kubernetes-api_${scala.binary.version}</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.lightbend.lagom</groupId>
+            <artifactId>lagom-javadsl-akka-discovery-service-locator_${scala.binary.version}</artifactId>
+        </dependency>
         <!-- Database Dependencies -->
         <dependency>
             <groupId>org.hibernate</groupId>
@@ -72,15 +80,6 @@
                 <artifactId>docker-maven-plugin</artifactId>
                 <configuration>
                     <skip>false</skip>
-                    <images>
-                        <image>
-                            <build>
-                                <entryPoint>
-                                    ${play.docker.jvm.startup}
-                                </entryPoint>
-                            </build>
-                        </image>
-                    </images>
                 </configuration>
                 <executions>
                     <execution>

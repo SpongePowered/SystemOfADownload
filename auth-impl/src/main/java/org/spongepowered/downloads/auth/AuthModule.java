@@ -27,8 +27,6 @@ package org.spongepowered.downloads.auth;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.name.Named;
-import com.lightbend.lagom.javadsl.api.ServiceLocator;
-import com.lightbend.lagom.javadsl.client.ConfigurationServiceLocator;
 import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
 import org.ldaptive.ConnectionConfig;
 import org.ldaptive.DefaultConnectionFactory;
@@ -98,9 +96,6 @@ public final class AuthModule extends AbstractModule implements ServiceGuiceSupp
 
     @Override
     protected void configure() {
-        if (this.environment.isProd()) {
-            this.bind(ServiceLocator.class).to(ConfigurationServiceLocator.class);
-        }
         this.bindService(AuthService.class, AuthServiceImpl.class);
     }
 

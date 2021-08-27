@@ -20,6 +20,15 @@
             <artifactId>systemofadownload-auth-api</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- Lagom Dependency -->
+        <dependency>
+            <groupId>com.lightbend.lagom</groupId>
+            <artifactId>lagom-javadsl-akka-discovery-service-locator_${scala.binary.version}</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.lightbend.lagom</groupId>
+            <artifactId>lagom-javadsl-cluster_${scala.binary.version}</artifactId>
+        </dependency>
         <!-- Server Authentication Dependency -->
         <dependency>
             <groupId>${project.groupId}</groupId>
@@ -48,15 +57,6 @@
                 <artifactId>docker-maven-plugin</artifactId>
                 <configuration>
                     <skip>false</skip>
-                    <images>
-                        <image>
-                            <build>
-                                <entryPoint>
-                                    ${play.docker.jvm.startup}
-                                </entryPoint>
-                            </build>
-                        </image>
-                    </images>
                 </configuration>
                 <executions>
                     <execution>

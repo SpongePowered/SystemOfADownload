@@ -1,26 +1,18 @@
-
-resource "random_password" "postgres_password" {
-    length = 32
-    keepers = {
-        namespace = var.namespace
-    }
-    min_lower = 16
-    min_special = 6
-    special = true
-    upper = true
+variable "environment" {
+    type = string
 }
 
-variable "namespace" {
-    type    = string
-    default = "lagom"
-}
-
-variable "config_context" {
-    type    = string
-    default = "minikube"
+variable "application_namespace" {
+    type = string
+    description = "The namespace for SystemOfADownload to be deployed to."
 }
 
 variable "kube_config" {
     type = string
     default = "~/.kube/config"
+}
+
+variable "monitoring_namespace" {
+    type = string
+    default = "monitoring"
 }

@@ -34,6 +34,10 @@
         <!-- Lagom Dependencies -->
         <dependency>
             <groupId>com.lightbend.lagom</groupId>
+            <artifactId>lagom-javadsl-akka-discovery-service-locator_${scala.binary.version}</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.lightbend.lagom</groupId>
             <artifactId>lagom-javadsl-persistence-jpa_${scala.binary.version}</artifactId>
         </dependency>
         <dependency>
@@ -80,6 +84,10 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>com.lightbend.akka.discovery</groupId>
+            <artifactId>akka-discovery-kubernetes-api_${scala.binary.version}</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <scope>test</scope>
@@ -100,15 +108,6 @@
                 <artifactId>docker-maven-plugin</artifactId>
                 <configuration>
                     <skip>false</skip>
-                    <images>
-                        <image>
-                            <build>
-                                <entryPoint>
-                                    ${play.docker.jvm.startup}
-                                </entryPoint>
-                            </build>
-                        </image>
-                    </images>
                 </configuration>
                 <executions>
                     <execution>

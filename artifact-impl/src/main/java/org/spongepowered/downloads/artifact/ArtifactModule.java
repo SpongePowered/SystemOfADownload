@@ -26,8 +26,6 @@ package org.spongepowered.downloads.artifact;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
-import com.lightbend.lagom.javadsl.api.ServiceLocator;
-import com.lightbend.lagom.javadsl.client.ConfigurationServiceLocator;
 import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
 import org.pac4j.core.config.Config;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
@@ -51,9 +49,6 @@ public class ArtifactModule extends AbstractModule implements ServiceGuiceSuppor
 
     @Override
     protected void configure() {
-        if (this.environment.isProd()) {
-            this.bind(ServiceLocator.class).to(ConfigurationServiceLocator.class);
-        }
         this.bindService(ArtifactService.class, ArtifactServiceImpl.class);
         this.bind(ArtifactReadside.class).asEagerSingleton();
     }

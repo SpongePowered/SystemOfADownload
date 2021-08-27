@@ -108,6 +108,8 @@
                                 <exclude>LICENSE.txt</exclude>
                                 <exclude>config/**</exclude>
                                 <exclude>**/*.conf</exclude>
+                                <exclude>terraform/**</exclude>
+                                <exclude>.java-version</exclude>
                             </excludes>
                         </licenseSet>
                     </licenseSets>
@@ -128,7 +130,7 @@
             <plugin>
                 <groupId>io.fabric8</groupId>
                 <artifactId>docker-maven-plugin</artifactId>
-                <version>0.33.0</version>
+                <version>0.37.0</version>
                 <configuration>
                     <skip>true</skip>
                     <images>
@@ -137,21 +139,57 @@
                             <build>
                                 <from>${lagom.docker.image}</from>
                                 <tags>
-                                    <tag>${version.number}</tag>
+                                    <tag>${project.version}</tag>
                                     <tag>latest</tag>
                                 </tags>
-                                <assembly>
-                                    <descriptorRef>artifact-with-dependencies</descriptorRef>
-                                </assembly>
+                                <dockerFileDir>${project.parent.basedir}/deploy</dockerFileDir>
+                                <assemblies>
+                                    <assembly>
+                                        <name>deps-release</name>
+                                        <descriptorRef>release-dependencies</descriptorRef>
+                                        <targetDir>/etc/lagom/lib</targetDir>
+                                    </assembly>
+                                    <assembly>
+                                        <name>deps-snapshot</name>
+                                        <descriptorRef>snapshot-dependencies</descriptorRef>
+                                        <targetDir>/etc/lagom/lib</targetDir>
+                                    </assembly>
+                                    <assembly>
+                                        <descriptorRef>artifact</descriptorRef>
+                                        <targetDir>/etc/lagom/app</targetDir>
+                                    </assembly>
+                                    <assembly>
+                                        <name>config</name>
+                                        <inline>
+                                            <fileSets>
+                                                <fileSet>
+                                                    <directory>${project.basedir}/src/main/resources</directory>
+                                                    <include>*.conf</include>
+                                                    <outputDirectory>.</outputDirectory>
+                                                </fileSet>
+                                            </fileSets>
+                                        </inline>
+                                        <targetDir>/etc/lagom/config</targetDir>
+                                    </assembly>
+                                </assemblies>
                             </build>
                         </image>
                     </images>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>build-docker-image</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
-                <groupId>pl.project13.maven</groupId>
-                <artifactId>git-commit-id-plugin</artifactId>
-                <version>2.2.6</version>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
+                <version>5.0.0</version>
                 <executions>
                     <execution>
                         <phase>validate</phase>
@@ -203,6 +241,16 @@
                 <version>${akka.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.lightbend.lagom</groupId>
+                <artifactId>lagom-javadsl-akka-discovery-service-locator_${scala.binary.version}</artifactId>
+                <version>${lagom.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.lightbend.akka.discovery</groupId>
+                <artifactId>akka-discovery-kubernetes-api_${scala.binary.version}</artifactId>
+                <version>1.0.3</version>
             </dependency>
             <dependency>
                 <groupId>io.vavr</groupId>
@@ -307,8 +355,9 @@
         <hibernate.version>5.5.4.Final</hibernate.version>
         <guice.version>5.0.1</guice.version>
         <play.docker.jvm.startup>
-            java -XX:+UnlockExperimentalVMOptions --illegal-access=permit -cp '/maven/*'
-            -Dplay.http.secret.key=$PLAY_APPLICATION_SECRET play.core.server.ProdServerStart
+            java $JAVA_OPTS --illegal-access=permit -cp
+            '/etc/lagom/app/${project.artifactId}-${project.version}.jar':'/etc/lagom/lib/*'
+            play.core.server.ProdServerStart
         </play.docker.jvm.startup>
     </properties>
 </project>
