@@ -33,7 +33,7 @@ import org.pac4j.jwt.profile.JwtGenerator;
 import org.pac4j.lagom.javadsl.SecuredService;
 import org.spongepowered.downloads.auth.api.AuthService;
 import org.spongepowered.downloads.auth.api.AuthenticationRequest;
-import org.spongepowered.downloads.auth.utils.AuthUtils;
+import org.spongepowered.downloads.auth.api.utils.AuthUtils;
 
 import java.sql.Date;
 import java.time.Duration;

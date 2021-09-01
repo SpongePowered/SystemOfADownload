@@ -6,6 +6,10 @@ resource "kubernetes_secret" "postgres_password" {
     }
     data = {
         (var.database_config.password_key) = var.password
+        config = <<EOF
+listen_addresses = '*'
+max_connections = 500
+EOF
     }
     type = "Opaque"
 }

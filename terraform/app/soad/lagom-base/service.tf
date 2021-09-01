@@ -65,19 +65,19 @@ resource "kubernetes_deployment" "lagom-instances" {
 
                     resources {
                         requests = {
-                            cpu = "0.25"
-                            memory = "128Mi"
+                            cpu = "100m"
+                            memory = "200Mi"
                         }
                         limits = {
-                            cpu = "0.5"
-                            memory = "256Mi"
+                            cpu = "750m"
+                            memory = "1Gi"
                         }
                     }
                     dynamic "env" {
                         for_each = var.extra_envs
                         content {
                             name = env.key
-                            value = env.value
+                            value = env.value.value
                         }
                     }
                     dynamic "env" {
@@ -99,11 +99,7 @@ resource "kubernetes_deployment" "lagom-instances" {
 
                     env {
                         name = "JAVA_OPTS"
-                        value = "-XX:+UnlockExperimentalVMOptions -Dconfig.file=${local.config_value}"
-                    }
-                    env {
-                        name = "CLASS_PATH"
-                        value = var.classpath
+                        value = "-XX:+UnlockExperimentalVMOptions -Dconfig.file=${local.config_dir}/${local.config_file} ${var.extra_java_opts}"
                     }
                     env {
                         name = "APPLICATION_SECRET"
@@ -114,15 +110,10 @@ resource "kubernetes_deployment" "lagom-instances" {
                             }
                         }
                     }
-                    command = [
-                        "/bin/sh"]
-                    args = [
-                        "echo",
-                        "$(JAVA_OPTS)",
-                        "ls /etc/lagom/app",
-                        "ls /etc/lagom/lib",
-                        "pwd",
-                        "echo $(CLASS_PATH)"]
+                    env {
+                        name = local.kafka_service_env
+                        value = "_tcp-clients._tcp.${var.kafka_config.service_name}.${var.namespace}"
+                    }
 
                     liveness_probe {
                         http_get {
@@ -154,18 +145,27 @@ resource "kubernetes_deployment" "lagom-instances" {
                         container_port = 8558
                         protocol = "TCP"
                     }
+                    port {
+                        name = "endpoint"
+                        container_port = 9000
+                        protocol = "TCP"
+                    }
+                    port {
+                        name = "debug"
+                        container_port = 5005
+                        protocol = "TCP"
+                    }
 
                     volume_mount {
-                        mount_path = local.config_value
-                        name = "application-config"
+                        mount_path = local.config_dir
+                        name = "application-${var.app_name}-config"
                         read_only = true
                     }
                 }
                 volume {
-                    name = "application-config"
+                    name = "application-${var.app_name}-config"
                     secret {
                         secret_name = kubernetes_secret.lagom_application_config.metadata[0].name
-                        default_mode = "0400"
                     }
                 }
             }

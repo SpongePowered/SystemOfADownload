@@ -57,7 +57,7 @@ import org.spongepowered.downloads.artifact.group.GroupEntity;
 import org.spongepowered.downloads.artifact.group.GroupEvent;
 import org.spongepowered.downloads.auth.AuthenticatedInternalService;
 import org.spongepowered.downloads.auth.SOADAuth;
-import org.spongepowered.downloads.auth.utils.AuthUtils;
+import org.spongepowered.downloads.auth.api.utils.AuthUtils;
 
 import java.time.Duration;
 import java.util.Collections;

@@ -26,34 +26,24 @@ package org.spongepowered.downloads.versions;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
-import com.lightbend.lagom.javadsl.api.ServiceLocator;
-import com.lightbend.lagom.javadsl.client.ConfigurationServiceLocator;
 import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
 import org.pac4j.core.config.Config;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.auth.SOADAuth;
-import org.spongepowered.downloads.auth.utils.AuthUtils;
+import org.spongepowered.downloads.auth.api.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
 import org.spongepowered.downloads.versions.readside.VersionReadSidePersistence;
-import play.Environment;
 
 public class VersionsModule extends AbstractModule implements ServiceGuiceSupport {
 
-    private final Environment environment;
-    private final com.typesafe.config.Config config;
     private final AuthUtils auth;
 
-    public VersionsModule(final Environment environment, final com.typesafe.config.Config config) {
-        this.environment = environment;
-        this.config = config;
+    public VersionsModule(final com.typesafe.config.Config config) {
         this.auth = AuthUtils.configure(config);
     }
 
     @Override
     protected void configure() {
-        if (this.environment.isProd()) {
-            this.bind(ServiceLocator.class).to(ConfigurationServiceLocator.class);
-        }
         this.bindService(VersionsService.class, VersionsServiceImpl.class);
         this.bindClient(ArtifactService.class);
 

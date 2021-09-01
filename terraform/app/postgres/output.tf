@@ -7,5 +7,5 @@ output "name" {
 }
 
 output "service_host" {
-    value = "${kubernetes_service.systemofadownload_postgres.metadata[0].name}.${kubernetes_service.systemofadownload_postgres.metadata[0].namespace}"
+    value = "jdbc:postgresql://${kubernetes_service.systemofadownload_postgres.spec[0].cluster_ip}:${var.database_config.port}/${var.database_config.db}"
 }

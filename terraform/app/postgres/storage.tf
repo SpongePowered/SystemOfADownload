@@ -12,7 +12,6 @@ resource "kubernetes_persistent_volume" "postgres-data" {
             storage = "10Gi"
         }
         persistent_volume_reclaim_policy = "Retain"
-        storage_class_name = "standard"
         persistent_volume_source {
             host_path {
                 path = "/data"

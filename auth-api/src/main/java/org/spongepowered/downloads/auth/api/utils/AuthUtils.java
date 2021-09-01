@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.auth.utils;
+package org.spongepowered.downloads.auth.api.utils;
 
 import io.vavr.collection.List;
 import org.pac4j.core.authorization.authorizer.Authorizer;
@@ -40,6 +40,7 @@ import org.pac4j.jwt.config.signature.SignatureConfiguration;
 import org.pac4j.jwt.credentials.authenticator.JwtAuthenticator;
 import org.pac4j.jwt.profile.JwtGenerator;
 
+import javax.inject.Inject;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
@@ -105,6 +106,7 @@ public final record AuthUtils(String encryptionSecret, String signatureSecret,
         return new SecretSignatureConfiguration(this.nexusWebhookSecret);
     }
 
+    @Inject
     public static AuthUtils configure(com.typesafe.config.Config config) {
         final var authConfig = config.getConfig("systemofadownload.auth.secrets");
         final var encryptionSecret = authConfig.getString("encryption");

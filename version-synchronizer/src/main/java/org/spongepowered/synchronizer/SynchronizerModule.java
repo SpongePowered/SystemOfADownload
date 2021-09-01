@@ -37,20 +37,15 @@ import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
 import org.pac4j.core.config.Config;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.auth.SOADAuth;
-import org.spongepowered.downloads.auth.utils.AuthUtils;
+import org.spongepowered.downloads.auth.api.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
-import play.Environment;
 import play.api.libs.concurrent.AkkaGuiceSupport;
 
 public class SynchronizerModule extends AbstractModule  implements ServiceGuiceSupport, AkkaGuiceSupport {
 
-    private final Environment environment;
-    private final com.typesafe.config.Config config;
     private final AuthUtils auth;
 
-    public SynchronizerModule(final Environment environment, final com.typesafe.config.Config config) {
-        this.environment = environment;
-        this.config = config;
+    public SynchronizerModule(final com.typesafe.config.Config config) {
         this.auth = AuthUtils.configure(config);
     }
 

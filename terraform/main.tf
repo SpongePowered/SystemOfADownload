@@ -16,8 +16,18 @@ module "echo" {
     source = "./echo"
 }
 
+resource "kubernetes_namespace" "application_namespace" {
+    metadata {
+        name = var.application_namespace
+        annotations = {
+            env = var.environment
+        }
+    }
+}
+
 // Then the actual application and its dependencies (like postgres, kafka, etc.)
 module "application" {
+    depends_on = [kubernetes_namespace.application_namespace]
     source = "./app"
     namespace = var.application_namespace
     environment = var.environment

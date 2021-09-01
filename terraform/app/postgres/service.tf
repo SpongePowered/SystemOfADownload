@@ -51,11 +51,25 @@ resource "kubernetes_deployment" "systemofadownload-postgres" {
                         mount_path = "/var/lib/pgsql/data"
                         name = var.storage_name
                     }
+                    volume_mount {
+                        mount_path = "/var/lib/postgres"
+                        name = "postgres-config"
+                        read_only = true
+                    }
                     resources {
                         requests = {
                             cpu = local.cpu
                             memory = local.memory
                         }
+                        limits = {
+                            cpu = local.cpu_max
+                            memory = local.memory_max
+                        }
+                    }
+                    port {
+                        container_port = var.database_config.port
+                        protocol = "TCP"
+                        name = "postgres"
                     }
                     liveness_probe {
                         exec {
@@ -92,6 +106,16 @@ resource "kubernetes_deployment" "systemofadownload-postgres" {
                         claim_name = var.storage_claim
                     }
                 }
+                volume {
+                    name = "postgres-config"
+                    secret {
+                        secret_name = kubernetes_secret.postgres_password.metadata[0].name
+                        items {
+                            path = "postgresql.conf"
+                            key = "config"
+                        }
+                    }
+                }
             }
         }
     }
@@ -107,10 +131,9 @@ resource "kubernetes_service" "systemofadownload_postgres" {
             protocol = "TCP"
             port = var.database_config.port
             target_port = var.database_config.port
-            name = "postgres-port"
+            name = "postgres"
         }
         selector = {
-            namespace = var.namespace
             app = var.name
         }
     }

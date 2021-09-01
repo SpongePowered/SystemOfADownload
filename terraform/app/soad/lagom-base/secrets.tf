@@ -17,9 +17,10 @@ resource "random_password" "play_secret" {
 # applications
 resource "kubernetes_secret" "lagom_application_config" {
     metadata {
-        name = "lagom-application-config"
+        name = "lagom-${var.app_name}-config"
         namespace = var.namespace
         labels = {
+            app = var.app_name
             environment = var.environment
         }
     }
@@ -27,16 +28,14 @@ resource "kubernetes_secret" "lagom_application_config" {
         "production.conf" = <<EOF
 include "application.conf"
 
-play.modules.enabled += org.spongepowered.downloads.auth.AuthModule
-
 akka {
     loglevel = "DEBUG"
+    actor.provider = cluster
 
     discovery {
-        method = kubernetes-api
         kubernetes-api {
             pod-namespace = "${var.namespace}"
-            pod-label-selector = "app=${var.app_name}"
+            pod-namespace-path = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
         }
     }
 
@@ -49,6 +48,7 @@ akka {
             contact-point-discovery {
                 discovery-method = kubernetes-api
                 service-name = "${var.app_name}"
+                required-contact-point-nr = ${var.replica-count}
             }
         }
         health-checks {
@@ -63,7 +63,21 @@ play {
         pidfile.path = "/dev/null"
     }
 
-    http.secret.key = "$${APPLICATION_SECRET}"
+    http.secret.key = $${APPLICATION_SECRET}
+}
+
+lagom.cluster.exit-jvm-when-system-terminated = on
+
+lagom.broker.kafka {
+  service-name = $${${local.kafka_service_env}}
+}
+
+db.default {
+  async-executor {
+    numThreads = 5
+    minConnections = 5
+    maxConnections = 5
+  }
 }
 
 # Any extra specified configurations for production based on the application

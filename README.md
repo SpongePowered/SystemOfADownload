@@ -9,21 +9,29 @@ downloads website.
 
 ## Requirements
 
-- Java 14
+- Java 16
+- Docker
+- sbt 1.15
 
 ## Technologies in use
 
 ### Framework
 
 SystemOfADownload (SOAD) is built on [LagomFramework], an opinionated
-[Event Source] + [CQRS] architecture framework built on [Play], and as such relies
+[Event Source] + [CQRS] architecture framework built on [Akka], and as such relies
 on several functional programing paradigms. Lagom as a whole provides enough
 to build out several services with semi-automatic service discovery routing
-and using [Cassandra] as the primary storage database for the Event Journal.
+and using [Postgres] as the primary storage database for the Event Journal and
+Query side persistence.
 
 To learn about the topics, please visit
 [Lagom's documentation on concepts](https://www.lagomframework.com/documentation/1.6.x/java/CoreConcepts.html)
 that goes at length about how the system works together.
+
+### Containerization Out of the Box
+
+SOAD is targeted at being deployed with either Docker locally or running on a
+Kubernetes cluster.
 
 ### Services
 Each service (maven module) in this project is meant to represent a specific

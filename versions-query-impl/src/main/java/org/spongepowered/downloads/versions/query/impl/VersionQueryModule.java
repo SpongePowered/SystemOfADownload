@@ -25,27 +25,13 @@
 package org.spongepowered.downloads.versions.query.impl;
 
 import com.google.inject.AbstractModule;
-import com.lightbend.lagom.javadsl.api.ServiceLocator;
-import com.lightbend.lagom.javadsl.client.ConfigurationServiceLocator;
 import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
 import org.spongepowered.downloads.versions.query.api.VersionsQueryService;
-import play.Environment;
 
 public class VersionQueryModule extends AbstractModule implements ServiceGuiceSupport {
 
-    private final Environment environment;
-    private final com.typesafe.config.Config config;
-
-    public VersionQueryModule(final Environment environment, final com.typesafe.config.Config config) {
-        this.environment = environment;
-        this.config = config;
-    }
-
     @Override
     protected void configure() {
-        if (this.environment.isProd()) {
-            this.bind(ServiceLocator.class).to(ConfigurationServiceLocator.class);
-        }
         this.bindService(VersionsQueryService.class, VersionQueryServiceImpl.class);
     }
 }

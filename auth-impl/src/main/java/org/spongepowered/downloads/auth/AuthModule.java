@@ -47,9 +47,10 @@ import org.pac4j.http.client.direct.DirectBasicAuthClient;
 import org.pac4j.jwt.profile.JwtGenerator;
 import org.pac4j.ldap.profile.service.LdapProfileService;
 import org.spongepowered.downloads.auth.api.AuthService;
-import org.spongepowered.downloads.auth.utils.AuthUtils;
+import org.spongepowered.downloads.auth.api.utils.AuthUtils;
 import play.Environment;
 
+import javax.inject.Inject;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
@@ -67,35 +68,35 @@ import java.util.concurrent.TimeUnit;
 // JWTs should be short lived anyway.
 public final class AuthModule extends AbstractModule implements ServiceGuiceSupport {
 
-    private final boolean useDummyCredentials;
-    private final String ldapUrl;
-    private final String ldapBaseUserDn;
-    private final String ldapSoadOu;
+    private boolean useDummyCredentials;
+    private String ldapUrl;
+    private String ldapBaseUserDn;
+    private String ldapSoadOu;
 
-    private final Duration connectionTimeout;
-    private final Duration responseTimeout;
-    private final Duration blockWaitTime;
+    private Duration connectionTimeout;
+    private Duration responseTimeout;
+    private Duration blockWaitTime;
 
-    private final Environment environment;
     private final com.typesafe.config.Config config;
-    private final AuthUtils auth;
+    private AuthUtils auth;
 
+    @Inject
     public AuthModule(final Environment environment, final com.typesafe.config.Config config) {
-        this.environment = environment;
-        this.config = config.getConfig("systemofadownload.auth");
-        final var ldap = this.config.getConfig("ldap");
-        this.useDummyCredentials = this.config.getBoolean("use-dummy-ldap");
+        this.config = config;
+    }
+
+    @Override
+    protected void configure() {
+        final var authConfig = this.config.getConfig("systemofadownload.auth");
+        final var ldap = authConfig.getConfig("ldap");
+        this.useDummyCredentials = authConfig.getBoolean("use-dummy-ldap");
         this.ldapUrl = ldap.getString("url");
         this.ldapBaseUserDn = ldap.getString("base-user-on");
         this.ldapSoadOu = ldap.getString("soad-ou");
         this.connectionTimeout = Duration.ofMillis(ldap.getDuration("connection-timeout", TimeUnit.MILLISECONDS));
         this.responseTimeout = Duration.ofSeconds(ldap.getDuration("response-timeout", TimeUnit.SECONDS));
         this.blockWaitTime = Duration.ofSeconds(ldap.getDuration("wait-time", TimeUnit.SECONDS));
-        this.auth = AuthUtils.configure(config);
-    }
-
-    @Override
-    protected void configure() {
+        this.auth = AuthUtils.configure(this.config);
         this.bindService(AuthService.class, AuthServiceImpl.class);
     }
 

@@ -15,13 +15,22 @@ services:
             KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
         volumes:
             - ./target/kafka:/kafka
+    postgres:
+        image: library/postgres:13-alpine
+        ports:
+            - "5432:5432"
+        environment:
+            POSTGRES_USER: admin
+            POSTGRES_PASSWORD: password
+            POSTGRES_DB: journal
+        volumes:
+            - ./target/postgres:/var/lib/postgresql/data
     auth:
         image: spongepowered/systemofadownload-auth-impl:latest
         container_name: auth
         ports:
             - "8080:8080"
             - "8558:8558"
+            - "2552:2552"
         environment:
-            JAVA_OPTS: -XX:+UnlockExperimentalVMOptions -Dconfig.file=/etc/production.conf
-        command:
-            - "ls /"
+            APPLICATION_SECRET: "dfsjaklfdsajlkdfasjkldfsaldfsa789fdsaf789"

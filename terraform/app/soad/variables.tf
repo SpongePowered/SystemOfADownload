@@ -60,31 +60,45 @@ variable "soad_images" {
     type = map(object({
         service_name = string
         image_name = string
+        image_version = string
+        replicas = number
     }))
     default = {
         "auth" = {
             service_name = "auth-server"
+            replicas = 1
+            image_version = "latest"
             image_name = "spongepowered/systemofadownload-auth-impl"
         }
         "synchronizer" = {
             service_name = "version-synchronizer"
+            replicas = 1
+            image_version = "latest"
             image_name = "spongepowered/systemofadownload-version-synchronizer"
         }
         "versions" = {
             service_name = "versions-server"
+            replicas = 3
+            image_version = "latest"
             image_name = "spongepowered/systemofadownload-versions-impl"
         }
         "versions_query" = {
             service_name = "versions-query-server"
+            replicas = 3
+            image_version = "latest"
             image_name = "spongepowered/systemofadownload-versions-query-impl"
         }
         "artifacts" = {
             service_name = "artifacts-server"
+            replicas = 1
+            image_version = "latest"
             image_name = "spongepowered/systemofadownload-artifact-impl"
         }
         "artifacts_query" = {
             service_name = "artifacts-query-server"
-            image_name = "spongepowered/artifact-query-impl"
+            replicas = 2
+            image_version = "latest"
+            image_name = "spongepowered/systemofadownload-artifact-query-impl"
         }
     }
 }

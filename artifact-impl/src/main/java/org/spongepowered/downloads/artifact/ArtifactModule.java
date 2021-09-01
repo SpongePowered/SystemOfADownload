@@ -31,7 +31,7 @@ import org.pac4j.core.config.Config;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.artifact.readside.ArtifactReadside;
 import org.spongepowered.downloads.auth.SOADAuth;
-import org.spongepowered.downloads.auth.utils.AuthUtils;
+import org.spongepowered.downloads.auth.api.utils.AuthUtils;
 import play.Environment;
 
 public class ArtifactModule extends AbstractModule implements ServiceGuiceSupport {

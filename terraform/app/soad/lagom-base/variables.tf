@@ -49,6 +49,16 @@ variable "extra_secret_envs" {
     default = {}
 }
 
-variable "classpath" {
+variable "extra_java_opts" {
     type = string
+    default = ""
+}
+
+variable "kafka_config" {
+    type = object({
+        host = string
+        ports = list(number)
+        service_name = string
+    })
+
 }
