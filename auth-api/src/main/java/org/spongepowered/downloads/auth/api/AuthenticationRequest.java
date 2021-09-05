@@ -24,18 +24,13 @@
  */
 package org.spongepowered.downloads.auth.api;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 public final class AuthenticationRequest {
 
-    public static final class Response {
-        private final String jwtToken;
-
-        public Response(String jwtToken) {
-            this.jwtToken = jwtToken;
-        }
-
-        public String getJwtToken() {
-            return this.jwtToken;
-        }
+    @JsonSerialize
+    public final record Response(@JsonProperty("token") String jwtToken) {
     }
 
 }

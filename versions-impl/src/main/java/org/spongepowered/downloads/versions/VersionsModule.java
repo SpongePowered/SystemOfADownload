@@ -33,12 +33,16 @@ import org.spongepowered.downloads.auth.SOADAuth;
 import org.spongepowered.downloads.auth.api.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
 import org.spongepowered.downloads.versions.readside.VersionReadSidePersistence;
+import play.Environment;
+
+import javax.inject.Inject;
 
 public class VersionsModule extends AbstractModule implements ServiceGuiceSupport {
 
     private final AuthUtils auth;
 
-    public VersionsModule(final com.typesafe.config.Config config) {
+    @Inject
+    public VersionsModule(final Environment environment, final com.typesafe.config.Config config) {
         this.auth = AuthUtils.configure(config);
     }
 

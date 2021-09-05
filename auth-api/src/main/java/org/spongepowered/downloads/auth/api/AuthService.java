@@ -46,8 +46,8 @@ public interface AuthService extends Service {
     default Descriptor descriptor() {
         return Service.named("auth")
             .withCalls(
-                Service.restCall(Method.POST, "/api/auth/login", this::login),
-                Service.restCall(Method.POST, "/api/auth/logout", this::logout)
+                Service.restCall(Method.POST, "/auth/login", this::login),
+                Service.restCall(Method.POST, "/auth/logout", this::logout)
             )
             .withAutoAcl(true);
     }

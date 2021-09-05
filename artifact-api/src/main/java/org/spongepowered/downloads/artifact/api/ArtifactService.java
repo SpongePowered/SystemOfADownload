@@ -58,11 +58,11 @@ public interface ArtifactService extends Service {
     default Descriptor descriptor() {
         return Service.named("artifacts")
             .withCalls(
-                Service.restCall(Method.GET, "/api/v2/groups/:groupId", this::getGroup),
-                Service.restCall(Method.GET, "/api/v2/groups", this::getGroups),
-                Service.restCall(Method.POST, "/api/v2/groups", this::registerGroup),
-                Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts", this::getArtifacts),
-                Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts", this::registerArtifacts)
+                Service.restCall(Method.GET, "/artifacts/groups/:groupId", this::getGroup),
+                Service.restCall(Method.GET, "/artifacts/groups", this::getGroups),
+                Service.restCall(Method.POST, "/artifacts/groups", this::registerGroup),
+                Service.restCall(Method.GET, "/artifacts/groups/:groupId/artifacts", this::getArtifacts),
+                Service.restCall(Method.POST, "/artifacts/groups/:groupId/artifacts", this::registerArtifacts)
             )
             .withTopics(
                 Service.topic("group-activity", this::groupTopic)

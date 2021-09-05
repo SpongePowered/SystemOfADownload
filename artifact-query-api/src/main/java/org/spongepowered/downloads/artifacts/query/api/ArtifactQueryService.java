@@ -38,7 +38,7 @@ public interface ArtifactQueryService extends Service {
     default Descriptor descriptor() {
         return Service.named("artifact-query")
             .withCalls(
-                Service.restCall(Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId", this::getArtifactDetails)
+                Service.restCall(Method.GET, "/artifacts-query/groups/:groupId/artifacts/:artifactId", this::getArtifactDetails)
             )
             .withAutoAcl(true);
     }

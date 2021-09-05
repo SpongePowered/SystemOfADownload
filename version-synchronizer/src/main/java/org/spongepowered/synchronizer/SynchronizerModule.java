@@ -24,7 +24,9 @@
  */
 package org.spongepowered.synchronizer;
 
+import akka.actor.ActorSystem;
 import akka.actor.typed.ActorRef;
+import akka.actor.typed.javadsl.Adapter;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.AbstractModule;
@@ -39,13 +41,15 @@ import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.auth.SOADAuth;
 import org.spongepowered.downloads.auth.api.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
+import play.Environment;
 import play.api.libs.concurrent.AkkaGuiceSupport;
 
-public class SynchronizerModule extends AbstractModule  implements ServiceGuiceSupport, AkkaGuiceSupport {
+public class SynchronizerModule extends AbstractModule implements ServiceGuiceSupport, AkkaGuiceSupport {
 
     private final AuthUtils auth;
 
-    public SynchronizerModule(final com.typesafe.config.Config config) {
+    @Inject
+    public SynchronizerModule(final Environment environment, final com.typesafe.config.Config config) {
         this.auth = AuthUtils.configure(config);
     }
 
@@ -66,34 +70,26 @@ public class SynchronizerModule extends AbstractModule  implements ServiceGuiceS
         return this.auth.config();
     }
 
-    public static class SynchronizerProvider implements Provider<ActorRef<SonatypeSynchronizer.Command>> {
-        private final ArtifactService artifactService;
-        private final VersionsService versionsService;
-        private final ClusterSharding clusterSharding;
-        private final ObjectMapper mapper;
+    public record SynchronizerProvider(
+        ArtifactService artifactService,
+        VersionsService versionsService,
+        ClusterSharding clusterSharding,
+        ObjectMapper mapper,
+        ActorSystem system
+    ) implements Provider<ActorRef<SonatypeSynchronizer.Command>> {
 
         @Inject
-        public SynchronizerProvider(
-            final ArtifactService artifactService,
-            final VersionsService versionsService,
-            final ClusterSharding clusterSharding,
-            final ObjectMapper mapper
-        ) {
-            this.artifactService = artifactService;
-            this.versionsService = versionsService;
-            this.clusterSharding = clusterSharding;
-            this.mapper = mapper;
+        public SynchronizerProvider {
         }
 
         @Override
         public ActorRef<SonatypeSynchronizer.Command> get() {
-            return akka.actor.typed.ActorSystem.create(
-                SonatypeSynchronizer.create(
-                    this.artifactService,
-                    this.versionsService,
-                    this.clusterSharding,
-                    this.mapper
-                ), "Synchronizer");
+            return Adapter.spawn(this.system, SonatypeSynchronizer.create(
+                this.artifactService,
+                this.versionsService,
+                this.clusterSharding,
+                this.mapper
+            ), "Synchronizer");
         }
     }
 }

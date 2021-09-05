@@ -53,15 +53,15 @@ public interface VersionsQueryService extends Service {
         return Service.named("version-query")
             .withCalls(
                 Service.restCall(
-                    Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions?tags&limit&offset&recommended",
+                    Method.GET, "/versions-query/groups/:groupId/artifacts/:artifactId/versions?tags&limit&offset&recommended",
                     this::artifactVersions
                 ),
                 Service.restCall(
-                    Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/versions/:version",
+                    Method.GET, "/versions-query/groups/:groupId/artifacts/:artifactId/versions/:version",
                     this::versionDetails
                 ),
                 Service.restCall(
-                    Method.GET, "/api/v2/groups/:groupId/artifacts/:artifactId/latest?tags&recommended",
+                    Method.GET, "/versions-query/groups/:groupId/artifacts/:artifactId/latest?tags&recommended",
                     this::latestArtifact
                 )
             )

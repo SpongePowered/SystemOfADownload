@@ -51,10 +51,10 @@ public interface VersionsService extends Service {
     default Descriptor descriptor() {
         return Service.named("versions")
             .withCalls(
-                Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts/:artifactId/versions", this::registerArtifactCollection),
-                Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts/:artifactId/tags", this::registerArtifactTag),
-                Service.restCall(Method.PATCH, "/api/v2/groups/:groupId/artifacts/:artifactId/tags", this::updateArtifactTag),
-                Service.restCall(Method.POST, "/api/v2/groups/:groupId/artifacts/:artifactId/promotion", this::tagVersion)
+                Service.restCall(Method.POST, "/versions/groups/:groupId/artifacts/:artifactId/versions", this::registerArtifactCollection),
+                Service.restCall(Method.POST, "/versions/groups/:groupId/artifacts/:artifactId/tags", this::registerArtifactTag),
+                Service.restCall(Method.PATCH, "/versions/groups/:groupId/artifacts/:artifactId/tags", this::updateArtifactTag),
+                Service.restCall(Method.POST, "/versions/groups/:groupId/artifacts/:artifactId/promotion", this::tagVersion)
              )
             .withTopics(Service.topic("artifact-update", this::artifactUpdateTopic))
             .withAutoAcl(true);
