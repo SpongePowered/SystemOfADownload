@@ -31,6 +31,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Index;
+import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
@@ -48,18 +49,20 @@ import java.util.Set;
             columnList = "group_id, artifact_id",
             unique = true)
     })
-@NamedQuery(
-    name = "Artifact.selectByGroupAndArtifact",
-    query = """
+@NamedQueries({
+    @NamedQuery(
+        name = "Artifact.selectByGroupAndArtifact",
+        query = """
             select a from Artifact a where a.groupId = :groupId and a.artifactId = :artifactId
             """
-)
-@NamedQuery(
-    name = "Artifact.selectWithTags",
-    query = """
+    ),
+    @NamedQuery(
+        name = "Artifact.selectWithTags",
+        query = """
             select a from Artifact a where a.groupId = :groupId and a.artifactId = :artifactId
             """
-)
+    )
+})
 public class JpaArtifact implements Serializable {
 
     @Id

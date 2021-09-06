@@ -308,7 +308,5 @@ lazy val soadRoot = project.in(file(".")).settings(
 ThisBuild / lagomCassandraEnabled := false
 ThisBuild / lagomKafkaEnabled := false
 ThisBuild / lagomKafkaPort := 9092
+ThisBuild /lagomServicesPortRange := PortRange(21000, 23000)
 
-//Faster, faster (No idea if pipelining works with Java)
-ThisBuild / turbo := true
-ThisBuild / usePipelining := true

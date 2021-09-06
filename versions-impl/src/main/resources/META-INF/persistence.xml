@@ -2,16 +2,6 @@
     <persistence-unit name="default" transaction-type="RESOURCE_LOCAL">
         <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
         <non-jta-data-source>DefaultDS</non-jta-data-source>
-        <exclude-unlisted-classes>true</exclude-unlisted-classes>
-        <properties>
-            <property name="hibernate.connection.driver_class" value="org.postgresql.Driver"/>
-            <property name="hibernate.default_schema" value="public"/>
-            <property name="hibernate.dialect" value="org.hibernate.dialect.PostgreSQL10Dialect"/>
-        </properties>
-    </persistence-unit>
-    <persistence-unit name="artifacts" transaction-type="RESOURCE_LOCAL">
-        <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
-        <non-jta-data-source>DefaultDS</non-jta-data-source>
         <class>org.spongepowered.downloads.versions.readside.JpaArtifactVersion</class>
         <class>org.spongepowered.downloads.versions.readside.JpaArtifact</class>
         <class>org.spongepowered.downloads.versions.readside.JpaArtifactTag</class>
@@ -20,7 +10,7 @@
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
         <properties>
             <property name="hibernate.connection.driver_class" value="org.postgresql.Driver"/>
-            <property name="hibernate.default_schema" value="version"/>
+            <property name="hibernate.default_schema" value="public"/>
             <property name="hibernate.dialect" value="org.hibernate.dialect.PostgreSQL10Dialect"/>
         </properties>
     </persistence-unit>

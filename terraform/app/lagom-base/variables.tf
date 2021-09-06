@@ -54,6 +54,7 @@ variable "extra_secret_envs" {
 variable "extra_java_opts" {
     type = string
     default = ""
+    description = "Extra JVM options to starting the service with"
 }
 
 variable "kafka_config" {

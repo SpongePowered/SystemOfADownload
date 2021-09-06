@@ -41,6 +41,7 @@ import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.JoinColumns;
+import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
@@ -54,10 +55,12 @@ import java.util.stream.Collectors;
 @Entity(name = "Artifact")
 @Table(name = "artifacts",
     schema = "version")
-@NamedQuery(
-    name = "Artifact.findByCoordinates",
-    query = "select a from Artifact a where a.groupId = :groupId and a.artifactId = :artifactId"
-)
+@NamedQueries({
+    @NamedQuery(
+        name = "Artifact.findByCoordinates",
+        query = "select a from Artifact a where a.groupId = :groupId and a.artifactId = :artifactId"
+    )
+})
 public class JpaArtifact implements Serializable {
 
     @Id

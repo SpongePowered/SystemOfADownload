@@ -1,7 +1,7 @@
 locals {
 
-    encryption_key = sha512(random_string.auth-encryption.result)
-    signature_key = sha512(random_string.auth-signature.result)
+    encryption_key = random_string.auth-encryption.result
+    signature_key = random_string.auth-signature.result
 
     soad_app_configs = {
         "artifacts" = {
@@ -86,16 +86,6 @@ locals {
             }
             extra_env = local.default_database_envs
             extra_secret_env = local.default_secret_based_envs
-            extra_config =  <<-EOF
-            akka {
-              remote {
-                artery {
-                  canonical.port = 28825
-                  canonical.hostname = "0.0.0.0"
-                }
-              }
-            }
-            EOF
             extra_ports = [{
                 port = 28825
                 name = "artery"

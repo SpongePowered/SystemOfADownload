@@ -29,6 +29,7 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 import java.util.Objects;
@@ -36,9 +37,11 @@ import java.util.Objects;
 @Entity(name = "Artifact")
 @Table(name = "artifacts",
     schema = "version")
-@NamedQuery(name = "Artifact.findById",
-    query = "select a from Artifact a where a.groupId = :groupId and a.artifactId = :artifactId"
-)
+@NamedQueries({
+    @NamedQuery(name = "Artifact.findById",
+        query = "select a from Artifact a where a.groupId = :groupId and a.artifactId = :artifactId"
+    )
+})
 public class JpaArtifact {
 
     @Id

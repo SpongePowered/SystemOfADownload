@@ -35,6 +35,7 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
 import javax.persistence.ManyToOne;
+import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.Table;
 import java.util.Arrays;
@@ -43,15 +44,17 @@ import java.util.Objects;
 @Entity(name = "VersionedAsset")
 @Table(name = "versioned_assets",
     schema = "version")
-@NamedQuery(
-    name = "VersionedAsset.findByVersion",
-    query =
-        """
-        select a from VersionedAsset a
-        where a.versionedArtifact.id = :id and a.classifier = :classifier
-        and a.extension = :extension
-        """
-)
+@NamedQueries({
+    @NamedQuery(
+        name = "VersionedAsset.findByVersion",
+        query =
+            """
+            select a from VersionedAsset a
+            where a.versionedArtifact.id = :id and a.classifier = :classifier
+            and a.extension = :extension
+            """
+    )
+})
 public class JpaVersionedArtifactAsset {
 
     @Id
