@@ -119,6 +119,14 @@ resource "kubernetes_deployment" "lagom-instances" {
                         value = "0.0.0.0"
                     }
 
+                    startup_probe {
+                        http_get {
+                            path = "health/alive"
+                            port = "management"
+                        }
+                        failure_threshold = 30
+                        period_seconds = 10
+                    }
                     liveness_probe {
                         http_get {
                             path = "health/alive"
