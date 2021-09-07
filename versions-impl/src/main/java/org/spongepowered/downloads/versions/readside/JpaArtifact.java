@@ -66,7 +66,7 @@ import java.util.Set;
 public class JpaArtifact implements Serializable {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id",
         updatable = false,
         nullable = false)

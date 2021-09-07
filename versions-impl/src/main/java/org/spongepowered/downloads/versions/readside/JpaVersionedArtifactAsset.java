@@ -58,7 +58,7 @@ import java.util.Objects;
 public class JpaVersionedArtifactAsset {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id",
         updatable = false,
         nullable = false)

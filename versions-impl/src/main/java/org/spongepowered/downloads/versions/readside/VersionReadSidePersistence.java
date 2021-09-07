@@ -29,7 +29,6 @@ import akka.actor.typed.ActorRef;
 import akka.actor.typed.SupervisorStrategy;
 import akka.actor.typed.javadsl.Adapter;
 import akka.actor.typed.javadsl.Behaviors;
-import com.google.common.collect.ImmutableMap;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.ReadSide;
 import com.lightbend.lagom.javadsl.persistence.ReadSideProcessor;
@@ -42,7 +41,6 @@ import org.spongepowered.downloads.versions.collection.ACEvent;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.persistence.EntityManager;
-import javax.persistence.Persistence;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -81,6 +79,7 @@ public class VersionReadSidePersistence {
             return this.readSide.<ACEvent>builder("version-query-builder")
                 .setGlobalPrepare(this::createSchema)
                 .setEventHandler(ACEvent.ArtifactCoordinatesUpdated.class, (em, artifactCreated) -> {
+                    System.out.printf("Herpaderp coordinates updated %s\n", artifactCreated.coordinates.toString());
                     final var coordinates = artifactCreated.coordinates;
                     final var artifactQuery = em.createNamedQuery(
                         "Artifact.selectByGroupAndArtifact",
@@ -218,7 +217,6 @@ public class VersionReadSidePersistence {
         }
 
         private void createSchema(EntityManager em) {
-            Persistence.generateSchema("default", ImmutableMap.of("hibernate.hbm2ddl.auto", "update"));
         }
 
         @Override
