@@ -99,7 +99,7 @@ public record VersionQueryServiceImpl(JpaSession session)
                     throw new NotFound("unknown artifact");
                 }
                 try {
-                    final var query = new VersionQuery(groupId, artifactId, tags, recommended.orElse(true));
+                    final var query = new VersionQuery(groupId, artifactId, tags, recommended.orElse(false));
 
                     final var info = query.tags.isEmpty() ? getUntaggedVersions(t, query) : getTaggedVersions(t, query);
                     final var version = info.artifacts().keySet().head();

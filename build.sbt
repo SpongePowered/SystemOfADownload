@@ -11,6 +11,10 @@ ThisBuild / organizationName := "SpongePowered"
 ThisBuild / startYear := Some(2020)
 ThisBuild / licenses += ("MIT", url("https://opensource.org/licenses/MIT"))
 
+// Deployed Repositories
+// TODO - Figure out deploying to our sonatype and to maven central
+//    Then also figure out deploying docker images???
+
 // region dependency versions
 
 lazy val vavrVersion = "0.10.3"
@@ -26,6 +30,9 @@ lazy val lagomPac4j = "org.pac4j" %% "lagom-pac4j" % lagomPac4jVersion
 
 lazy val junitVersion = "5.7.2" // Enable Junit5
 lazy val junit = "org.junit.jupiter" % "junit-jupiter-api" % junitVersion % Test
+lazy val jupiterInterfaceVersion = "0.9.1" // sbt-jupiter-interface
+lazy val jupiterInterface = "net.aichler" % "jupiter-interface" % jupiterInterfaceVersion % Test
+
 
 lazy val jacksonVersion = "2.11.4" // this is tied to play's jackson version
 lazy val jacksonDataformatXml = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % jacksonVersion
@@ -116,7 +123,8 @@ def serverSoadProject(name: String) =
       guice,
       //Test Dependencies
       lagomJavadslTestKit,
-      junit // Always enable Junit 5
+      junit, // Always enable Junit 5
+      jupiterInterface
     )
   ).settings(
     dockerUpdateLatest := true,
@@ -226,6 +234,7 @@ lazy val `sonatype` = soadProject( "sonatype").settings(
     "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
     //Test Dependencies
     junit,
+    jupiterInterface,
     jacksonDataformatXml % Test,
     vavrJackson % Test exclude("com.fasterxml.jackson.core", "jackson-databind")
   )
