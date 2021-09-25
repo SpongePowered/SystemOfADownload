@@ -57,11 +57,23 @@ public class ArtifactReadside {
         public ReadSideHandler<DetailsEvent> buildHandler() {
             return this.readSide.<DetailsEvent>builder("artifact-details-builder")
                 .setEventHandler(DetailsEvent.ArtifactRegistered.class, (em, event) -> {
-                    findOrRegisterArtifact(em, event.coordinates);
+                    findOrRegisterArtifact(em, event.coordinates());
                 })
                 .setEventHandler(DetailsEvent.ArtifactDetailsUpdated.class, (em, event) -> {
-                    final var artifact = findOrRegisterArtifact(em, event.coordinates);
-                    artifact.setDisplayName(event.displayName);
+                    final var artifact = findOrRegisterArtifact(em, event.coordinates());
+                    artifact.setDisplayName(event.displayName());
+                })
+                .setEventHandler(DetailsEvent.ArtifactWebsiteUpdated.class, (em, event) -> {
+                    final var artifact = findOrRegisterArtifact(em, event.coordinates());
+                    artifact.setWebsite(event.url());
+                })
+                .setEventHandler(DetailsEvent.ArtifactIssuesUpdated.class, (em, event) -> {
+                    final var artifact = findOrRegisterArtifact(em, event.coordinates());
+                    artifact.setIssues(event.url());
+                })
+                .setEventHandler(DetailsEvent.ArtifactGitRepositoryUpdated.class, (em, event) -> {
+                    final var artifact = findOrRegisterArtifact(em, event.coordinates());
+                    artifact.setGitRepo(event.gitRepo());
                 })
                 .build();
         }

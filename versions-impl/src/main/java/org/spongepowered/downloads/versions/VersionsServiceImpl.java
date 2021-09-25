@@ -239,13 +239,17 @@ public class VersionsServiceImpl implements VersionsService,
 
     private static List<Pair<ArtifactUpdate, Offset>> convertEvent(Pair<ACEvent, Offset> pair) {
         final ACEvent event = pair.first();
+        final ArtifactUpdate update;
         if (event instanceof ACEvent.ArtifactVersionRegistered r) {
-            return List.of(Pair.create(new ArtifactUpdate.ArtifactVersionRegistered(r.version), pair.second()));
+            update = new ArtifactUpdate.ArtifactVersionRegistered(r.version);
+        } else if (event instanceof ACEvent.ArtifactTagRegistered r) {
+            update = new ArtifactUpdate.TagRegistered(r.coordinates(), r.entry());
+        } else if (event instanceof ACEvent.VersionedCollectionAdded c) {
+            update = new ArtifactUpdate.VersionedAssetCollectionUpdated(c.coordinates(), c.collection(), c.newArtifacts());
+        } else {
+            return Collections.emptyList();
         }
-        if (event instanceof ACEvent.ArtifactTagRegistered r) {
-            return List.of(Pair.create(new ArtifactUpdate.TagRegistered(r.coordinates(), r.entry()), pair.second()));
-        }
-        return Collections.emptyList();
+        return List.of(Pair.apply(update, pair.second()));
     }
 
     @Override

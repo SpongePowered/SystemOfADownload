@@ -28,6 +28,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.CompressedJsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
+import org.spongepowered.downloads.artifact.details.DetailsEvent;
 
 @JsonDeserialize
 public record PopulatedState(ArtifactCoordinates coordinates,
@@ -40,5 +41,45 @@ public record PopulatedState(ArtifactCoordinates coordinates,
 
     public boolean isEmpty() {
         return this.coordinates.artifactId.isBlank() && this.coordinates.groupId.isBlank();
+    }
+
+    public DetailsState withDisplayName(DetailsEvent.ArtifactDetailsUpdated event) {
+        return new PopulatedState(
+            this.coordinates,
+            event.displayName(),
+            this.website,
+            this.gitRepository,
+            this.issues
+        );
+    }
+
+    public DetailsState withGitRepo(DetailsEvent.ArtifactGitRepositoryUpdated e) {
+        return new PopulatedState(
+            this.coordinates,
+            this.displayName,
+            this.website,
+            e.gitRepo(),
+            this.issues
+        );
+    }
+
+    public DetailsState withIssues(DetailsEvent.ArtifactIssuesUpdated e) {
+        return new PopulatedState(
+            this.coordinates,
+            this.displayName,
+            this.website,
+            this.gitRepository,
+            e.url()
+        );
+    }
+
+    public DetailsState withWebsite(DetailsEvent.ArtifactWebsiteUpdated e) {
+        return new PopulatedState(
+            this.coordinates,
+            this.displayName,
+            e.url(),
+            this.gitRepository,
+            this.issues
+        );
     }
 }

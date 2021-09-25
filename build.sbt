@@ -47,6 +47,8 @@ lazy val postgres = "org.postgresql" % "postgresql" % "42.2.18"
 
 lazy val guice = "com.google.inject" % "guice" % "5.0.1"
 
+lazy val jgit = "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r"
+
 // endregion
 
 // region - project blueprints
@@ -177,6 +179,8 @@ lazy val `artifact-impl` = implSoadProjectWithPersistence("artifact-impl", `arti
   //Inter module dependencies
   `server-auth`,
   `sonatype`
+).settings(
+  libraryDependencies += jgit
 )
 
 lazy val `artifact-query-api` = apiSoadProject("artifact-query-api").dependsOn(
@@ -222,6 +226,18 @@ lazy val `version-synchronizer` = serverSoadProject("version-synchronizer").depe
     //XML Deserialization - to interpret Maven's metadata.xml
     jacksonDataformatXml
   )
+)
+
+lazy val `commit-api` = apiSoadProject("commit-api").dependsOn(
+  `artifact-api`
+)
+
+lazy val `commit-impl` = implSoadProjectWithPersistence("commit-impl", `commit-api`).settings(
+  libraryDependencies += jgit
+)
+
+lazy val `commit-query-api` = apiSoadProject("commit-query-api").dependsOn(
+  `artifact-api`
 )
 
 lazy val `sonatype` = soadProject( "sonatype").settings(
@@ -306,6 +322,9 @@ lazy val soadRoot = project.in(file(".")).settings(
   `versions-query-api`,
   `versions-query-impl`,
   `version-synchronizer`,
+  `commit-api`,
+  `commit-impl`,
+  `commit-query-api`,
   `sonatype`,
   `auth-api`,
   `auth-impl`,

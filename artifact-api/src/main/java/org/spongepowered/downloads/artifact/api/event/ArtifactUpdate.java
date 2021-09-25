@@ -22,52 +22,89 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.api.models;
+package org.spongepowered.downloads.artifact.api.event;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.Artifact;
-import org.spongepowered.downloads.artifact.api.ArtifactCollection;
+import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
-import org.spongepowered.downloads.artifact.api.MavenCoordinates;
-import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
-    @JsonSubTypes.Type(value = ArtifactUpdate.ArtifactVersionRegistered.class, name = "new-version"),
-    @JsonSubTypes.Type(value = ArtifactUpdate.TagRegistered.class, name = "tag-update"),
-    @JsonSubTypes.Type(value = ArtifactUpdate.VersionedAssetCollectionUpdated.class, name = "asset-added"),
+    @JsonSubTypes.Type(ArtifactUpdate.ArtifactRegistered.class),
+    @JsonSubTypes.Type(ArtifactUpdate.GitRepositoryAssociated.class),
+    @JsonSubTypes.Type(ArtifactUpdate.WebsiteUpdated.class),
+    @JsonSubTypes.Type(ArtifactUpdate.IssuesUpdated.class),
+    @JsonSubTypes.Type(ArtifactUpdate.DisplayNameUpdated.class),
 })
-public interface ArtifactUpdate {
+public interface ArtifactUpdate extends Jsonable {
 
-    @JsonDeserialize
-    final record ArtifactVersionRegistered(@JsonProperty("coordinates") MavenCoordinates coordinates) implements ArtifactUpdate {
+    ArtifactCoordinates coordinates();
 
-        @JsonCreator
-        public ArtifactVersionRegistered {
-        }
+    default String partitionKey() {
+        return this.coordinates().asMavenString();
     }
 
+    @JsonTypeName("registered")
     @JsonDeserialize
-    record TagRegistered(@JsonProperty("coordinates") ArtifactCoordinates coordinates, @JsonProperty("tag") ArtifactTagEntry entry) implements ArtifactUpdate {
-
-        @JsonCreator
-        public TagRegistered {
-        }
-    }
-
-    @JsonDeserialize
-    record VersionedAssetCollectionUpdated(
-        ArtifactCoordinates coordinates,
-        ArtifactCollection collection,
-        @JsonProperty("newArtifacts") List<Artifact> artifacts
+    final record ArtifactRegistered(
+        ArtifactCoordinates coordinates
     ) implements ArtifactUpdate {
+
         @JsonCreator
-        public VersionedAssetCollectionUpdated {
+        public ArtifactRegistered {
         }
     }
+
+    @JsonTypeName("git-repository")
+    @JsonDeserialize
+    final record GitRepositoryAssociated(
+        ArtifactCoordinates coordinates,
+        String repository
+    ) implements ArtifactUpdate {
+
+        @JsonCreator
+        public GitRepositoryAssociated {
+        }
+    }
+
+    @JsonTypeName("website")
+    @JsonDeserialize
+    final record WebsiteUpdated(
+        ArtifactCoordinates coordinates,
+        String url
+    ) implements ArtifactUpdate {
+
+        @JsonCreator
+        public WebsiteUpdated {
+        }
+    }
+
+    @JsonTypeName("issues")
+    @JsonDeserialize
+    final record IssuesUpdated(
+        ArtifactCoordinates coordinates,
+        String url
+    ) implements ArtifactUpdate {
+
+        @JsonCreator
+        public IssuesUpdated {
+        }
+    }
+
+    @JsonTypeName("displayName")
+    @JsonDeserialize
+    final record DisplayNameUpdated(
+        ArtifactCoordinates coordinates,
+        String displayName
+    ) implements ArtifactUpdate {
+
+        @JsonCreator
+        public DisplayNameUpdated {
+        }
+    }
+
 }

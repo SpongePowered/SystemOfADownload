@@ -43,24 +43,57 @@ public interface DetailsEvent extends AggregateEvent<DetailsEvent>, Jsonable {
     }
 
     @JsonDeserialize
-    final class ArtifactRegistered implements DetailsEvent {
-        public final ArtifactCoordinates coordinates;
-
+    record ArtifactRegistered(
+        ArtifactCoordinates coordinates
+    ) implements DetailsEvent {
         @JsonCreator
-        public ArtifactRegistered(final ArtifactCoordinates coordinates) {
-            this.coordinates = coordinates;
+        public ArtifactRegistered {
         }
     }
 
     @JsonDeserialize
-    final class ArtifactDetailsUpdated implements DetailsEvent {
-        public final ArtifactCoordinates coordinates;
-        public final String displayName;
+    record ArtifactDetailsUpdated(
+        ArtifactCoordinates coordinates,
+        String displayName
+    ) implements DetailsEvent {
 
         @JsonCreator
-        public ArtifactDetailsUpdated(final ArtifactCoordinates coordinates, final String displayName) {
-            this.coordinates = coordinates;
-            this.displayName = displayName;
+        public ArtifactDetailsUpdated {
         }
     }
+
+    @JsonDeserialize
+    record ArtifactIssuesUpdated(
+        ArtifactCoordinates coordinates,
+        String url
+    ) implements DetailsEvent {
+
+        @JsonCreator
+        public ArtifactIssuesUpdated {
+        }
+    }
+
+    @JsonDeserialize
+    record ArtifactGitRepositoryUpdated(
+        ArtifactCoordinates coordinates,
+        String gitRepo
+    ) implements DetailsEvent {
+
+        @JsonCreator
+        public ArtifactGitRepositoryUpdated {
+        }
+    }
+
+    @JsonDeserialize
+    record ArtifactWebsiteUpdated(
+        ArtifactCoordinates coordinates,
+        String url
+    ) implements DetailsEvent {
+
+        @JsonCreator
+        public ArtifactWebsiteUpdated {
+        }
+    }
+
+
 }

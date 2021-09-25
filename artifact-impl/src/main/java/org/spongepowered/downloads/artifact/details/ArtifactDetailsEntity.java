@@ -33,6 +33,9 @@ import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
+import com.lightbend.lagom.javadsl.api.transport.NotFound;
+import io.vavr.control.Either;
+import org.spongepowered.downloads.artifact.api.query.ArtifactDetails;
 import org.spongepowered.downloads.artifact.details.state.DetailsState;
 import org.spongepowered.downloads.artifact.details.state.EmptyState;
 import org.spongepowered.downloads.artifact.details.state.PopulatedState;
@@ -41,6 +44,8 @@ import java.util.List;
 
 public class ArtifactDetailsEntity
     extends EventSourcedBehaviorWithEnforcedReplies<DetailsCommand, DetailsEvent, DetailsState> {
+    private static final Either<NotFound, ArtifactDetails.Response> NOT_FOUND = Either.left(
+        new NotFound("group or artifact not found"));
     public static EntityTypeKey<DetailsCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(
         DetailsCommand.class, "DetailsEntity");
     private final String artifactId;
@@ -68,11 +73,14 @@ public class ArtifactDetailsEntity
         builder.forAnyState()
             .onEvent(
                 DetailsEvent.ArtifactRegistered.class,
-                (state, event) -> new PopulatedState(event.coordinates, state.displayName(), state.website(), state.gitRepository(), state.issues())
-            )
-            .onEvent(DetailsEvent.ArtifactDetailsUpdated.class,
-                (state, event) -> new PopulatedState(event.coordinates, event.displayName, state.website(), state.gitRepository(), state.issues())
+                (state, event) -> new PopulatedState(
+                    event.coordinates, state.displayName(), state.website(), state.gitRepository(), state.issues())
             );
+        builder.forStateType(PopulatedState.class)
+            .onEvent(DetailsEvent.ArtifactDetailsUpdated.class, PopulatedState::withDisplayName)
+            .onEvent(DetailsEvent.ArtifactGitRepositoryUpdated.class, PopulatedState::withGitRepo)
+            .onEvent(DetailsEvent.ArtifactIssuesUpdated.class, PopulatedState::withIssues)
+            .onEvent(DetailsEvent.ArtifactWebsiteUpdated.class, PopulatedState::withWebsite);
 
         return builder.build();
     }
@@ -81,7 +89,6 @@ public class ArtifactDetailsEntity
     public CommandHandlerWithReply<DetailsCommand, DetailsEvent, DetailsState> commandHandler() {
         final var builder = this.newCommandHandlerWithReplyBuilder();
 
-        builder.forNullState();
         builder.forStateType(EmptyState.class)
             .onCommand(
                 DetailsCommand.RegisterArtifact.class,
@@ -91,12 +98,96 @@ public class ArtifactDetailsEntity
                         new DetailsEvent.ArtifactDetailsUpdated(cmd.coordinates(), cmd.displayName())
                     ))
                     .thenReply(cmd.replyTo(), (state) -> NotUsed.notUsed())
+            )
+            .onCommand(
+                DetailsCommand.UpdateIssues.class,
+                cmd -> this.Effect().reply(cmd.replyTo(), NOT_FOUND)
+            )
+            .onCommand(
+                DetailsCommand.UpdateWebsite.class,
+                cmd -> this.Effect().reply(cmd.replyTo(), NOT_FOUND)
+            )
+            .onCommand(
+                DetailsCommand.UpdateDisplayName.class,
+                cmd -> this.Effect().reply(cmd.replyTo(), NOT_FOUND)
+            )
+            .onCommand(
+                DetailsCommand.UpdateGitRepository.class,
+                cmd -> this.Effect().reply(cmd.replyTo(), NOT_FOUND)
             );
 
         builder.forStateType(PopulatedState.class)
             .onCommand(
                 DetailsCommand.RegisterArtifact.class,
                 (s, cmd) -> this.Effect().reply(cmd.replyTo(), NotUsed.notUsed())
+            )
+            .onCommand(
+                DetailsCommand.UpdateIssues.class,
+                (s, cmd) -> this.Effect()
+                    .persist(new DetailsEvent.ArtifactIssuesUpdated(s.coordinates(), cmd.validUrl().toString()))
+                    .thenReply(
+                        cmd.replyTo(),
+                        us -> Either.right(
+                            new ArtifactDetails.Response(
+                                us.coordinates().artifactId,
+                                us.displayName(),
+                                us.website(),
+                                us.issues(),
+                                us.gitRepository()
+                            )
+                        )
+                    )
+            )
+            .onCommand(
+                DetailsCommand.UpdateWebsite.class,
+                (s, cmd) -> this.Effect()
+                    .persist(new DetailsEvent.ArtifactIssuesUpdated(s.coordinates(), cmd.website().toString()))
+                    .thenReply(
+                        cmd.replyTo(),
+                        us -> Either.right(
+                            new ArtifactDetails.Response(
+                                us.coordinates().artifactId,
+                                us.displayName(),
+                                us.website(),
+                                us.issues(),
+                                us.gitRepository()
+                            )
+                        )
+                    )
+            )
+            .onCommand(
+                DetailsCommand.UpdateDisplayName.class,
+                (s, cmd) -> this.Effect()
+                    .persist(new DetailsEvent.ArtifactIssuesUpdated(s.coordinates(), cmd.displayName()))
+                    .thenReply(
+                        cmd.replyTo(),
+                        us -> Either.right(
+                            new ArtifactDetails.Response(
+                                us.coordinates().artifactId,
+                                us.displayName(),
+                                us.website(),
+                                us.issues(),
+                                us.gitRepository()
+                            )
+                        )
+                    )
+            )
+            .onCommand(
+                DetailsCommand.UpdateGitRepository.class,
+                (s, cmd) -> this.Effect()
+                    .persist(new DetailsEvent.ArtifactGitRepositoryUpdated(s.coordinates(), cmd.gitRemote()))
+                    .thenReply(
+                        cmd.replyTo(),
+                        us -> Either.right(
+                            new ArtifactDetails.Response(
+                                us.coordinates().artifactId,
+                                us.displayName(),
+                                us.website(),
+                                us.issues(),
+                                us.gitRepository()
+                            )
+                        )
+                    )
             );
 
         return builder.build();
