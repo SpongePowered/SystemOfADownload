@@ -22,21 +22,25 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.collection;
+package org.spongepowered.downloads.versions;
 
-import org.spongepowered.downloads.versions.api.models.TagRegistration;
-import org.spongepowered.downloads.versions.api.models.TagVersion;
-import org.spongepowered.downloads.versions.api.models.VersionRegistration;
-import org.spongepowered.downloads.versions.commit.domain.RepositoryCommand;
+import akka.actor.AbstractExtensionId;
+import akka.actor.ExtendedActorSystem;
+import akka.actor.Extension;
+import akka.actor.ExtensionId;
+import akka.actor.ExtensionIdProvider;
 
-/**
- * An invalid request to return to the asker in the service implementation to
- * signify the current state is literally invalid to perform the specified
- * action.
- */
-public record InvalidRequest()
-    implements TagRegistration.Response,
-    TagVersion.Response,
-    VersionRegistration.Response,
-    RepositoryCommand.Response {
+public class VersionExtension extends AbstractExtensionId<VersionConfig> implements ExtensionIdProvider {
+
+    public static final VersionExtension Settings = new VersionExtension();
+
+    @Override
+    public VersionConfig createExtension(final ExtendedActorSystem system) {
+        return new VersionConfig(system.settings().config().getConfig("systemofadownload.versions"));
+    }
+
+    @Override
+    public ExtensionId<? extends Extension> lookup() {
+        return Settings;
+    }
 }

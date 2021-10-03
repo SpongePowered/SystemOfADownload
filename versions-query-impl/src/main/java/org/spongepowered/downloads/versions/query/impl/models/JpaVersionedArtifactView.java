@@ -136,12 +136,19 @@ public class JpaVersionedArtifactView implements Serializable {
     )
     private Set<JpaVersionedAsset> assets;
 
+    @Column(name = "git_commit", updatable = false)
+    private String commit;
+
     public Set<JpaTaggedVersion> getTags() {
         return tags;
     }
 
     public String version() {
         return this.version;
+    }
+
+    public String commit() {
+        return this.commit;
     }
 
     public Map<String, String> getTagValues() {

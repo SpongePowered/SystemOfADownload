@@ -32,6 +32,7 @@ import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.auth.SOADAuth;
 import org.spongepowered.downloads.auth.api.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
+import org.spongepowered.downloads.versions.commit.readside.CommitProcessor;
 import org.spongepowered.downloads.versions.readside.VersionReadSidePersistence;
 import play.Environment;
 
@@ -44,6 +45,7 @@ public class VersionsModule extends AbstractModule implements ServiceGuiceSuppor
     @Inject
     public VersionsModule(final Environment environment, final com.typesafe.config.Config config) {
         this.auth = AuthUtils.configure(config);
+
     }
 
     @Override
@@ -52,6 +54,7 @@ public class VersionsModule extends AbstractModule implements ServiceGuiceSuppor
         this.bindClient(ArtifactService.class);
 
         this.bind(VersionReadSidePersistence.class).asEagerSingleton();
+        this.bind(CommitProcessor.class).asEagerSingleton();
     }
 
     @Provides

@@ -197,6 +197,8 @@ lazy val `versions-api` = apiSoadProject("versions-api").dependsOn(
 lazy val `versions-impl` = implSoadProjectWithPersistence("versions-impl", `versions-api`).dependsOn(
   //Other SystemOfADownload Common Implementation Dependencies
   `server-auth`
+).settings(
+  libraryDependencies += jgit
 )
 
 lazy val `versions-query-api` = apiSoadProject("versions-query-api").dependsOn(

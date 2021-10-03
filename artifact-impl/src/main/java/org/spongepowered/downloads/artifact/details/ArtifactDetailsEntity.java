@@ -74,7 +74,7 @@ public class ArtifactDetailsEntity
             .onEvent(
                 DetailsEvent.ArtifactRegistered.class,
                 (state, event) -> new PopulatedState(
-                    event.coordinates, state.displayName(), state.website(), state.gitRepository(), state.issues())
+                    event.coordinates(), state.displayName(), state.website(), state.gitRepository(), state.issues())
             );
         builder.forStateType(PopulatedState.class)
             .onEvent(DetailsEvent.ArtifactDetailsUpdated.class, PopulatedState::withDisplayName)

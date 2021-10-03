@@ -262,6 +262,11 @@
             inner join version.artifacts a on a.id = av.artifact_id
         </createView>
     </changeSet>
+    <changeSet id="20210926-17" author="gabizou">
+        <addColumn tableName="artifact_versions" schemaName="version">
+            <column name="git_commit" type="text"/>
+        </addColumn>
+    </changeSet>
 
 
 </databaseChangeLog>

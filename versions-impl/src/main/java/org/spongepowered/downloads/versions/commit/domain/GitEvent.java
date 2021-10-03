@@ -22,25 +22,41 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.query.api.models;
+package org.spongepowered.downloads.versions.commit.domain;
 
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.vavr.collection.List;
-import io.vavr.collection.Map;
-import org.spongepowered.downloads.artifact.api.Artifact;
+import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
+import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
+import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
+import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
+import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+import org.spongepowered.downloads.versions.commit.CommitSha;
 
-import java.util.Optional;
+import java.net.URI;
 
-public interface QueryLatest {
+public interface GitEvent extends AggregateEvent<GitEvent> {
 
-    @JsonSerialize
-    record VersionInfo(MavenCoordinates coordinates,
-                       List<Artifact> assets,
-                       Map<String, String> tagValues,
-                       Optional<VersionedCommit> commit,
-                       boolean recommended
-    ) {
+    AggregateEventShards<GitEvent> INSTANCE = AggregateEventTag.sharded(GitEvent.class, 100);
+
+    @Override
+    default AggregateEventTagger<GitEvent> aggregateTag() {
+        return INSTANCE;
     }
 
+    final record ArtifactRegistered(
+        ArtifactCoordinates coordinates
+    ) implements GitEvent {}
+
+    final record RepoRegistered(
+        ArtifactCoordinates coordinates,
+        URI repository
+    ) implements GitEvent {}
+
+    final record CommitAssociatedWithVersion(
+        CommitSha sha,
+        MavenCoordinates coordinates
+    ) implements GitEvent {}
+
+    final record VersionRegistered(MavenCoordinates coordinates) implements GitEvent {
+    }
 }

@@ -24,7 +24,13 @@
  */
 package org.spongepowered.downloads.versions.collection;
 
+import akka.Done;
 import akka.NotUsed;
+import akka.actor.typed.ActorRef;
+import akka.actor.typed.Behavior;
+import akka.actor.typed.DispatcherSelector;
+import akka.actor.typed.javadsl.ActorContext;
+import akka.actor.typed.javadsl.Behaviors;
 import akka.cluster.sharding.typed.javadsl.EntityContext;
 import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
 import akka.persistence.typed.PersistenceId;
@@ -38,9 +44,11 @@ import io.vavr.collection.List;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
+import org.spongepowered.downloads.versions.commit.actor.VersionedAssetWorker;
 
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -49,12 +57,34 @@ public final class VersionedArtifactAggregate
 
     public static EntityTypeKey<ACCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(ACCommand.class, "VersionedArtifact");
     private final Function<ACEvent, Set<String>> tagger;
+    private final ActorContext<ACCommand> ctx;
+    private final ActorRef<VersionedAssetWorker.Command> commitResolver;
+    private final ActorRef<Done> doneActorRef;
 
-    public static VersionedArtifactAggregate create(final EntityContext<ACCommand> context) {
-        return new VersionedArtifactAggregate(context);
+    public static Behavior<ACCommand> create(final EntityContext<ACCommand> context) {
+        return Behaviors.setup(ctx -> {
+            final var commitWorker = VersionedAssetWorker.configure(ctx.getSystem().classicSystem());
+            final var assetFetcherUID = UUID.randomUUID();
+            final var commitWorkers = ctx.spawn(commitWorker, "asset-commit-fetcher-" + assetFetcherUID, DispatcherSelector.defaultDispatcher());
+
+            final var dummyReceiver = VersionedArtifactAggregate.commitReceiver();
+            final var doneActorRef = ctx.spawnAnonymous(dummyReceiver);
+            return new VersionedArtifactAggregate(context, ctx, commitWorkers, doneActorRef);
+        });
     }
 
-    private VersionedArtifactAggregate(final EntityContext<ACCommand> context) {
+    private static Behavior<Done> commitReceiver() {
+        return Behaviors.receive(Done.class)
+            .onAnyMessage(d -> Behaviors.same())
+            .build();
+    }
+
+    private VersionedArtifactAggregate(
+        final EntityContext<ACCommand> context,
+        final ActorContext<ACCommand> ctx,
+        final ActorRef<VersionedAssetWorker.Command> commitWorkers,
+        final ActorRef<Done> doneActorRef
+    ) {
         super(
             // PersistenceId needs a typeHint (or namespace) and entityId,
             // we take then from the EntityContext
@@ -63,6 +93,9 @@ public final class VersionedArtifactAggregate
                 context.getEntityId() // <- business id
             ));
         this.tagger = AkkaTaggerAdapter.fromLagom(context, ACEvent.INSTANCE);
+        this.ctx = ctx;
+        this.commitResolver = commitWorkers;
+        this.doneActorRef = doneActorRef;
     }
 
     @Override
@@ -137,6 +170,7 @@ public final class VersionedArtifactAggregate
         final State.ACState state, final ACCommand.RegisterVersion cmd
     ) {
         if (state.collection().containsKey(cmd.coordinates().version)) {
+            this.ctx.getLog().warn("[{}] Version re-registration attempted: {}", state.coordinates(), cmd.coordinates().version);
             return this.Effect().reply(
                 cmd.replyTo(),
                 new VersionRegistration.Response.ArtifactAlreadyRegistered(cmd.coordinates())
@@ -156,8 +190,10 @@ public final class VersionedArtifactAggregate
         final var existing = state.versionedArtifacts().get(cmd.collection().coordinates().version)
             .getOrElse(List::empty);
         final var newArtifacts = cmd.collection().components().filter(Predicate.not(existing::contains));
+
         return this.Effect()
             .persist(new ACEvent.VersionedCollectionAdded(state.coordinates(), cmd.collection(), newArtifacts))
+            .thenRun(s -> this.commitResolver.tell(new VersionedAssetWorker.FetchCommitFromAsset(cmd.collection(), this.doneActorRef)))
             .thenReply(
                 cmd.replyTo(),
                 (s) -> new VersionRegistration.Response.RegisteredArtifact(cmd.collection().coordinates())

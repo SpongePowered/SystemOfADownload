@@ -22,21 +22,41 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.collection;
+package org.spongepowered.downloads.versions.commit.domain;
 
-import org.spongepowered.downloads.versions.api.models.TagRegistration;
-import org.spongepowered.downloads.versions.api.models.TagVersion;
-import org.spongepowered.downloads.versions.api.models.VersionRegistration;
-import org.spongepowered.downloads.versions.commit.domain.RepositoryCommand;
+import akka.Done;
+import akka.actor.typed.ActorRef;
+import io.vavr.collection.List;
+import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+import org.spongepowered.downloads.versions.commit.CommitSha;
 
-/**
- * An invalid request to return to the asker in the service implementation to
- * signify the current state is literally invalid to perform the specified
- * action.
- */
-public record InvalidRequest()
-    implements TagRegistration.Response,
-    TagVersion.Response,
-    VersionRegistration.Response,
-    RepositoryCommand.Response {
+public interface GitCommand {
+
+    final record RegisterArtifact(
+        ArtifactCoordinates coordinates,
+        ActorRef<Done> replyTo
+    ) implements GitCommand {}
+
+    final record RegisterRepository(
+        String repo,
+        ActorRef<Done> replyTo
+    ) implements GitCommand {}
+
+    final record RegisterVersion(
+        MavenCoordinates coordinates,
+        ActorRef<Done> replyTo
+    ) implements GitCommand {}
+
+    final record AssociateCommitWithVersion(
+        CommitSha sha,
+        MavenCoordinates coordinates,
+        ActorRef<Done> replyTo
+    ) implements GitCommand {}
+
+    final record GetGitRepo(ActorRef<RepositoryCommand.Response> replyTo) implements GitCommand {
+    }
+
+    final record GetUnCommittedVersions(ActorRef<List<MavenCoordinates>> reply) implements GitCommand {
+    }
 }

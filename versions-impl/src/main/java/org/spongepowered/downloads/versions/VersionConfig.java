@@ -22,21 +22,31 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.collection;
+package org.spongepowered.downloads.versions;
 
-import org.spongepowered.downloads.versions.api.models.TagRegistration;
-import org.spongepowered.downloads.versions.api.models.TagVersion;
-import org.spongepowered.downloads.versions.api.models.VersionRegistration;
-import org.spongepowered.downloads.versions.commit.domain.RepositoryCommand;
+import akka.actor.Extension;
+import com.typesafe.config.Config;
 
-/**
- * An invalid request to return to the asker in the service implementation to
- * signify the current state is literally invalid to perform the specified
- * action.
- */
-public record InvalidRequest()
-    implements TagRegistration.Response,
-    TagVersion.Response,
-    VersionRegistration.Response,
-    RepositoryCommand.Response {
+import java.time.Duration;
+
+public class VersionConfig implements Extension {
+
+    public final CommitFetch commitFetch;
+
+    public VersionConfig(Config config) {
+        final var commitConfig = config.getConfig("commit-fetch");
+        this.commitFetch = new CommitFetch(commitConfig);
+    }
+
+    public static final class CommitFetch {
+        public final int poolSize;
+        public final int parallelism;
+        public final Duration timeout;
+
+        CommitFetch(Config config) {
+            this.poolSize = config.getInt("pool-size");
+            this.parallelism = config.getInt("parallelism");
+            this.timeout = config.getDuration("timeout");
+        }
+    }
 }

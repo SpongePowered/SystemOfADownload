@@ -31,6 +31,8 @@ import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 
+import java.util.Optional;
+
 public interface QueryVersions {
 
     @JsonSerialize
@@ -42,8 +44,9 @@ public interface QueryVersions {
         @JsonProperty("coordinates") MavenCoordinates coordinates,
         @JsonProperty("assets") List<Artifact> components,
         @JsonProperty("tags") Map<String, String> tagValues,
-        @JsonProperty("recommended") boolean recommended
-    ) {
+        @JsonProperty("recommended") boolean recommended,
+        @JsonProperty("commit") Optional<VersionedCommit> commit
+        ) {
     }
 
 }

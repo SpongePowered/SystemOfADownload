@@ -22,21 +22,26 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.collection;
+package org.spongepowered.downloads.versions.commit.actor;
 
-import org.spongepowered.downloads.versions.api.models.TagRegistration;
-import org.spongepowered.downloads.versions.api.models.TagVersion;
-import org.spongepowered.downloads.versions.api.models.VersionRegistration;
-import org.spongepowered.downloads.versions.commit.domain.RepositoryCommand;
+import akka.actor.typed.Behavior;
+import akka.actor.typed.javadsl.Behaviors;
 
 /**
- * An invalid request to return to the asker in the service implementation to
- * signify the current state is literally invalid to perform the specified
- * action.
+ * An {@link akka.actor.Actor} that accepts a Versioned Artifact with a
+ * {@link org.spongepowered.downloads.versions.commit.CommitSha} to resolve the
+ * underlying Git Commit information (like the commit message, author, etc.) as
+ * the sha's are being resolved.
  */
-public record InvalidRequest()
-    implements TagRegistration.Response,
-    TagVersion.Response,
-    VersionRegistration.Response,
-    RepositoryCommand.Response {
+public final class CommitResolver {
+
+    public interface Command {}
+
+    public static Behavior<Command> resolveCommit() {
+        return Behaviors.setup(ctx -> {
+
+            return Behaviors.receive(Command.class)
+                .build();
+        });
+    }
 }

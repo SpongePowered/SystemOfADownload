@@ -22,21 +22,20 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.collection;
+package org.spongepowered.downloads.versions.query.api.models;
 
-import org.spongepowered.downloads.versions.api.models.TagRegistration;
-import org.spongepowered.downloads.versions.api.models.TagVersion;
-import org.spongepowered.downloads.versions.api.models.VersionRegistration;
-import org.spongepowered.downloads.versions.commit.domain.RepositoryCommand;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
-/**
- * An invalid request to return to the asker in the service implementation to
- * signify the current state is literally invalid to perform the specified
- * action.
- */
-public record InvalidRequest()
-    implements TagRegistration.Response,
-    TagVersion.Response,
-    VersionRegistration.Response,
-    RepositoryCommand.Response {
+import java.net.URI;
+import java.time.LocalDateTime;
+
+@JsonDeserialize
+public record VersionedCommit(
+    String message,
+    String body,
+    String sha,
+    String author,
+    URI link,
+    LocalDateTime commitDate
+) {
 }

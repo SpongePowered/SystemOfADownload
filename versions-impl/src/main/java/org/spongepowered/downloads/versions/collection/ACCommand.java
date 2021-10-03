@@ -27,6 +27,7 @@ package org.spongepowered.downloads.versions.collection;
 import akka.NotUsed;
 import akka.actor.typed.ActorRef;
 import com.lightbend.lagom.serialization.Jsonable;
+import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
@@ -77,4 +78,9 @@ public interface ACCommand extends Jsonable {
     final record RegisterCollection(ArtifactCollection collection, ActorRef<VersionRegistration.Response> replyTo)
         implements ACCommand {
     }
+
+    final record GetCollections(
+        List<MavenCoordinates> coordinates,
+        ActorRef<List<ArtifactCollection>> replyTo
+    ) implements ACCommand {}
 }

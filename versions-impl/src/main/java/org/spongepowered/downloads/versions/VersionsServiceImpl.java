@@ -26,6 +26,7 @@ package org.spongepowered.downloads.versions;
 
 import akka.Done;
 import akka.NotUsed;
+import akka.actor.ActorSystem;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.Entity;
 import akka.cluster.sharding.typed.javadsl.EntityRef;
@@ -57,6 +58,8 @@ import org.spongepowered.downloads.versions.collection.ACCommand;
 import org.spongepowered.downloads.versions.collection.ACEvent;
 import org.spongepowered.downloads.versions.collection.InvalidRequest;
 import org.spongepowered.downloads.versions.collection.VersionedArtifactAggregate;
+import org.spongepowered.downloads.versions.commit.domain.GitBasedArtifact;
+import org.spongepowered.downloads.versions.commit.domain.GitCommand;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -80,7 +83,8 @@ public class VersionsServiceImpl implements VersionsService,
         final ArtifactService artifactService,
         final PersistentEntityRegistry persistentEntityRegistry,
         @SOADAuth final Config securityConfig,
-        final AuthUtils auth
+        final AuthUtils auth,
+        final ActorSystem system
     ) {
         this.clusterSharding = clusterSharding;
         this.persistentEntityRegistry = persistentEntityRegistry;
@@ -93,10 +97,20 @@ public class VersionsServiceImpl implements VersionsService,
                 VersionedArtifactAggregate::create
             )
         );
+        this.clusterSharding.init(
+            Entity.of(
+                GitBasedArtifact.ENTITY_TYPE_KEY,
+                GitBasedArtifact::create
+            )
+        );
         this.artifactService = artifactService;
         this.artifactService.groupTopic()
             .subscribe()
             .atLeastOnce(Flow.<GroupUpdate>create().map(this::processGroupEvent));
+
+        this.artifactService.artifactUpdate()
+            .subscribe()
+            .atLeastOnce(Flow.<org.spongepowered.downloads.artifact.api.event.ArtifactUpdate>create().map(this::processArtifactUpdate));
     }
 
     private Done processGroupEvent(GroupUpdate a) {
@@ -113,6 +127,21 @@ public class VersionsServiceImpl implements VersionsService,
             .thenApply(notUsed -> Done.done())
             .toCompletableFuture()
             .join();
+    }
+
+    private Done processArtifactUpdate(org.spongepowered.downloads.artifact.api.event.ArtifactUpdate a) {
+        if (a instanceof org.spongepowered.downloads.artifact.api.event.ArtifactUpdate.ArtifactRegistered registration) {
+            return this.clusterSharding.entityRefFor(GitBasedArtifact.ENTITY_TYPE_KEY, registration.coordinates().asMavenString())
+                .<Done>ask(replyTo -> new GitCommand.RegisterArtifact(registration.coordinates(), replyTo), Duration.ofSeconds(30))
+                .toCompletableFuture()
+                .join();
+        } else if (a instanceof org.spongepowered.downloads.artifact.api.event.ArtifactUpdate.GitRepositoryAssociated repo) {
+            return this.clusterSharding.entityRefFor(GitBasedArtifact.ENTITY_TYPE_KEY, repo.coordinates().asMavenString())
+                .<Done>ask(replyTo -> new GitCommand.RegisterRepository(repo.repository(), replyTo), Duration.ofMinutes(2))
+                .toCompletableFuture()
+                .join();
+        }
+        return Done.done();
     }
 
     @Override
@@ -138,7 +167,11 @@ public class VersionsServiceImpl implements VersionsService,
                             throw new NotFound("unknown artifact or group");
                         }
                         return response;
-                    });
+                    })
+                    .thenCompose(r -> this.clusterSharding.entityRefFor(GitBasedArtifact.ENTITY_TYPE_KEY, v.coordinates().asArtifactCoordinates().asMavenString())
+                        .<Done>ask(replyTo -> new GitCommand.RegisterVersion(v.coordinates(), replyTo), Duration.ofMinutes(10))
+                        .toCompletableFuture()
+                        .thenApply(d -> r));
             }
             if (registration instanceof VersionRegistration.Register.Collection c) {
                 return this.getCollection(sanitizedGroupId, sanitizedArtifactId)

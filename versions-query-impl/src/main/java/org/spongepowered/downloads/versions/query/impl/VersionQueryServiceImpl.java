@@ -112,7 +112,8 @@ public record VersionQueryServiceImpl(JpaSession session)
                         .getSingleResult();
                     return new QueryVersions.VersionDetails(
                         coordinates, versionedArtifact.asArtifactList(),
-                        versionedArtifact.getTagValues(), versionedArtifact.isRecommended()
+                        versionedArtifact.getTagValues(), versionedArtifact.isRecommended(),
+                        Optional.empty()
                     );
                 } catch (PersistenceException e) {
                     throw new TransportException(
@@ -140,7 +141,8 @@ public record VersionQueryServiceImpl(JpaSession session)
                     final var coordinates = versionView.asMavenCoordinates();
                     final var assets = versionView.asArtifactList();
                     final var tags = versionView.getTagValues();
-                    return new QueryVersions.VersionDetails(coordinates, assets, tags, versionView.isRecommended());
+                    return new QueryVersions.VersionDetails(coordinates, assets, tags, versionView.isRecommended(),
+                        Optional.empty());
                 })
                 .orElseThrow(() -> new NotFound("group or artifact or version not found"));
         });
