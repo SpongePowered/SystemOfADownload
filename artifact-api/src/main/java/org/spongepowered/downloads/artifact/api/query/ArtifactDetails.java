@@ -24,6 +24,7 @@
  */
 package org.spongepowered.downloads.artifact.api.query;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -57,6 +58,11 @@ public final class ArtifactDetails {
         final record Website(
             @JsonProperty(required = true) String website
         ) implements Update<URL> {
+
+            @JsonCreator
+            public Website {
+            }
+
             @Override
             public Either<BadRequest, URL> validate() {
                 return Try.of(() -> new URL(this.website()))
@@ -67,6 +73,11 @@ public final class ArtifactDetails {
         final record DisplayName(
             @JsonProperty(required = true) String display
         ) implements Update<String> {
+
+            @JsonCreator
+            public DisplayName {
+            }
+
             @Override
             public Either<BadRequest, String> validate() {
                 return Either.right(this.display.trim());
@@ -76,6 +87,9 @@ public final class ArtifactDetails {
         final record Issues(
             @JsonProperty(required = true) String issues
         ) implements Update<URL> {
+            @JsonCreator
+            public Issues {
+            }
 
             @Override
             public Either<BadRequest, URL> validate() {
@@ -87,6 +101,10 @@ public final class ArtifactDetails {
         final record GitRepository(
             @JsonProperty(required = true) String gitRepo
         ) implements Update<URL> {
+
+            @JsonCreator
+            public GitRepository {
+            }
 
             @Override
             public Either<BadRequest, URL> validate() {

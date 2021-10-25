@@ -25,6 +25,8 @@
 package org.spongepowered.downloads.artifact.details;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
@@ -33,6 +35,14 @@ import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = DetailsEvent.ArtifactRegistered.class, name = "registered"),
+    @JsonSubTypes.Type(value = DetailsEvent.ArtifactDetailsUpdated.class, name = "details"),
+    @JsonSubTypes.Type(value = DetailsEvent.ArtifactIssuesUpdated.class, name = "issues"),
+    @JsonSubTypes.Type(value = DetailsEvent.ArtifactGitRepositoryUpdated.class, name = "git-repo"),
+    @JsonSubTypes.Type(value = DetailsEvent.ArtifactWebsiteUpdated.class, name = "website"),
+})
 public interface DetailsEvent extends AggregateEvent<DetailsEvent>, Jsonable {
 
     AggregateEventShards<DetailsEvent> TAG = AggregateEventTag.sharded(DetailsEvent.class, 10);

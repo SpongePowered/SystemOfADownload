@@ -216,7 +216,8 @@ public final class ArtifactSyncWorker {
                         }
                         if (ok instanceof VersionRegistration.Response.ArtifactAlreadyRegistered) {
                             return new Redundant(msg.coordinates, msg.replyTo);
-                        } else if (ok instanceof VersionRegistration.Response.GroupMissing) {
+                        } else if (ok instanceof VersionRegistration.Response.GroupMissing gm) {
+                            ctx.getLog().error("Group missing for {}", gm.groupId());
                             return new FailedRegistration(msg.coordinates, msg.replyTo);
                         } else if (ok instanceof VersionRegistration.Response.RegisteredArtifact) {
                             return new Completed(msg.coordinates, msg.replyTo);

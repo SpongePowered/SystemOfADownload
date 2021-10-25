@@ -32,6 +32,7 @@ import org.hibernate.annotations.Immutable;
 import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.query.api.models.TagCollection;
+import org.spongepowered.downloads.versions.query.api.models.VersionedCommit;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -43,6 +44,8 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import java.io.Serializable;
 import java.net.URI;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.Optional;
@@ -84,7 +87,7 @@ import java.util.Set;
         name = "VersionedArtifactView.findExplicitly",
         query = """
                 select v from VersionedArtifactView v
-                inner join fetch v.tags
+                left join fetch v.tags
                 where v.artifactId = :artifactId and v.groupId = :groupId and v.version = :version
                 """
     ),
@@ -92,8 +95,8 @@ import java.util.Set;
         name = "VersionedArtifactView.findFullVersionDetails",
         query = """
                 select v from VersionedArtifactView v
-                inner join fetch v.tags
-                inner join fetch v.assets
+                left join fetch v.tags
+                left join fetch v.assets
                 where v.artifactId = :artifactId and v.groupId = :groupId and v.version = :version
                 """
     )
@@ -136,7 +139,7 @@ public class JpaVersionedArtifactView implements Serializable {
     )
     private Set<JpaVersionedAsset> assets;
 
-    @Column(name = "git_commit", updatable = false)
+    @Column(name = "git_commit", updatable = false, nullable = true)
     private String commit;
 
     public Set<JpaTaggedVersion> getTags() {
@@ -192,6 +195,18 @@ public class JpaVersionedArtifactView implements Serializable {
                 )
             ).collect(List.collector())
             .sorted(Comparator.comparing(artifact -> artifact.classifier().orElse("")));
+    }
+
+    public Optional<VersionedCommit> asVersionedCommit() {
+        final String commitStr = this.commit();
+        final Optional<VersionedCommit> commit;
+        if (commitStr == null || commitStr.isEmpty()) {
+            commit = Optional.empty();
+        } else {
+            commit = Optional.of(new VersionedCommit("some message", "todo", commitStr, "author here",
+                URI.create("http://localhost/"), LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC)));
+        }
+        return commit;
     }
 
     @Override

@@ -28,12 +28,14 @@ import akka.NotUsed;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
+import akka.cluster.sharding.typed.javadsl.EntityContext;
 import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
 import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import com.lightbend.lagom.javadsl.api.transport.NotFound;
+import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
 import io.vavr.control.Either;
 import org.spongepowered.downloads.artifact.api.query.ArtifactDetails;
 import org.spongepowered.downloads.artifact.details.state.DetailsState;
@@ -41,6 +43,8 @@ import org.spongepowered.downloads.artifact.details.state.EmptyState;
 import org.spongepowered.downloads.artifact.details.state.PopulatedState;
 
 import java.util.List;
+import java.util.Set;
+import java.util.function.Function;
 
 public class ArtifactDetailsEntity
     extends EventSourcedBehaviorWithEnforcedReplies<DetailsCommand, DetailsEvent, DetailsState> {
@@ -50,15 +54,24 @@ public class ArtifactDetailsEntity
         DetailsCommand.class, "DetailsEntity");
     private final String artifactId;
     private final ActorContext<DetailsCommand> ctx;
+    private final Function<DetailsEvent, Set<String>> tagger;
 
-    private ArtifactDetailsEntity(ActorContext<DetailsCommand> ctx, String entityId, PersistenceId persistenceId) {
+    private ArtifactDetailsEntity(
+        ActorContext<DetailsCommand> ctx,
+        final EntityContext<DetailsCommand> context,
+        String entityId, PersistenceId persistenceId
+    ) {
         super(persistenceId);
         this.artifactId = entityId;
         this.ctx = ctx;
+        this.tagger = AkkaTaggerAdapter.fromLagom(context, DetailsEvent.TAG);
     }
 
-    public static Behavior<DetailsCommand> create(String entityId, PersistenceId persistenceId) {
-        return Behaviors.setup(ctx -> new ArtifactDetailsEntity(ctx, entityId, persistenceId));
+    public static Behavior<DetailsCommand> create(
+        final EntityContext<DetailsCommand> context,
+        String entityId, PersistenceId persistenceId
+    ) {
+        return Behaviors.setup(ctx -> new ArtifactDetailsEntity(ctx, context, entityId, persistenceId));
     }
 
     @Override
@@ -191,5 +204,10 @@ public class ArtifactDetailsEntity
             );
 
         return builder.build();
+    }
+
+    @Override
+    public Set<String> tagsFor(final DetailsEvent detailsEvent) {
+        return this.tagger.apply(detailsEvent);
     }
 }

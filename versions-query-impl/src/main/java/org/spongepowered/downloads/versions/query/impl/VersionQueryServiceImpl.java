@@ -41,6 +41,7 @@ import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.versions.query.api.VersionsQueryService;
 import org.spongepowered.downloads.versions.query.api.models.QueryVersions;
+import org.spongepowered.downloads.versions.query.api.models.VersionedCommit;
 import org.spongepowered.downloads.versions.query.impl.models.JpaTaggedVersion;
 import org.spongepowered.downloads.versions.query.impl.models.JpaVersionedArtifactView;
 
@@ -104,18 +105,24 @@ public record VersionQueryServiceImpl(JpaSession session)
                     final var info = query.tags.isEmpty() ? getUntaggedVersions(t, query) : getTaggedVersions(t, query);
                     final var version = info.artifacts().keySet().head();
                     final var coordinates = query.coordinates.version(version);
-                    final var versionedArtifact = t.createNamedQuery(
+                    final var artifacts = t.createNamedQuery(
                             "VersionedArtifactView.findExplicitly", JpaVersionedArtifactView.class)
                         .setParameter("groupId", coordinates.groupId)
                         .setParameter("artifactId", coordinates.artifactId)
                         .setParameter("version", coordinates.version)
-                        .getSingleResult();
+                        .getResultList();
+                    if (artifacts.isEmpty()) {
+                        throw new NotFound("versioned artifact not found");
+                    }
+                    final var versionedArtifact = artifacts.get(0);
+                    final Optional<VersionedCommit> commit = versionedArtifact.asVersionedCommit();
                     return new QueryVersions.VersionDetails(
-                        coordinates, versionedArtifact.asArtifactList(),
-                        versionedArtifact.getTagValues(), versionedArtifact.isRecommended(),
-                        Optional.empty()
+                        coordinates, commit, versionedArtifact.asArtifactList(),
+                        versionedArtifact.getTagValues(), versionedArtifact.isRecommended()
+
                     );
                 } catch (PersistenceException e) {
+                    e.printStackTrace();
                     throw new TransportException(
                         TransportErrorCode.InternalServerError, new ExceptionMessage("Internal Server Error", ""));
                 }
@@ -141,8 +148,8 @@ public record VersionQueryServiceImpl(JpaSession session)
                     final var coordinates = versionView.asMavenCoordinates();
                     final var assets = versionView.asArtifactList();
                     final var tags = versionView.getTagValues();
-                    return new QueryVersions.VersionDetails(coordinates, assets, tags, versionView.isRecommended(),
-                        Optional.empty());
+                    final Optional<VersionedCommit> commit = versionView.asVersionedCommit();
+                    return new QueryVersions.VersionDetails(coordinates, commit, assets, tags, versionView.isRecommended());
                 })
                 .orElseThrow(() -> new NotFound("group or artifact or version not found"));
         });

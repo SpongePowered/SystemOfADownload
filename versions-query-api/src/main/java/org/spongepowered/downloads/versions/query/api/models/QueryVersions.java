@@ -24,6 +24,7 @@
  */
 package org.spongepowered.downloads.versions.query.api.models;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.vavr.collection.List;
@@ -37,15 +38,19 @@ public interface QueryVersions {
 
     @JsonSerialize
     record VersionInfo(@JsonProperty Map<String, TagCollection> artifacts, int offset, int limit, int size) {
+
+        @JsonCreator
+        public VersionInfo {
+        }
     }
 
     @JsonSerialize
     record VersionDetails(
         @JsonProperty("coordinates") MavenCoordinates coordinates,
+        @JsonProperty("commit") Optional<VersionedCommit> commit,
         @JsonProperty("assets") List<Artifact> components,
         @JsonProperty("tags") Map<String, String> tagValues,
-        @JsonProperty("recommended") boolean recommended,
-        @JsonProperty("commit") Optional<VersionedCommit> commit
+        @JsonProperty("recommended") boolean recommended
         ) {
     }
 

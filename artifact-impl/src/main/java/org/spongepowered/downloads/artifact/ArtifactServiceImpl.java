@@ -116,6 +116,7 @@ public class ArtifactServiceImpl implements ArtifactService,
             Entity.of(
                 ArtifactDetailsEntity.ENTITY_TYPE_KEY,
                 context -> ArtifactDetailsEntity.create(
+                    context,
                     context.getEntityId(),
                     PersistenceId.of(context.getEntityTypeKey().name(), context.getEntityId())
                 )

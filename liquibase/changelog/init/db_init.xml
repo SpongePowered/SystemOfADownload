@@ -267,6 +267,15 @@
             <column name="git_commit" type="text"/>
         </addColumn>
     </changeSet>
+    <changeSet id="20211011-18" author="gabizou">
+        <dropView viewName="versioned_artifacts" schemaName="version"/>
+        <createView viewName="versioned_artifacts"
+                    schemaName="version"
+        >
+            select distinct a.artifact_id, a.group_id, v.version, v.recommended, v.manual_recommendation, v.git_commit
+            from version.artifacts a inner join version.artifact_versions v on a.id = v.artifact_id
+        </createView>
+    </changeSet>
 
 
 </databaseChangeLog>

@@ -2,12 +2,12 @@
     <persistence-unit name="default" transaction-type="RESOURCE_LOCAL">
         <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
         <non-jta-data-source>DefaultDS</non-jta-data-source>
-        <class>org.spongepowered.downloads.versions.readside.JpaArtifactVersion</class>
-        <class>org.spongepowered.downloads.versions.readside.JpaArtifact</class>
-        <class>org.spongepowered.downloads.versions.readside.JpaArtifactTag</class>
-        <class>org.spongepowered.downloads.versions.readside.JpaArtifactRegexRecommendation</class>
-        <class>org.spongepowered.downloads.versions.readside.JpaVersionedArtifactAsset</class>
-        <class>org.spongepowered.downloads.versions.commit.readside.JpaVersionedArtifact</class>
+        <class>org.spongepowered.downloads.versions.server.readside.JpaArtifactVersion</class>
+        <class>org.spongepowered.downloads.versions.server.readside.JpaArtifact</class>
+        <class>org.spongepowered.downloads.versions.server.readside.JpaArtifactTag</class>
+        <class>org.spongepowered.downloads.versions.server.readside.JpaArtifactRegexRecommendation</class>
+        <class>org.spongepowered.downloads.versions.server.readside.JpaVersionedArtifactAsset</class>
+        <class>org.spongepowered.downloads.versions.worker.readside.JpaVersionedArtifact</class>
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
         <properties>
             <property name="hibernate.connection.driver_class" value="org.postgresql.Driver"/>

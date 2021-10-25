@@ -31,6 +31,7 @@ import akka.actor.typed.Behavior;
 import akka.actor.typed.DispatcherSelector;
 import akka.actor.typed.SupervisorStrategy;
 import akka.actor.typed.internal.receptionist.ReceptionistMessages;
+import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Routers;
 import akka.actor.typed.receptionist.ServiceKey;
@@ -90,60 +91,10 @@ public final class SonatypeSynchronizer {
                         ArtifactSynchronizerAggregate::create
                     )
                 );
-            // region Synchronize Artifact Versions from Maven
 
-            final var syncWorkerBehavior = ArtifactSyncWorker.create(versionsService, clusterSharding);
-            final var pool = Routers.pool(
-                settings.reactiveSync.poolSize,
-                syncWorkerBehavior
-            );
+            SonatypeSynchronizer.subscribeToArtifactUpdates(context, artifactService, versionsService, clusterSharding, settings);
 
-            final var registrationRef = context.spawn(
-                pool,
-                "group-event-subscriber",
-                DispatcherSelector.defaultDispatcher()
-            );
-            final Flow<GroupUpdate, Done, NotUsed> actorAsk = ActorFlow.ask(
-                settings.reactiveSync.parallelism,
-                registrationRef, settings.reactiveSync.timeOut,
-                (g, b) -> {
-                    if (!(g instanceof GroupUpdate.ArtifactRegistered a)) {
-                        return new ArtifactSyncWorker.Ignored(b);
-                    }
-                    return new ArtifactSyncWorker.PerformResync(a.coordinates(), b);
-                }
-            );
-            artifactService.groupTopic()
-                .subscribe()
-                .atLeastOnce(actorAsk);
-            // endregion
-
-            // region Synchronize Versioned Assets through Sonatype Search
-            final var componentPool = Routers.pool(
-                settings.asset.poolSize,
-                Behaviors.supervise(VersionedComponentWorker.gatherComponents(versionsService, mapper))
-                    .onFailure(settings.asset.backoff)
-            );
-            final var componentRef = context.spawn(
-                componentPool,
-                "version-component-registration",
-                DispatcherSelector.defaultDispatcher()
-            );
-            final Flow<ArtifactUpdate, Done, NotUsed> versionedFlow = ActorFlow.ask(
-                settings.asset.parallelism,
-                componentRef,
-                settings.asset.timeout,
-                (g, b) -> {
-                    if (!(g instanceof ArtifactUpdate.ArtifactVersionRegistered a)) {
-                        return new VersionedComponentWorker.Ignored(b);
-                    }
-                    return new VersionedComponentWorker.GatherComponentsForArtifact(a.coordinates(), b);
-                }
-            );
-            versionsService.artifactUpdateTopic()
-                .subscribe()
-                .atLeastOnce(versionedFlow);
-            // endregion
+            SonatypeSynchronizer.subscribeToVersionedArtifactUpdates(versionsService, mapper, context, settings);
 
             // Scheduled full resynchronization with maven and therefor sonatype
             return Behaviors.withTimers(timers -> {
@@ -152,6 +103,74 @@ public final class SonatypeSynchronizer {
                 return timedSync(artifactService, versionsService, clusterSharding);
             });
         });
+    }
+
+    private static void subscribeToVersionedArtifactUpdates(
+        final VersionsService versionsService, final ObjectMapper mapper, final ActorContext<Command> context,
+        final SynchronizerSettings settings
+    ) {
+        // region Synchronize Versioned Assets through Sonatype Search
+        final var componentPool = Routers.pool(
+            settings.asset.poolSize,
+            Behaviors.supervise(VersionedComponentWorker.gatherComponents(versionsService, mapper))
+                .onFailure(settings.asset.backoff)
+        );
+        final var componentRef = context.spawn(
+            componentPool,
+            "version-component-registration",
+            DispatcherSelector.defaultDispatcher()
+        );
+        final Flow<ArtifactUpdate, Done, NotUsed> versionedFlow = ActorFlow.ask(
+            settings.asset.parallelism,
+            componentRef,
+            settings.asset.timeout,
+            (g, b) -> {
+                if (!(g instanceof ArtifactUpdate.ArtifactVersionRegistered a)) {
+                    return new VersionedComponentWorker.Ignored(b);
+                }
+                return new VersionedComponentWorker.GatherComponentsForArtifact(a.coordinates(), b);
+            }
+        );
+        versionsService.artifactUpdateTopic()
+            .subscribe()
+            .atLeastOnce(versionedFlow);
+        // endregion
+    }
+
+    private static void subscribeToArtifactUpdates(
+        final ActorContext<SonatypeSynchronizer.Command> context,
+        final ArtifactService artifactService,
+        final VersionsService versionsService,
+        final ClusterSharding clusterSharding,
+        final SynchronizerSettings settings
+    ) {
+        // region Synchronize Artifact Versions from Maven
+
+        final var syncWorkerBehavior = ArtifactSyncWorker.create(versionsService, clusterSharding);
+        final var pool = Routers.pool(
+            settings.reactiveSync.poolSize,
+            syncWorkerBehavior
+        );
+
+        final var registrationRef = context.spawn(
+            pool,
+            "group-event-subscriber",
+            DispatcherSelector.defaultDispatcher()
+        );
+        final Flow<GroupUpdate, Done, NotUsed> actorAsk = ActorFlow.ask(
+            settings.reactiveSync.parallelism,
+            registrationRef, settings.reactiveSync.timeOut,
+            (g, b) -> {
+                if (!(g instanceof GroupUpdate.ArtifactRegistered a)) {
+                    return new ArtifactSyncWorker.Ignored(b);
+                }
+                return new ArtifactSyncWorker.PerformResync(a.coordinates(), b);
+            }
+        );
+        artifactService.groupTopic()
+            .subscribe()
+            .atLeastOnce(actorAsk);
+        // endregion
     }
 
     private static Behavior<Command> timedSync(
@@ -171,7 +190,8 @@ public final class SonatypeSynchronizer {
             );
             final var artifactSyncPool = Routers.pool(
                 4,
-                ArtifactSyncWorker.create(versionsService, clusterSharding)
+                Behaviors.supervise(ArtifactSyncWorker.create(versionsService, clusterSharding))
+                    .onFailure(SupervisorStrategy.restartWithBackoff(Duration.ofSeconds(1), Duration.ofMinutes(10), 0.2))
             );
             final var syncWorker = ctx.spawn(
                 artifactSyncPool,

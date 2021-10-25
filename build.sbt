@@ -2,6 +2,8 @@ import com.lightbend.lagom.core.LagomVersion
 import com.typesafe.sbt.packager.docker.DockerChmodType
 import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport.{HeaderLicenseStyle, headerLicenseStyle}
 
+import scala.sys.process.Process
+
 ThisBuild / organization := "org.spongepowered"
 ThisBuild / version := "1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.6"
@@ -14,6 +16,52 @@ ThisBuild / licenses += ("MIT", url("https://opensource.org/licenses/MIT"))
 // Deployed Repositories
 // TODO - Figure out deploying to our sonatype and to maven central
 //    Then also figure out deploying docker images???
+
+// Liquibase Docker Tasks
+lazy val buildLiquibaseImage = taskKey[Unit]("Build the Liquibase docker image")
+val rootFilter = ScopeFilter( inProjects( soadRoot ), inConfigurations(Compile))
+buildLiquibaseImage := {
+  val versionTag = version.all(rootFilter).value.head
+  Process(Seq("docker", "build", "-t", s"spongepowered/systemofadownload-liquibase:$versionTag", "./liquibase/", "-f", "./liquibase/Dockerfile")).!
+}
+
+lazy val runLiquibase = taskKey[Unit]("Runs the liquibase migration against a local dev database")
+
+lazy val setupDevEnvironment = taskKey[Unit]("Runs the necessary commands to set up a local environment to run the application")
+
+lazy val setupPostgres = taskKey[Unit]("Runs a postgres instance for local development")
+lazy val setupKafka = taskKey[Unit]("Runs Kafka and zookeeper instance for local development")
+setupDevEnvironment := {
+  setupPostgres.value
+  runLiquibase.value
+  setupKafka.value
+}
+setupPostgres := {
+  Process(Seq("sh",
+    s"${soadRoot.base.absolutePath}/dev/run_postgres.sh",
+  )).!
+}
+
+setupKafka := {
+  Process(Seq("sh", s"${soadRoot.base.absolutePath}/dev/run_kafka.sh")).!
+}
+
+runLiquibase := {
+  Process(Seq("docker",
+    "run",
+    "--rm",
+    "--mount", s"type=bind,source=${soadRoot.base.absolutePath}/liquibase/changelog,target=/liquibase/changelog,readonly",
+    "--network=host",
+    "liquibase/liquibase",
+    "--logLevel=info",
+    s"--url=jdbc:postgresql://localhost:5432/default",
+    "--defaultsFile=/liquibase/changelog/liquibase.properties",
+    "--changeLogFile=changelog.xml",
+    "--classpath=/liquibase/changelog",
+    "--username=admin",
+    "--password=password",
+    "update")).!
+}
 
 // region dependency versions
 
@@ -230,18 +278,6 @@ lazy val `version-synchronizer` = serverSoadProject("version-synchronizer").depe
   )
 )
 
-lazy val `commit-api` = apiSoadProject("commit-api").dependsOn(
-  `artifact-api`
-)
-
-lazy val `commit-impl` = implSoadProjectWithPersistence("commit-impl", `commit-api`).settings(
-  libraryDependencies += jgit
-)
-
-lazy val `commit-query-api` = apiSoadProject("commit-query-api").dependsOn(
-  `artifact-api`
-)
-
 lazy val `sonatype` = soadProject( "sonatype").settings(
   libraryDependencies ++= Seq(
     //Language Features
@@ -324,15 +360,10 @@ lazy val soadRoot = project.in(file(".")).settings(
   `versions-query-api`,
   `versions-query-impl`,
   `version-synchronizer`,
-  `commit-api`,
-  `commit-impl`,
-  `commit-query-api`,
   `sonatype`,
   `auth-api`,
   `auth-impl`,
   `server-auth`,
-  `gateway-api`,
-  `gateway-impl`
 )
 
 ThisBuild / lagomCassandraEnabled := false

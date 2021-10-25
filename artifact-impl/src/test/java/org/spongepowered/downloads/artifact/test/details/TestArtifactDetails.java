@@ -26,6 +26,8 @@ package org.spongepowered.downloads.artifact.test.details;
 
 import akka.NotUsed;
 import akka.actor.testkit.typed.javadsl.TestKitJunitResource;
+import akka.cluster.sharding.typed.javadsl.ClusterSharding;
+import akka.cluster.sharding.typed.javadsl.EntityContext;
 import akka.persistence.testkit.javadsl.EventSourcedBehaviorTestKit;
 import akka.persistence.typed.PersistenceId;
 import org.junit.jupiter.api.Assertions;
@@ -48,7 +50,9 @@ public class TestArtifactDetails implements BeforeEachCallback {
         EventSourcedBehaviorTestKit.create(
             testkit.system(),
             ArtifactDetailsEntity.create(
-                "org.spongepowered:example", PersistenceId.of("DetailsEntity", "org.spongepowered:example"))
+                new EntityContext<>(ArtifactDetailsEntity.ENTITY_TYPE_KEY, "org.spongepowered:example",
+                    testkit.<ClusterSharding.ShardCommand>createTestProbe().ref()
+                ), "org.spongepowered:example", PersistenceId.of("DetailsEntity", "org.spongepowered:example"))
         );
 
     @Override
