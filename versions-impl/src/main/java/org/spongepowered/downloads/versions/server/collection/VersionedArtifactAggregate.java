@@ -183,7 +183,6 @@ public final class VersionedArtifactAggregate
         final State.ACState state, final ACCommand.RegisterVersion cmd
     ) {
         if (state.collection().containsKey(cmd.coordinates().version)) {
-            this.ctx.getLog().warn("[{}] Version re-registration attempted: {}", state.coordinates(), cmd.coordinates().version);
             return this.Effect().reply(
                 cmd.replyTo(),
                 new VersionRegistration.Response.ArtifactAlreadyRegistered(cmd.coordinates())
@@ -207,7 +206,7 @@ public final class VersionedArtifactAggregate
         if (newArtifacts.isEmpty()) {
             return this.Effect().reply(cmd.replyTo(), new VersionRegistration.Response.ArtifactAlreadyRegistered(cmd.collection().coordinates()));
         }
-        this.ctx.getLog().info("Adding new artifacts {}", newArtifacts);
+        this.ctx.getLog().trace("Adding new artifacts {}", newArtifacts);
         return this.Effect()
             .persist(new ACEvent.VersionedCollectionAdded(state.coordinates(), cmd.collection(), newArtifacts))
             .thenReply(

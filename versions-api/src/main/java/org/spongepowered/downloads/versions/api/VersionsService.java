@@ -33,6 +33,7 @@ import org.spongepowered.downloads.versions.api.models.ArtifactUpdate;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
+import org.spongepowered.downloads.versions.api.models.VersionedArtifactUpdates;
 
 public interface VersionsService extends Service {
 
@@ -46,6 +47,8 @@ public interface VersionsService extends Service {
     ServiceCall<TagVersion.Request, TagVersion.Response> tagVersion(String groupId, String artifactId);
 
     Topic<ArtifactUpdate> artifactUpdateTopic();
+
+    Topic<VersionedArtifactUpdates> versionedArtifactUpdatesTopic();
 
     @Override
     default Descriptor descriptor() {

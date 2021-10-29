@@ -22,50 +22,41 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.domain;
+package org.spongepowered.downloads.versions.api.models;
 
-import akka.Done;
-import akka.actor.typed.ActorRef;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
-import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 
-public interface GitCommand {
+import java.net.URI;
 
-    final record RegisterArtifact(
-        ArtifactCoordinates coordinates,
-        ActorRef<Done> replyTo
-    ) implements GitCommand {}
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = VersionedArtifactUpdates.GitCommitDetailsAssociated.class),
+    @JsonSubTypes.Type(value = VersionedArtifactUpdates.CommitExtracted.class),
+})
+public interface VersionedArtifactUpdates extends Jsonable {
 
-    final record RegisterRepository(
-        String repo,
-        ActorRef<Done> replyTo
-    ) implements GitCommand {}
-
-    final record RegisterVersion(
+    @JsonTypeName("commit-extracted")
+    final record CommitExtracted(
         MavenCoordinates coordinates,
-        ActorRef<Done> replyTo
-    ) implements GitCommand {}
+        List<URI> gitRepositories,
+        String commit
+    ) implements VersionedArtifactUpdates {
 
-    final record AssociateCommitWithVersion(
-        String sha,
+        @JsonCreator
+        public CommitExtracted {
+        }
+    }
+    @JsonTypeName("commit-associated")
+    final record GitCommitDetailsAssociated(
         MavenCoordinates coordinates,
-        ActorRef<Done> replyTo
-    ) implements GitCommand {}
+        VersionedCommit commit
+    ) implements VersionedArtifactUpdates {
 
-    final record GetGitRepo(ActorRef<RepositoryCommand.Response> replyTo) implements GitCommand {
     }
-
-    final record GetUnCommittedVersions(ActorRef<List<MavenCoordinates>> reply) implements GitCommand {
-    }
-
-    final record NotifyCommitMissingFromAssets(MavenCoordinates coordinates, ActorRef<Done> replyTo)
-        implements GitCommand {
-    }
-    final record AssociateCommitDetailsForVersion(
-        MavenCoordinates coordinates,
-        VersionedCommit commit,
-        ActorRef<Done> replyTo
-    ) implements GitCommand {}
 }

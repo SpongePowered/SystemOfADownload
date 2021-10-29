@@ -79,7 +79,7 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
             .onEvent(
                 GitEvent.RepoRegistered.class,
                 (s, e) -> new GitState.RepositoryAssociated(
-                    s.coordinates(), e.repository(), HashSet.empty(), HashMap.empty())
+                    s.coordinates(), e.repository(), HashSet.empty(), HashMap.empty(), HashSet.empty())
             )
             .onEvent(
                 GitEvent.VersionRegistered.class,
@@ -91,14 +91,16 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
             .onEvent(
                 GitEvent.RepoRegistered.class,
                 (s, e) -> new GitState.RepositoryAssociated(
-                    s.coordinates(), e.repository(), s.versions(), s.versionsCommit())
+                    s.coordinates(), e.repository(), s.versions(), s.versionsCommit(), HashSet.empty())
             )
             .onEvent(
                 GitEvent.VersionRegistered.class,
                 GitState.RepositoryAssociated::addVersion
             )
             .onEvent(GitEvent.ArtifactRegistered.class, (s, e) -> s)
-            .onEvent(GitEvent.CommitAssociatedWithVersion.class, GitState.RepositoryAssociated::appendCommitToVersion);
+            .onEvent(GitEvent.CommitAssociatedWithVersion.class, GitState.RepositoryAssociated::appendCommitToVersion)
+            .onEvent(GitEvent.ArtifactLabeledMissingCommit.class, GitState.RepositoryAssociated::labelAssetsAsMissingCommit)
+        ;
         return builder.build();
     }
 
@@ -129,6 +131,9 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
             .onCommand(
                 GitCommand.GetUnCommittedVersions.class,
                 (s, cmd) -> this.Effect().reply(cmd.reply(), List.empty())
+            ).onCommand(
+                GitCommand.NotifyCommitMissingFromAssets.class,
+                (s, cmd) -> this.Effect().reply(cmd.replyTo(), Done.done())
             )
         ;
         builder.forStateType(GitState.Registered.class)
@@ -159,6 +164,9 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
             .onCommand(
                 GitCommand.GetUnCommittedVersions.class,
                 (s, cmd) -> this.Effect().reply(cmd.reply(), List.empty())
+            ).onCommand(
+                GitCommand.NotifyCommitMissingFromAssets.class,
+                (s, cmd) -> this.Effect().reply(cmd.replyTo(), Done.done())
             )
         ;
         builder.forStateType(GitState.RepositoryAssociated.class)
@@ -170,7 +178,7 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
             .onCommand(
                 GitCommand.AssociateCommitWithVersion.class,
                 (state, cmd) -> this.Effect()
-                    .persist(new GitEvent.CommitAssociatedWithVersion(cmd.sha(), cmd.coordinates()))
+                    .persist(new GitEvent.CommitAssociatedWithVersion(cmd.sha(), state.gitRepository(), cmd.coordinates()))
                     .thenReply(cmd.replyTo(), s -> Done.done())
             )
             .onCommand(
@@ -185,11 +193,21 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
             )
             .onCommand(
                 GitCommand.GetUnCommittedVersions.class,
-                (s, cmd) -> this.Effect().reply(cmd.reply(), s.versions()
-                    .filter(Predicate.not(s.versionsCommit()::containsKey))
-                    .map(s.coordinates()::version)
-                    .collect(List.collector())
-                )
+                (s, cmd) -> {
+                    final var unresolvedVersions = s.versions()
+                        .filter(Predicate.not(s.versionsCommit()::containsKey))
+                        .filter(Predicate.not(s.versionsAlreadyQueried()::contains));
+                    final var unresolvedMavenVersions = unresolvedVersions
+                        .map(s.coordinates()::version)
+                        .take(10)
+                        .collect(List.collector());
+                    return this.Effect().reply(cmd.reply(), unresolvedMavenVersions);
+                }
+            ).onCommand(
+                GitCommand.NotifyCommitMissingFromAssets.class,
+                (s, cmd) -> this.Effect()
+                    .persist(new GitEvent.ArtifactLabeledMissingCommit(cmd.coordinates()))
+                    .thenReply(cmd.replyTo(), (s2) -> Done.done())
             )
         ;
         return builder.build();

@@ -81,6 +81,7 @@ public final class SonatypeSynchronizer {
         final ObjectMapper mapper
     ) {
         return Behaviors.setup(context -> {
+            context.getLog().info("Initializing Artifact Maven Synchronization");
             context.getSystem().receptionist().tell(
                 new ReceptionistMessages.Register<>(key, context.getSelf(), Option.empty()));
             final var settings = SynchronizationExtension.SettingsProvider.get(context.getSystem());

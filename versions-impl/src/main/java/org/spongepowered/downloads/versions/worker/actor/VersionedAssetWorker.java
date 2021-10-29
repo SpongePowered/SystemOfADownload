@@ -64,7 +64,8 @@ import java.util.concurrent.CompletionStage;
  */
 public final class VersionedAssetWorker {
 
-    public static final ServiceKey<Command> SERVICE_KEY = ServiceKey.create(Command.class, "versioned-asset-commit-fetcher");
+    public static final ServiceKey<Command> SERVICE_KEY = ServiceKey.create(
+        Command.class, "versioned-asset-commit-fetcher");
 
     /**
      * Creates the {@link Behavior} that accepts {@link Command Commands} as part
@@ -98,6 +99,31 @@ public final class VersionedAssetWorker {
                 .onMessage(RepoNotRegistered.class, cmd -> {
                     ctx.getLog().info("Git repository not registered");
                     cmd.replyTo.tell(Done.done());
+                    return Behaviors.same();
+                })
+                .onMessage(NoCommitFound.class, msg -> {
+                    ctx.pipeToSelf(
+                        sharding
+                            .entityRefFor(
+                                GitBasedArtifact.ENTITY_TYPE_KEY,
+                                msg.coordinates.asArtifactCoordinates().asMavenString()
+                            )
+                            .<Done>ask(
+                                replyTo -> new GitCommand.NotifyCommitMissingFromAssets(msg.coordinates, replyTo),
+                                Duration.ofSeconds(10)
+                            )
+                            .toCompletableFuture(),
+                        (done, throwable) -> {
+                            if (throwable != null) {
+                                ctx.getLog().warn(
+                                    "Received throwable trying to label assets as commitless " + msg.coordinates,
+                                    throwable
+                                );
+                                return new IgnoredUpdate(msg.replyTo);
+                            }
+                            return new IgnoredUpdate(msg.replyTo);
+                        }
+                    );
                     return Behaviors.same();
                 })
                 .onMessage(CommitRetrievedFromAsset.class, registerCommitWithArtifactVersion(ctx, sharding))
@@ -145,7 +171,9 @@ public final class VersionedAssetWorker {
         VersionConfig.CommitFetch config, ActorContext<Command> ctx, ClusterSharding sharding
     ) {
         return cmd -> {
-            ctx.getLog().debug("Received request for fetching commits for artifact {} from artifacts {}", cmd.collection.coordinates(), cmd.collection.components().map(Artifact::classifier));
+            ctx.getLog().debug(
+                "Refresh check for commits {}", cmd.collection.coordinates()
+            );
             // Start the kickoff of work to be done by requesting
             // from the EventSourced Entity for a GitRepo if it has one
             final var coordinates = cmd.collection.coordinates();
@@ -157,13 +185,17 @@ public final class VersionedAssetWorker {
                 ref.ask(GitCommand.GetGitRepo::new, config.timeout),
                 (response, throwable) -> {
                     if (throwable != null) {
-                        ctx.getLog().warn("Received throwable during git repo request for " + cmd.collection.coordinates(), throwable);
+                        ctx.getLog().warn(
+                            "Received throwable during git repo request for " + cmd.collection.coordinates(),
+                            throwable
+                        );
                         return new RepoNotRegistered(cmd.replyTo());
                     }
                     if (response instanceof RepositoryCommand.Response.RepositoryAvailable available) {
                         return new RepoAvailable(available.repo(), cmd.collection(), cmd.replyTo());
                     }
-                    ctx.getLog().warn("Received different response for {} than expected: {}", cmd.collection.coordinates(), response);
+                    ctx.getLog().warn(
+                        "Received different response for {} than expected: {}", cmd.collection.coordinates(), response);
                     return new RepoNotRegistered(cmd.replyTo());
                 }
             );
@@ -187,7 +219,7 @@ public final class VersionedAssetWorker {
         ActorContext<Command> ctx, ActorRef<CommitExtractor.ChildCommand> fileHandler
     ) {
         return cmd -> {
-            ctx.getLog().debug("Repository available, gathering artifacts for {}", cmd.collection);
+            ctx.getLog().trace("Repository available, gathering artifacts for {}", cmd.collection);
             // Filter assets for potential jars to get their manifests
             final var optionalUrl = cmd.collection().components()
                 .filter(artifact -> "jar".equalsIgnoreCase(artifact.extension()))
@@ -221,7 +253,7 @@ public final class VersionedAssetWorker {
                             .getOrElse(OptionalLong.empty())
                             .orElse(Long.MAX_VALUE)
                     ).getOrElse(Long.MAX_VALUE));
-            ctx.getLog().debug("Smallest ordered jars are as follows {}", smallestOrderedJars);
+            ctx.getLog().trace("Smallest ordered jars are as follows {}", smallestOrderedJars);
 
 
             // Create the flow for the child actor that'll handle

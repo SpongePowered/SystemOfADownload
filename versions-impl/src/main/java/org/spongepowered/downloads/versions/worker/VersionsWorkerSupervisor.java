@@ -25,6 +25,8 @@
 package org.spongepowered.downloads.versions.worker;
 
 import akka.Done;
+import akka.NotUsed;
+import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.DispatcherSelector;
 import akka.actor.typed.SupervisorStrategy;
@@ -32,19 +34,25 @@ import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.receptionist.Receptionist;
 import akka.actor.typed.receptionist.ServiceKey;
+import akka.cluster.Cluster;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.Entity;
 import akka.stream.javadsl.Flow;
+import akka.stream.typed.scaladsl.ActorFlow;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.versions.api.VersionsService;
+import org.spongepowered.downloads.versions.api.models.VersionedArtifactUpdates;
+import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 import org.spongepowered.downloads.versions.worker.actor.ArtifactSubscriber;
 import org.spongepowered.downloads.versions.worker.actor.AssetRefresher;
 import org.spongepowered.downloads.versions.worker.actor.CommitExtractor;
+import org.spongepowered.downloads.versions.worker.actor.CommitResolver;
 import org.spongepowered.downloads.versions.worker.actor.VersionedAssetWorker;
 import org.spongepowered.downloads.versions.worker.domain.GitBasedArtifact;
 import org.spongepowered.downloads.versions.worker.domain.GitCommand;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -87,6 +95,7 @@ public final class VersionsWorkerSupervisor {
             ctx.spawn(Behaviors.supervise(ArtifactSubscriber.consumeMessages(artifacts))
                 .onFailure(SupervisorStrategy.restart()), "versions-worker-artifacts-subscriber");
 
+            final var member = Cluster.get(ctx.getSystem()).selfMember();
             versions.artifactUpdateTopic()
                 .subscribe()
                 .atLeastOnce(
@@ -114,18 +123,43 @@ public final class VersionsWorkerSupervisor {
 
             for (int i = 0; i < poolSizePerInstance; i++) {
                 final var commitFetcherUID = UUID.randomUUID();
-                spawnWorker(
-                    ctx, () -> VersionedAssetWorker.commitFetcher(versionConfig.commitFetch),
-                    () -> VersionedAssetWorker.SERVICE_KEY, () -> "asset-commit-fetcher-" + commitFetcherUID
-                );
-                spawnWorker(
-                    ctx, CommitExtractor::extractCommitFromAssets, () -> CommitExtractor.SERVICE_KEY,
-                    () -> "file-commit-worker-" + commitFetcherUID
-                );
-                spawnWorker(
-                    ctx, () -> AssetRefresher.refreshVersions(artifacts, versionConfig), () -> AssetRefresher.serviceKey,
-                    () -> "asset-refresher-" + commitFetcherUID
-                );
+                if (member.hasRole("asset-fetcher")) {
+                    spawnWorker(
+                        ctx, () -> VersionedAssetWorker.commitFetcher(versionConfig.commitFetch),
+                        () -> VersionedAssetWorker.SERVICE_KEY, () -> "asset-commit-fetcher-" + commitFetcherUID
+                    );
+                }
+                if (member.hasRole("file-extractor")) {
+                    spawnWorker(
+                        ctx, CommitExtractor::extractCommitFromAssets, () -> CommitExtractor.SERVICE_KEY,
+                        () -> "file-commit-worker-" + commitFetcherUID
+                    );
+                }
+                if (member.hasRole("refresher")) {
+                    spawnWorker(
+                        ctx, () -> AssetRefresher.refreshVersions(artifacts, versionConfig),
+                        () -> AssetRefresher.serviceKey,
+                        () -> "asset-refresher-" + commitFetcherUID
+                    );
+                }
+                if (member.hasRole("commit-resolver")) {
+                    final var worker = spawnWorker(
+                        ctx, CommitResolver::resolveCommit, () -> CommitResolver.SERVICE_KEY,
+                        () -> "commit-resolver-" + commitFetcherUID
+                    );
+
+                    final Flow<VersionedArtifactUpdates.CommitExtracted, Optional<VersionedCommit>, NotUsed> flow = ActorFlow.ask(
+                        versionConfig.commitFetch.parallelism,
+                        worker,
+                        Duration.ofHours(10),
+                        (VersionedArtifactUpdates.CommitExtracted update, ActorRef<Optional<VersionedCommit>> replyTo) -> {
+                            final var coordinates = update.coordinates();
+                            final var sha = update.commit();
+                            final var repositories = update.gitRepositories();
+                            new CommitResolver.ResolveCommitDetails(coordinates, sha, repositories, replyTo);
+                        }
+                        );
+                }
             }
             return Behaviors.receive(Command.class)
                 .build();
@@ -133,7 +167,7 @@ public final class VersionsWorkerSupervisor {
 
     }
 
-    private static <A> void spawnWorker(
+    private static <A> ActorRef<A> spawnWorker(
         ActorContext<Command> ctx, Supplier<Behavior<A>> behaviorSupplier, Supplier<ServiceKey<A>> keyProvider,
         Supplier<String> workerName
     ) {
@@ -148,6 +182,7 @@ public final class VersionsWorkerSupervisor {
             DispatcherSelector.defaultDispatcher()
         );
         ctx.getSystem().receptionist().tell(Receptionist.register(keyProvider.get(), workerRef));
+        return workerRef;
     }
 
 

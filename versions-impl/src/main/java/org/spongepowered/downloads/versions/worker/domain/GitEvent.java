@@ -35,6 +35,7 @@ import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 
 import java.net.URI;
 
@@ -76,6 +77,7 @@ public interface GitEvent extends AggregateEvent<GitEvent>, Jsonable {
     @JsonTypeName("commit-associated")
     final record CommitAssociatedWithVersion(
         String sha,
+        URI repository,
         MavenCoordinates coordinates
     ) implements GitEvent {
         @JsonCreator
@@ -87,6 +89,19 @@ public interface GitEvent extends AggregateEvent<GitEvent>, Jsonable {
     final record VersionRegistered(MavenCoordinates coordinates) implements GitEvent {
         @JsonCreator
         public VersionRegistered {
+        }
+    }
+
+    @JsonTypeName("ArtifactsResolvedAsMissingCommit")
+    public record ArtifactLabeledMissingCommit(MavenCoordinates coordinates)
+        implements GitEvent {
+    }
+
+    @JsonTypeName("commit-details-updated")
+    final record CommitDetailsUpdated(MavenCoordinates coordinates, VersionedCommit commit) implements GitEvent {
+
+        @JsonCreator
+        public CommitDetailsUpdated {
         }
     }
 }

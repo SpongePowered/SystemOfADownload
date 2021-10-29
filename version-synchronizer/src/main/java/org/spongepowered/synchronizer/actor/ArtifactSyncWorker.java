@@ -101,6 +101,7 @@ public final class ArtifactSyncWorker {
                 settings.poolSize,
                 Behaviors.supervise(registerNewVersion(versionService, auth)).onFailure(SupervisorStrategy.restart())
             );
+            ctx.getLog().debug("Maven Sync Settings: \n{}\n",settings);
             final var registrationRef = ctx.spawn(
                 pool,
                 "version-registration-attempt",
@@ -133,6 +134,7 @@ public final class ArtifactSyncWorker {
     ) {
         return Behaviors.setup(ctx -> Behaviors.receive(Command.class)
             .onMessage(PerformResync.class, msg -> {
+                ctx.getLog().debug("Running Sync");
                 ctx.pipeToSelf(
                     clusterSharding.entityRefFor(
                             ArtifactSynchronizerAggregate.ENTITY_TYPE_KEY,
@@ -157,19 +159,19 @@ public final class ArtifactSyncWorker {
                         return new WrappedResult(msg.replyTo);
                     }
                 );
-                return awaiting(clusterSharding, fanOutVersions, settings);
+                return Behaviors.same();
             })
             .onMessage(WrappedResult.class, msg -> {
                 msg.replyTo.tell(Done.done());
-                return awaiting(clusterSharding, fanOutVersions, settings);
+                return Behaviors.same();
             })
             .onMessage(Ignored.class, msg -> {
                 msg.replyTo.tell(Done.done());
-                return awaiting(clusterSharding, fanOutVersions, settings);
+                return Behaviors.same();
             })
             .onMessage(Failed.class, msg -> {
                 msg.replyTo.tell(Done.done());
-                return awaiting(clusterSharding, fanOutVersions, settings);
+                return Behaviors.same();
             })
             .build());
     }
@@ -198,12 +200,7 @@ public final class ArtifactSyncWorker {
         return Behaviors.setup(ctx -> Behaviors.receive(Child.class)
             .onMessage(RequestSingleRegistration.class, msg -> {
                 ctx.pipeToSelf(
-                    versionsService.registerArtifactCollection(msg.coordinates.groupId, msg.coordinates.artifactId)
-                        .handleRequestHeader(
-                            requestHeader -> requestHeader.withHeader(
-                                auth.internalHeaderKey(),
-                                auth.internalHeaderSecret()
-                            ))
+                    auth.internalAuth(versionsService.registerArtifactCollection(msg.coordinates.groupId, msg.coordinates.artifactId))
                         .invoke(new VersionRegistration.Register.Version(msg.coordinates)),
                     (ok, failure) -> {
                         if (failure != null) {
@@ -214,14 +211,17 @@ public final class ArtifactSyncWorker {
                                 ), failure);
                             return new FailedRegistration(msg.coordinates, msg.replyTo);
                         }
-                        if (ok instanceof VersionRegistration.Response.ArtifactAlreadyRegistered) {
+                        if (ok instanceof VersionRegistration.Response.ArtifactAlreadyRegistered a) {
+                            ctx.getLog().trace("Redundant registration of {}", a.coordinates());
                             return new Redundant(msg.coordinates, msg.replyTo);
                         } else if (ok instanceof VersionRegistration.Response.GroupMissing gm) {
                             ctx.getLog().error("Group missing for {}", gm.groupId());
                             return new FailedRegistration(msg.coordinates, msg.replyTo);
-                        } else if (ok instanceof VersionRegistration.Response.RegisteredArtifact) {
+                        } else if (ok instanceof VersionRegistration.Response.RegisteredArtifact r) {
+                            ctx.getLog().trace("Successful registration of {}", r.mavenCoordinates());
                             return new Completed(msg.coordinates, msg.replyTo);
                         }
+                        ctx.getLog().warn("Failed registration synchronizing {} with response {}", msg.coordinates, ok);
                         return new FailedRegistration(msg.coordinates, msg.replyTo);
                     }
                 );

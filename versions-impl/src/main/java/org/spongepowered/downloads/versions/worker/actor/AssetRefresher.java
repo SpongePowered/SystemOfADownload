@@ -86,6 +86,8 @@ public final class AssetRefresher {
         implements Command {
     }
 
+    private final record Completed() implements Command {}
+
     private final record Setup(
         ActorContext<Command> ctx,
         Flow<ArtifactCollection, Done, NotUsed> commitFetcherAsk,
@@ -128,7 +130,6 @@ public final class AssetRefresher {
                 })
                 .onMessage(FetchedVersions.class, versions -> AssetRefresher.fetchVersionedAssets(versions, setup))
                 .onMessage(FetchedAssets.class, assets -> {
-                    ctx.getLog().debug("Received assets ({}) for version {}", assets.assets.size(), assets.coordinates);
                     Source.from(assets.assets())
                         .async()
                         .via(setup.commitFetcherAsk())
@@ -151,10 +152,14 @@ public final class AssetRefresher {
                     return Behaviors.same();
                 })
                 .onMessage(ResyncVersions.class, refresh -> {
-                    ctx.getLog().info("Refreshing version commits for artifacts {}", refresh.artifacts);
+                    ctx.getLog().info("Refreshing version commits for artifacts {}", refresh.artifacts.size());
                     refresh.artifacts()
                         .map(Refresh::new)
                         .forEach(ctx.getSelf()::tell);
+                    return Behaviors.same();
+                })
+                .onMessage(Completed.class, complete -> {
+                    ctx.getLog().info("Refresh complete");
                     return Behaviors.same();
                 })
                 .build();
@@ -168,14 +173,14 @@ public final class AssetRefresher {
                 GitCommand.GetUnCommittedVersions::new,
                 Duration.ofMinutes(1)
             );
-        setup.ctx().getLog().debug("Received refresh {}", refresh.coordinates);
+        setup.ctx().getLog().trace("Received refresh {}", refresh.coordinates);
         setup.ctx().pipeToSelf(
             findUnmanagedVersions, (response, throwable) -> {
                 if (throwable != null) {
                     setup.ctx.getLog().warn("Failed to get refresh for " + refresh.coordinates, throwable);
                     return new Failed(refresh.coordinates);
                 }
-                setup.ctx.getLog().info("Refreshing versions for commit information on {}", response);
+                setup.ctx.getLog().debug("Refreshing versions for commit information on {}", response.size());
                 return new FetchedVersions(refresh.coordinates, response);
             });
         return Behaviors.same();
@@ -195,7 +200,12 @@ public final class AssetRefresher {
             if (throwable != null) {
                 return new Failed(versions.artifact);
             }
-            return new FetchedAssets(versions.artifact, response);
+            final var toSync = response.filter(col -> versions.coordinates.contains(col.coordinates()));
+            setup.ctx.getLog().trace("Found versions for {} to sync {}", versions.artifact.asMavenString(), toSync.map(ArtifactCollection::coordinates).map(v -> v.version));
+            if (toSync.isEmpty()) {
+                return new Completed();
+            }
+            return new FetchedAssets(versions.artifact, toSync);
         });
         return Behaviors.same();
     }

@@ -86,7 +86,8 @@ public interface GitState extends Jsonable {
         ArtifactCoordinates coordinates,
         URI gitRepository,
         Set<String> versions,
-        Map<String, String> versionsCommit
+        Map<String, String> versionsCommit,
+        Set<String> versionsAlreadyQueried
     ) implements GitState {
 
         @JsonCreator
@@ -103,7 +104,8 @@ public interface GitState extends Jsonable {
                 this.coordinates,
                 this.gitRepository,
                 this.versions.add(e.coordinates().version),
-                this.versionsCommit.put(e.coordinates().version, e.sha())
+                this.versionsCommit.put(e.coordinates().version, e.sha()),
+                this.versionsAlreadyQueried
             );
         }
 
@@ -112,7 +114,18 @@ public interface GitState extends Jsonable {
                 this.coordinates,
                 this.gitRepository,
                 this.versions.add(e.coordinates().version),
-                this.versionsCommit
+                this.versionsCommit,
+                this.versionsAlreadyQueried
+            );
+        }
+
+        public GitState labelAssetsAsMissingCommit(GitEvent.ArtifactLabeledMissingCommit e) {
+            return new RepositoryAssociated(
+                this.coordinates,
+                this.gitRepository,
+                this.versions,
+                this.versionsCommit,
+                this.versionsAlreadyQueried.add(e.coordinates().version)
             );
         }
     }

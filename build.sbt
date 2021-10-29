@@ -96,6 +96,7 @@ lazy val postgres = "org.postgresql" % "postgresql" % "42.2.18"
 lazy val guice = "com.google.inject" % "guice" % "5.0.1"
 
 lazy val jgit = "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r"
+lazy val jgit_jsch = "org.eclipse.jgit" % "org.eclipse.jgit.ssh.jsch" % "5.13.0.202109080827-r"
 
 // endregion
 
@@ -246,7 +247,8 @@ lazy val `versions-impl` = implSoadProjectWithPersistence("versions-impl", `vers
   //Other SystemOfADownload Common Implementation Dependencies
   `server-auth`
 ).settings(
-  libraryDependencies += jgit
+  libraryDependencies += jgit,
+  libraryDependencies += jgit_jsch
 )
 
 lazy val `versions-query-api` = apiSoadProject("versions-query-api").dependsOn(

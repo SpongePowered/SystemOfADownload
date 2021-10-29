@@ -5,7 +5,7 @@
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <target>System.out</target>
         <encoder>
-            <pattern>[%date{ISO8601}] [%level] [%thread] [%logger{5}/%marker] - %coloredLevel %msg MDC: {%mdc}%n</pattern>
+            <pattern>%date{hh:MM:ss.SSS} [%level] [%thread] [%logger{5}/%marker] - %coloredLevel %msg MDC: {%mdc}%n</pattern>
         </encoder>
     </appender>
 
@@ -15,12 +15,17 @@
         <appender-ref ref="CONSOLE" />
     </appender>
 
+    <logger name="org.spongepowered.downloads.versions.worker" level="DEBUG"/>
+
 
     <logger name="play" level="INFO" />
     <logger name="akka" level="WARN" />
     <logger name="org.apache.kafka" level="WARN" />
     <logger name="com.lightbend.lagom" level="INFO" />
+    <logger name="com.lightbend.lagom.internal.persistence" level="WARN" />
     <logger name="org.hibernate" level="WARN"/>
+    <logger name="com.zaxxer.hikari.HikariDataSource" level="WARN"/>
+    <logger name="play.api.db" level="WARN"/>
     <root level="INFO">
         <appender-ref ref="ASYNC"/>
     </root>

@@ -26,7 +26,6 @@ package org.spongepowered.downloads.versions.server;
 
 import akka.Done;
 import akka.NotUsed;
-import akka.actor.ActorSystem;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.Entity;
 import akka.cluster.sharding.typed.javadsl.EntityRef;
@@ -54,10 +53,12 @@ import org.spongepowered.downloads.versions.api.models.ArtifactUpdate;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
+import org.spongepowered.downloads.versions.api.models.VersionedArtifactUpdates;
 import org.spongepowered.downloads.versions.server.collection.ACCommand;
 import org.spongepowered.downloads.versions.server.collection.ACEvent;
 import org.spongepowered.downloads.versions.server.collection.InvalidRequest;
 import org.spongepowered.downloads.versions.server.collection.VersionedArtifactAggregate;
+import org.spongepowered.downloads.versions.worker.domain.GitEvent;
 
 import java.time.Duration;
 import java.util.Collections;
@@ -80,8 +81,7 @@ public class VersionsServiceImpl implements VersionsService,
         final ArtifactService artifactService,
         final PersistentEntityRegistry persistentEntityRegistry,
         @SOADAuth final Config securityConfig,
-        final AuthUtils auth,
-        final ActorSystem system
+        final AuthUtils auth
     ) {
         this.clusterSharding = clusterSharding;
         this.persistentEntityRegistry = persistentEntityRegistry;
@@ -266,6 +266,28 @@ public class VersionsServiceImpl implements VersionsService,
         );
     }
 
+    @Override
+    public Topic<VersionedArtifactUpdates> versionedArtifactUpdatesTopic() {
+        return TopicProducer.taggedStreamWithOffset(
+            GitEvent.INSTANCE.allTags(),
+            (aggregateTag, fromOffset) -> this.persistentEntityRegistry
+                .eventStream(aggregateTag, fromOffset)
+                .mapConcat(VersionsServiceImpl::convertGitEvents)
+        );
+    }
+
+    private static List<Pair<VersionedArtifactUpdates, Offset>> convertGitEvents(Pair<GitEvent, Offset> pair) {
+        final GitEvent event = pair.first();
+        final VersionedArtifactUpdates update;
+        if (event instanceof GitEvent.CommitAssociatedWithVersion r) {
+            update = new VersionedArtifactUpdates.CommitExtracted(r.coordinates(), io.vavr.collection.List.of(r.repository()), r.sha());
+        } else if (event instanceof GitEvent.CommitDetailsUpdated r) {
+            update = new VersionedArtifactUpdates.GitCommitDetailsAssociated(r.coordinates(), r.commit());
+        } else {
+            return Collections.emptyList();
+        }
+        return List.of(Pair.apply(update, pair.second()));
+    }
     private EntityRef<ACCommand> getCollection(final String groupId, final String artifactId) {
         return this.clusterSharding.entityRefFor(
             VersionedArtifactAggregate.ENTITY_TYPE_KEY, groupId + ":" + artifactId);

@@ -24,6 +24,7 @@
  */
 package org.spongepowered.downloads.auth.api.utils;
 
+import com.lightbend.lagom.javadsl.api.ServiceCall;
 import io.vavr.collection.List;
 import org.pac4j.core.authorization.authorizer.Authorizer;
 import org.pac4j.core.client.Client;
@@ -56,6 +57,10 @@ public final record AuthUtils(String encryptionSecret, String signatureSecret,
         config.getClients().setDefaultSecurityClients(jwtClient.getName());
         this.setAuthorizers(config);
         return config;
+    }
+
+    public <Send,Receive> ServiceCall<Send, Receive> internalAuth(ServiceCall<Send, Receive> call) {
+        return call.handleRequestHeader(header -> header.withHeader(this.internalHeaderKey, this.internalHeaderSecret));
     }
 
 
