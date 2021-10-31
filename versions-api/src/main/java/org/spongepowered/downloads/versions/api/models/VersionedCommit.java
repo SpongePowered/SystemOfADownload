@@ -42,6 +42,10 @@ public record VersionedCommit(
     ZonedDateTime commitDate
 ) {
 
+    @JsonCreator
+    public VersionedCommit {
+    }
+
     @JsonDeserialize
     public record Author(
         String name,

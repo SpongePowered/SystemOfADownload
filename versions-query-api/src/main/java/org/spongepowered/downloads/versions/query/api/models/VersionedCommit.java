@@ -24,18 +24,46 @@
  */
 package org.spongepowered.downloads.versions.query.api.models;
 
+
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import java.net.URI;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 @JsonDeserialize
 public record VersionedCommit(
     String message,
     String body,
     String sha,
-    String author,
+    Author author,
+    Commiter commiter,
     URI link,
-    LocalDateTime commitDate
+    ZonedDateTime commitDate
 ) {
+
+    @JsonCreator
+    public VersionedCommit {
+    }
+
+    @JsonDeserialize
+    public record Author(
+        String name,
+        String email
+    ) {
+        @JsonCreator
+        public Author {
+        }
+    }
+
+    @JsonDeserialize
+    public record Commiter(
+        String name,
+        String email
+    ) {
+        @JsonCreator
+        public Commiter {
+        }
+    }
 }
+

@@ -24,10 +24,12 @@
  */
 package org.spongepowered.downloads.versions.worker.actor;
 
+import akka.Done;
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.PostStop;
 import akka.actor.typed.javadsl.ActorContext;
+import akka.actor.typed.javadsl.AskPattern;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.receptionist.ServiceKey;
 import akka.japi.function.Function;
@@ -45,9 +47,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedList;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * An {@link akka.actor.Actor} that accepts a Versioned Artifact with a commit
@@ -66,20 +70,28 @@ public final class CommitResolver {
         MavenCoordinates coordinates,
         String commit,
         List<URI> gitRepo,
-        ActorRef<Optional<VersionedCommit>> replyTo
+        ActorRef<Done> replyTo
     ) implements Command {
+    }
+
+    private static record CommitDetailsRegistered(ActorRef<Done> replyTo) implements Command {
+
     }
 
     private static record AppendFileForDeletion(Path path) implements Command {
     }
 
-    public static Behavior<Command> resolveCommit() {
+    public static Behavior<Command> resolveCommit(ActorRef<CommitDetailsRegistrar.Command> registrar) {
         return Behaviors.setup(ctx -> {
             final var filesToDelete = new LinkedList<Path>();
             return Behaviors.receive(Command.class)
-                .onMessage(ResolveCommitDetails.class, checkoutGitRepo(ctx))
+                .onMessage(ResolveCommitDetails.class, checkoutGitRepo(ctx, registrar))
                 .onMessage(AppendFileForDeletion.class, msg -> {
                     filesToDelete.add(msg.path);
+                    return Behaviors.same();
+                })
+                .onMessage(CommitDetailsRegistered.class, msg -> {
+                    msg.replyTo.tell(Done.done());
                     return Behaviors.same();
                 })
                 .onSignal(PostStop.class, signal -> {
@@ -95,89 +107,129 @@ public final class CommitResolver {
         });
     }
 
-    private static Function<ResolveCommitDetails, Behavior<Command>> checkoutGitRepo(ActorContext<Command> ctx) {
+    private static Function<ResolveCommitDetails, Behavior<Command>> checkoutGitRepo(
+        final ActorContext<Command> ctx,
+        final ActorRef<CommitDetailsRegistrar.Command> registrar
+    ) {
         return msg -> {
             final ObjectId objectId = ObjectId.fromString(msg.commit);
             final var tempdirPrefix = String.format(
                 "soad-%s-%s", msg.coordinates.artifactId,
                 msg.commit.substring(0, Math.min(msg.commit.length(), 6))
             );
-            final var repoDirectory = Files.createTempDirectory(
-                tempdirPrefix
-            );
+
             final var log = ctx.getLog();
-            log.info("Preparing directory for checkout {}", repoDirectory);
             final var writer = new ActorLoggerPrinterWriter(log);
 
-            final var clone = Git.cloneRepository()
-                .setDirectory(repoDirectory.toFile())
-                .setProgressMonitor(writer)
-                .setNoTags()
-                .setCloneAllBranches(false)
-                .setCloneSubmodules(true)
-                .setURI(msg.gitRepo.toString());
-            log.debug("Checking out {} to {}", msg.gitRepo, repoDirectory);
-            final var git = Try.of(clone::call)
-                .flatMapTry(repo ->
-                    Try.of(() -> Files.walkFileTree(repoDirectory,
-                            new FileWalkerConsumer(path -> ctx.getSelf().tell(new AppendFileForDeletion(path)))
-                        ))
-                        .map(ignored -> repo)
-                )
-                .onFailure(throwable -> {
+            final var repos = msg.gitRepo;
+            final Optional<VersionedCommit> details = repos.map(remoteRepo -> {
+                    final Path repoDirectory;
                     try {
-                        Files.walkFileTree(
-                            repoDirectory,
-                            new FileWalkerConsumer(path -> ctx.getSelf().tell(new AppendFileForDeletion(path)))
+                        repoDirectory = Files.createTempDirectory(
+                            tempdirPrefix
                         );
+
+                        log.info("Preparing directory for checkout {}", repoDirectory);
+                        final var clone = Git.cloneRepository()
+                            .setDirectory(repoDirectory.toFile())
+                            .setProgressMonitor(writer)
+                            .setNoTags()
+                            .setCloneAllBranches(false)
+                            .setCloneSubmodules(true)
+                            .setURI(remoteRepo.toString());
+                        log.debug("Checking out {} to {}", remoteRepo, repoDirectory);
+                        final var git = Try.of(clone::call)
+                            .flatMapTry(repo ->
+                                Try.of(() -> Files.walkFileTree(
+                                        repoDirectory,
+                                        new FileWalkerConsumer(path -> ctx.getSelf().tell(new AppendFileForDeletion(path)))
+                                    ))
+                                    .map(ignored -> repo)
+                            )
+                            .onFailure(throwable -> {
+                                try {
+                                    Files.walkFileTree(
+                                        repoDirectory,
+                                        new FileWalkerConsumer(path -> ctx.getSelf().tell(new AppendFileForDeletion(path)))
+                                    );
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            });
+
+                        final var revWalk = git.map(Git::getRepository).map(RevWalk::new);
+
+                        final var resolved = revWalk.mapTry(walker -> {
+                            final var revCommit = walker.lookupCommit(objectId);
+                            walker.parseBody(revCommit);
+                            log.trace("Commit Body Parsed {}", revCommit);
+                            walker.parseHeaders(revCommit);
+                            log.trace("Commit Headers Parsed {}", revCommit.getShortMessage());
+                            final var commitTime = revCommit.getCommitTime();
+                            log.trace("Commit Revision {}", revCommit.getCommitTime());
+                            log.debug("{} at {} has {}", msg.coordinates, msg.commit, commitTime);
+                            return revCommit;
+                        });
+                        final var commitExtracted = resolved.toJavaOptional();
+                        final var detailsOpt = commitExtracted.map(commit -> {
+                            log.info("Commit Resolved {}", commit);
+                            final var commitMessage = commit.getShortMessage();
+                            final var commitBody = commit.getFullMessage();
+                            final var commitSha = commit.getId().getName();
+                            final var commitLink = URI.create(remoteRepo.toString()
+                                .replace("git@", "https://")
+                                .replace(".git", "/commit/" + commitSha));
+                            final var commitDate = commit.getCommitTime();
+                            final var instant = Instant.ofEpochSecond(commitDate);
+                            final var committerIdent = commit.getCommitterIdent();
+                            final var committer = new VersionedCommit.Commiter(
+                                committerIdent.getName(), committerIdent.getEmailAddress());
+                            final var authorIdent = commit.getAuthorIdent();
+                            final var author = new VersionedCommit.Author(
+                                authorIdent.getName(), authorIdent.getEmailAddress());
+                            final var timeZone = committerIdent
+                                .getTimeZone();
+                            final var commitDateTime = instant.atZone(timeZone.toZoneId());
+                            return new VersionedCommit(
+                                commitMessage,
+                                commitBody,
+                                commitSha,
+                                author,
+                                committer,
+                                commitLink,
+                                commitDateTime
+                            );
+                        });
+                        Files.walkFileTree(repoDirectory, new FileWalkerConsumer(Files::delete));
+                        return detailsOpt;
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        return Optional.<VersionedCommit>empty();
                     }
-                });
+                })
+                .filter(Optional::isPresent)
+                .map(Optional::get)
+                .find(derp -> true)
+                .toJavaOptional();
 
-            final var revWalk = git.map(Git::getRepository).map(RevWalk::new);
+            final var future = details.map(d ->
+                AskPattern.<CommitDetailsRegistrar.Command, Done>ask(
+                    registrar,
+                    replyTo -> new CommitDetailsRegistrar.HandleVersionedCommitReport(d, msg.coordinates, replyTo),
+                    Duration.ofSeconds(40),
+                    ctx.getSystem().scheduler()
+                )
+            )
+                .orElseGet(() -> CompletableFuture.completedFuture(Done.done()));
 
-            final var resolved = revWalk.mapTry(walker -> {
-                final var revCommit = walker.lookupCommit(objectId);
-                walker.parseBody(revCommit);
-                log.trace("Commit Body Parsed {}", revCommit);
-                walker.parseHeaders(revCommit);
-                log.trace("Commit Headers Parsed {}", revCommit.getShortMessage());
-                final var commitTime = revCommit.getCommitTime();
-                log.trace("Commit Revision {}", revCommit.getCommitTime());
-                log.debug("{} at {} has {}", msg.coordinates, msg.commit, commitTime);
-                return revCommit;
-            });
-            final var commitExtracted = resolved.toJavaOptional();
-            final var details = commitExtracted.map(commit -> {
-                log.info("Commit Resolved {}", commit);
-                final var commitMessage = commit.getShortMessage();
-                final var commitBody = commit.getFullMessage();
-                final var commitSha = commit.getId().getName();
-                final var commitLink = URI.create(msg.gitRepo.toString()
-                    .replace("git@", "https://")
-                    .replace(".git", "/commit/" + commitSha));
-                final var commitDate = commit.getCommitTime();
-                final var instant = Instant.ofEpochSecond(commitDate);
-                final var committerIdent = commit.getCommitterIdent();
-                final var committer = new VersionedCommit.Commiter(committerIdent.getName(), committerIdent.getEmailAddress());
-                final var authorIdent = commit.getAuthorIdent();
-                final var author = new VersionedCommit.Author(authorIdent.getName(), authorIdent.getEmailAddress());
-                final var timeZone = committerIdent
-                    .getTimeZone();
-                final var commitDateTime = instant.atZone(timeZone.toZoneId());
-                return new VersionedCommit(
-                    commitMessage,
-                    commitBody,
-                    commitSha,
-                    author,
-                    committer,
-                    commitLink,
-                    commitDateTime
-                );
-            });
-            Files.walkFileTree(repoDirectory, new FileWalkerConsumer(Files::delete));
-            msg.replyTo.tell(details);
+            ctx.pipeToSelf(
+                future,
+                (done, throwable) -> {
+                    if (throwable != null) {
+                        ctx.getLog().warn("Failed to register commit details", throwable);
+                    }
+                    return new CommitDetailsRegistered(msg.replyTo);
+                }
+            );
             return Behaviors.same();
         };
     }

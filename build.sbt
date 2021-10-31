@@ -323,31 +323,6 @@ lazy val `server-auth` = soadProject("server-auth").dependsOn(`auth-api`).settin
   )
 )
 
-// This service is literally acting as our reverse proxy gateway, so it will
-// perform routing of API calls that are inherited from the "public api" calls
-// versus the "internal" api calls. This service is primarily what will be
-// public facing, but not interacted with between the other services.
-lazy val `gateway-api` = apiSoadProject("gateway-api").dependsOn(
-  `artifact-api`,
-  `artifact-query-api`,
-  `versions-api`,
-  `versions-query-api`,
-  `auth-api`,
-).settings(
-  libraryDependencies ++= Seq(
-    lagomPac4j,
-    pac4jHttp,
-    pac4jJwt
-  )
-)
-
-lazy val `gateway-impl` = serverSoadProject("gateway-impl").dependsOn(
-  //The service we're implementing
-  `gateway-api`,
-  //Server Authentication Dependency
-  `server-auth`
-)
-
 // endregion
 
 lazy val soadRoot = project.in(file(".")).settings(

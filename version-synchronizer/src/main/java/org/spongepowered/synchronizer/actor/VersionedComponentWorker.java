@@ -29,6 +29,7 @@ import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.DispatcherSelector;
 import akka.actor.typed.SupervisorStrategy;
+import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Routers;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -216,28 +217,63 @@ public final class VersionedComponentWorker {
                 .build();
             return Behaviors.receive(Gather.class)
                 .onMessage(StartRequest.class, req -> {
-                    final var formatted = String.format(
-                        config.repository + ASSET_SEARCH_ENDPOINT,
-                        req.coordinates.groupId,
-                        req.coordinates.artifactId,
-                        req.coordinates.version,
-                        req.fileType
-                    );
-                    ctx.pipeToSelf(searchAssets(playMapper, client, formatted), (response, failure) -> {
-                        if (failure != null) {
-                            return new Failed(req.coordinates, List.empty(), req.ref, req.completedReplyTo);
-                        }
-                        return response.continuationToken()
-                            .<Gather>map(
-                                token -> new ContinueRequest(
-                                    req.coordinates, req.fileType, response.items(), token, req.ref,
-                                    req.completedReplyTo
-                                ))
-                            .orElseGet(
-                                () -> new Completed(req.coordinates, response.items(), req.ref, req.completedReplyTo));
-                    });
+                    runRequest(config, playMapper, ctx, client, req);
+                    return working(config, playMapper, req, List.empty());
+                })
+                .onMessage(ContinueRequest.class, cont -> {
+                    ctx.getLog().warn("Somehow got a continuation while idling");
                     return Behaviors.same();
                 })
+                .onMessage(Completed.class, completed -> {
+                    ctx.getLog().warn("Somehow got completed while idling");
+                    return Behaviors.same();
+                })
+                .onMessage(Failed.class, failed -> {
+                    failed.replyTo.tell(new FailedAssetRetrieval(failed.coordinates, 0, failed.completedReplyTo));
+                    return Behaviors.same();
+                })
+                .build();
+        });
+    }
+
+    private static void runRequest(
+        AssetSettingsExtension.AssetRetrievalSettings config, ObjectMapper playMapper, ActorContext<Gather> ctx,
+        HttpClient client, StartRequest req
+    ) {
+        final var formatted = String.format(
+            config.repository + ASSET_SEARCH_ENDPOINT,
+            req.coordinates.groupId,
+            req.coordinates.artifactId,
+            req.coordinates.version,
+            req.fileType
+        );
+        ctx.pipeToSelf(searchAssets(playMapper, client, formatted), (response, failure) -> {
+            if (failure != null) {
+                return new Failed(req.coordinates, List.empty(), req.ref, req.completedReplyTo);
+            }
+            return response.continuationToken()
+                .<Gather>map(
+                    token -> new ContinueRequest(
+                        req.coordinates, req.fileType, response.items(), token, req.ref,
+                        req.completedReplyTo
+                    ))
+                .orElseGet(
+                    () -> new Completed(req.coordinates, response.items(), req.ref, req.completedReplyTo));
+        });
+    }
+
+    private static Behavior<Gather> working(final AssetSettingsExtension.AssetRetrievalSettings config,
+        final ObjectMapper playMapper,
+        final StartRequest working,
+        final List<StartRequest> queue
+        ) {
+        return Behaviors.setup(ctx -> {
+            final var client = HttpClient.newBuilder().connectTimeout(config.timeout)
+                .executor(ctx.getExecutionContext())
+                .build();
+
+            return Behaviors.receive(Gather.class)
+                .onMessage(StartRequest.class, req -> working(config, playMapper, working, queue.append(req)))
                 .onMessage(ContinueRequest.class, cont -> {
                     final var formatted = String.format(
                         config.repository + ASSET_SEARCH_WITH_TOKEN,
@@ -267,10 +303,15 @@ public final class VersionedComponentWorker {
                 .onMessage(Completed.class, completed -> {
                     completed.replyTo.tell(
                         new ComponentsAvailable(completed.coordinates, completed.existing, completed.completedReplyTo));
-                    return Behaviors.same();
+                    if (queue.isEmpty()) {
+                        return idleFetcher(config, playMapper);
+                    }
+                    final var next = queue.head();
+                    runRequest(config, playMapper, ctx, client, next);
+                    return working(config, playMapper, next, queue.tail());
                 })
                 .onMessage(Failed.class, failed -> {
-                    failed.replyTo.tell(new FailedAssetRetrieval(failed.coordinates, 0, failed.completedReplyTo));
+                    runRequest(config, playMapper, ctx, client, working);
                     return Behaviors.same();
                 })
                 .build();

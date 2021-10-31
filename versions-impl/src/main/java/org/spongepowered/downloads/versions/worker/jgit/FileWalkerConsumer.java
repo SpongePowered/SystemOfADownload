@@ -24,6 +24,7 @@
  */
 package org.spongepowered.downloads.versions.worker.jgit;
 
+import akka.actor.typed.ActorRef;
 import io.vavr.CheckedConsumer;
 
 import java.io.IOException;
@@ -31,10 +32,15 @@ import java.nio.file.FileVisitResult;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.function.Function;
 
 public final class FileWalkerConsumer extends SimpleFileVisitor<Path> {
 
     private final CheckedConsumer<Path> acceptFile;
+
+    public static <T> FileWalkerConsumer tell(final ActorRef<T> ref, Function<Path, ? extends T> messageCreator) {
+        return new FileWalkerConsumer(path -> ref.tell(messageCreator.apply(path)));
+    }
 
     public FileWalkerConsumer(final CheckedConsumer<Path> acceptFile) {
         this.acceptFile = acceptFile;

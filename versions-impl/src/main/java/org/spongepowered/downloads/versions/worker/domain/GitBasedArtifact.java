@@ -25,6 +25,9 @@
 package org.spongepowered.downloads.versions.worker.domain;
 
 import akka.Done;
+import akka.actor.typed.Behavior;
+import akka.actor.typed.javadsl.ActorContext;
+import akka.actor.typed.javadsl.Behaviors;
 import akka.cluster.sharding.typed.javadsl.EntityContext;
 import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
 import akka.persistence.typed.PersistenceId;
@@ -47,12 +50,16 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
     public static EntityTypeKey<GitCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(
         GitCommand.class, "GitBasedArtifact");
     private final Function<GitEvent, Set<String>> tagger;
+    private final ActorContext<GitCommand> ctx;
 
-    public static GitBasedArtifact create(final EntityContext<GitCommand> context) {
-        return new GitBasedArtifact(context);
+    public static Behavior<GitCommand> create(final EntityContext<GitCommand> context) {
+        return Behaviors.setup(ctx -> new GitBasedArtifact(context, ctx));
     }
 
-    private GitBasedArtifact(final EntityContext<GitCommand> context) {
+    private GitBasedArtifact(
+        final EntityContext<GitCommand> context,
+        final ActorContext<GitCommand> ctx
+    ) {
         super(
             // PersistenceId needs a typeHint (or namespace) and entityId,
             // we take then from the EntityContext
@@ -61,6 +68,7 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
                 context.getEntityId() // <- business id
             ));
         this.tagger = AkkaTaggerAdapter.fromLagom(context, GitEvent.INSTANCE);
+        this.ctx = ctx;
     }
 
     @Override
@@ -134,6 +142,9 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
             ).onCommand(
                 GitCommand.NotifyCommitMissingFromAssets.class,
                 (s, cmd) -> this.Effect().reply(cmd.replyTo(), Done.done())
+            ).onCommand(
+                GitCommand.AssociateCommitDetailsForVersion.class,
+                (s, cmd)  -> this.Effect().reply(cmd.replyTo(), Done.done())
             )
         ;
         builder.forStateType(GitState.Registered.class)
@@ -167,6 +178,9 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
             ).onCommand(
                 GitCommand.NotifyCommitMissingFromAssets.class,
                 (s, cmd) -> this.Effect().reply(cmd.replyTo(), Done.done())
+            ).onCommand(
+                GitCommand.AssociateCommitDetailsForVersion.class,
+                (s, cmd)  -> this.Effect().reply(cmd.replyTo(), Done.done())
             )
         ;
         builder.forStateType(GitState.RepositoryAssociated.class)
@@ -208,6 +222,12 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
                 (s, cmd) -> this.Effect()
                     .persist(new GitEvent.ArtifactLabeledMissingCommit(cmd.coordinates()))
                     .thenReply(cmd.replyTo(), (s2) -> Done.done())
+            ).onCommand(
+                GitCommand.AssociateCommitDetailsForVersion.class,
+                (s, cmd)  -> {
+                    this.ctx.getLog().debug("[{}] Got git details {}", cmd.coordinates(), cmd.commit());
+                    return this.Effect().reply(cmd.replyTo(), Done.done());
+                }
             )
         ;
         return builder.build();

@@ -52,7 +52,7 @@ public class WorkerModule extends AbstractModule implements ServiceGuiceSupport,
 
     @Override
     protected void configure() {
-        this.bind(new TypeLiteral<ActorRef<VersionsWorkerSupervisor.Command>>() {
+        this.bind(new TypeLiteral<ActorRef<Void>>() {
             })
             .toProvider(WorkerProvider.class)
             .asEagerSingleton();
@@ -64,14 +64,14 @@ public class WorkerModule extends AbstractModule implements ServiceGuiceSupport,
         VersionsService versions,
         ClusterSharding sharding,
         ActorSystem system
-    ) implements Provider<ActorRef<VersionsWorkerSupervisor.Command>> {
+    ) implements Provider<ActorRef<Void>> {
 
         @Inject
         public WorkerProvider {
         }
 
         @Override
-        public ActorRef<VersionsWorkerSupervisor.Command> get() {
+        public ActorRef<Void> get() {
             return Adapter.spawn(
                 this.system,
                 VersionsWorkerSupervisor.create(

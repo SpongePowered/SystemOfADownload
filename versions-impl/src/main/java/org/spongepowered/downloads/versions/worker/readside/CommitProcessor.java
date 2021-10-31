@@ -28,6 +28,7 @@ import akka.actor.ActorSystem;
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.javadsl.Adapter;
 import akka.actor.typed.javadsl.Routers;
+import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.ReadSide;
 import com.lightbend.lagom.javadsl.persistence.ReadSideProcessor;
@@ -66,6 +67,7 @@ public final record CommitProcessor(
             this.readSide = readSide;
             final var refresherUUID = UUID.randomUUID();
             final var assetRouter = Routers.group(AssetRefresher.serviceKey);
+            final var sharding = ClusterSharding.get(Adapter.toTyped(system));
             this.refresher = Adapter.spawn(
                 system,
                 assetRouter,

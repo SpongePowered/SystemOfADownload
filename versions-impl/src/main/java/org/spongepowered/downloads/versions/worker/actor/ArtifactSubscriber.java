@@ -27,6 +27,7 @@ package org.spongepowered.downloads.versions.worker.actor;
 import akka.Done;
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
+import akka.actor.typed.SupervisorStrategy;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
@@ -44,40 +45,51 @@ import java.time.Duration;
 
 public final class ArtifactSubscriber {
 
+    public static void setup(ArtifactService artifacts, ActorContext<Void> ctx) {
+        final var consumer = ctx.spawn(
+            Behaviors.supervise(consumeMessages()).onFailure(SupervisorStrategy.resume()),
+            "versions-worker-artifacts-subscriber"
+        );
+
+        artifacts.artifactUpdate()
+            .subscribe()
+            .atLeastOnce(FlowUtil.splitClassFlows(
+                Pair.create(
+                    ArtifactUpdate.GitRepositoryAssociated.class,
+                    FlowUtil.subClassFlow(ActorFlow.ask(
+                        16,
+                        consumer,
+                        Duration.ofMinutes(20),
+                        GitRepositoryAssociatedFanout::new
+                    ))
+                ),
+                Pair.create(
+                    ArtifactUpdate.ArtifactRegistered.class,
+                    FlowUtil.subClassFlow(ActorFlow.ask(
+                        16,
+                        consumer,
+                        Duration.ofMinutes(20),
+                        ReceiveArtifactRegistration::new
+                    ))
+                )
+            ));
+    }
+
     public interface Command {
     }
 
-    public static Behavior<Command> consumeMessages(
-        ArtifactService artifacts
-    ) {
+    public static Behavior<Command> consumeMessages() {
         return Behaviors.setup(ctx -> {
-            final var self = ctx.getSelf();
             final var sharding = ClusterSharding.get(ctx.getSystem());
 
-            artifacts.artifactUpdate()
-                .subscribe()
-                .atLeastOnce(FlowUtil.splitClassFlows(
-                    Pair.create(
-                        ArtifactUpdate.GitRepositoryAssociated.class,
-                        FlowUtil.subClassFlow(ActorFlow.ask(
-                            16,
-                            self,
-                            Duration.ofMinutes(20),
-                            GitRepositoryAssociatedFanout::new
-                        ))
-                    ), Pair.create(
-                        ArtifactUpdate.ArtifactRegistered.class,
-                        FlowUtil.subClassFlow(ActorFlow.ask(
-                            16,
-                            self,
-                            Duration.ofMinutes(20),
-                            ReceiveArtifactRegistration::new
-                        ))
-                    )));
             return Behaviors.receive(Command.class)
                 .onMessage(ReceiveArtifactRegistration.class, msg -> forwardArtifactRegistered(ctx, sharding, msg))
                 .onMessage(RegistrationSucceeded.class, msg -> {
                     msg.replyTo.tell(Done.done());
+                    return Behaviors.same();
+                })
+                .onMessage(FailedArtifactRegistration.class, msg -> {
+                    ctx.getLog().warn("Failed artifact registration {}", msg.registered);
                     return Behaviors.same();
                 })
                 .onMessage(GitRepositoryAssociatedFanout.class, msg -> fanOutGitRepositoryUpdates(ctx, sharding, msg))

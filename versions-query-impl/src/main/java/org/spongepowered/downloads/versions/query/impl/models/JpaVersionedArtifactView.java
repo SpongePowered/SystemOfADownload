@@ -44,8 +44,7 @@ import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import java.io.Serializable;
 import java.net.URI;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.Optional;
@@ -203,8 +202,10 @@ public class JpaVersionedArtifactView implements Serializable {
         if (commitStr == null || commitStr.isEmpty()) {
             commit = Optional.empty();
         } else {
-            commit = Optional.of(new VersionedCommit("some message", "todo", commitStr, "author here",
-                URI.create("http://localhost/"), LocalDateTime.ofEpochSecond(0, 0, ZoneOffset.UTC)));
+            final var author = new VersionedCommit.Author("author", "email");
+            final var committer = new VersionedCommit.Commiter("comitter", "email");
+            commit = Optional.of(new VersionedCommit("some message", "todo", commitStr, author, committer,
+                URI.create("http://localhost/"), ZonedDateTime.now()));
         }
         return commit;
     }

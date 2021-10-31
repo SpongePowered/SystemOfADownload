@@ -59,7 +59,10 @@ public interface VersionsService extends Service {
                 Service.restCall(Method.PATCH, "/versions/groups/:groupId/artifacts/:artifactId/tags", this::updateArtifactTag),
                 Service.restCall(Method.POST, "/versions/groups/:groupId/artifacts/:artifactId/promotion", this::tagVersion)
              )
-            .withTopics(Service.topic("artifact-update", this::artifactUpdateTopic))
+            .withTopics(
+                Service.topic("artifact-update", this::artifactUpdateTopic),
+                Service.topic("versioned-artifact-updates", this::versionedArtifactUpdatesTopic)
+            )
             .withAutoAcl(true);
     }
 
