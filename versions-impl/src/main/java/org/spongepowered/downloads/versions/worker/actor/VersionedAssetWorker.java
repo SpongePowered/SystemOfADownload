@@ -84,23 +84,20 @@ public final class VersionedAssetWorker {
             final var commitExtractorRouter = Routers.group(CommitExtractor.SERVICE_KEY);
             final var fileHandler = ctx.spawn(commitExtractorRouter, "commit-extractor");
             return Behaviors.receive(Command.class)
-                .onMessage(IgnoredUpdate.class, cmd -> {
-                    cmd.replyTo().tell(Done.done());
+                .onMessage(RepoNotRegistered.class, cmd -> {
+                    ctx.getLog().info("Git repository not registered");
+                    cmd.replyTo.tell(Done.done());
                     return Behaviors.same();
                 })
-                .onMessage(FetchCommitFromAsset.class, requestGitRepoForAsset(config, ctx, sharding))
                 .onMessage(TerminatingCommand.class, cmd -> {
                     // Effectively, some commands are terminating with their
                     // origins already logging in error cases
                     cmd.replyTo().tell(Done.done());
                     return Behaviors.same();
                 })
+                .onMessage(FetchCommitFromAsset.class, requestGitRepoForAsset(config, ctx, sharding))
                 .onMessage(RepoAvailable.class, fanOutAssetsForCommitRetrieval(ctx, fileHandler))
-                .onMessage(RepoNotRegistered.class, cmd -> {
-                    ctx.getLog().info("Git repository not registered");
-                    cmd.replyTo.tell(Done.done());
-                    return Behaviors.same();
-                })
+
                 .onMessage(NoCommitFound.class, msg -> {
                     ctx.pipeToSelf(
                         sharding
@@ -119,11 +116,15 @@ public final class VersionedAssetWorker {
                                     "Received throwable trying to label assets as commitless " + msg.coordinates,
                                     throwable
                                 );
-                                return new IgnoredUpdate(msg.replyTo);
+                                return new WorkCompleted(msg.replyTo);
                             }
-                            return new IgnoredUpdate(msg.replyTo);
+                            return new WorkCompleted(msg.replyTo);
                         }
                     );
+                    return Behaviors.same();
+                })
+                .onMessage(WorkCompleted.class, msg -> {
+                    msg.replyTo.tell(Done.done());
                     return Behaviors.same();
                 })
                 .onMessage(CommitRetrievedFromAsset.class, registerCommitWithArtifactVersion(ctx, sharding))
@@ -163,7 +164,7 @@ public final class VersionedAssetWorker {
      * response. This is used to acknowledge messages that are otherwise not
      * needing "work to be done" by the {@link VersionedAssetWorker}.
      */
-    public static record IgnoredUpdate(ActorRef<Done> replyTo) implements Command {
+    public static record IgnoredUpdate(ActorRef<Done> replyTo) implements TerminatingCommand {
 
     }
 
@@ -219,7 +220,7 @@ public final class VersionedAssetWorker {
         ActorContext<Command> ctx, ActorRef<CommitExtractor.ChildCommand> fileHandler
     ) {
         return cmd -> {
-            ctx.getLog().trace("Repository available, gathering artifacts for {}", cmd.collection);
+            ctx.getLog().debug("Repository available, gathering artifacts for {}", cmd.collection);
             // Filter assets for potential jars to get their manifests
             final var optionalUrl = cmd.collection().components()
                 .filter(artifact -> "jar".equalsIgnoreCase(artifact.extension()))
@@ -253,7 +254,7 @@ public final class VersionedAssetWorker {
                             .getOrElse(OptionalLong.empty())
                             .orElse(Long.MAX_VALUE)
                     ).getOrElse(Long.MAX_VALUE));
-            ctx.getLog().trace("Smallest ordered jars are as follows {}", smallestOrderedJars);
+            ctx.getLog().debug("Smallest ordered jars are as follows {}", smallestOrderedJars);
 
 
             // Create the flow for the child actor that'll handle
@@ -269,9 +270,8 @@ public final class VersionedAssetWorker {
                     smallestOrderedJars)
                 .async()
                 .via(fileFetcherFlow)
-                .filter(r -> r instanceof CommitExtractor.DiscoveredCommitFromFile);
-            final CompletionStage<Optional<CommitExtractor.DiscoveredCommitFromFile>> commitAvailable = filter
-                .map(r -> (CommitExtractor.DiscoveredCommitFromFile) r)
+                .concat(Source.single(new CommitExtractor.NoCommitsFound()));
+            final CompletionStage<Optional<CommitExtractor.AssetCommitResponse>> commitAvailable = filter
                 .runWith(Sink.headOption(), ctx.getSystem());
 
             // Then, go ahead and submit the graph for processing
@@ -279,13 +279,25 @@ public final class VersionedAssetWorker {
                 commitAvailable,
                 (optionalCommit, throwable) -> {
                     if (throwable != null) {
+                        ctx.getLog().debug("failed to get commit", throwable);
                         return new CommitResolutionFailed(cmd.collection().coordinates(), cmd.replyTo());
                     }
+                    ctx.getLog().debug("got optional commit as {}", optionalCommit);
                     return optionalCommit
                         .<Command>map(
-                            commit -> new CommitRetrievedFromAsset(commit.sha(), cmd.collection().coordinates(),
-                                cmd.replyTo()
-                            ))
+                            commit -> {
+                                if (commit instanceof CommitExtractor.DiscoveredCommitFromFile r) {
+                                    return new CommitRetrievedFromAsset(r.sha(), cmd.collection().coordinates(),
+                                        cmd.replyTo()
+                                    );
+                                }
+                                if (commit instanceof CommitExtractor.FailedToRetrieveCommit r) {
+                                    ctx.getLog().debug("no commit found for {}", r.asset());
+                                    return new NoCommitFound(cmd.collection().coordinates(), cmd.replyTo());
+                                }
+                                ctx.getLog().debug("response {}", commit);
+                                return new NoCommitFound(cmd.collection().coordinates(), cmd.replyTo());
+                            })
                         .orElseGet(() -> new NoCommitFound(cmd.collection().coordinates(), cmd.replyTo()));
                 }
             );
@@ -310,6 +322,7 @@ public final class VersionedAssetWorker {
                 if (throwable != null) {
                     ctx.getLog().warn("Failed to register commit sha with version", throwable);
                 }
+                ctx.getLog().debug("Completed work on {}", cmd.coordinates);
                 return new WorkCompleted(cmd.replyTo());
             });
             return Behaviors.same();
