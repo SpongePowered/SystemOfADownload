@@ -75,6 +75,7 @@ lazy val pac4jJwt = "org.pac4j" % "pac4j-jwt" % pac4jVersion
 
 lazy val lagomPac4jVersion = "2.2.1"
 lazy val lagomPac4j = "org.pac4j" %% "lagom-pac4j" % lagomPac4jVersion
+lazy val lagomPac4jLdap = "org.pac4j" % "pac4j-ldap" % pac4jVersion
 
 lazy val junitVersion = "5.7.2" // Enable Junit5
 lazy val junit = "org.junit.jupiter" % "junit-jupiter-api" % junitVersion % Test
@@ -89,6 +90,8 @@ lazy val akkaStreamTyped = "com.typesafe.akka" %% "akka-stream-typed" % LagomVer
 lazy val akkaPersistenceTestkit = "com.typesafe.akka" %% "akka-persistence-testkit" % LagomVersion.akka % Test
 val AkkaManagementVersion = "1.1.1"
 lazy val akkaKubernetesDiscovery = "com.lightbend.akka.discovery" %% "akka-discovery-kubernetes-api" % AkkaManagementVersion
+
+lazy val playFilterHelpers = "com.typesafe.play" %% "filters-helpers" % LagomVersion.play
 
 lazy val hibernate = "org.hibernate" % "hibernate-core" % "5.5.4.Final"
 lazy val postgres = "org.postgresql" % "postgresql" % "42.2.18"
@@ -172,6 +175,8 @@ def serverSoadProject(name: String) =
       vavrJackson,
       // Override guice from Lagom to support Java 16
       guice,
+      // Ensure the play filter helpers are included
+      playFilterHelpers,
       //Test Dependencies
       lagomJavadslTestKit,
       junit, // Always enable Junit 5
@@ -229,14 +234,16 @@ lazy val `artifact-impl` = implSoadProjectWithPersistence("artifact-impl", `arti
   `server-auth`,
   `sonatype`
 ).settings(
-  libraryDependencies += jgit
+  libraryDependencies ++= Seq(jgit, playFilterHelpers)
 )
 
 lazy val `artifact-query-api` = apiSoadProject("artifact-query-api").dependsOn(
   //Inter module dependencies
   `artifact-api`
 )
-lazy val `artifact-query-impl` = implSoadProjectWithPersistence("artifact-query-impl", `artifact-query-api`)
+lazy val `artifact-query-impl` = implSoadProjectWithPersistence("artifact-query-impl", `artifact-query-api`).settings(
+  libraryDependencies += playFilterHelpers
+)
 
 lazy val `versions-api` = apiSoadProject("versions-api").dependsOn(
   //Module Dependencies
@@ -247,15 +254,16 @@ lazy val `versions-impl` = implSoadProjectWithPersistence("versions-impl", `vers
   //Other SystemOfADownload Common Implementation Dependencies
   `server-auth`
 ).settings(
-  libraryDependencies += jgit,
-  libraryDependencies += jgit_jsch
+  libraryDependencies ++= Seq(jgit, jgit_jsch, playFilterHelpers)
 )
 
 lazy val `versions-query-api` = apiSoadProject("versions-query-api").dependsOn(
   //Inter module dependencies
   `artifact-api`
 )
-lazy val `versions-query-impl` = implSoadProjectWithPersistence("versions-query-impl", `versions-query-api`)
+lazy val `versions-query-impl` = implSoadProjectWithPersistence("versions-query-impl", `versions-query-api`).settings(
+  libraryDependencies += playFilterHelpers
+)
 
 lazy val `version-synchronizer` = serverSoadProject("version-synchronizer").dependsOn(
   //Modules we consume
@@ -311,7 +319,7 @@ lazy val `auth-impl` = serverSoadProject("auth-impl").dependsOn(
   `server-auth`
 ).settings(
   //LDAP dependency
-  libraryDependencies += "org.pac4j" % "pac4j-ldap" % pac4jVersion
+  libraryDependencies ++= Seq(lagomPac4jLdap, playFilterHelpers)
 )
 
 lazy val `server-auth` = soadProject("server-auth").dependsOn(`auth-api`).settings(
@@ -319,7 +327,9 @@ lazy val `server-auth` = soadProject("server-auth").dependsOn(`auth-api`).settin
     //Language Features
     vavr,
     //Lagom Server Dependency
-    lagomJavadslServer
+    lagomJavadslServer,
+
+    playFilterHelpers
   )
 )
 
