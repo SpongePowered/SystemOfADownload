@@ -22,51 +22,55 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.actor;
+package org.spongepowered.downloads.versions.worker.consumer;
 
+import akka.Done;
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
-import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.ArtifactCollection;
-import org.spongepowered.downloads.versions.server.collection.ACCommand;
-import org.spongepowered.downloads.versions.server.collection.VersionedArtifactAggregate;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+import org.spongepowered.downloads.versions.api.models.VersionedCommit;
+import org.spongepowered.downloads.versions.worker.domain.GitBasedArtifact;
+import org.spongepowered.downloads.versions.worker.domain.GitCommand;
 
+import java.net.URI;
 import java.time.Duration;
 
-public class AssetRetriever {
+public final class CommitDetailsRegistrar {
 
-    private static final record InternalResponse(
-        List<ArtifactCollection> collection,
-        ActorRef<List<ArtifactCollection>> replyTo
-    ) implements ACCommand {
-    }
-    public static Behavior<ACCommand> retrieveAssetCollection() {
+    public sealed interface Command {}
+
+    public static final record HandleVersionedCommitReport(
+        URI repo,
+        VersionedCommit versionedCommit,
+        MavenCoordinates coordinates,
+        ActorRef<Done> replyTo
+    ) implements Command {}
+
+    private static final record CompletedWork(ActorRef<Done> replyTo) implements Command {}
+
+    public static Behavior<Command> register() {
         return Behaviors.setup(ctx -> {
             final var sharding = ClusterSharding.get(ctx.getSystem());
-            return Behaviors.receive(ACCommand.class)
-                .onMessage(ACCommand.GetCollections.class, msg -> {
-                    final var coordinates = msg.coordinates().head().asArtifactCoordinates();
-
-                    ctx.pipeToSelf(sharding.entityRefFor(
-                            VersionedArtifactAggregate.ENTITY_TYPE_KEY,
-                            coordinates.asMavenString()
-                        )
-                        .<List<ArtifactCollection>>ask(
-                            replyTo ->
-                                new ACCommand.GetCollections(msg.coordinates(), replyTo),
+            return Behaviors.receive(Command.class)
+                .onMessage(HandleVersionedCommitReport.class, msg -> {
+                    final var future = sharding
+                        .entityRefFor(GitBasedArtifact.ENTITY_TYPE_KEY, msg.coordinates.asArtifactCoordinates().asMavenString())
+                        .<Done>ask(replyTo -> new GitCommand.AssociateCommitDetailsForVersion(msg.coordinates, msg.versionedCommit, msg.repo, replyTo),
                             Duration.ofSeconds(20)
-                        ), (result, throwable)-> {
-                        if (throwable != null) {
-                            return new InternalResponse(List.empty(), msg.replyTo());
+                        )
+                        .toCompletableFuture();
+                    ctx.pipeToSelf(future, (done, failure) -> {
+                        if (failure != null) {
+                            ctx.getLog().warn("Failed registering git details", failure);
                         }
-                        return new InternalResponse(result, msg.replyTo());
+                        return new CompletedWork(msg.replyTo);
                     });
                     return Behaviors.same();
                 })
-                .onMessage(InternalResponse.class, msg -> {
-                    msg.replyTo.tell(msg.collection);
+                .onMessage(CompletedWork.class, msg -> {
+                    msg.replyTo.tell(Done.getInstance());
                     return Behaviors.same();
                 })
                 .build();

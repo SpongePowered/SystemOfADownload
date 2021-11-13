@@ -87,7 +87,7 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
             .onEvent(
                 GitEvent.RepoRegistered.class,
                 (s, e) -> new GitState.RepositoryAssociated(
-                    s.coordinates(), e.repository(), HashMap.empty())
+                    s.coordinates(), HashSet.of(e.repository()), HashMap.empty())
             )
             .onEvent(
                 GitEvent.VersionRegistered.class,
@@ -99,7 +99,7 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
             .onEvent(
                 GitEvent.RepoRegistered.class,
                 (s, e) -> new GitState.RepositoryAssociated(
-                    s.coordinates(), e.repository(), s.commits())
+                    s.coordinates(), HashSet.of(e.repository()), s.commits())
             )
             .onEvent(
                 GitEvent.VersionRegistered.class,
@@ -243,7 +243,7 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
                 (s, cmd)  -> {
                     this.ctx.getLog().debug("[{}] Got git details {}", cmd.coordinates(), cmd.commit());
                     return this.Effect()
-                        .persist(new GitEvent.CommitDetailsUpdated(cmd.coordinates(), cmd.commit()))
+                        .persist(new GitEvent.CommitDetailsUpdated(cmd.coordinates(), cmd.repo(), cmd.commit()))
                         .thenReply(cmd.replyTo(), (ns) -> Done.done());
                 }
             )

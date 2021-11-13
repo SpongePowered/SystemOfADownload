@@ -32,6 +32,8 @@ import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 
+import java.net.URI;
+
 public interface GitCommand {
 
     final record RegisterArtifact(
@@ -71,6 +73,7 @@ public interface GitCommand {
     final record AssociateCommitDetailsForVersion(
         MavenCoordinates coordinates,
         VersionedCommit commit,
+        URI repo,
         ActorRef<Done> replyTo
     ) implements GitCommand {}
 }

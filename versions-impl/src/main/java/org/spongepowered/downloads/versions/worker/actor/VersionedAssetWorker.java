@@ -46,6 +46,7 @@ import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.worker.VersionConfig;
+import org.spongepowered.downloads.versions.worker.actor.artifacts.CommitExtractor;
 import org.spongepowered.downloads.versions.worker.domain.GitBasedArtifact;
 import org.spongepowered.downloads.versions.worker.domain.GitCommand;
 import org.spongepowered.downloads.versions.worker.domain.RepositoryCommand;

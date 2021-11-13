@@ -42,7 +42,6 @@ import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.versions.query.api.VersionsQueryService;
 import org.spongepowered.downloads.versions.query.api.models.QueryVersions;
 import org.spongepowered.downloads.versions.query.api.models.VersionedChangelog;
-import org.spongepowered.downloads.versions.query.api.models.VersionedCommit;
 import org.spongepowered.downloads.versions.query.impl.models.JpaTaggedVersion;
 import org.spongepowered.downloads.versions.query.impl.models.JpaVersionedArtifactView;
 

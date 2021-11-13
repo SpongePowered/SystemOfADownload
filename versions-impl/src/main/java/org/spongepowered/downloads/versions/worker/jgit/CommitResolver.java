@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.actor;
+package org.spongepowered.downloads.versions.worker.jgit;
 
 import akka.Done;
 import akka.actor.typed.ActorRef;
@@ -33,6 +33,8 @@ import akka.actor.typed.javadsl.AskPattern;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.receptionist.ServiceKey;
 import akka.japi.function.Function;
+import io.vavr.Tuple;
+import io.vavr.Tuple2;
 import io.vavr.collection.List;
 import io.vavr.control.Try;
 import org.eclipse.jgit.api.Git;
@@ -40,8 +42,7 @@ import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.VersionedCommit;
-import org.spongepowered.downloads.versions.worker.akka.ActorLoggerPrinterWriter;
-import org.spongepowered.downloads.versions.worker.jgit.FileWalkerConsumer;
+import org.spongepowered.downloads.versions.worker.consumer.CommitDetailsRegistrar;
 
 import java.io.IOException;
 import java.net.URI;
@@ -63,7 +64,7 @@ public final class CommitResolver {
 
     public static final ServiceKey<Command> SERVICE_KEY = ServiceKey.create(Command.class, "commit-resolver");
 
-    public interface Command {
+    public sealed interface Command {
     }
 
     public static record ResolveCommitDetails(
@@ -122,7 +123,7 @@ public final class CommitResolver {
             final var writer = new ActorLoggerPrinterWriter(log);
 
             final var repos = msg.gitRepo;
-            final Optional<VersionedCommit> details = repos.map(remoteRepo -> {
+            final Optional<Tuple2<URI, VersionedCommit>> details = repos.map(remoteRepo -> {
                     final Path repoDirectory;
                     try {
                         repoDirectory = Files.createTempDirectory(
@@ -201,9 +202,10 @@ public final class CommitResolver {
                             );
                         });
                         Files.walkFileTree(repoDirectory, new FileWalkerConsumer(Files::delete));
-                        return detailsOpt;
+
+                        return detailsOpt.map(c -> Tuple.of(remoteRepo, c));
                     } catch (IOException e) {
-                        return Optional.<VersionedCommit>empty();
+                        return Optional.<Tuple2<URI, VersionedCommit>>empty();
                     }
                 })
                 .filter(Optional::isPresent)
@@ -214,7 +216,7 @@ public final class CommitResolver {
             final var future = details.map(d ->
                 AskPattern.<CommitDetailsRegistrar.Command, Done>ask(
                     registrar,
-                    replyTo -> new CommitDetailsRegistrar.HandleVersionedCommitReport(d, msg.coordinates, replyTo),
+                    replyTo -> new CommitDetailsRegistrar.HandleVersionedCommitReport(d._1, d._2, msg.coordinates, replyTo),
                     Duration.ofSeconds(40),
                     ctx.getSystem().scheduler()
                 )

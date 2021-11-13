@@ -280,7 +280,7 @@ public class VersionsServiceImpl implements VersionsService,
         final GitEvent event = pair.first();
         final VersionedArtifactUpdates update;
         if (event instanceof GitEvent.CommitAssociatedWithVersion r) {
-            update = new VersionedArtifactUpdates.CommitExtracted(r.coordinates(), io.vavr.collection.List.of(r.repository()), r.sha());
+            update = new VersionedArtifactUpdates.CommitExtracted(r.coordinates(), r.repository().toList(), r.sha());
         } else if (event instanceof GitEvent.CommitDetailsUpdated r) {
             update = new VersionedArtifactUpdates.GitCommitDetailsAssociated(r.coordinates(), r.commit());
         } else {

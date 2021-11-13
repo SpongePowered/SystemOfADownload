@@ -33,6 +33,7 @@ import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
+import io.vavr.collection.Set;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.VersionedCommit;
@@ -44,7 +45,9 @@ import java.net.URI;
     @JsonSubTypes.Type(GitEvent.ArtifactRegistered.class),
     @JsonSubTypes.Type(GitEvent.RepoRegistered.class),
     @JsonSubTypes.Type(GitEvent.CommitAssociatedWithVersion.class),
-    @JsonSubTypes.Type(GitEvent.VersionRegistered.class)
+    @JsonSubTypes.Type(GitEvent.VersionRegistered.class),
+    @JsonSubTypes.Type(GitEvent.CommitDetailsUpdated.class),
+    @JsonSubTypes.Type(GitEvent.ArtifactLabeledMissingCommit.class)
 })
 public interface GitEvent extends AggregateEvent<GitEvent>, Jsonable {
 
@@ -77,7 +80,7 @@ public interface GitEvent extends AggregateEvent<GitEvent>, Jsonable {
     @JsonTypeName("commit-associated")
     final record CommitAssociatedWithVersion(
         String sha,
-        URI repository,
+        Set<URI> repository,
         MavenCoordinates coordinates
     ) implements GitEvent {
         @JsonCreator
@@ -101,7 +104,7 @@ public interface GitEvent extends AggregateEvent<GitEvent>, Jsonable {
     }
 
     @JsonTypeName("commit-details-updated")
-    final record CommitDetailsUpdated(MavenCoordinates coordinates, VersionedCommit commit) implements GitEvent {
+    final record CommitDetailsUpdated(MavenCoordinates coordinates, URI repo, VersionedCommit commit) implements GitEvent {
 
         @JsonCreator
         public CommitDetailsUpdated {

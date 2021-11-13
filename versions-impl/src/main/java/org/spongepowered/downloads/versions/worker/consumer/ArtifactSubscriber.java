@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.actor;
+package org.spongepowered.downloads.versions.worker.consumer;
 
 import akka.Done;
 import akka.actor.typed.ActorRef;

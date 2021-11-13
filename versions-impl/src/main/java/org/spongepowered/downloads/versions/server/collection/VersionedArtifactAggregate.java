@@ -24,14 +24,10 @@
  */
 package org.spongepowered.downloads.versions.server.collection;
 
-import akka.Done;
 import akka.NotUsed;
-import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
-import akka.actor.typed.DispatcherSelector;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
-import akka.actor.typed.javadsl.Routers;
 import akka.cluster.sharding.typed.javadsl.EntityContext;
 import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
 import akka.persistence.typed.PersistenceId;
@@ -46,11 +42,9 @@ import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
-import org.spongepowered.downloads.versions.worker.actor.VersionedAssetWorker;
 
 import java.util.Locale;
 import java.util.Set;
-import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -60,32 +54,14 @@ public final class VersionedArtifactAggregate
     public static EntityTypeKey<ACCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(ACCommand.class, "VersionedArtifact");
     private final Function<ACEvent, Set<String>> tagger;
     private final ActorContext<ACCommand> ctx;
-    private final ActorRef<VersionedAssetWorker.Command> commitResolver;
-    private final ActorRef<Done> doneActorRef;
 
     public static Behavior<ACCommand> create(final EntityContext<ACCommand> context) {
-        return Behaviors.setup(ctx -> {
-            final var assetFetcherUID = UUID.randomUUID();
-            final var assetWorkerRouter = Routers.group(VersionedAssetWorker.SERVICE_KEY);
-            final var commitWorkers = ctx.spawn(assetWorkerRouter, "asset-commit-fetcher-" + assetFetcherUID, DispatcherSelector.defaultDispatcher());
-
-            final var dummyReceiver = VersionedArtifactAggregate.commitReceiver();
-            final var doneActorRef = ctx.spawnAnonymous(dummyReceiver);
-            return new VersionedArtifactAggregate(context, ctx, commitWorkers, doneActorRef);
-        });
-    }
-
-    private static Behavior<Done> commitReceiver() {
-        return Behaviors.receive(Done.class)
-            .onAnyMessage(d -> Behaviors.same())
-            .build();
+        return Behaviors.setup(ctx -> new VersionedArtifactAggregate(context, ctx));
     }
 
     private VersionedArtifactAggregate(
         final EntityContext<ACCommand> context,
-        final ActorContext<ACCommand> ctx,
-        final ActorRef<VersionedAssetWorker.Command> commitWorkers,
-        final ActorRef<Done> doneActorRef
+        final ActorContext<ACCommand> ctx
     ) {
         super(
             // PersistenceId needs a typeHint (or namespace) and entityId,
@@ -96,8 +72,6 @@ public final class VersionedArtifactAggregate
             ));
         this.tagger = AkkaTaggerAdapter.fromLagom(context, ACEvent.INSTANCE);
         this.ctx = ctx;
-        this.commitResolver = commitWorkers;
-        this.doneActorRef = doneActorRef;
     }
 
     @Override
@@ -168,7 +142,7 @@ public final class VersionedArtifactAggregate
             )
         ;
         builder.forStateType(State.ACState.class)
-            .onCommand(ACCommand.RegisterArtifact.class, (cmd) -> this.Effect().reply(cmd.replyTo, NotUsed.notUsed()))
+            .onCommand(ACCommand.RegisterArtifact.class, (cmd) -> this.Effect().reply(cmd.replyTo(), NotUsed.notUsed()))
             .onCommand(ACCommand.RegisterVersion.class, this::handleRegisterVersion)
             .onCommand(ACCommand.RegisterArtifactTag.class, this::handlRegisterTag)
             .onCommand(ACCommand.UpdateArtifactTag.class, this::handleUpdateTag)
@@ -223,8 +197,8 @@ public final class VersionedArtifactAggregate
         final ACCommand.RegisterArtifact cmd
     ) {
         return this.Effect()
-            .persist(new ACEvent.ArtifactCoordinatesUpdated(cmd.coordinates))
-            .thenReply(cmd.replyTo, (s) -> NotUsed.notUsed());
+            .persist(new ACEvent.ArtifactCoordinatesUpdated(cmd.coordinates()))
+            .thenReply(cmd.replyTo(), (s) -> NotUsed.notUsed());
     }
 
     private ReplyEffect<ACEvent, State> handlRegisterTag(

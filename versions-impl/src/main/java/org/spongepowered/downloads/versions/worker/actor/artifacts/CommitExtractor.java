@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.actor;
+package org.spongepowered.downloads.versions.worker.actor.artifacts;
 
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
@@ -35,6 +35,7 @@ import io.vavr.Tuple2;
 import io.vavr.collection.List;
 import io.vavr.control.Try;
 import org.eclipse.jgit.lib.ObjectId;
+import org.spongepowered.downloads.versions.worker.actor.VersionedAssetWorker;
 
 import java.net.URL;
 import java.nio.channels.Channels;

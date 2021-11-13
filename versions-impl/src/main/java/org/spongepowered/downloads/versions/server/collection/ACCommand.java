@@ -26,6 +26,9 @@ package org.spongepowered.downloads.versions.server.collection;
 
 import akka.NotUsed;
 import akka.actor.typed.ActorRef;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
@@ -36,36 +39,41 @@ import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
 
-import java.io.Serial;
+@JsonDeserialize
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = ACCommand.RegisterArtifact.class, name = "register-artifact"),
+    @JsonSubTypes.Type(value = ACCommand.RegisterVersion.class, name = "register-version"),
+    @JsonSubTypes.Type(value = ACCommand.RegisterArtifactTag.class, name = "register-tag"),
+    @JsonSubTypes.Type(value = ACCommand.UpdateArtifactTag.class, name = "update-tag"),
+    @JsonSubTypes.Type(value = ACCommand.RegisterPromotion.class, name = "register-promotion"),
+    @JsonSubTypes.Type(value = ACCommand.RegisterCollection.class, name = "register-collection"),
+    @JsonSubTypes.Type(value = ACCommand.GetCollections.class, name = "get-collection"),
+})
+public sealed interface ACCommand extends Jsonable{
 
-public interface ACCommand extends Jsonable {
-
-    final class RegisterArtifact implements ACCommand {
-        @Serial private static final long serialVersionUID = -3915075643831556478L;
-
-        public final ArtifactCoordinates coordinates;
-        public final ActorRef<NotUsed> replyTo;
-
-        public RegisterArtifact(
-            final ArtifactCoordinates coordinates, final ActorRef<NotUsed> replyTo
-        ) {
-            this.coordinates = coordinates;
-            this.replyTo = replyTo;
-        }
+    final record RegisterArtifact(
+        ArtifactCoordinates coordinates,
+        ActorRef<NotUsed> replyTo
+    ) implements ACCommand {
     }
 
-    record RegisterVersion(MavenCoordinates coordinates,
-                           ActorRef<VersionRegistration.Response> replyTo)
-        implements ACCommand {
-
+    final record RegisterVersion(
+        MavenCoordinates coordinates,
+        ActorRef<VersionRegistration.Response> replyTo
+    ) implements ACCommand {
     }
 
-    final record RegisterArtifactTag(ArtifactTagEntry entry, ActorRef<TagRegistration.Response> replyTo)
-        implements ACCommand {
+    final record RegisterArtifactTag(
+        ArtifactTagEntry entry,
+        ActorRef<TagRegistration.Response> replyTo
+    ) implements ACCommand {
     }
 
-    final record UpdateArtifactTag(ArtifactTagEntry entry, ActorRef<TagRegistration.Response> replyTo)
-        implements ACCommand {
+    final record UpdateArtifactTag(
+        ArtifactTagEntry entry,
+        ActorRef<TagRegistration.Response> replyTo
+    ) implements ACCommand {
     }
 
     final record RegisterPromotion(
@@ -75,8 +83,10 @@ public interface ACCommand extends Jsonable {
     ) implements ACCommand {
     }
 
-    final record RegisterCollection(ArtifactCollection collection, ActorRef<VersionRegistration.Response> replyTo)
-        implements ACCommand {
+    final record RegisterCollection(
+        ArtifactCollection collection,
+        ActorRef<VersionRegistration.Response> replyTo
+    ) implements ACCommand {
     }
 
     final record GetCollections(

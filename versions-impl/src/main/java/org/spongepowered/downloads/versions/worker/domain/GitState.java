@@ -109,7 +109,7 @@ public interface GitState extends Jsonable {
     }
 
     @JsonTypeName("resolved")
-    final record Processed(VersionedCommit commit, URI repo) implements CommitState {
+    final record Processed(VersionedCommit commit, Set<URI> repo) implements CommitState {
         @JsonCreator
         public Processed {
         }
@@ -132,7 +132,7 @@ public interface GitState extends Jsonable {
     @JsonDeserialize
     final record RepositoryAssociated(
         ArtifactCoordinates coordinates,
-        URI gitRepository,
+        Set<URI> gitRepository,
         Map<String, CommitState> commits
     ) implements GitState {
 

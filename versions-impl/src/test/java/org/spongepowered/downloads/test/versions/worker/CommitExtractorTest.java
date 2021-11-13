@@ -8,8 +8,8 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
-import org.spongepowered.downloads.versions.worker.actor.CommitExtractor;
 import org.spongepowered.downloads.versions.worker.actor.VersionedAssetWorker;
+import org.spongepowered.downloads.versions.worker.actor.artifacts.CommitExtractor;
 
 import java.net.URISyntaxException;
 
