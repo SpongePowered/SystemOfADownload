@@ -102,6 +102,9 @@ public class JpaArtifact implements Serializable {
     )
     private JpaArtifactRegexRecommendation regexRecommendation;
 
+    @Column(name = "git_repository")
+    private String repo;
+
     public int getId() {
         return id;
     }
@@ -152,6 +155,10 @@ public class JpaArtifact implements Serializable {
     ) {
         this.regexRecommendation = regexRecommendation;
         regexRecommendation.setArtifact(this);
+    }
+
+    public String getRepo() {
+        return repo;
     }
 
     @Override

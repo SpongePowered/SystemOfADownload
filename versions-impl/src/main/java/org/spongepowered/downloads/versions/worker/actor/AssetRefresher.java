@@ -41,6 +41,7 @@ import akka.stream.javadsl.Sink;
 import akka.stream.javadsl.Source;
 import akka.stream.typed.javadsl.ActorFlow;
 import akka.stream.typed.javadsl.ActorSink;
+import io.vavr.Tuple2;
 import io.vavr.collection.HashSet;
 import io.vavr.collection.List;
 import io.vavr.collection.Map;
@@ -206,6 +207,27 @@ public final class AssetRefresher {
                         queue.put(refresh.coordinates, List.empty())
                     );
                 })
+                .onMessage(Failed.class, f -> {
+                    setup.ctx.getLog().warn("Asset failed retrieval {}", f.coordinates);
+                    if (queue.isEmpty()) {
+                        return Step1.idling(setup);
+                    }
+                    if (working.containsKey(f.coordinates) || queue.containsKey(f.coordinates)) {
+                        return Behaviors.same();
+                    }
+                    final Tuple2<ArtifactCoordinates, List<MavenCoordinates>> head = queue.head();
+                    final SortedMap<ArtifactCoordinates, List<MavenCoordinates>> tail = queue.tail();
+                    final SortedMap<ArtifactCoordinates, List<MavenCoordinates>> newWorking = working.put(
+                        head._1, head._2, (l, n) -> l.appendAll(n.filter(Predicate.not(l::contains))));
+                    final FetchedVersions fetchedVersions = new FetchedVersions(head._1, head._2);
+                    fetchVersionedAssets(fetchedVersions, setup);
+                    return fetchingVersionsToWorkOn(
+                        setup,
+                        newWorking,
+                        assetsWorked,
+                        tail
+                    );
+                })
                 .onMessage(FetchedVersions.class, fetched -> {
                     fetchVersionedAssets(fetched, setup);
                     final var nowWorkingOn = working.put(fetched.artifact, fetched.coordinates, List::appendAll);
@@ -240,7 +262,7 @@ public final class AssetRefresher {
         }
 
         private final record FetchedVersions(ArtifactCoordinates artifact, List<MavenCoordinates> coordinates)
-            implements Command {
+            implements Command  {
         }
     }
 
@@ -260,6 +282,7 @@ public final class AssetRefresher {
                     setup.ctx.getLog().debug("Step4: Running sink on {}", fetchedAssets.assets);
                     final var retrievedAssets = fetchedAssets.assets.toMap(ArtifactCollection::coordinates, Function.identity());
                     final var filtered = retrievedAssets.filter(Predicate.not(a -> assets.contains(a._1)));
+                    setup.ctx.getLog().debug("Step4: Contains filtered {}", filtered.size());
                     final var from = Source.from(filtered.values());
                     final Sink<Command, NotUsed> selfSink = ActorSink.actorRef(
                         setup.ctx.getSelf(), new Step5.CommitsRetrieved(filtered), exception -> new Failed(fetchedAssets.coordinates));

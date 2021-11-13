@@ -8,6 +8,7 @@
         <class>org.spongepowered.downloads.versions.server.readside.JpaArtifactRegexRecommendation</class>
         <class>org.spongepowered.downloads.versions.server.readside.JpaVersionedArtifactAsset</class>
         <class>org.spongepowered.downloads.versions.worker.readside.JpaVersionedArtifact</class>
+        <class>org.spongepowered.downloads.versions.worker.readside.JpaVersionChangelog</class>
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
         <properties>
             <property name="hibernate.connection.driver_class" value="org.postgresql.Driver"/>

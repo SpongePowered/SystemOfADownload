@@ -93,8 +93,11 @@ public interface GitEvent extends AggregateEvent<GitEvent>, Jsonable {
     }
 
     @JsonTypeName("ArtifactsResolvedAsMissingCommit")
-    public record ArtifactLabeledMissingCommit(MavenCoordinates coordinates)
+    final record ArtifactLabeledMissingCommit(MavenCoordinates coordinates)
         implements GitEvent {
+        @JsonCreator
+        public ArtifactLabeledMissingCommit {
+        }
     }
 
     @JsonTypeName("commit-details-updated")

@@ -27,6 +27,7 @@ package org.spongepowered.downloads.versions.worker.domain;
 import akka.Done;
 import akka.actor.typed.ActorRef;
 import io.vavr.collection.List;
+import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.VersionedCommit;
@@ -55,6 +56,10 @@ public interface GitCommand {
     ) implements GitCommand {}
 
     final record GetGitRepo(ActorRef<RepositoryCommand.Response> replyTo) implements GitCommand {
+    }
+
+    final record CheckIfWorkIsNeeded(ArtifactCollection collection, ActorRef<RepositoryCommand.Response> replyTo) implements GitCommand {
+
     }
 
     final record GetUnCommittedVersions(ActorRef<List<MavenCoordinates>> reply) implements GitCommand {

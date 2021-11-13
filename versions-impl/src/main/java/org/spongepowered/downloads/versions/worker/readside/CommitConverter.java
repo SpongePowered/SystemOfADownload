@@ -22,44 +22,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.query.api.models;
+package org.spongepowered.downloads.versions.worker.readside;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import io.vavr.collection.List;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.vavr.control.Try;
+import org.spongepowered.downloads.versions.api.models.VersionedChangelog;
+import play.libs.Json;
 
-import java.net.URI;
+import javax.persistence.AttributeConverter;
 
-@JsonDeserialize
-public final record VersionedChangelog(
-    List<IndexedCommit> commits,
-    @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean processing
-) {
+public class CommitConverter implements AttributeConverter<VersionedChangelog, String> {
 
-    @JsonCreator
-    public VersionedChangelog {
+    private final ObjectMapper mapper = Json.mapper();
+
+    @Override
+    public String convertToDatabaseColumn(final VersionedChangelog attribute) {
+        return Try.of(() -> mapper.writeValueAsString(attribute))
+            .getOrElse((String) null);
     }
 
-    @JsonDeserialize
-    public final record IndexedCommit(
-        VersionedCommit commit,
-        List<Submodule> submoduleCommits
-    ) {
-        @JsonCreator
-        public IndexedCommit {
-        }
+    @Override
+    public VersionedChangelog convertToEntityAttribute(final String dbData) {
+        return Try.of(() -> mapper.readValue(dbData, VersionedChangelog.class))
+            .getOrElse((VersionedChangelog) null);
     }
-
-    @JsonDeserialize
-    public final record Submodule(
-        String name,
-        URI gitRepository,
-        List<IndexedCommit> commits
-    ) {
-        @JsonCreator
-        public Submodule {
-        }
-    }
-
 }

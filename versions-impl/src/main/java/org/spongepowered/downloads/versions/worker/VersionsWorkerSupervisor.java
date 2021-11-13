@@ -184,9 +184,9 @@ public final class VersionsWorkerSupervisor {
             () -> "commit-resolver-" + commitFetcherUID
         );
         final var flow = ActorFlow.<VersionedArtifactUpdates.CommitExtracted, CommitResolver.Command, Done>ask(
-            1,
+            4,
             workerRef,
-            Duration.ofMinutes(1),
+            Duration.ofMinutes(10),
             (msg, replyTo) -> new CommitResolver.ResolveCommitDetails(
                 msg.coordinates(), msg.commit(), msg.gitRepositories(), replyTo)
         );

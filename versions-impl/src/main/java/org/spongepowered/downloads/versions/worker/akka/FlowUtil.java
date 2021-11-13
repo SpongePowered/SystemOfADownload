@@ -39,6 +39,8 @@ import io.vavr.collection.HashMap;
 import io.vavr.collection.List;
 import io.vavr.collection.Map;
 import io.vavr.control.Option;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.function.Function;
@@ -46,6 +48,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public final class FlowUtil {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("FlowUtil");
 
     @SuppressWarnings("unchecked")
     @SafeVarargs
@@ -64,7 +68,10 @@ public final class FlowUtil {
             .map(Option::get)
             .getOrElse(flowPairs::size);
 
-        final Flow<T, Done, NotUsed> ignored = Flow.fromFunction(message -> Done.done());
+        final Flow<T, Done, NotUsed> ignored = Flow.fromFunction(message -> {
+            LOGGER.debug("ignoring message {}", message);
+            return Done.done();
+        });
         return Flow.fromGraph(GraphDSL.create(builder -> {
             final UniformFanInShape<Done, Done> merge = builder.add(Merge.create(flowPairs.size() + 1));
             final UniformFanOutShape<T, T> fanout = builder

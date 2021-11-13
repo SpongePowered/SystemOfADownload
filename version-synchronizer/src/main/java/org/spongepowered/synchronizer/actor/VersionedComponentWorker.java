@@ -399,7 +399,7 @@ public final class VersionedComponentWorker {
             .onMessage(WrappedResult.class, result -> {
                 final var response = result.response;
                 if (response instanceof AssetRegistrationCompleted a) {
-                    ctx.getLog().debug("Successful registration of {}", a.coordinates);
+                    ctx.getLog().debug("Successful Asset registration of {}", a.coordinates);
                 } else if (response instanceof AssetRegistrationFailed f) {
                     ctx.getLog().warn("Failed registration of {}", f.coordinates);
                 }

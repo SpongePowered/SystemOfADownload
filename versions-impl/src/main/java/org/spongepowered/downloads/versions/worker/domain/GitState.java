@@ -34,6 +34,7 @@ import io.vavr.collection.Map;
 import io.vavr.collection.Set;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 
 import java.net.URI;
 
@@ -47,7 +48,7 @@ public interface GitState extends Jsonable {
 
     boolean hasRepo();
 
-    static GitState EMPTY = new Empty();
+    GitState EMPTY = new Empty();
 
     static GitState empty() {
         return GitState.EMPTY;
@@ -80,14 +81,59 @@ public interface GitState extends Jsonable {
         }
     }
 
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+    @JsonSubTypes({
+        @JsonSubTypes.Type(Unchecked.class),
+        @JsonSubTypes.Type(Commit.class),
+        @JsonSubTypes.Type(Processed.class)
+    })
+    interface CommitState extends Jsonable {
+
+        default boolean isProcessed() {
+            return false;
+        }
+    }
+
+    @JsonTypeName("unchecked")
+    final record Unchecked() implements CommitState {
+        @JsonCreator
+        public Unchecked() {
+        }
+    }
+
+    @JsonTypeName("committed")
+    final record Commit(String sha) implements CommitState {
+        @JsonCreator
+        public Commit {
+        }
+    }
+
+    @JsonTypeName("resolved")
+    final record Processed(VersionedCommit commit, URI repo) implements CommitState {
+        @JsonCreator
+        public Processed {
+        }
+    }
+
+    @JsonTypeName("missing")
+    final record Missing() implements CommitState {
+        @JsonCreator
+        public Missing {
+        }
+
+        @Override
+        public boolean isProcessed() {
+            return true;
+        }
+    }
+
+
     @JsonTypeName("RepositoryAssociated")
     @JsonDeserialize
     final record RepositoryAssociated(
         ArtifactCoordinates coordinates,
         URI gitRepository,
-        Set<String> versions,
-        Map<String, String> versionsCommit,
-        Set<String> versionsAlreadyQueried
+        Map<String, CommitState> commits
     ) implements GitState {
 
         @JsonCreator
@@ -103,9 +149,7 @@ public interface GitState extends Jsonable {
             return new RepositoryAssociated(
                 this.coordinates,
                 this.gitRepository,
-                this.versions.add(e.coordinates().version),
-                this.versionsCommit.put(e.coordinates().version, e.sha()),
-                this.versionsAlreadyQueried
+                this.commits.put(e.coordinates().version, new Commit(e.sha()))
             );
         }
 
@@ -113,9 +157,7 @@ public interface GitState extends Jsonable {
             return new RepositoryAssociated(
                 this.coordinates,
                 this.gitRepository,
-                this.versions.add(e.coordinates().version),
-                this.versionsCommit,
-                this.versionsAlreadyQueried
+                this.commits.put(e.coordinates().version, new Unchecked())
             );
         }
 
@@ -123,9 +165,15 @@ public interface GitState extends Jsonable {
             return new RepositoryAssociated(
                 this.coordinates,
                 this.gitRepository,
-                this.versions,
-                this.versionsCommit,
-                this.versionsAlreadyQueried.add(e.coordinates().version)
+                this.commits.put(e.coordinates().version, new Missing())
+            );
+        }
+
+        public GitState associateCommitDetails(GitEvent.CommitDetailsUpdated e) {
+            return new RepositoryAssociated(
+                this.coordinates,
+                this.gitRepository,
+                this.commits.put(e.coordinates().version, new Processed(e.commit(), this.gitRepository))
             );
         }
     }

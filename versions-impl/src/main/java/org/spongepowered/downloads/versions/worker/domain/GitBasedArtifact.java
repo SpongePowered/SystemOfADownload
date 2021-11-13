@@ -87,7 +87,7 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
             .onEvent(
                 GitEvent.RepoRegistered.class,
                 (s, e) -> new GitState.RepositoryAssociated(
-                    s.coordinates(), e.repository(), HashSet.empty(), HashMap.empty(), HashSet.empty())
+                    s.coordinates(), e.repository(), HashMap.empty())
             )
             .onEvent(
                 GitEvent.VersionRegistered.class,
@@ -99,7 +99,7 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
             .onEvent(
                 GitEvent.RepoRegistered.class,
                 (s, e) -> new GitState.RepositoryAssociated(
-                    s.coordinates(), e.repository(), s.versions(), s.versionsCommit(), HashSet.empty())
+                    s.coordinates(), e.repository(), s.commits())
             )
             .onEvent(
                 GitEvent.VersionRegistered.class,
@@ -108,6 +108,7 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
             .onEvent(GitEvent.ArtifactRegistered.class, (s, e) -> s)
             .onEvent(GitEvent.CommitAssociatedWithVersion.class, GitState.RepositoryAssociated::appendCommitToVersion)
             .onEvent(GitEvent.ArtifactLabeledMissingCommit.class, GitState.RepositoryAssociated::labelAssetsAsMissingCommit)
+            .onEvent(GitEvent.CommitDetailsUpdated.class, GitState.RepositoryAssociated::associateCommitDetails)
         ;
         return builder.build();
     }
@@ -134,6 +135,10 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
             )
             .onCommand(
                 GitCommand.GetGitRepo.class,
+                (s, cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest())
+            )
+            .onCommand(
+                GitCommand.CheckIfWorkIsNeeded.class,
                 (s, cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest())
             )
             .onCommand(
@@ -173,6 +178,10 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
                 (s, cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest())
             )
             .onCommand(
+                GitCommand.CheckIfWorkIsNeeded.class,
+                (s, cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest())
+            )
+            .onCommand(
                 GitCommand.GetUnCommittedVersions.class,
                 (s, cmd) -> this.Effect().reply(cmd.reply(), List.empty())
             ).onCommand(
@@ -206,14 +215,21 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
                 (s, cmd) -> this.Effect().reply(cmd.replyTo(), new RepositoryCommand.Response.RepositoryAvailable(s.gitRepository().toString()))
             )
             .onCommand(
+                GitCommand.CheckIfWorkIsNeeded.class,
+                (s, cmd) -> {
+                    if (!s.commits().get(cmd.collection().coordinates().version).getOrElse(GitState.Unchecked::new).isProcessed()) {
+                        return this.Effect().reply(cmd.replyTo(), new RepositoryCommand.Response.RepositoryAvailable(s.gitRepository().toString()));
+                    }
+                    return this.Effect().reply(cmd.replyTo(), new InvalidRequest());
+                }
+            )
+            .onCommand(
                 GitCommand.GetUnCommittedVersions.class,
                 (s, cmd) -> {
-                    final var unresolvedVersions = s.versions()
-                        .filter(Predicate.not(s.versionsCommit()::containsKey))
-                        .filter(Predicate.not(s.versionsAlreadyQueried()::contains));
-                    final var unresolvedMavenVersions = unresolvedVersions
-                        .map(s.coordinates()::version)
+                    final var unresolvedMavenVersions = s.commits()
+                        .filterValues(Predicate.not(GitState.CommitState::isProcessed))
                         .take(10)
+                        .map(t -> s.coordinates().version(t._1))
                         .collect(List.collector());
                     return this.Effect().reply(cmd.reply(), unresolvedMavenVersions);
                 }
@@ -226,7 +242,9 @@ public class GitBasedArtifact extends EventSourcedBehaviorWithEnforcedReplies<Gi
                 GitCommand.AssociateCommitDetailsForVersion.class,
                 (s, cmd)  -> {
                     this.ctx.getLog().debug("[{}] Got git details {}", cmd.coordinates(), cmd.commit());
-                    return this.Effect().reply(cmd.replyTo(), Done.done());
+                    return this.Effect()
+                        .persist(new GitEvent.CommitDetailsUpdated(cmd.coordinates(), cmd.commit()))
+                        .thenReply(cmd.replyTo(), (ns) -> Done.done());
                 }
             )
         ;

@@ -22,44 +22,38 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.query.api.models;
+package org.spongepowered.downloads.versions.query.impl.models;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import io.vavr.collection.List;
+import java.io.Serializable;
+import java.util.Objects;
 
-import java.net.URI;
+public class VersionedArtifactID implements Serializable {
+    private String artifactId;
 
-@JsonDeserialize
-public final record VersionedChangelog(
-    List<IndexedCommit> commits,
-    @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean processing
-) {
+    private String groupId;
 
-    @JsonCreator
-    public VersionedChangelog {
+    private String version;
+
+    public VersionedArtifactID(final String artifactId, final String groupId, final String version) {
+        this.artifactId = artifactId;
+        this.groupId = groupId;
+        this.version = version;
     }
 
-    @JsonDeserialize
-    public final record IndexedCommit(
-        VersionedCommit commit,
-        List<Submodule> submoduleCommits
-    ) {
-        @JsonCreator
-        public IndexedCommit {
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
         }
-    }
-
-    @JsonDeserialize
-    public final record Submodule(
-        String name,
-        URI gitRepository,
-        List<IndexedCommit> commits
-    ) {
-        @JsonCreator
-        public Submodule {
+        if (o == null || getClass() != o.getClass()) {
+            return false;
         }
+        VersionedArtifactID that = (VersionedArtifactID) o;
+        return artifactId.equals(that.artifactId) && groupId.equals(that.groupId) && version.equals(that.version);
     }
 
+    @Override
+    public int hashCode() {
+        return Objects.hash(artifactId, groupId, version);
+    }
 }

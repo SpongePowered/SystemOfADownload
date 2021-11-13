@@ -34,14 +34,22 @@ import com.lightbend.lagom.javadsl.persistence.ReadSide;
 import com.lightbend.lagom.javadsl.persistence.ReadSideProcessor;
 import com.lightbend.lagom.javadsl.persistence.jpa.JpaReadSide;
 import com.lightbend.lagom.javadsl.persistence.jpa.JpaSession;
+import io.vavr.collection.List;
 import org.pcollections.PSequence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.spongepowered.downloads.versions.api.models.VersionedChangelog;
+import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 import org.spongepowered.downloads.versions.worker.actor.AssetRefresher;
 import org.spongepowered.downloads.versions.worker.domain.GitEvent;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import java.net.URI;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.UUID;
 
 @Singleton
@@ -91,16 +99,64 @@ public final record CommitProcessor(
                     (em, e) -> this.refresher.tell(new AssetRefresher.Refresh(e.coordinates()))
                 )
                 .setEventHandler(
+                    GitEvent.ArtifactLabeledMissingCommit.class,
+                    (em, e) -> {}
+                )
+                .setEventHandler(
                     GitEvent.CommitAssociatedWithVersion.class,
                     (em, e) -> {
+                        final var coordinates = e.coordinates();
                         final var results = em.createNamedQuery(
                                 "GitVersionedArtifact.findByCoordinates", JpaVersionedArtifact.class)
-                            .setParameter("groupId", e.coordinates().groupId)
-                            .setParameter("artifactId", e.coordinates().artifactId)
-                            .setParameter("version", e.coordinates().version)
+                            .setParameter("groupId", coordinates.groupId)
+                            .setParameter("artifactId", coordinates.artifactId)
+                            .setParameter("version", coordinates.version)
                             .setMaxResults(1)
                             .getResultList();
-                        results.forEach(version -> version.setCommit(e.sha()));
+                        if (results.isEmpty()) {
+                            return;
+                        }
+                        final JpaVersionedArtifact jpaVersionedArtifact = results.get(0);
+                        if (jpaVersionedArtifact.getChangelog() == null) {
+                            final var jpaVersionChangelog = new JpaVersionChangelog();
+                            jpaVersionedArtifact.setChangelog(jpaVersionChangelog);
+                        }
+                        final var jpaChangelog = jpaVersionedArtifact.getChangelog();
+                        final var author = new VersionedCommit.Author("", "");
+                        final var committer = new VersionedCommit.Commiter("", "");
+                        final ZonedDateTime epoch = ZonedDateTime.of(
+                            LocalDate.EPOCH, LocalTime.MAX, ZoneId.systemDefault());
+                        final URI repo = URI.create(jpaVersionedArtifact.getArtifact().getRepo());
+                        final VersionedCommit rawCommit = new VersionedCommit(
+                            "", "", e.sha(), author, committer, repo, epoch);
+                        final var changelog = new VersionedChangelog(
+                            List.of(new VersionedChangelog.IndexedCommit(rawCommit, List.empty())), true);
+                        jpaChangelog.setChangelog(changelog);
+                    }
+                )
+                .setEventHandler(
+                    GitEvent.CommitDetailsUpdated.class,
+                    (em, e) -> {
+                        final var coordinates = e.coordinates();
+                        final var results = em.createNamedQuery(
+                                "GitVersionedArtifact.findByCoordinates", JpaVersionedArtifact.class)
+                            .setParameter("groupId", coordinates.groupId)
+                            .setParameter("artifactId", coordinates.artifactId)
+                            .setParameter("version", coordinates.version)
+                            .setMaxResults(1)
+                            .getResultList();
+                        if (results.isEmpty()) {
+                            return;
+                        }
+                        final JpaVersionedArtifact jpaVersionedArtifact = results.get(0);
+                        if (jpaVersionedArtifact.getChangelog() == null) {
+                            final var jpaVersionChangelog = new JpaVersionChangelog();
+                            jpaVersionedArtifact.setChangelog(jpaVersionChangelog);
+                        }
+                        final var jpaChangelog = jpaVersionedArtifact.getChangelog();
+                        final var commit = new VersionedChangelog.IndexedCommit(e.commit(), List.empty());
+                        final var changelog = new VersionedChangelog(List.of(commit), true);
+                        jpaChangelog.setChangelog(changelog);
                     }
                 )
                 .build();

@@ -262,19 +262,30 @@
             inner join version.artifacts a on a.id = av.artifact_id
         </createView>
     </changeSet>
-    <changeSet id="20210926-17" author="gabizou">
-        <addColumn tableName="artifact_versions" schemaName="version">
-            <column name="git_commit" type="text"/>
-        </addColumn>
-    </changeSet>
-    <changeSet id="20211011-18" author="gabizou">
-        <dropView viewName="versioned_artifacts" schemaName="version"/>
-        <createView viewName="versioned_artifacts"
-                    schemaName="version"
-        >
-            select distinct a.artifact_id, a.group_id, v.version, v.recommended, v.manual_recommendation, v.git_commit
-            from version.artifacts a inner join version.artifact_versions v on a.id = v.artifact_id
-        </createView>
+    <changeSet id="20211108-17" author="gabizou">
+        <createTable tableName="version_changelogs" schemaName="version">
+            <column name="version_id" type="bigint">
+                <constraints foreignKeyName="version_id_fkey"
+                             referencedTableSchemaName="version"
+                             referencedTableName="artifact_versions"
+                             referencedColumnNames="id"
+                             nullable="false"
+                             primaryKey="true"
+                />
+            </column>
+            <column name="commit_sha" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="repo" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="branch" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changelog" type="jsonb">
+                <constraints nullable="true"/>
+            </column>
+        </createTable>
     </changeSet>
 
 

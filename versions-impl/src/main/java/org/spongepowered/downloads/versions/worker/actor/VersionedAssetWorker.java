@@ -33,11 +33,14 @@ import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Routers;
 import akka.actor.typed.receptionist.ServiceKey;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
+import akka.japi.Pair;
 import akka.japi.function.Function;
+import akka.japi.function.Function2;
 import akka.stream.javadsl.Flow;
 import akka.stream.javadsl.Sink;
 import akka.stream.javadsl.Source;
 import akka.stream.typed.javadsl.ActorFlow;
+import io.vavr.collection.List;
 import io.vavr.control.Try;
 import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.ArtifactCollection;
@@ -83,53 +86,140 @@ public final class VersionedAssetWorker {
             final var sharding = ClusterSharding.get(ctx.getSystem());
             final var commitExtractorRouter = Routers.group(CommitExtractor.SERVICE_KEY);
             final var fileHandler = ctx.spawn(commitExtractorRouter, "commit-extractor");
-            return Behaviors.receive(Command.class)
-                .onMessage(RepoNotRegistered.class, cmd -> {
-                    ctx.getLog().info("Git repository not registered");
-                    cmd.replyTo.tell(Done.done());
-                    return Behaviors.same();
-                })
-                .onMessage(TerminatingCommand.class, cmd -> {
-                    // Effectively, some commands are terminating with their
-                    // origins already logging in error cases
-                    cmd.replyTo().tell(Done.done());
-                    return Behaviors.same();
-                })
-                .onMessage(FetchCommitFromAsset.class, requestGitRepoForAsset(config, ctx, sharding))
-                .onMessage(RepoAvailable.class, fanOutAssetsForCommitRetrieval(ctx, fileHandler))
-
-                .onMessage(NoCommitFound.class, msg -> {
-                    ctx.pipeToSelf(
-                        sharding
-                            .entityRefFor(
-                                GitBasedArtifact.ENTITY_TYPE_KEY,
-                                msg.coordinates.asArtifactCoordinates().asMavenString()
-                            )
-                            .<Done>ask(
-                                replyTo -> new GitCommand.NotifyCommitMissingFromAssets(msg.coordinates, replyTo),
-                                Duration.ofSeconds(10)
-                            )
-                            .toCompletableFuture(),
-                        (done, throwable) -> {
-                            if (throwable != null) {
-                                ctx.getLog().warn(
-                                    "Received throwable trying to label assets as commitless " + msg.coordinates,
-                                    throwable
-                                );
-                                return new WorkCompleted(msg.replyTo);
-                            }
-                            return new WorkCompleted(msg.replyTo);
-                        }
-                    );
-                    return Behaviors.same();
-                })
-                .onMessage(WorkCompleted.class, msg -> {
-                    msg.replyTo.tell(Done.done());
-                    return Behaviors.same();
-                })
-                .onMessage(CommitRetrievedFromAsset.class, registerCommitWithArtifactVersion(ctx, sharding))
-                .build();
+            final Setup setup = new Setup(fileHandler, ctx, config, sharding);
+            return idling(setup);
         });
+    }
+
+    private static Behavior<Command> idling(Setup setup) {
+        return Behaviors.receive(Command.class)
+            .onMessage(FetchCommitFromAsset.class, setup::requestGitRepoForAsset)
+            .onMessage(TerminatingCommand.class, cmd -> {
+                // Effectively, some commands are terminating with their
+                // origins already logging in error cases
+                cmd.replyTo().tell(Done.done());
+                return Behaviors.same();
+            })
+            .build();
+    }
+
+    private static record Setup(
+        ActorRef<CommitExtractor.ChildCommand> handler,
+        ActorContext<Command> ctx,
+        VersionConfig.CommitFetch config,
+        ClusterSharding sharding
+    ) {
+
+        Behavior<Command> requestGitRepoForAsset(FetchCommitFromAsset fetch) {
+            ctx.getLog().debug(
+                "Refresh check for commits {}", fetch.collection.coordinates()
+            );
+            // Start the kickoff of work to be done by requesting
+            // from the EventSourced Entity for a GitRepo if it has one
+            ctx.pipeToSelf(
+                fetchRegisteredRepos(this, fetch),
+                handleRepoGetResponse(ctx, fetch)
+            );
+            return Step1.working(this, fetch.collection, fetch.replyTo, List.empty());
+        }
+
+        boolean requestGitCommitFromAsset(RepoAvailable cmd) {
+            this.ctx.getLog().debug("Repository available, gathering artifacts for {}", cmd.collection);
+            // Filter assets for potential jars to get their manifests
+            final var optionalUrl = cmd.collection().components()
+                .filter(artifact -> "jar".equalsIgnoreCase(artifact.extension()))
+                .map(artifact -> new PotentiallyUsableAsset(cmd.collection().coordinates(), artifact.extension(),
+                    artifact.downloadUrl()
+                ));
+            // If we have none, well... we're done.
+            if (optionalUrl.isEmpty()) {
+                this.ctx.getLog().debug("url was empty for {}", cmd.collection.coordinates());
+                cmd.replyTo().tell(Done.done());
+                return true;
+            }
+            // Otherwise, try sorting the download files by their smallest
+            // payload size (avoids trying to download the "fat" jars which
+            // can potentially mean we get our information from a sources
+            // jar, which weighs roughly some dozen of kilobytes).
+            final var smallestOrderedJars = optionalUrl
+                .sortBy(asset -> Try.of(
+                        () -> HttpRequest.newBuilder(asset.downloadURL())
+                            .header("User-Agent", "SystemOfADownload/Asset-Commit-Retriever")
+                            .GET()
+                            .build()
+                    )
+                    .mapTry(request -> Try.of(
+                            () -> HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.discarding())
+                        )
+                    )
+                    .map(response -> response.map(resp -> resp.headers()
+                                .firstValueAsLong("Content-Length")
+                            )
+                            .getOrElse(OptionalLong.empty())
+                            .orElse(Long.MAX_VALUE)
+                    ).getOrElse(Long.MAX_VALUE));
+            this.ctx.getLog().debug("Smallest ordered jars are as follows {}", smallestOrderedJars);
+
+
+            // Create the flow for the child actor that'll handle
+            // Streaming the file, viewing the manifest, getting data,
+            // then reporting back to us
+            final Flow<PotentiallyUsableAsset, CommitExtractor.AssetCommitResponse, NotUsed> fileFetcherFlow = ActorFlow.ask(
+                this.handler, Duration.ofMinutes(1),
+                (PotentiallyUsableAsset asset, ActorRef<CommitExtractor.AssetCommitResponse> replyTo) -> new CommitExtractor.AttemptFileCommit(
+                    asset, cmd.repo(), replyTo)
+            ).recover(IllegalStateException.class, CommitExtractor.NoCommitsFound::new);
+            // Then create the graph of operations and kick it off
+            // which can potentially lead to an optional result
+            final Source<CommitExtractor.AssetCommitResponse, NotUsed> filter = Source.from(
+                    smallestOrderedJars)
+                .async()
+                .via(fileFetcherFlow);
+            final CompletionStage<Optional<CommitExtractor.AssetCommitResponse>> commitAvailable = filter
+                .runWith(Sink.headOption(), this.ctx.getSystem());
+
+            // Then, go ahead and submit the graph for processing
+            this.ctx.pipeToSelf(
+                commitAvailable,
+                (optionalCommit, throwable) -> {
+                    if (throwable != null) {
+                        this.ctx.getLog().debug("failed to get commit", throwable);
+                        return new CommitResolutionFailed(cmd.collection().coordinates(), cmd.replyTo());
+                    }
+                    this.ctx.getLog().debug("got optional commit as {}", optionalCommit);
+                    return optionalCommit
+                        .<Command>map(
+                            commit -> {
+                                if (commit instanceof CommitExtractor.DiscoveredCommitFromFile r) {
+                                    return new CommitRetrievedFromAsset(r.sha(), cmd.collection().coordinates(),
+                                        cmd.replyTo()
+                                    );
+                                }
+                                if (commit instanceof CommitExtractor.FailedToRetrieveCommit r) {
+                                    this.ctx.getLog().debug("no commit found for {}", r.asset());
+                                    return new NoCommitFound(cmd.collection().coordinates(), cmd.replyTo());
+                                }
+                                this.ctx.getLog().debug("response {}", commit);
+                                return new NoCommitFound(cmd.collection().coordinates(), cmd.replyTo());
+                            })
+                        .orElseGet(() -> new NoCommitFound(cmd.collection().coordinates(), cmd.replyTo()));
+                }
+            );
+            return false;
+        }
+
+        public Behavior<Command> restart(List<Pair<ArtifactCollection, ActorRef<Done>>> queue) {
+            if (queue.isEmpty()) {
+                return idling(this);
+            }
+            final Pair<ArtifactCollection, ActorRef<Done>> head = queue.head();
+            final FetchCommitFromAsset cmd = new FetchCommitFromAsset(head.first(), head.second());
+            this.ctx.pipeToSelf(
+                fetchRegisteredRepos(this, cmd),
+                handleRepoGetResponse(this.ctx, cmd)
+            );
+            return Step1.working(this, head.first(), head.second(), queue.tail());
+        }
     }
 
     /**
@@ -168,141 +258,122 @@ public final class VersionedAssetWorker {
 
     }
 
-    private static Function<FetchCommitFromAsset, Behavior<Command>> requestGitRepoForAsset(
-        VersionConfig.CommitFetch config, ActorContext<Command> ctx, ClusterSharding sharding
+    private static Function2<RepositoryCommand.Response, Throwable, Command> handleRepoGetResponse(
+        ActorContext<Command> ctx, FetchCommitFromAsset cmd
     ) {
-        return cmd -> {
-            ctx.getLog().debug(
-                "Refresh check for commits {}", cmd.collection.coordinates()
-            );
-            // Start the kickoff of work to be done by requesting
-            // from the EventSourced Entity for a GitRepo if it has one
-            final var coordinates = cmd.collection.coordinates();
-            final var ref = sharding.entityRefFor(
-                GitBasedArtifact.ENTITY_TYPE_KEY,
-                coordinates.asArtifactCoordinates().asMavenString()
-            );
-            ctx.pipeToSelf(
-                ref.ask(GitCommand.GetGitRepo::new, config.timeout),
-                (response, throwable) -> {
-                    if (throwable != null) {
-                        ctx.getLog().warn(
-                            "Received throwable during git repo request for " + cmd.collection.coordinates(),
-                            throwable
-                        );
-                        return new RepoNotRegistered(cmd.replyTo());
-                    }
-                    if (response instanceof RepositoryCommand.Response.RepositoryAvailable available) {
-                        return new RepoAvailable(available.repo(), cmd.collection(), cmd.replyTo());
-                    }
-                    ctx.getLog().warn(
-                        "Received different response for {} than expected: {}", cmd.collection.coordinates(), response);
-                    return new RepoNotRegistered(cmd.replyTo());
-                }
-            );
-            return Behaviors.same();
+        return (response, throwable) -> {
+            if (throwable != null) {
+                ctx.getLog().warn(
+                    "Received throwable during git repo request for " + cmd.collection.coordinates(),
+                    throwable
+                );
+                return new RepoNotRegistered(cmd.replyTo());
+            }
+            if (response instanceof RepositoryCommand.Response.RepositoryAvailable available) {
+                return new RepoAvailable(available.repo(), cmd.collection(), cmd.replyTo());
+            }
+            ctx.getLog().warn(
+                "Received different response for {} than expected: {}", cmd.collection.coordinates(), response);
+            return new RepoNotRegistered(cmd.replyTo());
         };
     }
 
-    /**
-     * Gathers the available assets from {@link RepoAvailable#collection()} and
-     * performs a fan-out of {@link PotentiallyUsableAsset}s with a child actor
-     * {@link CommitExtractor#extractCommitFromAssets()}. The extractor reports
-     * back for each file with a {@link CommitExtractor.AssetCommitResponse} to
-     * help filter through files and determine if any assets have a commit sha
-     * available.
-     *
-     * @param ctx The context of this actor
-     * @param fileHandler The child reference
-     * @return The same behavior
-     */
-    private static Function<RepoAvailable, Behavior<Command>> fanOutAssetsForCommitRetrieval(
-        ActorContext<Command> ctx, ActorRef<CommitExtractor.ChildCommand> fileHandler
+    private static CompletionStage<RepositoryCommand.Response> fetchRegisteredRepos(
+        Setup setup, FetchCommitFromAsset cmd
     ) {
-        return cmd -> {
-            ctx.getLog().debug("Repository available, gathering artifacts for {}", cmd.collection);
-            // Filter assets for potential jars to get their manifests
-            final var optionalUrl = cmd.collection().components()
-                .filter(artifact -> "jar".equalsIgnoreCase(artifact.extension()))
-                .map(artifact -> new PotentiallyUsableAsset(cmd.collection().coordinates(), artifact.extension(),
-                    artifact.downloadUrl()
-                ));
-            // If we have none, well... we're done.
-            if (optionalUrl.isEmpty()) {
-                ctx.getLog().debug("url was empty for {}", cmd.collection.coordinates());
-                cmd.replyTo().tell(Done.done());
-                return Behaviors.same();
-            }
-            // Otherwise, try sorting the download files by their smallest
-            // payload size (avoids trying to download the "fat" jars which
-            // can potentially mean we get our information from a sources
-            // jar, which weighs roughly some dozen of kilobytes).
-            final var smallestOrderedJars = optionalUrl
-                .sortBy(asset -> Try.of(
-                        () -> HttpRequest.newBuilder(asset.downloadURL())
-                            .header("User-Agent", "SystemOfADownload/Asset-Commit-Retriever")
-                            .GET()
-                            .build()
-                    )
-                    .mapTry(request -> Try.of(
-                            () -> HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.discarding())
-                        )
-                    )
-                    .map(response -> response.map(resp -> resp.headers()
-                                .firstValueAsLong("Content-Length")
-                            )
-                            .getOrElse(OptionalLong.empty())
-                            .orElse(Long.MAX_VALUE)
-                    ).getOrElse(Long.MAX_VALUE));
-            ctx.getLog().debug("Smallest ordered jars are as follows {}", smallestOrderedJars);
+        return setup.sharding.entityRefFor(
+            GitBasedArtifact.ENTITY_TYPE_KEY,
+            cmd.collection.coordinates().asArtifactCoordinates().asMavenString()
+        ).ask(replyTo -> new GitCommand.CheckIfWorkIsNeeded(cmd.collection, replyTo), setup.config.timeout);
+    }
 
+    private static final class Step1 {
+        static Behavior<Command> working(
+            Setup setup,
+            ArtifactCollection collection, ActorRef<Done> replyTo,
+            List<Pair<ArtifactCollection, ActorRef<Done>>> queue
 
-            // Create the flow for the child actor that'll handle
-            // Streaming the file, viewing the manifest, getting data,
-            // then reporting back to us
-            final Flow<PotentiallyUsableAsset, CommitExtractor.AssetCommitResponse, NotUsed> fileFetcherFlow = ActorFlow.ask(
-                fileHandler, Duration.ofMinutes(1),
-                (asset, replyTo) -> new CommitExtractor.AttemptFileCommit(asset, cmd.repo(), replyTo)
-            );
-            // Then create the graph of operations and kick it off
-            // which can potentially lead to an optional result
-            final Source<CommitExtractor.AssetCommitResponse, NotUsed> filter = Source.from(
-                    smallestOrderedJars)
-                .async()
-                .via(fileFetcherFlow)
-                .concat(Source.single(new CommitExtractor.NoCommitsFound()));
-            final CompletionStage<Optional<CommitExtractor.AssetCommitResponse>> commitAvailable = filter
-                .runWith(Sink.headOption(), ctx.getSystem());
-
-            // Then, go ahead and submit the graph for processing
-            ctx.pipeToSelf(
-                commitAvailable,
-                (optionalCommit, throwable) -> {
-                    if (throwable != null) {
-                        ctx.getLog().debug("failed to get commit", throwable);
-                        return new CommitResolutionFailed(cmd.collection().coordinates(), cmd.replyTo());
+        ) {
+            return Behaviors.receive(Command.class)
+                .onMessage(
+                    FetchCommitFromAsset.class, msg -> working(setup, collection, msg.replyTo,
+                        queue.append(Pair.create(msg.collection, msg.replyTo))
+                    ))
+                .onMessage(RepoNotRegistered.class, notRegistered -> {
+                    replyTo.tell(Done.getInstance());
+                    return setup.restart(queue);
+                })
+                .onMessage(RepoAvailable.class, repoAvailable -> {
+                    if (setup.requestGitCommitFromAsset(repoAvailable)) {
+                        return setup.restart(queue);
                     }
-                    ctx.getLog().debug("got optional commit as {}", optionalCommit);
-                    return optionalCommit
-                        .<Command>map(
-                            commit -> {
-                                if (commit instanceof CommitExtractor.DiscoveredCommitFromFile r) {
-                                    return new CommitRetrievedFromAsset(r.sha(), cmd.collection().coordinates(),
-                                        cmd.replyTo()
-                                    );
-                                }
-                                if (commit instanceof CommitExtractor.FailedToRetrieveCommit r) {
-                                    ctx.getLog().debug("no commit found for {}", r.asset());
-                                    return new NoCommitFound(cmd.collection().coordinates(), cmd.replyTo());
-                                }
-                                ctx.getLog().debug("response {}", commit);
-                                return new NoCommitFound(cmd.collection().coordinates(), cmd.replyTo());
-                            })
-                        .orElseGet(() -> new NoCommitFound(cmd.collection().coordinates(), cmd.replyTo()));
-                }
-            );
-            return Behaviors.same();
-        };
+                    return Step2.awaitingAssetProcess(setup, collection, replyTo, queue);
+                })
+                .build();
+        }
+    }
+
+    private static final class Step2 {
+
+        static Behavior<Command> awaitingAssetProcess(
+            final Setup setup, ArtifactCollection collection, ActorRef<Done> replyTo,
+            List<Pair<ArtifactCollection, ActorRef<Done>>> queue
+        ) {
+            return Behaviors.receive(Command.class)
+                .onMessage(
+                    FetchCommitFromAsset.class, msg -> awaitingAssetProcess(setup, collection, replyTo,
+                        queue.append(Pair.create(msg.collection, msg.replyTo))
+                    ))
+                .onMessage(CommitRetrievedFromAsset.class, retrieved -> {
+                    registerCommitWithArtifactVersion(setup.ctx, setup.sharding).apply(retrieved);
+                    return Step3.registeringCommitStatus(setup, collection, replyTo, queue);
+                })
+                .onMessage(NoCommitFound.class, msg -> {
+                    setup.ctx.pipeToSelf(setup.sharding
+                        .entityRefFor(
+                            GitBasedArtifact.ENTITY_TYPE_KEY,
+                            msg.coordinates.asArtifactCoordinates().asMavenString()
+                        )
+                        .<Done>ask(
+                            r -> new GitCommand.NotifyCommitMissingFromAssets(msg.coordinates, r),
+                            Duration.ofSeconds(10)
+                        )
+                        .toCompletableFuture(), (response, throwable) -> {
+                        if (throwable != null) {
+                            setup.ctx.getLog().warn(
+                                "Received throwable trying to label assets as commitless " + msg.coordinates,
+                                throwable
+                            );
+                            return new WorkCompleted(replyTo);
+                        }
+                        return new WorkCompleted(replyTo);
+                    });
+                    return Step3.registeringCommitStatus(setup, collection, replyTo, queue);
+                })
+                .build();
+        }
+    }
+
+    private final static class Step3 {
+
+        static Behavior<Command> registeringCommitStatus(
+            final Setup setup,
+            final ArtifactCollection collection,
+            final ActorRef<Done> replyTo,
+            final List<Pair<ArtifactCollection, ActorRef<Done>>> queue
+        ) {
+            return Behaviors.receive(Command.class)
+                .onMessage(
+                    FetchCommitFromAsset.class, msg -> registeringCommitStatus(setup, collection, msg.replyTo,
+                        queue.append(Pair.create(msg.collection, msg.replyTo))
+                    ))
+                .onMessage(WorkCompleted.class, workCompleted -> {
+                    replyTo.tell(Done.done());
+                    return setup.restart(queue);
+                })
+                .build();
+
+        }
     }
 
     private static Function<CommitRetrievedFromAsset, Behavior<Command>> registerCommitWithArtifactVersion(
@@ -323,7 +394,7 @@ public final class VersionedAssetWorker {
                     ctx.getLog().warn("Failed to register commit sha with version", throwable);
                 }
                 ctx.getLog().debug("Completed work on {}", cmd.coordinates);
-                return new WorkCompleted(cmd.replyTo());
+                return new WorkCompleted(cmd.replyTo);
             });
             return Behaviors.same();
         };

@@ -37,6 +37,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
+import javax.persistence.OneToOne;
 import javax.persistence.Table;
 import javax.persistence.UniqueConstraint;
 import java.io.Serializable;
@@ -78,17 +79,9 @@ public class JpaVersionedArtifact implements Serializable {
         nullable = false)
     private String version;
 
-    @Column(name = "git_commit", nullable = true)
-    private String commit;
-
-    public String getCommit() {
-        return commit;
-    }
-
-    public void setCommit(final String commit) {
-        this.commit = commit;
-    }
-
+    @OneToOne(targetEntity = JpaVersionChangelog.class, fetch = FetchType.LAZY)
+    @JoinColumn(name = "id", referencedColumnName = "version_id")
+    private JpaVersionChangelog changelog;
 
     public JpaArtifact getArtifact() {
         return artifact;
@@ -96,6 +89,16 @@ public class JpaVersionedArtifact implements Serializable {
 
     public String getVersion() {
         return version;
+    }
+
+    public JpaVersionChangelog getChangelog() {
+        return changelog;
+    }
+
+    public void setChangelog(final JpaVersionChangelog changelog) {
+        this.changelog = changelog;
+        changelog.setId(this.id);
+        changelog.setArtifact(this);
     }
 
     @Override
@@ -108,12 +111,11 @@ public class JpaVersionedArtifact implements Serializable {
         }
         JpaVersionedArtifact that = (JpaVersionedArtifact) o;
         return id == that.id && Objects.equals(artifact, that.artifact) && Objects.equals(
-            version, that.version);
+            version, that.version) && Objects.equals(changelog, that.changelog);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, artifact, version);
+        return Objects.hash(id, artifact, version, changelog);
     }
-
 }

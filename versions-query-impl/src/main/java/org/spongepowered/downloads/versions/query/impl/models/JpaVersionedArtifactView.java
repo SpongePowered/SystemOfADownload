@@ -38,13 +38,13 @@ import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
+import javax.persistence.IdClass;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import java.io.Serializable;
 import java.net.URI;
-import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.Optional;
@@ -100,6 +100,7 @@ import java.util.Set;
                 """
     )
 })
+@IdClass(VersionedArtifactID.class)
 public class JpaVersionedArtifactView implements Serializable {
 
     @Id
@@ -138,19 +139,12 @@ public class JpaVersionedArtifactView implements Serializable {
     )
     private Set<JpaVersionedAsset> assets;
 
-    @Column(name = "git_commit", updatable = false, nullable = true)
-    private String commit;
-
     public Set<JpaTaggedVersion> getTags() {
         return tags;
     }
 
     public String version() {
         return this.version;
-    }
-
-    public String commit() {
-        return this.commit;
     }
 
     public Map<String, String> getTagValues() {
@@ -197,17 +191,8 @@ public class JpaVersionedArtifactView implements Serializable {
     }
 
     public Optional<VersionedCommit> asVersionedCommit() {
-        final String commitStr = this.commit();
-        final Optional<VersionedCommit> commit;
-        if (commitStr == null || commitStr.isEmpty()) {
-            commit = Optional.empty();
-        } else {
-            final var author = new VersionedCommit.Author("author", "email");
-            final var committer = new VersionedCommit.Commiter("comitter", "email");
-            commit = Optional.of(new VersionedCommit("some message", "todo", commitStr, author, committer,
-                URI.create("http://localhost/"), ZonedDateTime.now()));
-        }
-        return commit;
+
+        return Optional.empty();
     }
 
     @Override

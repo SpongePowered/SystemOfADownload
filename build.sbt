@@ -19,7 +19,7 @@ ThisBuild / licenses += ("MIT", url("https://opensource.org/licenses/MIT"))
 
 // Liquibase Docker Tasks
 lazy val buildLiquibaseImage = taskKey[Unit]("Build the Liquibase docker image")
-val rootFilter = ScopeFilter( inProjects( soadRoot ), inConfigurations(Compile))
+val rootFilter = ScopeFilter(inProjects(soadRoot), inConfigurations(Compile))
 buildLiquibaseImage := {
   val versionTag = version.all(rootFilter).value.head
   Process(Seq("docker", "build", "-t", s"spongepowered/systemofadownload-liquibase:$versionTag", "./liquibase/", "-f", "./liquibase/Dockerfile")).!
@@ -91,7 +91,8 @@ val AkkaManagementVersion = "1.1.1"
 lazy val akkaKubernetesDiscovery = "com.lightbend.akka.discovery" %% "akka-discovery-kubernetes-api" % AkkaManagementVersion
 
 lazy val hibernate = "org.hibernate" % "hibernate-core" % "5.5.4.Final"
-lazy val postgres = "org.postgresql" % "postgresql" % "42.2.18"
+lazy val postgres = "org.postgresql" % "postgresql" % "42.3.1"
+lazy val hibernateTypes = "com.vladmihalcea" % "hibernate-types-55" % "2.14.0"
 
 lazy val guice = "com.google.inject" % "guice" % "5.0.1"
 
@@ -181,7 +182,7 @@ def serverSoadProject(name: String) =
     dockerUpdateLatest := true,
     dockerBaseImage := "openjdk:16-slim@sha256:fc8e7ca99badf28dfd5f061bca882e7a333bde59d8fed7dc87f5e16dfe6bc0cf",
     dockerChmodType := DockerChmodType.UserGroupWriteExecute,
-    dockerExposedPorts := Seq(9000,8558, 2552),
+    dockerExposedPorts := Seq(9000, 8558, 2552),
     dockerLabels ++= Map(
       "author" -> "spongepowered"
     ),
@@ -248,7 +249,8 @@ lazy val `versions-impl` = implSoadProjectWithPersistence("versions-impl", `vers
   `server-auth`
 ).settings(
   libraryDependencies += jgit,
-  libraryDependencies += jgit_jsch
+  libraryDependencies += jgit_jsch,
+  libraryDependencies += hibernateTypes
 )
 
 lazy val `versions-query-api` = apiSoadProject("versions-query-api").dependsOn(
@@ -280,7 +282,7 @@ lazy val `version-synchronizer` = serverSoadProject("version-synchronizer").depe
   )
 )
 
-lazy val `sonatype` = soadProject( "sonatype").settings(
+lazy val `sonatype` = soadProject("sonatype").settings(
   libraryDependencies ++= Seq(
     //Language Features
     vavr,
@@ -346,5 +348,5 @@ lazy val soadRoot = project.in(file(".")).settings(
 ThisBuild / lagomCassandraEnabled := false
 ThisBuild / lagomKafkaEnabled := false
 ThisBuild / lagomKafkaPort := 9092
-ThisBuild /lagomServicesPortRange := PortRange(21000, 23000)
+ThisBuild / lagomServicesPortRange := PortRange(21000, 23000)
 
