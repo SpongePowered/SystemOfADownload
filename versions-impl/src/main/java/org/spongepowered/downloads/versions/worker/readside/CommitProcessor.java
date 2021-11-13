@@ -35,9 +35,11 @@ import com.lightbend.lagom.javadsl.persistence.ReadSideProcessor;
 import com.lightbend.lagom.javadsl.persistence.jpa.JpaReadSide;
 import com.lightbend.lagom.javadsl.persistence.jpa.JpaSession;
 import io.vavr.collection.List;
+import io.vavr.control.Try;
 import org.pcollections.PSequence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.VersionedChangelog;
 import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 import org.spongepowered.downloads.versions.worker.actor.AssetRefresher;
@@ -45,6 +47,7 @@ import org.spongepowered.downloads.versions.worker.domain.GitEvent;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.persistence.EntityManager;
 import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -79,20 +82,23 @@ public final record CommitProcessor(
             this.refresher = Adapter.spawn(
                 system,
                 assetRouter,
-                "versioned-artifact-repository-commit-refresher-" + refresherUUID);
+                "versioned-artifact-repository-commit-refresher-" + refresherUUID
+            );
         }
 
         @Override
         public ReadSideHandler<GitEvent> buildHandler() {
             return this.readSide.<GitEvent>builder("version-commit-writer")
-                .setGlobalPrepare((em) -> {})
+                .setGlobalPrepare((em) -> {
+                })
                 .setEventHandler(
                     GitEvent.VersionRegistered.class,
                     (em, e) -> this.refresher.tell(new AssetRefresher.Refresh(e.coordinates().asArtifactCoordinates()))
                 )
                 .setEventHandler(
                     GitEvent.ArtifactRegistered.class,
-                    (em, e) -> {}
+                    (em, e) -> {
+                    }
                 )
                 .setEventHandler(
                     GitEvent.RepoRegistered.class,
@@ -100,19 +106,14 @@ public final record CommitProcessor(
                 )
                 .setEventHandler(
                     GitEvent.ArtifactLabeledMissingCommit.class,
-                    (em, e) -> {}
+                    (em, e) -> {
+                    }
                 )
                 .setEventHandler(
                     GitEvent.CommitAssociatedWithVersion.class,
                     (em, e) -> {
                         final var coordinates = e.coordinates();
-                        final var results = em.createNamedQuery(
-                                "GitVersionedArtifact.findByCoordinates", JpaVersionedArtifact.class)
-                            .setParameter("groupId", coordinates.groupId)
-                            .setParameter("artifactId", coordinates.artifactId)
-                            .setParameter("version", coordinates.version)
-                            .setMaxResults(1)
-                            .getResultList();
+                        final var results = getVersionedArtifacts(em, coordinates);
                         if (results.isEmpty()) {
                             return;
                         }
@@ -131,20 +132,20 @@ public final record CommitProcessor(
                             "", "", e.sha(), author, committer, repo, epoch);
                         final var changelog = new VersionedChangelog(
                             List.of(new VersionedChangelog.IndexedCommit(rawCommit, List.empty())), true);
+                        jpaChangelog.setSha(rawCommit.sha());
+                        jpaChangelog.setBranch("foo");
                         jpaChangelog.setChangelog(changelog);
+                        Try.of(repo::toURL)
+                            .toJavaOptional()
+                            .ifPresent(jpaChangelog::setRepo);
+                        em.persist(jpaChangelog);
                     }
                 )
                 .setEventHandler(
                     GitEvent.CommitDetailsUpdated.class,
                     (em, e) -> {
                         final var coordinates = e.coordinates();
-                        final var results = em.createNamedQuery(
-                                "GitVersionedArtifact.findByCoordinates", JpaVersionedArtifact.class)
-                            .setParameter("groupId", coordinates.groupId)
-                            .setParameter("artifactId", coordinates.artifactId)
-                            .setParameter("version", coordinates.version)
-                            .setMaxResults(1)
-                            .getResultList();
+                        final var results = getVersionedArtifacts(em, coordinates);
                         if (results.isEmpty()) {
                             return;
                         }
@@ -152,14 +153,32 @@ public final record CommitProcessor(
                         if (jpaVersionedArtifact.getChangelog() == null) {
                             final var jpaVersionChangelog = new JpaVersionChangelog();
                             jpaVersionedArtifact.setChangelog(jpaVersionChangelog);
+                            jpaVersionChangelog.setSha(e.commit().sha());
+                            jpaVersionChangelog.setBranch("foo");
+                            Try.of(e.repo()::toURL)
+                                .toJavaOptional()
+                                .ifPresent(jpaVersionChangelog::setRepo);
                         }
                         final var jpaChangelog = jpaVersionedArtifact.getChangelog();
                         final var commit = new VersionedChangelog.IndexedCommit(e.commit(), List.empty());
                         final var changelog = new VersionedChangelog(List.of(commit), true);
                         jpaChangelog.setChangelog(changelog);
+                        em.persist(jpaChangelog);
                     }
                 )
                 .build();
+        }
+
+        private java.util.List<JpaVersionedArtifact> getVersionedArtifacts(
+            EntityManager em, MavenCoordinates coordinates
+        ) {
+            return em.createNamedQuery(
+                    "GitVersionedArtifact.findByCoordinates", JpaVersionedArtifact.class)
+                .setParameter("groupId", coordinates.groupId)
+                .setParameter("artifactId", coordinates.artifactId)
+                .setParameter("version", coordinates.version)
+                .setMaxResults(1)
+                .getResultList();
         }
 
         @Override

@@ -287,6 +287,16 @@
             </column>
         </createTable>
     </changeSet>
+    <changeSet id="20211113-18" author="gabizou">
+        <createView viewName="versioned_changelogs"
+                    schemaName="version"
+                    >
+            select distinct a.group_id, a.artifact_id, v.version, v.id as version_id, vc.commit_sha, vc.repo, vc.branch, vc.changelog
+            from version.version_changelogs vc
+            inner join version.artifact_versions v on v.id = vc.version_id
+            inner join version.artifacts a on a.id = v.artifact_id
+        </createView>
+    </changeSet>
 
 
 </databaseChangeLog>

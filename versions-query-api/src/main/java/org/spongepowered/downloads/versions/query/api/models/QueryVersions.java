@@ -47,7 +47,7 @@ public interface QueryVersions {
     @JsonSerialize
     record VersionDetails(
         @JsonProperty("coordinates") MavenCoordinates coordinates,
-        @JsonProperty("commit") Optional<VersionedCommit> commit,
+        @JsonProperty("commit") Optional<VersionedChangelog> commit,
         @JsonProperty("assets") List<Artifact> components,
         @JsonProperty("tags") Map<String, String> tagValues,
         @JsonProperty("recommended") boolean recommended

@@ -25,12 +25,12 @@
 package org.spongepowered.downloads.versions.worker.readside;
 
 import com.vladmihalcea.hibernate.type.json.JsonBinaryType;
+import org.hibernate.annotations.Type;
 import org.hibernate.annotations.TypeDef;
 import org.hibernate.annotations.TypeDefs;
 import org.spongepowered.downloads.versions.api.models.VersionedChangelog;
 
 import javax.persistence.Column;
-import javax.persistence.Convert;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.MapsId;
@@ -54,8 +54,11 @@ public class JpaVersionChangelog {
     @MapsId("id")
     private JpaVersionedArtifact artifact;
 
+    @Column(name = "commit_sha", nullable = false)
+    private String sha;
+
+    @Type(type = "jsonb")
     @Column(name = "changelog", columnDefinition = "jsonb")
-    @Convert(converter = CommitConverter.class)
     private VersionedChangelog changelog;
 
     @Column(name = "repo")
@@ -68,8 +71,20 @@ public class JpaVersionChangelog {
         return id;
     }
 
-    public void setId(long id) {
+    void setId(long id) {
         this.id = id;
+    }
+
+    public void setSha(final String sha) {
+        this.sha = sha;
+    }
+
+    public void setRepo(final URL repo) {
+        this.repo = repo;
+    }
+
+    public void setBranch(final String branch) {
+        this.branch = branch;
     }
 
     public JpaVersionedArtifact getArtifact() {
@@ -80,28 +95,8 @@ public class JpaVersionChangelog {
         this.artifact = artifact;
     }
 
-    public VersionedChangelog getChangelog() {
-        return changelog;
-    }
-
     public void setChangelog(VersionedChangelog changelog) {
         this.changelog = changelog;
-    }
-
-    public URL getRepo() {
-        return repo;
-    }
-
-    public void setRepo(URL repo) {
-        this.repo = repo;
-    }
-
-    public String getBranch() {
-        return branch;
-    }
-
-    public void setBranch(String branch) {
-        this.branch = branch;
     }
 
     @Override
@@ -114,13 +109,13 @@ public class JpaVersionChangelog {
         }
         JpaVersionChangelog that = (JpaVersionChangelog) o;
         return id == that.id && Objects.equals(artifact, that.artifact) && Objects.equals(
-            changelog, that.changelog) && Objects.equals(repo, that.repo) && Objects.equals(
-            branch, that.branch);
+            sha, that.sha) && Objects.equals(changelog, that.changelog) && Objects.equals(
+            repo, that.repo) && Objects.equals(branch, that.branch);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, artifact, changelog, repo, branch);
+        return Objects.hash(id, artifact, sha, changelog, repo, branch);
     }
 
     @Override
@@ -128,6 +123,7 @@ public class JpaVersionChangelog {
         return "JpaVersionChangelog{" +
             "id=" + id +
             ", artifact=" + artifact +
+            ", sha='" + sha + '\'' +
             ", changelog=" + changelog +
             ", repo=" + repo +
             ", branch='" + branch + '\'' +

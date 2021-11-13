@@ -32,16 +32,19 @@ import org.hibernate.annotations.Immutable;
 import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.query.api.models.TagCollection;
+import org.spongepowered.downloads.versions.query.api.models.VersionedChangelog;
 import org.spongepowered.downloads.versions.query.api.models.VersionedCommit;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.IdClass;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
 import javax.persistence.Table;
 import java.io.Serializable;
 import java.net.URI;
@@ -100,7 +103,6 @@ import java.util.Set;
                 """
     )
 })
-@IdClass(VersionedArtifactID.class)
 public class JpaVersionedArtifactView implements Serializable {
 
     @Id
@@ -126,6 +128,7 @@ public class JpaVersionedArtifactView implements Serializable {
 
     @OneToMany(
         targetEntity = JpaTaggedVersion.class,
+        fetch = FetchType.LAZY,
         cascade = CascadeType.ALL,
         orphanRemoval = true,
         mappedBy = "versionView")
@@ -134,10 +137,18 @@ public class JpaVersionedArtifactView implements Serializable {
     @OneToMany(
         targetEntity = JpaVersionedAsset.class,
         cascade = CascadeType.ALL,
+        fetch = FetchType.LAZY,
         orphanRemoval = true,
         mappedBy = "versionView"
     )
     private Set<JpaVersionedAsset> assets;
+
+    @OneToOne(
+        targetEntity = JpaVersionedChangelog.class,
+        mappedBy = "versionView",
+        fetch = FetchType.LAZY
+    )
+    private JpaVersionedChangelog changelog;
 
     public Set<JpaTaggedVersion> getTags() {
         return tags;
@@ -190,9 +201,12 @@ public class JpaVersionedArtifactView implements Serializable {
             .sorted(Comparator.comparing(artifact -> artifact.classifier().orElse("")));
     }
 
-    public Optional<VersionedCommit> asVersionedCommit() {
-
-        return Optional.empty();
+    public Optional<VersionedChangelog> asVersionedCommit() {
+        final var changelog = this.changelog;
+        if (changelog == null) {
+            return Optional.empty();
+        }
+        return Optional.of(changelog.getChangelog());
     }
 
     @Override
