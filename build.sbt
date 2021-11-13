@@ -83,8 +83,19 @@ lazy val jupiterInterfaceVersion = "0.9.1" // sbt-jupiter-interface
 lazy val jupiterInterface = "net.aichler" % "jupiter-interface" % jupiterInterfaceVersion % Test
 
 
-lazy val jacksonVersion = "2.11.4" // this is tied to play's jackson version
+// region - jackson dependency bumps to 2.12.5
+lazy val jacksonVersion = "2.12.5" // Play jackson uses 2.11, but 2.12 is backwards compatible
+lazy val jacksonDataBind = "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion
+lazy val jacksonDataTypeJsr310 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonVersion
 lazy val jacksonDataformatXml = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % jacksonVersion
+lazy val jacksonDataformatCbor = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % jacksonVersion
+lazy val jacksonDatatypeJdk8 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % jacksonVersion
+lazy val jacksonParameterNames = "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % jacksonVersion
+lazy val jacksonParanamer = "com.fasterxml.jackson.module" % "jackson-module-paranamer" % jacksonVersion
+lazy val jacksonScala = "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
+lazy val jacksonGuava = "com.fasterxml.jackson.datatype" % "jackson-datatype-guava" % jacksonVersion
+lazy val jacksonPcollections = "com.fasterxml.jackson.datatype" % "jackson-datatype-pcollections" % jacksonVersion
+// endregion
 
 lazy val akkaStreamTyped = "com.typesafe.akka" %% "akka-stream-typed" % LagomVersion.akka
 lazy val akkaPersistenceTestkit = "com.typesafe.akka" %% "akka-persistence-testkit" % LagomVersion.akka % Test
@@ -109,7 +120,7 @@ lazy val jgit_jsch = "org.eclipse.jgit" % "org.eclipse.jgit.ssh.jsch" % "5.13.0.
 def soadProject(name: String) =
   Project(name, file(name)).settings(
     moduleName := s"systemofadownload-$name",
-    Compile / javacOptions := Seq("--release", "16", "-parameters", "-encoding", "UTF-8"), //Override the settings Lagom sets
+    Compile / javacOptions := Seq("--release", "17", "-parameters", "-encoding", "UTF-8"), //Override the settings Lagom sets
     artifactName := { (_: ScalaVersion, module: ModuleID, artifact: Artifact) =>
       s"${artifact.name}-${module.revision}.${artifact.extension}"
     },
@@ -151,6 +162,17 @@ def apiSoadProject(name: String) =
     libraryDependencies ++= Seq(
       // Lagom Java API
       lagomJavadslApi,
+      // Bump Jackson over Lagom's jackson
+      jacksonDataBind,
+      jacksonDataTypeJsr310,
+      jacksonDataformatCbor,
+      jacksonDatatypeJdk8,
+      jacksonParameterNames,
+      jacksonParanamer,
+      jacksonScala,
+      jacksonGuava, // Eventually not needed when we migrate off lagom
+      jacksonPcollections, // Eventually not needed when we migrate off lagom
+      // Then add the Lagom Jackson modules
       lagomJavadslJackson,
       //Language Features
       vavr,
@@ -162,6 +184,16 @@ def apiSoadProject(name: String) =
 def serverSoadProject(name: String) =
   soadProject(name).enablePlugins(LagomJava, DockerPlugin).settings(
     libraryDependencies ++= Seq(
+      // Bump Jackson over Lagom's jackson
+      jacksonDataBind,
+      jacksonDataTypeJsr310,
+      jacksonDataformatCbor,
+      jacksonDatatypeJdk8,
+      jacksonParameterNames,
+      jacksonParanamer,
+      jacksonScala,
+      jacksonGuava, // Eventually not needed when we migrate off lagom
+      jacksonPcollections, // Eventually not needed when we migrate off lagom
       //Lagom Dependencies
       // Specifically set up Akka-Clustering
       lagomJavadslCluster,
@@ -185,7 +217,7 @@ def serverSoadProject(name: String) =
     )
   ).settings(
     dockerUpdateLatest := true,
-    dockerBaseImage := "openjdk:16-slim@sha256:fc8e7ca99badf28dfd5f061bca882e7a333bde59d8fed7dc87f5e16dfe6bc0cf",
+    dockerBaseImage := "openjdk:17.0.1-slim",
     dockerChmodType := DockerChmodType.UserGroupWriteExecute,
     dockerExposedPorts := Seq(9000, 8558, 2552),
     dockerLabels ++= Map(
@@ -268,7 +300,10 @@ lazy val `versions-query-api` = apiSoadProject("versions-query-api").dependsOn(
   `artifact-api`
 )
 lazy val `versions-query-impl` = implSoadProjectWithPersistence("versions-query-impl", `versions-query-api`).settings(
-  libraryDependencies += playFilterHelpers
+  libraryDependencies ++= Seq(
+    hibernateTypes,
+    playFilterHelpers
+  )
 )
 
 lazy val `version-synchronizer` = serverSoadProject("version-synchronizer").dependsOn(
