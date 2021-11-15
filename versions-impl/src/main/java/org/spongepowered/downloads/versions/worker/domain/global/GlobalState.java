@@ -22,21 +22,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.server.collection;
+package org.spongepowered.downloads.versions.worker.domain.global;
 
-import org.spongepowered.downloads.versions.api.models.TagRegistration;
-import org.spongepowered.downloads.versions.api.models.TagVersion;
-import org.spongepowered.downloads.versions.api.models.VersionRegistration;
-import org.spongepowered.downloads.versions.worker.domain.RepositoryCommand;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.serialization.Jsonable;
+import io.vavr.collection.List;
+import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
-/**
- * An invalid request to return to the asker in the service implementation to
- * signify the current state is literally invalid to perform the specified
- * action.
- */
-public record InvalidRequest()
-    implements TagRegistration.Response,
-    TagVersion.Response,
-    VersionRegistration.Response,
-    RepositoryCommand.Response {
+@JsonDeserialize
+public record GlobalState(List<ArtifactCoordinates> artifacts) implements Jsonable {
+
+    @JsonCreator
+    public GlobalState {
+    }
 }

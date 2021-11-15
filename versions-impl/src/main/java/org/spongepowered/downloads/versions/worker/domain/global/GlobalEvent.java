@@ -22,13 +22,29 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.domain;
+package org.spongepowered.downloads.versions.worker.domain.global;
 
-public interface RepositoryCommand {
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
+import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
+import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
+import com.lightbend.lagom.serialization.Jsonable;
+import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
-    interface Response {
+public interface GlobalEvent extends AggregateEvent<GlobalEvent>, Jsonable {
 
-        final record RepositoryAvailable(String repo) implements Response {}
+    AggregateEventTag<GlobalEvent> TAG = AggregateEventTag.of(GlobalEvent.class);
 
+    @Override
+    default AggregateEventTagger<GlobalEvent> aggregateTag() {
+        return TAG;
+    }
+
+    @JsonDeserialize
+    final record ArtifactRegistered(ArtifactCoordinates coordinates) implements GlobalEvent {
+
+        @JsonCreator
+        public ArtifactRegistered {}
     }
 }

@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.akka;
+package org.spongepowered.downloads.versions.util.akka;
 
 import akka.Done;
 import akka.NotUsed;
@@ -30,6 +30,7 @@ import akka.japi.Pair;
 import akka.stream.FlowShape;
 import akka.stream.UniformFanInShape;
 import akka.stream.UniformFanOutShape;
+import akka.stream.javadsl.Broadcast;
 import akka.stream.javadsl.Flow;
 import akka.stream.javadsl.GraphDSL;
 import akka.stream.javadsl.Merge;
@@ -53,37 +54,59 @@ public final class FlowUtil {
 
     @SuppressWarnings("unchecked")
     @SafeVarargs
-    public static <T> Flow<T, Done, NotUsed> splitClassFlows(Pair<Class<? extends T>, Flow<? extends T, Done, NotUsed>>... pairs) {
+    public static <T> Flow<T, Done, NotUsed> broadcast(Flow<T, Done, NotUsed>... flows) {
+        final var gatheredFlows = Arrays.stream(flows).collect(List.collector());
+        final var count = gatheredFlows.size();
+        return Flow.fromGraph(GraphDSL.create(builder -> {
+            final var broadcast = builder.add(Broadcast.<T>create(count));
+            final var merge = builder.add(Merge.<Done>create(count));
+            for (int i = 0; i < count; i++) {
+                builder.from(broadcast.out(i))
+                    .via(builder.add(gatheredFlows.get(i)))
+                    .toInlet(merge.in(i));
+            }
+            return FlowShape.apply(broadcast.in(), merge.out());
+        }));
+    }
+
+    @SuppressWarnings("unchecked")
+    @SafeVarargs
+    public static <T> Flow<T, Done, NotUsed> splitClassFlows(
+        Pair<Class<? extends T>, Flow<? extends T, Done, NotUsed>>... pairs
+    ) {
         final List<Pair<Class<? extends T>, Flow<? extends T, Done, NotUsed>>> flowPairs = Arrays.stream(pairs)
             .collect(List.collector());
+        final var count = flowPairs.size();
 
-        Map<Class<? extends T>, Integer> classToIndex = HashMap.ofEntries(IntStream.range(0, flowPairs.size())
-            .mapToObj(i -> Tuple.of(pairs[i].first(), i))
-            .collect(Collectors.toList()));
+        final Map<Class<? extends T>, Integer> classToIndex = HashMap.ofEntries(
+            IntStream.range(0, count)
+                .mapToObj(i -> Tuple.of(pairs[i].first(), i))
+                .collect(Collectors.toList())
+        );
 
         final Function<T, Integer> decider = (message) -> flowPairs.map(Pair::first)
             .filter(clazz -> clazz.isInstance(message))
             .map(classToIndex::get)
             .filter(Option::isDefined)
             .map(Option::get)
-            .getOrElse(flowPairs::size);
+            .getOrElse(count);
 
         final Flow<T, Done, NotUsed> ignored = Flow.fromFunction(message -> {
             LOGGER.debug("ignoring message {}", message);
             return Done.done();
         });
         return Flow.fromGraph(GraphDSL.create(builder -> {
-            final UniformFanInShape<Done, Done> merge = builder.add(Merge.create(flowPairs.size() + 1));
+            final UniformFanInShape<Done, Done> merge = builder.add(Merge.create(count + 1));
             final UniformFanOutShape<T, T> fanout = builder
-                .add(Partition.create(flowPairs.size() + 1, decider::apply));
-            for (int i = 0; i < flowPairs.size(); i++) {
+                .add(Partition.create(count + 1, decider::apply));
+            for (int i = 0; i < count; i++) {
                 builder.from(fanout.out(i))
                     .via(builder.add((Flow<T, Done, NotUsed>) flowPairs.get(i).second().async()))
                     .toInlet(merge.in(i));
             }
-            builder.from(fanout.out(flowPairs.size()))
+            builder.from(fanout.out(count))
                 .via(builder.add(ignored))
-                .toInlet(merge.in(flowPairs.size()));
+                .toInlet(merge.in(count));
             return FlowShape.of(fanout.in(), merge.out());
         }));
     }

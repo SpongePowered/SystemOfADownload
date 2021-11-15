@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.server.collection;
+package org.spongepowered.downloads.versions.server.domain;
 
 import akka.NotUsed;
 import akka.actor.typed.ActorRef;
@@ -86,6 +86,11 @@ public sealed interface ACCommand extends Jsonable{
     final record RegisterCollection(
         ArtifactCollection collection,
         ActorRef<VersionRegistration.Response> replyTo
+    ) implements ACCommand {
+    }
+
+    final record GetVersions(
+        ActorRef<List<MavenCoordinates>> replyTo
     ) implements ACCommand {
     }
 

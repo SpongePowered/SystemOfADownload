@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.server.collection;
+package org.spongepowered.downloads.versions.server.domain;
 
 import akka.NotUsed;
 import akka.actor.typed.Behavior;
@@ -139,7 +139,7 @@ public final class VersionedArtifactAggregate
                     ctx.getLog().warn("Requesting artifact collections on an empty state");
                     return this.Effect().reply(cmd.replyTo(), List.empty());
                 }
-            )
+            ).onCommand(ACCommand.GetVersions.class, cmd -> this.Effect().reply(cmd.replyTo(), List.empty()))
         ;
         builder.forStateType(State.ACState.class)
             .onCommand(ACCommand.RegisterArtifact.class, (cmd) -> this.Effect().reply(cmd.replyTo(), NotUsed.notUsed()))
@@ -149,8 +149,21 @@ public final class VersionedArtifactAggregate
             .onCommand(ACCommand.RegisterPromotion.class, this::handlePromotionSetting)
             .onCommand(ACCommand.RegisterCollection.class, this::handleRegisterCollection)
             .onCommand(ACCommand.GetCollections.class, this::handleGetCollections)
+            .onCommand(ACCommand.GetVersions.class, this::handleGetVersions)
         ;
         return builder.build();
+    }
+
+    private ReplyEffect<ACEvent, State> handleGetVersions(
+        final State.ACState state, final ACCommand.GetVersions cmd
+    ) {
+        return this.Effect()
+            .reply(
+                cmd.replyTo(),
+                state.collection().keySet()
+                    .map(state.coordinates()::version)
+                    .toList()
+            );
     }
 
     private ReplyEffect<ACEvent, State> handleRegisterVersion(
@@ -178,7 +191,10 @@ public final class VersionedArtifactAggregate
         final var newArtifacts = cmd.collection().components().filter(Predicate.not(existing::contains));
 
         if (newArtifacts.isEmpty()) {
-            return this.Effect().reply(cmd.replyTo(), new VersionRegistration.Response.ArtifactAlreadyRegistered(cmd.collection().coordinates()));
+            return this.Effect().reply(
+                cmd.replyTo(),
+                new VersionRegistration.Response.ArtifactAlreadyRegistered(cmd.collection().coordinates())
+            );
         }
         this.ctx.getLog().trace("Adding new artifacts {}", newArtifacts);
         return this.Effect()
@@ -186,7 +202,10 @@ public final class VersionedArtifactAggregate
             .thenReply(
                 cmd.replyTo(),
                 (s) -> {
-                    this.ctx.getLog().debug("Versioned Artifacts successfully registered {}", ((State.ACState) s).versionedArtifacts().get(cmd.collection().coordinates().version));
+                    this.ctx.getLog().debug(
+                        "Versioned Artifacts successfully registered {}",
+                        ((State.ACState) s).versionedArtifacts().get(cmd.collection().coordinates().version)
+                    );
                     return new VersionRegistration.Response.RegisteredArtifact(cmd.collection().coordinates());
                 }
             );

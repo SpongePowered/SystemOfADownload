@@ -25,166 +25,101 @@
 package org.spongepowered.downloads.versions.worker.consumer;
 
 import akka.Done;
-import akka.actor.typed.ActorRef;
-import akka.actor.typed.Behavior;
-import akka.actor.typed.SupervisorStrategy;
+import akka.NotUsed;
 import akka.actor.typed.javadsl.ActorContext;
-import akka.actor.typed.javadsl.Behaviors;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.japi.Pair;
-import akka.stream.typed.javadsl.ActorFlow;
+import akka.stream.FlowShape;
+import akka.stream.UniformFanOutShape;
+import akka.stream.javadsl.Balance;
+import akka.stream.javadsl.Flow;
+import akka.stream.javadsl.GraphDSL;
+import akka.stream.javadsl.Merge;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.artifact.api.event.ArtifactUpdate;
-import org.spongepowered.downloads.versions.worker.actor.global.GlobalCommand;
-import org.spongepowered.downloads.versions.worker.actor.global.GlobalRegistration;
-import org.spongepowered.downloads.versions.worker.akka.FlowUtil;
-import org.spongepowered.downloads.versions.worker.domain.GitBasedArtifact;
-import org.spongepowered.downloads.versions.worker.domain.GitCommand;
+import org.spongepowered.downloads.versions.server.domain.ACCommand;
+import org.spongepowered.downloads.versions.server.domain.VersionedArtifactAggregate;
+import org.spongepowered.downloads.versions.util.akka.FlowUtil;
+import org.spongepowered.downloads.versions.worker.domain.global.GlobalCommand;
+import org.spongepowered.downloads.versions.worker.domain.global.GlobalRegistration;
+import org.spongepowered.downloads.versions.worker.domain.versionedartifact.VersionedArtifactCommand;
+import org.spongepowered.downloads.versions.worker.domain.versionedartifact.VersionedArtifactEntity;
 
 import java.time.Duration;
 
 public final class ArtifactSubscriber {
 
     public static void setup(ArtifactService artifacts, ActorContext<Void> ctx) {
-        final var consumer = ctx.spawn(
-            Behaviors.supervise(consumeMessages()).onFailure(SupervisorStrategy.resume()),
-            "versions-worker-artifacts-subscriber"
-        );
+
+        final Flow<ArtifactUpdate, Done, NotUsed> flow = generateFlows(ctx);
 
         artifacts.artifactUpdate()
             .subscribe()
-            .atLeastOnce(FlowUtil.splitClassFlows(
-                Pair.create(
-                    ArtifactUpdate.GitRepositoryAssociated.class,
-                    FlowUtil.subClassFlow(ActorFlow.ask(
-                        16,
-                        consumer,
-                        Duration.ofMinutes(20),
-                        GitRepositoryAssociatedFanout::new
-                    ))
-                ),
-                Pair.create(
-                    ArtifactUpdate.ArtifactRegistered.class,
-                    FlowUtil.subClassFlow(ActorFlow.ask(
-                        16,
-                        consumer,
-                        Duration.ofMinutes(20),
-                        ReceiveArtifactRegistration::new
-                    ))
-                )
-            ));
+            .atLeastOnce(flow);
     }
 
-    public interface Command {
+    private static Flow<ArtifactUpdate, Done, NotUsed> generateFlows(ActorContext<Void> ctx) {
+        final var sharding = ClusterSharding.get(ctx.getSystem());
+        final var repoAssociatedFlow = getRepoAssociatedFlow(sharding);
+        final var artifactRegistration = getArtifactRegisteredFlow(sharding);
+
+        return FlowUtil.splitClassFlows(
+            Pair.create(ArtifactUpdate.ArtifactRegistered.class, artifactRegistration),
+            Pair.create(ArtifactUpdate.GitRepositoryAssociated.class, repoAssociatedFlow)
+        );
     }
 
-    public static Behavior<Command> consumeMessages() {
-        return Behaviors.setup(ctx -> {
-            final var sharding = ClusterSharding.get(ctx.getSystem());
-
-            return Behaviors.receive(Command.class)
-                .onMessage(ReceiveArtifactRegistration.class, msg -> forwardArtifactRegistered(ctx, sharding, msg))
-                .onMessage(RegistrationSucceeded.class, msg -> {
-                    msg.replyTo.tell(Done.done());
-                    return Behaviors.same();
-                })
-                .onMessage(FailedArtifactRegistration.class, msg -> {
-                    ctx.getLog().warn("Failed artifact registration {}", msg.registered);
-                    return Behaviors.same();
-                })
-                .onMessage(GitRepositoryAssociatedFanout.class, msg -> fanOutGitRepositoryUpdates(ctx, sharding, msg))
-                .onMessage(FailedGitRegistration.class, msg -> {
-                    msg.replyTo.tell(Done.done());
-                    return Behaviors.same();
-                })
-                .build();
-        });
-    }
-
-    private static record ReceiveArtifactRegistration(
-        ArtifactUpdate.ArtifactRegistered registered,
-        ActorRef<Done> replyTo
-    ) implements Command {
-    }
-
-    private static record FailedArtifactRegistration(
-        ArtifactUpdate.ArtifactRegistered registered,
-        ActorRef<Done> replyTo
-    ) implements Command {
-
-    }
-
-    private static record RegistrationSucceeded(
-        ActorRef<Done> replyTo
-    ) implements Command {
-
-    }
-
-    private static record GitRepositoryAssociatedFanout(
-        ArtifactUpdate.GitRepositoryAssociated registered,
-        ActorRef<Done> replyTo
-    ) implements Command {
-    }
-
-    private static record FailedGitRegistration(
-        ArtifactUpdate.GitRepositoryAssociated registered,
-        ActorRef<Done> replyTo
-    ) implements Command {
-    }
-
-
-    private static Behavior<Command> forwardArtifactRegistered(
-        final ActorContext<Command> ctx,
-        final ClusterSharding sharding,
-        final ReceiveArtifactRegistration registration
+    @SuppressWarnings("unchecked")
+    private static Flow<ArtifactUpdate.GitRepositoryAssociated, Done, NotUsed> getRepoAssociatedFlow(
+        ClusterSharding sharding
     ) {
-        final ArtifactUpdate.ArtifactRegistered registered = registration.registered;
-        ctx.pipeToSelf(
-            sharding.entityRefFor(GitBasedArtifact.ENTITY_TYPE_KEY, registered.coordinates().asMavenString())
+        final var getArtifactVersionsFlow = Flow.<ArtifactUpdate.GitRepositoryAssociated>create()
+            .map(u -> sharding.entityRefFor(VersionedArtifactAggregate.ENTITY_TYPE_KEY, u.coordinates().asMavenString())
+                .ask(ACCommand.GetVersions::new, Duration.ofMinutes(20))
+                .thenApply(c -> Pair.create(u.repository(), c))
+                .toCompletableFuture()
+                .join()
+            )
+            .mapConcat(p -> p.second().map(v -> Pair.create(p.first(), v)));
+        final var registerRepoFlow = Flow.<Pair<String, MavenCoordinates>>create()
+            .map(c -> sharding.entityRefFor(VersionedArtifactEntity.ENTITY_TYPE_KEY, c.second().asStandardCoordinates())
+                .<Done>ask(r -> new VersionedArtifactCommand.RegisterRepo(c.second(), c.first(), r), Duration.ofMinutes(20))
+                .toCompletableFuture()
+                .join()
+            );
+
+        return Flow.fromGraph(GraphDSL.create(b -> {
+            final UniformFanOutShape<Pair<String, MavenCoordinates>, Pair<String, MavenCoordinates>> balance = b.add(Balance.create(10));
+            final FlowShape<ArtifactUpdate.GitRepositoryAssociated, Pair<String, MavenCoordinates>> ingest = b.add(
+                getArtifactVersionsFlow);
+
+            b.from(ingest.out())
+                .toFanOut(balance);
+            final var zip = b.add(Merge.<Done>create(10));
+            for (int i = 0; i < 10; i++) {
+                final var register = b.add(registerRepoFlow);
+                b.from(balance.out(i))
+                    .via(register)
+                    .toInlet(zip.in(i));
+            }
+            return FlowShape.of(ingest.in(), zip.out());
+        }));
+    }
+
+    private static Flow<ArtifactUpdate.ArtifactRegistered, Done, NotUsed> getArtifactRegisteredFlow(
+        ClusterSharding sharding
+    ) {
+        final var globalRegistration = Flow.<ArtifactUpdate.ArtifactRegistered>create()
+            .map(u -> sharding.entityRefFor(GlobalRegistration.ENTITY_TYPE_KEY, "global")
                 .<Done>ask(
-                    replyTo -> new GitCommand.RegisterArtifact(registered.coordinates(), replyTo),
+                    replyTo -> new GlobalCommand.RegisterArtifact(replyTo, u.coordinates()),
                     Duration.ofMinutes(10)
                 )
-                .thenCombineAsync(
-                    sharding.entityRefFor(GlobalRegistration.ENTITY_TYPE_KEY, "global")
-                        .<Done>ask(
-                            replyTo -> new GlobalCommand.RegisterArtifact(replyTo, registered.coordinates()),
-                            Duration.ofSeconds(10)
-                        ),
-                    (done1, done2) -> Done.done()
-                )
-                .toCompletableFuture(),
-            (done, throwable) -> {
-                if (throwable != null) {
-                    registration.replyTo.tell(Done.done());
-                    return new FailedArtifactRegistration(registered, registration.replyTo);
-                }
-                return new RegistrationSucceeded(registration.replyTo);
-            }
-        );
-        return Behaviors.same();
+                .toCompletableFuture()
+                .join()
+            );
+        return FlowUtil.broadcast(globalRegistration);
     }
 
-    private static Behavior<Command> fanOutGitRepositoryUpdates(
-        final ActorContext<Command> ctx,
-        final ClusterSharding sharding,
-        final GitRepositoryAssociatedFanout msg
-    ) {
-        final ArtifactUpdate.GitRepositoryAssociated repo = msg.registered;
-        ctx.pipeToSelf(
-            sharding.entityRefFor(
-                    GitBasedArtifact.ENTITY_TYPE_KEY, repo.coordinates().asMavenString())
-                .<Done>ask(
-                    replyTo -> new GitCommand.RegisterRepository(repo.repository(), replyTo),
-                    Duration.ofMinutes(1)
-                ),
-            (done, throwable) -> {
-                if (throwable != null) {
-                    return new FailedGitRegistration(repo, msg.replyTo);
-                }
-                return new RegistrationSucceeded(msg.replyTo);
-            }
-        );
-        return Behaviors.same();
-    }
 }

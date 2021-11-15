@@ -297,6 +297,11 @@
             inner join version.artifacts a on a.id = v.artifact_id
         </createView>
     </changeSet>
+    <changeSet id="20211113-19" author="gabizou">
+        <createIndex tableName="artifact_versions" schemaName="version" indexName="versions_by_aritfact_id_idx">
+            <column name="artifact_id"/>
+        </createIndex>
+    </changeSet>
 
 
 </databaseChangeLog>

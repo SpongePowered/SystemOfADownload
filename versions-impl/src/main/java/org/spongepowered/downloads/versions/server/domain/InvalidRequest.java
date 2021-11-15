@@ -22,28 +22,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.readside;
+package org.spongepowered.downloads.versions.server.domain;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.vavr.control.Try;
-import org.spongepowered.downloads.versions.api.models.VersionedChangelog;
-import play.libs.Json;
+import org.spongepowered.downloads.versions.api.models.TagRegistration;
+import org.spongepowered.downloads.versions.api.models.TagVersion;
+import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 
-import javax.persistence.AttributeConverter;
-
-public class CommitConverter implements AttributeConverter<VersionedChangelog, String> {
-
-    private final ObjectMapper mapper = Json.mapper();
-
-    @Override
-    public String convertToDatabaseColumn(final VersionedChangelog attribute) {
-        return Try.of(() -> mapper.writeValueAsString(attribute))
-            .getOrElse((String) null);
-    }
-
-    @Override
-    public VersionedChangelog convertToEntityAttribute(final String dbData) {
-        return Try.of(() -> mapper.readValue(dbData, VersionedChangelog.class))
-            .getOrElse((VersionedChangelog) null);
-    }
+/**
+ * An invalid request to return to the asker in the service implementation to
+ * signify the current state is literally invalid to perform the specified
+ * action.
+ */
+public record InvalidRequest()
+    implements TagRegistration.Response,
+    TagVersion.Response,
+    VersionRegistration.Response {
 }

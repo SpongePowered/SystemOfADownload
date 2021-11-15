@@ -31,8 +31,8 @@ import akka.actor.typed.javadsl.Behaviors;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.VersionedCommit;
-import org.spongepowered.downloads.versions.worker.domain.GitBasedArtifact;
-import org.spongepowered.downloads.versions.worker.domain.GitCommand;
+import org.spongepowered.downloads.versions.worker.domain.versionedartifact.VersionedArtifactCommand;
+import org.spongepowered.downloads.versions.worker.domain.versionedartifact.VersionedArtifactEntity;
 
 import java.net.URI;
 import java.time.Duration;
@@ -56,9 +56,9 @@ public final class CommitDetailsRegistrar {
             return Behaviors.receive(Command.class)
                 .onMessage(HandleVersionedCommitReport.class, msg -> {
                     final var future = sharding
-                        .entityRefFor(GitBasedArtifact.ENTITY_TYPE_KEY, msg.coordinates.asArtifactCoordinates().asMavenString())
-                        .<Done>ask(replyTo -> new GitCommand.AssociateCommitDetailsForVersion(msg.coordinates, msg.versionedCommit, msg.repo, replyTo),
-                            Duration.ofSeconds(20)
+                        .entityRefFor(VersionedArtifactEntity.ENTITY_TYPE_KEY, msg.coordinates.asStandardCoordinates())
+                        .<Done>ask(replyTo -> new VersionedArtifactCommand.RegisterResolvedCommit(msg.versionedCommit, msg.repo, replyTo),
+                            Duration.ofMinutes(20)
                         )
                         .toCompletableFuture();
                     ctx.pipeToSelf(future, (done, failure) -> {

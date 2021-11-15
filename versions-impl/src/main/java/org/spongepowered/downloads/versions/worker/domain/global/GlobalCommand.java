@@ -22,29 +22,42 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.actor.global;
+package org.spongepowered.downloads.versions.worker.domain.global;
 
+import akka.Done;
+import akka.actor.typed.ActorRef;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
+import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
-public interface GlobalEvent extends AggregateEvent<GlobalEvent>, Jsonable {
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME,
+    property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(name = "Register", value = GlobalCommand.RegisterArtifact.class),
+    @JsonSubTypes.Type(name = "Get", value = GlobalCommand.GetArtifacts.class)
+})
+public interface GlobalCommand extends Jsonable {
 
-    AggregateEventTag<GlobalEvent> TAG = AggregateEventTag.of(GlobalEvent.class);
+    @JsonDeserialize
+    record GetArtifacts(ActorRef<List<ArtifactCoordinates>> replyTo)
+        implements GlobalCommand {
 
-    @Override
-    default AggregateEventTagger<GlobalEvent> aggregateTag() {
-        return TAG;
+        @JsonCreator
+        public GetArtifacts {
+        }
     }
 
     @JsonDeserialize
-    final record ArtifactRegistered(ArtifactCoordinates coordinates) implements GlobalEvent {
+    record RegisterArtifact(
+        ActorRef<Done> replyTo, ArtifactCoordinates artifact
+    ) implements GlobalCommand {
 
         @JsonCreator
-        public ArtifactRegistered {}
+        public RegisterArtifact {
+        }
     }
 }

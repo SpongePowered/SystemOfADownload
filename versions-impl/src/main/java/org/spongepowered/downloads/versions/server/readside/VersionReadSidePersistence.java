@@ -36,7 +36,7 @@ import com.lightbend.lagom.javadsl.persistence.jpa.JpaReadSide;
 import com.lightbend.lagom.javadsl.persistence.jpa.JpaSession;
 import org.pcollections.PSequence;
 import org.spongepowered.downloads.artifact.api.Artifact;
-import org.spongepowered.downloads.versions.server.collection.ACEvent;
+import org.spongepowered.downloads.versions.server.domain.ACEvent;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;

@@ -35,7 +35,6 @@ import io.vavr.Tuple2;
 import io.vavr.collection.List;
 import io.vavr.control.Try;
 import org.eclipse.jgit.lib.ObjectId;
-import org.spongepowered.downloads.versions.worker.actor.VersionedAssetWorker;
 
 import java.net.URL;
 import java.nio.channels.Channels;
@@ -48,41 +47,42 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.EnumSet;
 import java.util.Optional;
-import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
 
+/**
+ * Actor that extracts the commit from a jar file.
+ */
 public final class CommitExtractor {
 
     public static final ServiceKey<ChildCommand> SERVICE_KEY = ServiceKey.create(
         ChildCommand.class, "commit-extractor");
-    private static final FileAttribute<Set<PosixFilePermission>> OWNER_READ_WRITE_ATTRIBUTE = PosixFilePermissions.asFileAttribute(
+    private static final FileAttribute<java.util.Set<PosixFilePermission>> OWNER_READ_WRITE_ATTRIBUTE = PosixFilePermissions.asFileAttribute(
         EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
 
-    public interface ChildCommand {
+    public sealed interface ChildCommand {
     }
 
     public final record AttemptFileCommit(
-        VersionedAssetWorker.PotentiallyUsableAsset asset,
-        String gitRepo,
+        PotentiallyUsableAsset asset,
         ActorRef<AssetCommitResponse> ref
     ) implements ChildCommand {
     }
 
-    public interface AssetCommitResponse {
+    public sealed interface AssetCommitResponse {
     }
 
-    public final record DiscoveredCommitFromFile(String sha, VersionedAssetWorker.PotentiallyUsableAsset asset)
+    public final record DiscoveredCommitFromFile(String sha, PotentiallyUsableAsset asset)
         implements AssetCommitResponse {
     }
 
-    public final record NoCommitsFound() implements AssetCommitResponse {
+    public final record NoCommitsFound(ActorRef<AssetCommitResponse> ref) implements ChildCommand {
     }
 
-    public final record FailedToRetrieveCommit(VersionedAssetWorker.PotentiallyUsableAsset asset)
+    public final record FailedToRetrieveCommit(PotentiallyUsableAsset asset)
         implements AssetCommitResponse {
     }
-
 
     public static Behavior<ChildCommand> extractCommitFromAssets() {
         return Behaviors.setup(ctx -> Behaviors.receive(ChildCommand.class)
@@ -97,7 +97,7 @@ public final class CommitExtractor {
             .build());
     }
 
-    private static Function2<ObjectId, Throwable, ChildCommand> handleFileExtractionResult(
+    private static Function2<Optional<ObjectId>, Throwable, ChildCommand> handleFileExtractionResult(
         ActorContext<ChildCommand> ctx, AttemptFileCommit cmd
     ) {
         return (sha, throwable) -> {
@@ -105,14 +105,19 @@ public final class CommitExtractor {
                 ctx.getLog().debug("Marking file {} as failed", cmd.asset);
                 return new FailedFile(throwable, cmd.asset, cmd.ref);
             }
-            ctx.getLog().debug("Commit retrieved from {} jar metadata {}", cmd.asset.coordinates(), sha.name());
-            return new CommitRetrievedFromFile(sha.name(), cmd.asset, cmd.ref);
+            if (sha.isEmpty()) {
+                ctx.getLog().debug("File {} doesn't have a commit", cmd.asset);
+                return new NoCommitsFound(cmd.ref);
+            }
+            final var commit = sha.get();
+            ctx.getLog().debug("Commit retrieved from {} jar metadata {}", cmd.asset.coordinates(), commit.name());
+            return new CommitRetrievedFromFile(commit.name(), cmd.asset, cmd.ref);
         };
     }
 
 
     private static Behavior<ChildCommand> working(
-        final VersionedAssetWorker.PotentiallyUsableAsset working,
+        final PotentiallyUsableAsset working,
         final List<AttemptFileCommit> queue
     ) {
         return Behaviors.setup(ctx -> Behaviors.receive(ChildCommand.class)
@@ -126,7 +131,8 @@ public final class CommitExtractor {
                 return swapToNext(ctx, queue);
             })
             .onMessage(CommitRetrievedFromFile.class, cmd -> {
-                ctx.getLog().debug("Commit extracted from {} for {}", cmd.asset.coordinates(), working.mavenCoordinates());
+                ctx.getLog().debug(
+                    "Commit extracted from {} for {}", cmd.asset.coordinates(), working.mavenCoordinates());
                 cmd.replyTo.tell(new DiscoveredCommitFromFile(cmd.sha, cmd.asset));
                 return swapToNext(ctx, queue);
             })
@@ -149,20 +155,20 @@ public final class CommitExtractor {
 
     private final record FailedFile(
         Throwable throwable,
-        VersionedAssetWorker.PotentiallyUsableAsset asset,
+        PotentiallyUsableAsset asset,
         ActorRef<AssetCommitResponse> replyTo
     ) implements ChildCommand {
     }
 
     private final record CommitRetrievedFromFile(
         String sha,
-        VersionedAssetWorker.PotentiallyUsableAsset asset,
+        PotentiallyUsableAsset asset,
         ActorRef<AssetCommitResponse> replyTo
     ) implements ChildCommand {
     }
 
 
-    private static Try<ObjectId> fetchCommitIdFromFile(
+    private static CompletableFuture<Optional<ObjectId>> fetchCommitIdFromFile(
         ActorContext<ChildCommand> ctx, AttemptFileCommit cmd
     ) {
         return Try.of(cmd.asset.downloadURL()::toURL)
@@ -177,10 +183,11 @@ public final class CommitExtractor {
                 );
                 return Tuple.of(req, tempFile);
             })
-            .flatMapTry(tuple -> getCommitFromFile(ctx, cmd, tuple));
+            .flatMap(tuple -> getCommitFromFile(ctx, cmd, tuple))
+            .toCompletableFuture();
     }
 
-    private static Try<ObjectId> getCommitFromFile(
+    private static Try<Optional<ObjectId>> getCommitFromFile(
         ActorContext<ChildCommand> ctx, AttemptFileCommit cmd, Tuple2<URL, Path> tuple
     ) {
         return Try.withResources(
@@ -192,22 +199,21 @@ public final class CommitExtractor {
                 ctx.getLog().debug("File download completed {}", transfer);
                 return tuple._2;
             })
-            .flatMapTry(path -> extractCommitFromJarManifest(cmd, path));
+            .map(path -> extractCommitFromJarManifest(cmd, path));
     }
 
-    private static Try<ObjectId> extractCommitFromJarManifest(AttemptFileCommit cmd, Path path) {
+    private static Optional<ObjectId> extractCommitFromJarManifest(AttemptFileCommit cmd, Path path) {
         return Try.withResources(
                 () -> new JarInputStream(Files.newInputStream(path, StandardOpenOption.DELETE_ON_CLOSE)))
             .of(JarInputStream::getManifest)
             .mapTry(Manifest::getMainAttributes)
             .mapTry(attributes -> attributes.getValue("Git-Commit"))
             .map(Optional::ofNullable)
-            .flatMap(opt -> opt.map(sha -> Try.of(() -> ObjectId.fromString(sha)))
-                .orElseGet(() -> Try.failure(new IllegalStateException(
-                    String.format(
-                        "Could not process artifact commit %s",
-                        cmd.asset.coordinates()
-                    )))));
+            .map(opt -> opt.flatMap(sha -> Try.of(() -> ObjectId.fromString(sha))
+                .map(Optional::of)
+                .getOrElse(Optional::empty)
+            ))
+            .getOrElse(Optional::empty);
     }
 
 }

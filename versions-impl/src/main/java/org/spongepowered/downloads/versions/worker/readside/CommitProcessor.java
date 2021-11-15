@@ -25,10 +25,6 @@
 package org.spongepowered.downloads.versions.worker.readside;
 
 import akka.actor.ActorSystem;
-import akka.actor.typed.ActorRef;
-import akka.actor.typed.javadsl.Adapter;
-import akka.actor.typed.javadsl.Routers;
-import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.ReadSide;
 import com.lightbend.lagom.javadsl.persistence.ReadSideProcessor;
@@ -42,8 +38,9 @@ import org.slf4j.LoggerFactory;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.VersionedChangelog;
 import org.spongepowered.downloads.versions.api.models.VersionedCommit;
-import org.spongepowered.downloads.versions.worker.actor.AssetRefresher;
-import org.spongepowered.downloads.versions.worker.domain.GitEvent;
+import org.spongepowered.downloads.versions.worker.domain.versionedartifact.ArtifactEvent;
+import org.spongepowered.downloads.versions.worker.readside.model.JpaVersionChangelog;
+import org.spongepowered.downloads.versions.worker.readside.model.JpaVersionedArtifact;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -53,7 +50,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.UUID;
 
 @Singleton
 public final record CommitProcessor(
@@ -66,51 +62,28 @@ public final record CommitProcessor(
         readSide.register(CommitWriter.class);
     }
 
-    static final class CommitWriter extends ReadSideProcessor<GitEvent> {
+    static final class CommitWriter extends ReadSideProcessor<ArtifactEvent> {
 
         private static final Logger LOGGER = LoggerFactory.getLogger("CommitWriter");
 
         private final JpaReadSide readSide;
-        private final ActorRef<AssetRefresher.Command> refresher;
 
         @Inject
         CommitWriter(final JpaReadSide readSide, final JpaSession session, final ActorSystem system) {
             this.readSide = readSide;
-            final var refresherUUID = UUID.randomUUID();
-            final var assetRouter = Routers.group(AssetRefresher.serviceKey);
-            final var sharding = ClusterSharding.get(Adapter.toTyped(system));
-            this.refresher = Adapter.spawn(
-                system,
-                assetRouter,
-                "versioned-artifact-repository-commit-refresher-" + refresherUUID
-            );
         }
 
         @Override
-        public ReadSideHandler<GitEvent> buildHandler() {
-            return this.readSide.<GitEvent>builder("version-commit-writer")
+        public ReadSideHandler<ArtifactEvent> buildHandler() {
+            return this.readSide.<ArtifactEvent>builder("version-commit-writer")
                 .setGlobalPrepare((em) -> {
                 })
+                .setEventHandler(ArtifactEvent.FilesErrored.class, (em, e) -> {})
+                .setEventHandler(ArtifactEvent.Registered.class, (em, e) -> {})
+                .setEventHandler(ArtifactEvent.RepositoryRegistered.class, (em, e) -> {})
+                .setEventHandler(ArtifactEvent.AssetsUpdated.class, (em, e) -> {})
                 .setEventHandler(
-                    GitEvent.VersionRegistered.class,
-                    (em, e) -> this.refresher.tell(new AssetRefresher.Refresh(e.coordinates().asArtifactCoordinates()))
-                )
-                .setEventHandler(
-                    GitEvent.ArtifactRegistered.class,
-                    (em, e) -> {
-                    }
-                )
-                .setEventHandler(
-                    GitEvent.RepoRegistered.class,
-                    (em, e) -> this.refresher.tell(new AssetRefresher.Refresh(e.coordinates()))
-                )
-                .setEventHandler(
-                    GitEvent.ArtifactLabeledMissingCommit.class,
-                    (em, e) -> {
-                    }
-                )
-                .setEventHandler(
-                    GitEvent.CommitAssociatedWithVersion.class,
+                    ArtifactEvent.CommitAssociated.class,
                     (em, e) -> {
                         final var coordinates = e.coordinates();
                         final var results = getVersionedArtifacts(em, coordinates);
@@ -129,7 +102,7 @@ public final record CommitProcessor(
                             LocalDate.EPOCH, LocalTime.MAX, ZoneId.systemDefault());
                         final URI repo = URI.create(jpaVersionedArtifact.getArtifact().getRepo());
                         final VersionedCommit rawCommit = new VersionedCommit(
-                            "", "", e.sha(), author, committer, repo, epoch);
+                            "", "", e.commitSha(), author, committer, repo, epoch);
                         final var changelog = new VersionedChangelog(
                             List.of(new VersionedChangelog.IndexedCommit(rawCommit, List.empty())), true);
                         jpaChangelog.setSha(rawCommit.sha());
@@ -142,7 +115,7 @@ public final record CommitProcessor(
                     }
                 )
                 .setEventHandler(
-                    GitEvent.CommitDetailsUpdated.class,
+                    ArtifactEvent.CommitResolved.class,
                     (em, e) -> {
                         final var coordinates = e.coordinates();
                         final var results = getVersionedArtifacts(em, coordinates);
@@ -153,14 +126,14 @@ public final record CommitProcessor(
                         if (jpaVersionedArtifact.getChangelog() == null) {
                             final var jpaVersionChangelog = new JpaVersionChangelog();
                             jpaVersionedArtifact.setChangelog(jpaVersionChangelog);
-                            jpaVersionChangelog.setSha(e.commit().sha());
+                            jpaVersionChangelog.setSha(e.versionedCommit().sha());
                             jpaVersionChangelog.setBranch("foo");
                             Try.of(e.repo()::toURL)
                                 .toJavaOptional()
                                 .ifPresent(jpaVersionChangelog::setRepo);
                         }
                         final var jpaChangelog = jpaVersionedArtifact.getChangelog();
-                        final var commit = new VersionedChangelog.IndexedCommit(e.commit(), List.empty());
+                        final var commit = new VersionedChangelog.IndexedCommit(e.versionedCommit(), List.empty());
                         final var changelog = new VersionedChangelog(List.of(commit), true);
                         jpaChangelog.setChangelog(changelog);
                         em.persist(jpaChangelog);
@@ -182,8 +155,8 @@ public final record CommitProcessor(
         }
 
         @Override
-        public PSequence<AggregateEventTag<GitEvent>> aggregateTags() {
-            return GitEvent.INSTANCE.allTags();
+        public PSequence<AggregateEventTag<ArtifactEvent>> aggregateTags() {
+            return ArtifactEvent.INSTANCE.allTags();
         }
     }
 

@@ -28,8 +28,8 @@ import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import io.vavr.collection.List;
-import org.spongepowered.downloads.versions.server.collection.ACCommand;
-import org.spongepowered.downloads.versions.server.collection.VersionedArtifactAggregate;
+import org.spongepowered.downloads.versions.server.domain.ACCommand;
+import org.spongepowered.downloads.versions.server.domain.VersionedArtifactAggregate;
 
 public class AssetRetriever {
 

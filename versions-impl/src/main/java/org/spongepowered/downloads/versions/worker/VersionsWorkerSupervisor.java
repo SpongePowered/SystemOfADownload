@@ -24,42 +24,14 @@
  */
 package org.spongepowered.downloads.versions.worker;
 
-import akka.Done;
-import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
-import akka.actor.typed.DispatcherSelector;
-import akka.actor.typed.SupervisorStrategy;
-import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
-import akka.actor.typed.javadsl.Routers;
-import akka.actor.typed.receptionist.Receptionist;
-import akka.actor.typed.receptionist.ServiceKey;
 import akka.cluster.Cluster;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
-import akka.cluster.sharding.typed.javadsl.Entity;
-import akka.japi.Pair;
-import akka.persistence.typed.PersistenceId;
-import akka.stream.javadsl.Flow;
-import akka.stream.typed.javadsl.ActorFlow;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.versions.api.VersionsService;
-import org.spongepowered.downloads.versions.api.models.VersionedArtifactUpdates;
-import org.spongepowered.downloads.versions.worker.actor.AssetRefresher;
-import org.spongepowered.downloads.versions.worker.actor.VersionedAssetWorker;
-import org.spongepowered.downloads.versions.worker.actor.artifacts.CommitExtractor;
-import org.spongepowered.downloads.versions.worker.actor.delegates.ArtifactRetriever;
-import org.spongepowered.downloads.versions.worker.actor.delegates.AssetRetriever;
-import org.spongepowered.downloads.versions.worker.actor.global.GlobalRegistration;
-import org.spongepowered.downloads.versions.worker.akka.FlowUtil;
 import org.spongepowered.downloads.versions.worker.consumer.ArtifactSubscriber;
-import org.spongepowered.downloads.versions.worker.consumer.CommitDetailsRegistrar;
-import org.spongepowered.downloads.versions.worker.domain.GitBasedArtifact;
-import org.spongepowered.downloads.versions.worker.domain.GitCommand;
-import org.spongepowered.downloads.versions.worker.jgit.CommitResolver;
-
-import java.time.Duration;
-import java.util.UUID;
-import java.util.function.Supplier;
+import org.spongepowered.downloads.versions.worker.consumer.VersionedAssetSubscriber;
 
 /**
  * The "reactive" side of Versions where it performs all the various tasks
@@ -78,142 +50,29 @@ import java.util.function.Supplier;
  */
 public final class VersionsWorkerSupervisor {
 
-    public static Behavior<Void> create(
+    public static Behavior<Void> bootstrapWorkers(
         final ArtifactService artifacts,
         final VersionsService versions
     ) {
         return Behaviors.setup(ctx -> {
             final ClusterSharding sharding = ClusterSharding.get(ctx.getSystem());
-            sharding.init(
-                Entity.of(
-                    GitBasedArtifact.ENTITY_TYPE_KEY,
-                    GitBasedArtifact::create
-                )
-            );
-            sharding.init(
-                Entity.of(
-                    GlobalRegistration.ENTITY_TYPE_KEY,
-                    context -> GlobalRegistration.create(context.getEntityId(), PersistenceId.of(
-                        context.getEntityTypeKey().name(),
-                        context.getEntityId()
-                    ))
-                )
-            );
+            // Persistent EventBased Actors
+            EntityStore.setupPersistedEntities(sharding);
+
+            // Kakfa subscribers
             ArtifactSubscriber.setup(artifacts, ctx);
+            VersionedAssetSubscriber.setup(ctx, versions, sharding);
+
+            // Workers available to do most jobs
             final var member = Cluster.get(ctx.getSystem()).selfMember();
-            versions.artifactUpdateTopic()
-                .subscribe()
-                .atLeastOnce(
-                    Flow.<org.spongepowered.downloads.versions.api.models.ArtifactUpdate>create().map(update -> {
-                        if (update instanceof org.spongepowered.downloads.versions.api.models.ArtifactUpdate.ArtifactVersionRegistered gra) {
-                            return sharding.entityRefFor(
-                                    GitBasedArtifact.ENTITY_TYPE_KEY,
-                                    gra.coordinates().asArtifactCoordinates().asMavenString()
-                                )
-                                .<Done>ask(
-                                    replyTo -> new GitCommand.RegisterVersion(gra.coordinates(), replyTo),
-                                    Duration.ofMinutes(1)
-                                )
-                                .toCompletableFuture()
-                                .join();
-                        }
-                        return Done.done();
-                    }));
-
-
             final var system = ctx.getSystem();
-            // Set up the usual actors
-            final var versionConfig = VersionExtension.Settings.get(system);
-            final var poolSizePerInstance = versionConfig.commitFetch.poolSize;
+            WorkerSpawner.spawnWorkers(system, member, ctx);
 
-            for (int i = 0; i < poolSizePerInstance; i++) {
-                final var commitFetcherUID = UUID.randomUUID();
-                if (member.hasRole("asset-fetcher")) {
-                    spawnWorker(
-                        ctx, () -> VersionedAssetWorker.commitFetcher(versionConfig.commitFetch),
-                        () -> VersionedAssetWorker.SERVICE_KEY, () -> "asset-commit-fetcher-" + commitFetcherUID
-                    );
-                }
-                if (member.hasRole("file-extractor")) {
-                    spawnWorker(
-                        ctx, CommitExtractor::extractCommitFromAssets, () -> CommitExtractor.SERVICE_KEY,
-                        () -> "file-commit-worker-" + commitFetcherUID
-                    );
-                }
-                if (member.hasRole("refresher")) {
-                    spawnVersionRefresher(ctx, versionConfig, commitFetcherUID);
-                }
-                if (member.hasRole("commit-resolver")) {
-                    spawnCommitResolver(versions, ctx, commitFetcherUID);
-                }
-            }
+            // Finally, self, the supervisor
             return Behaviors.receive(Void.class)
                 .build();
         });
 
-    }
-
-    private static void spawnVersionRefresher(
-        ActorContext<Void> ctx, VersionConfig versionConfig, UUID commitFetcherUID
-    ) {
-        final var register = Behaviors.supervise(ArtifactRetriever.getArtifacts())
-            .onFailure(SupervisorStrategy.restart());
-        final var retriever = ctx.spawn(register, "global-retriever");
-        final var commitRouter = Routers.group(VersionedAssetWorker.SERVICE_KEY);
-        final var commitWorker = ctx.spawn(commitRouter, "asset-commit-refresher-" + commitFetcherUID);
-
-        final var collectionFetcher = Behaviors.supervise(AssetRetriever.retrieveAssetCollection())
-            .onFailure(SupervisorStrategy.resume());
-        final var fetcher = ctx.spawn(collectionFetcher, "global-collection-retriever");
-        spawnWorker(
-            ctx, () -> AssetRefresher.refreshVersions(versionConfig, commitWorker, retriever, fetcher),
-            () -> AssetRefresher.serviceKey,
-            () -> "asset-refresher-" + commitFetcherUID
-        );
-    }
-
-    private static void spawnCommitResolver(VersionsService versions, ActorContext<Void> ctx, UUID commitFetcherUID) {
-        final var supervised = Behaviors.supervise(CommitDetailsRegistrar.register())
-            .onFailure(
-                SupervisorStrategy.restartWithBackoff(Duration.ofMillis(100), Duration.ofSeconds(40), 0.1));
-
-        final var registrar = ctx.spawn(supervised, "commit-details-registrar-" + commitFetcherUID);
-        final var workerRef = spawnWorker(
-            ctx, () -> CommitResolver.resolveCommit(registrar),
-            () -> CommitResolver.SERVICE_KEY,
-            () -> "commit-resolver-" + commitFetcherUID
-        );
-        final var flow = ActorFlow.<VersionedArtifactUpdates.CommitExtracted, CommitResolver.Command, Done>ask(
-            4,
-            workerRef,
-            Duration.ofMinutes(10),
-            (msg, replyTo) -> new CommitResolver.ResolveCommitDetails(
-                msg.coordinates(), msg.commit(), msg.gitRepositories(), replyTo)
-        );
-        final var actorFlow = FlowUtil.<VersionedArtifactUpdates>splitClassFlows(
-            Pair.create(VersionedArtifactUpdates.CommitExtracted.class, flow)
-        );
-        versions.versionedArtifactUpdatesTopic()
-            .subscribe()
-            .atLeastOnce(actorFlow);
-    }
-
-    private static <A> ActorRef<A> spawnWorker(
-        ActorContext<Void> ctx, Supplier<Behavior<A>> behaviorSupplier, Supplier<ServiceKey<A>> keyProvider,
-        Supplier<String> workerName
-    ) {
-        final var behavior = behaviorSupplier.get();
-        final var assetRefresher = Behaviors.supervise(behavior)
-            .onFailure(SupervisorStrategy.resume());
-        final var name = workerName.get();
-
-        final var workerRef = ctx.spawn(
-            assetRefresher,
-            name,
-            DispatcherSelector.defaultDispatcher()
-        );
-        ctx.getSystem().receptionist().tell(Receptionist.register(keyProvider.get(), workerRef));
-        return workerRef;
     }
 
 }

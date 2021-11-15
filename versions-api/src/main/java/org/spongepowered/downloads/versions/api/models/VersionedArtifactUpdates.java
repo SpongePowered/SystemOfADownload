@@ -55,7 +55,7 @@ public interface VersionedArtifactUpdates extends Jsonable {
     @JsonTypeName("commit-associated")
     final record GitCommitDetailsAssociated(
         MavenCoordinates coordinates,
-        VersionedCommit commit
+        URI repo, VersionedCommit commit
     ) implements VersionedArtifactUpdates {
 
     }

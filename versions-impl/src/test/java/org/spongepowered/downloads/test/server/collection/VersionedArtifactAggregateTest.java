@@ -8,8 +8,8 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
-import org.spongepowered.downloads.versions.server.collection.ACEvent;
-import org.spongepowered.downloads.versions.server.collection.State;
+import org.spongepowered.downloads.versions.server.domain.ACEvent;
+import org.spongepowered.downloads.versions.server.domain.State;
 
 import java.net.URISyntaxException;
 import java.net.URL;

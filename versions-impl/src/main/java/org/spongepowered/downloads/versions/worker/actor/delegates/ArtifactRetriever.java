@@ -27,8 +27,8 @@ package org.spongepowered.downloads.versions.worker.actor.delegates;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
-import org.spongepowered.downloads.versions.worker.actor.global.GlobalCommand;
-import org.spongepowered.downloads.versions.worker.actor.global.GlobalRegistration;
+import org.spongepowered.downloads.versions.worker.domain.global.GlobalCommand;
+import org.spongepowered.downloads.versions.worker.domain.global.GlobalRegistration;
 
 public final class ArtifactRetriever {
 

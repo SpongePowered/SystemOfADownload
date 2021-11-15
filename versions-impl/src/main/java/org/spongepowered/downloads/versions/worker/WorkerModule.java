@@ -74,7 +74,7 @@ public class WorkerModule extends AbstractModule implements ServiceGuiceSupport,
         public ActorRef<Void> get() {
             return Adapter.spawn(
                 this.system,
-                VersionsWorkerSupervisor.create(
+                VersionsWorkerSupervisor.bootstrapWorkers(
                     this.artifacts,
                     this.versions
                 ),

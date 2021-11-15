@@ -54,12 +54,13 @@ import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import org.spongepowered.downloads.versions.api.models.VersionedArtifactUpdates;
-import org.spongepowered.downloads.versions.server.collection.ACCommand;
-import org.spongepowered.downloads.versions.server.collection.ACEvent;
-import org.spongepowered.downloads.versions.server.collection.InvalidRequest;
-import org.spongepowered.downloads.versions.server.collection.VersionedArtifactAggregate;
-import org.spongepowered.downloads.versions.worker.domain.GitEvent;
+import org.spongepowered.downloads.versions.server.domain.ACCommand;
+import org.spongepowered.downloads.versions.server.domain.ACEvent;
+import org.spongepowered.downloads.versions.server.domain.InvalidRequest;
+import org.spongepowered.downloads.versions.server.domain.VersionedArtifactAggregate;
+import org.spongepowered.downloads.versions.worker.domain.versionedartifact.ArtifactEvent;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -269,20 +270,20 @@ public class VersionsServiceImpl implements VersionsService,
     @Override
     public Topic<VersionedArtifactUpdates> versionedArtifactUpdatesTopic() {
         return TopicProducer.taggedStreamWithOffset(
-            GitEvent.INSTANCE.allTags(),
+            ArtifactEvent.INSTANCE.allTags(),
             (aggregateTag, fromOffset) -> this.persistentEntityRegistry
                 .eventStream(aggregateTag, fromOffset)
                 .mapConcat(VersionsServiceImpl::convertGitEvents)
         );
     }
 
-    private static List<Pair<VersionedArtifactUpdates, Offset>> convertGitEvents(Pair<GitEvent, Offset> pair) {
-        final GitEvent event = pair.first();
+    private static List<Pair<VersionedArtifactUpdates, Offset>> convertGitEvents(Pair<ArtifactEvent, Offset> pair) {
+        final ArtifactEvent event = pair.first();
         final VersionedArtifactUpdates update;
-        if (event instanceof GitEvent.CommitAssociatedWithVersion r) {
-            update = new VersionedArtifactUpdates.CommitExtracted(r.coordinates(), r.repository().toList(), r.sha());
-        } else if (event instanceof GitEvent.CommitDetailsUpdated r) {
-            update = new VersionedArtifactUpdates.GitCommitDetailsAssociated(r.coordinates(), r.commit());
+        if (event instanceof ArtifactEvent.CommitAssociated r) {
+            update = new VersionedArtifactUpdates.CommitExtracted(r.coordinates(), r.repos().map(URI::create), r.commitSha());
+        } else if (event instanceof ArtifactEvent.CommitResolved r) {
+            update = new VersionedArtifactUpdates.GitCommitDetailsAssociated(r.coordinates(), r.repo(), r.versionedCommit());
         } else {
             return Collections.emptyList();
         }

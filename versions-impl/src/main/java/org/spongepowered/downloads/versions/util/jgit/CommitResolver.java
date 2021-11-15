@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.jgit;
+package org.spongepowered.downloads.versions.util.jgit;
 
 import akka.Done;
 import akka.actor.typed.ActorRef;
@@ -123,6 +123,10 @@ public final class CommitResolver {
             final var writer = new ActorLoggerPrinterWriter(log);
 
             final var repos = msg.gitRepo;
+            if (repos.isEmpty()) {
+                msg.replyTo.tell(Done.done());
+                return Behaviors.same();
+            }
             final Optional<Tuple2<URI, VersionedCommit>> details = repos.map(remoteRepo -> {
                     final Path repoDirectory;
                     try {
