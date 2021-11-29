@@ -5,7 +5,7 @@ import de.heikoseeberger.sbtheader.HeaderPlugin.autoImport.{HeaderLicenseStyle, 
 import scala.sys.process.Process
 
 ThisBuild / organization := "org.spongepowered"
-ThisBuild / version := "1.0-SNAPSHOT"
+ThisBuild / version := "0.2-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.6"
 
 // License setup
@@ -22,7 +22,7 @@ lazy val buildLiquibaseImage = taskKey[Unit]("Build the Liquibase docker image")
 val rootFilter = ScopeFilter(inProjects(soadRoot), inConfigurations(Compile))
 buildLiquibaseImage := {
   val versionTag = version.all(rootFilter).value.head
-  Process(Seq("docker", "build", "-t", s"spongepowered/systemofadownload-liquibase:$versionTag", "./liquibase/", "-f", "./liquibase/Dockerfile")).!
+  Process(Seq("docker", "buildx", "build", "-t", s"spongepowered/systemofadownload-liquibase:$versionTag", "./liquibase/", "-f", "./liquibase/Dockerfile")).!
 }
 
 lazy val runLiquibase = taskKey[Unit]("Runs the liquibase migration against a local dev database")
