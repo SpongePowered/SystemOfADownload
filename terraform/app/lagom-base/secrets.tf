@@ -107,6 +107,8 @@ lagom.broker.kafka {
 
 lagom.persistence.jdbc.create-tables.auto = false
 
+play.filters.disabled += "play.filters.hosts.AllowedHostsFilter"
+
 http {
   address = $${?HTTP_BIND_ADDRESS}
 }
