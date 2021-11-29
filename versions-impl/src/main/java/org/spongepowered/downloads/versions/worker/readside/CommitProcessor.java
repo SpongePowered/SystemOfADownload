@@ -50,6 +50,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Optional;
 
 @Singleton
 public final record CommitProcessor(
@@ -80,7 +81,6 @@ public final record CommitProcessor(
                 })
                 .setEventHandler(ArtifactEvent.FilesErrored.class, (em, e) -> {})
                 .setEventHandler(ArtifactEvent.Registered.class, (em, e) -> {})
-                .setEventHandler(ArtifactEvent.RepositoryRegistered.class, (em, e) -> {})
                 .setEventHandler(ArtifactEvent.AssetsUpdated.class, (em, e) -> {})
                 .setEventHandler(
                     ArtifactEvent.CommitAssociated.class,
@@ -100,15 +100,16 @@ public final record CommitProcessor(
                         final var committer = new VersionedCommit.Commiter("", "");
                         final ZonedDateTime epoch = ZonedDateTime.of(
                             LocalDate.EPOCH, LocalTime.MAX, ZoneId.systemDefault());
-                        final URI repo = URI.create(jpaVersionedArtifact.getArtifact().getRepo());
+                        final var artifactRepo = jpaVersionedArtifact.getArtifact().getRepo();
+                        final var commitLink = Optional.ofNullable(artifactRepo).map(URI::create);
                         final VersionedCommit rawCommit = new VersionedCommit(
-                            "", "", e.commitSha(), author, committer, repo, epoch);
+                            "", "", e.commitSha(), author, committer, commitLink, epoch);
                         final var changelog = new VersionedChangelog(
                             List.of(new VersionedChangelog.IndexedCommit(rawCommit, List.empty())), true);
                         jpaChangelog.setSha(rawCommit.sha());
-                        jpaChangelog.setBranch("foo");
                         jpaChangelog.setChangelog(changelog);
-                        Try.of(repo::toURL)
+                        Try.ofSupplier(commitLink::get)
+                            .mapTry(URI::toURL)
                             .toJavaOptional()
                             .ifPresent(jpaChangelog::setRepo);
                         em.persist(jpaChangelog);

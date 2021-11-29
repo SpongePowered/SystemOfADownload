@@ -1,3 +1,27 @@
+/*
+ * This file is part of SystemOfADownload, licensed under the MIT License (MIT).
+ *
+ * Copyright (c) SpongePowered <https://spongepowered.org/>
+ * Copyright (c) contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 package org.spongepowered.downloads.versions.worker.domain.versionedartifact;
 
 import akka.Done;
@@ -13,15 +37,15 @@ import akka.persistence.typed.javadsl.CommandHandlerWithReply;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
+import akka.persistence.typed.javadsl.RetentionCriteria;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
-import org.spongepowered.downloads.versions.util.jgit.CommitResolver;
+import org.spongepowered.downloads.artifact.api.Artifact;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.worker.actor.artifacts.FileCollectionOperator;
 import org.spongepowered.downloads.versions.worker.actor.artifacts.PotentiallyUsableAsset;
 
-import java.util.Arrays;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 public class VersionedArtifactEntity
     extends EventSourcedBehaviorWithEnforcedReplies<VersionedArtifactCommand, ArtifactEvent, ArtifactState> {
@@ -29,30 +53,32 @@ public class VersionedArtifactEntity
         VersionedArtifactCommand.class, "VersionedArtifactEntity");
     private final Function<ArtifactEvent, Set<String>> tagger;
     private final ActorRef<FileCollectionOperator.Request> scanFiles;
-    private final ActorRef<CommitResolver.Command> resolverRef;
     private final ActorContext<VersionedArtifactCommand> ctx;
+    private final MavenCoordinates coordinates;
 
     public static Behavior<VersionedArtifactCommand> create(final EntityContext<VersionedArtifactCommand> context) {
         return Behaviors.setup(ctx -> {
             final var scanFiles = Routers.group(FileCollectionOperator.KEY);
             final var scanRef = ctx.spawn(scanFiles, "scan-files-" + context.getEntityId());
-            final var resolveCommit = Routers.group(CommitResolver.SERVICE_KEY);
-            final var resolverRef = ctx.spawn(resolveCommit, "resolve-commit-" + context.getEntityId());
-            return new VersionedArtifactEntity(context, ctx, scanRef, resolverRef);
+            if (ctx.getLog().isTraceEnabled()) {
+                ctx.getLog().trace("Entity Context {}", context.getEntityId());
+            }
+            final var coords = MavenCoordinates.parse(context.getEntityId());
+            return new VersionedArtifactEntity(context, ctx, coords, scanRef);
         });
     }
 
     private VersionedArtifactEntity(
         final EntityContext<VersionedArtifactCommand> entityContext,
         final ActorContext<VersionedArtifactCommand> ctx,
-        final ActorRef<FileCollectionOperator.Request> scanRef,
-        final ActorRef<CommitResolver.Command> resolverRef
+        final MavenCoordinates coords,
+        final ActorRef<FileCollectionOperator.Request> scanRef
     ) {
         super(PersistenceId.of(entityContext.getEntityTypeKey().name(), entityContext.getEntityId()));
         this.ctx = ctx;
         this.tagger = AkkaTaggerAdapter.fromLagom(entityContext, ArtifactEvent.INSTANCE);
         this.scanFiles = scanRef;
-        this.resolverRef = resolverRef;
+        this.coordinates = coords;
     }
 
     @Override
@@ -80,14 +106,12 @@ public class VersionedArtifactEntity
         final var builder = this.newCommandHandlerWithReplyBuilder();
         builder.forStateType(ArtifactState.Unregistered.class)
             .onCommand(VersionedArtifactCommand.Register.class, this::onRegister)
-            .onCommand(VersionedArtifactCommand.RegisterRepo.class, this::registerRepoFirst)
             ;
         builder.forStateType(ArtifactState.Registered.class)
             .onCommand(VersionedArtifactCommand.Register.class, cmd -> this.Effect().reply(cmd.replyTo(), Done.done()))
             .onCommand(VersionedArtifactCommand.AddAssets.class, this::onAddAssets)
             .onCommand(VersionedArtifactCommand.MarkFilesAsErrored.class, this::onMarkFilesAsErrored)
             .onCommand(VersionedArtifactCommand.RegisterRawCommit.class, this::onRegisterRawCommit)
-            .onCommand(VersionedArtifactCommand.RegisterRepo.class, this::handleRegisterRepo)
             .onCommand(VersionedArtifactCommand.RegisterResolvedCommit.class, this::handleCompletedCommit)
             ;
         return builder.build();
@@ -96,6 +120,7 @@ public class VersionedArtifactEntity
     private ReplyEffect<ArtifactEvent, ArtifactState> handleCompletedCommit(
         final ArtifactState.Registered state, final VersionedArtifactCommand.RegisterResolvedCommit cmd
     ) {
+        this.ctx.getLog().info("Received completed commit {}", cmd.versionedCommit());
         if (state.fileStatus().commit().isPresent()) {
             return this.Effect().reply(cmd.replyTo(), Done.done());
         }
@@ -104,57 +129,20 @@ public class VersionedArtifactEntity
             .thenReply(cmd.replyTo(), ns -> Done.done());
     }
 
-    private ReplyEffect<ArtifactEvent, ArtifactState> registerRepoFirst(final VersionedArtifactCommand.RegisterRepo cmd) {
-        return this.Effect()
-            .persist(Arrays.asList(new ArtifactEvent.Registered(cmd.second()), new ArtifactEvent.RepositoryRegistered(cmd.repository())))
-            .thenReply(cmd.replyTo(), ns -> Done.done());
-    }
-
-    private ReplyEffect<ArtifactEvent, ArtifactState> handleRegisterRepo(
-        final ArtifactState.Registered state, final VersionedArtifactCommand.RegisterRepo cmd
-    ) {
-        if (state.repo().contains(cmd.repository())) {
-            return this.Effect()
-                .reply(cmd.replyTo(), Done.done());
-        }
-        return this.Effect()
-            .persist(new ArtifactEvent.RepositoryRegistered(cmd.repository()))
-            .thenRun(ns -> {
-                final var sha = ns.commitSha();
-                if (sha.isPresent() && ns.needsCommitResolution()) {
-                    this.resolverRef.tell(new CommitResolver.ResolveCommitDetails(
-                        state.coordinates(),
-                        sha.get(),
-                        ns.repositories(),
-                        this.ctx.getSystem().ignoreRef()
-                    ));
-                }
-            })
-            .thenReply(cmd.replyTo(), ns -> Done.done());
-    }
-
     private ReplyEffect<ArtifactEvent, ArtifactState> onRegisterRawCommit(
         final ArtifactState.Registered state,
         final VersionedArtifactCommand.RegisterRawCommit cmd
         ) {
+        this.ctx.getLog().debug("Raw commit registered {}", cmd);
         return this.Effect()
             .persist(state.associateCommit(cmd.commitSha()))
-            .thenRun(ns -> {
-                if (ns.needsCommitResolution()) {
-                    this.resolverRef.tell(new CommitResolver.ResolveCommitDetails(
-                        state.coordinates(),
-                        cmd.commitSha(),
-                        ns.repositories(),
-                        this.ctx.getSystem().ignoreRef()
-                    ));
-                }
-            })
             .thenNoReply();
     }
 
     private ReplyEffect<ArtifactEvent, ArtifactState> onMarkFilesAsErrored() {
         return this.Effect()
             .persist(new ArtifactEvent.FilesErrored())
+            .thenRun(ns -> this.ctx.getLog().debug("File as failed {}", ns))
             .thenNoReply();
     }
 
@@ -162,16 +150,38 @@ public class VersionedArtifactEntity
         final ArtifactState.Registered state,
         final VersionedArtifactCommand.AddAssets cmd
     ) {
+        if (this.ctx.getLog().isTraceEnabled()) {
+            this.ctx.getLog().trace("[{}] Current assets: {}", this.coordinates, state.artifacts());
+            this.ctx.getLog().trace("[{}] Adding assets {}", this.coordinates, cmd.artifacts());
+        }
         return this.Effect()
             .persist(state.addAssets(cmd))
             .thenRun(ns -> {
-                this.ctx.getLog().info("Updated assets for {}", state.coordinates());
-                if (state.needsArtifactScan()) {
+                if (this.ctx.getLog().isTraceEnabled()) {
+                    this.ctx.getLog().trace("[{}] Updated assets", this.coordinates);
+                }
+                if (ns.needsArtifactScan()) {
+                    if (this.ctx.getLog().isDebugEnabled()) {
+                        this.ctx.getLog().debug(
+                            "[{}] Telling FileCollectionOperator to fetch commit from files",
+                            this.coordinates
+                        );
+                    }
+                    if (this.ctx.getLog().isTraceEnabled()) {
+                        this.ctx.getLog().trace(
+                            "[{}] Assets available {}", this.coordinates, ns.artifacts().map(Artifact::toString));
+                    }
                     final var usableAssets = ns.artifacts()
                         .filter(a -> "jar".equalsIgnoreCase(a.extension()))
-                        .filter(a -> a.classifier().filter(Predicate.not("sources"::equalsIgnoreCase)).isPresent())
-                        .map(a -> new PotentiallyUsableAsset(state.coordinates(), a.extension(), a.downloadUrl()));
-                    this.scanFiles.tell(new FileCollectionOperator.TryFindingCommitForFiles(usableAssets, state.coordinates()));
+                        .filter(a -> a.classifier().isEmpty() || a.classifier().filter(""::equals).isPresent())
+                        .map(a -> new PotentiallyUsableAsset(this.coordinates, a.extension(), a.downloadUrl()));
+                    if (!usableAssets.isEmpty()) {
+                        if (this.ctx.getLog().isDebugEnabled()) {
+                            this.ctx.getLog().debug("[{}] Assets to scan {}", this.coordinates, usableAssets);
+                        }
+                        this.scanFiles.tell(
+                            new FileCollectionOperator.TryFindingCommitForFiles(usableAssets, this.coordinates));
+                    }
                 }
             })
             .thenReply(cmd.replyTo(), ns -> Done.done());
@@ -190,5 +200,10 @@ public class VersionedArtifactEntity
     @Override
     public Set<String> tagsFor(final ArtifactEvent assetEvent) {
         return this.tagger.apply(assetEvent);
+    }
+
+    @Override
+    public RetentionCriteria retentionCriteria() {
+        return RetentionCriteria.snapshotEvery(5, 2);
     }
 }

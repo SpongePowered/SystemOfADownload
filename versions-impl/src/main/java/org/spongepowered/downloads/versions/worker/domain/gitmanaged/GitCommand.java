@@ -22,45 +22,41 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.domain.versionedartifact;
+package org.spongepowered.downloads.versions.worker.domain.gitmanaged;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import akka.Done;
+import akka.actor.typed.ActorRef;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
-import com.lightbend.lagom.serialization.Jsonable;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.Artifact;
+import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 
 import java.net.URI;
 
-@JsonDeserialize
-@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
-public sealed interface ArtifactEvent extends AggregateEvent<ArtifactEvent>, Jsonable {
+public sealed interface GitCommand {
 
-    AggregateEventShards<ArtifactEvent> INSTANCE = AggregateEventTag.sharded(ArtifactEvent.class, 100);
+    final record RegisterVersion(MavenCoordinates coordinates) implements GitCommand {}
 
-    @Override
-    default AggregateEventTagger<ArtifactEvent> aggregateTag() {
-        return INSTANCE;
-    }
+    final record RegisterRepository(URI repository, ActorRef<Done> replyTo) implements GitCommand {}
 
-    final record Registered(MavenCoordinates coordinates) implements ArtifactEvent {}
+    final record RegisterRawCommit(MavenCoordinates coordinates, String commitSha, ActorRef<Done> replyTo) implements GitCommand {}
 
-    final record AssetsUpdated(List<Artifact> artifacts) implements ArtifactEvent {}
+    final record GetRepositories(ActorRef<List<URI>> replyTo) implements GitCommand {}
 
-    final record FilesErrored() implements ArtifactEvent { }
+    final record GetUnresolvedVersions(ActorRef<UnresolvedWork> replyTo) implements GitCommand {}
 
-    final record CommitAssociated(MavenCoordinates coordinates, List<String> repos, String commitSha) implements ArtifactEvent { }
+    final record MarkVersionAsResolved(MavenCoordinates coordinates, VersionedCommit commit, ActorRef<Done> replyTo) implements GitCommand {}
 
-    final record CommitResolved(
-        MavenCoordinates coordinates,
-        URI repo,
-        VersionedCommit versionedCommit
-    ) implements ArtifactEvent {
+    @JsonDeserialize
+    @JsonSerialize
+    final record UnresolvedWork(
+        Map<MavenCoordinates, String> unresolvedCommits,
+        List<URI> repositories
+    ) {
+        public boolean isEmpty() {
+            return unresolvedCommits.isEmpty();
+        }
     }
 }

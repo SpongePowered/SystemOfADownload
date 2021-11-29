@@ -27,25 +27,26 @@ package org.spongepowered.downloads.versions.worker.consumer;
 import akka.Done;
 import akka.NotUsed;
 import akka.actor.typed.javadsl.ActorContext;
+import akka.actor.typed.javadsl.Routers;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.japi.Pair;
 import akka.stream.FlowShape;
-import akka.stream.UniformFanOutShape;
 import akka.stream.javadsl.Balance;
 import akka.stream.javadsl.Flow;
 import akka.stream.javadsl.GraphDSL;
 import akka.stream.javadsl.Merge;
+import akka.stream.javadsl.Source;
+import akka.stream.typed.javadsl.ActorFlow;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
-import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.artifact.api.event.ArtifactUpdate;
-import org.spongepowered.downloads.versions.server.domain.ACCommand;
-import org.spongepowered.downloads.versions.server.domain.VersionedArtifactAggregate;
 import org.spongepowered.downloads.versions.util.akka.FlowUtil;
+import org.spongepowered.downloads.versions.util.jgit.CommitResolver;
+import org.spongepowered.downloads.versions.worker.domain.gitmanaged.GitCommand;
+import org.spongepowered.downloads.versions.worker.domain.gitmanaged.GitManagedArtifact;
 import org.spongepowered.downloads.versions.worker.domain.global.GlobalCommand;
 import org.spongepowered.downloads.versions.worker.domain.global.GlobalRegistration;
-import org.spongepowered.downloads.versions.worker.domain.versionedartifact.VersionedArtifactCommand;
-import org.spongepowered.downloads.versions.worker.domain.versionedartifact.VersionedArtifactEntity;
 
+import java.net.URI;
 import java.time.Duration;
 
 public final class ArtifactSubscriber {
@@ -61,7 +62,7 @@ public final class ArtifactSubscriber {
 
     private static Flow<ArtifactUpdate, Done, NotUsed> generateFlows(ActorContext<Void> ctx) {
         final var sharding = ClusterSharding.get(ctx.getSystem());
-        final var repoAssociatedFlow = getRepoAssociatedFlow(sharding);
+        final var repoAssociatedFlow = getRepoAssociatedFlow(sharding, ctx);
         final var artifactRegistration = getArtifactRegisteredFlow(sharding);
 
         return FlowUtil.splitClassFlows(
@@ -72,38 +73,50 @@ public final class ArtifactSubscriber {
 
     @SuppressWarnings("unchecked")
     private static Flow<ArtifactUpdate.GitRepositoryAssociated, Done, NotUsed> getRepoAssociatedFlow(
-        ClusterSharding sharding
+        ClusterSharding sharding,
+        ActorContext<Void> ctx
     ) {
-        final var getArtifactVersionsFlow = Flow.<ArtifactUpdate.GitRepositoryAssociated>create()
-            .map(u -> sharding.entityRefFor(VersionedArtifactAggregate.ENTITY_TYPE_KEY, u.coordinates().asMavenString())
-                .ask(ACCommand.GetVersions::new, Duration.ofMinutes(20))
-                .thenApply(c -> Pair.create(u.repository(), c))
-                .toCompletableFuture()
-                .join()
-            )
-            .mapConcat(p -> p.second().map(v -> Pair.create(p.first(), v)));
-        final var registerRepoFlow = Flow.<Pair<String, MavenCoordinates>>create()
-            .map(c -> sharding.entityRefFor(VersionedArtifactEntity.ENTITY_TYPE_KEY, c.second().asStandardCoordinates())
-                .<Done>ask(r -> new VersionedArtifactCommand.RegisterRepo(c.second(), c.first(), r), Duration.ofMinutes(20))
-                .toCompletableFuture()
-                .join()
+        // Step 1 - Register the repository with GitManagedArtifact
+        final var registerRepo = Flow.<ArtifactUpdate.GitRepositoryAssociated>create()
+            .mapAsync(
+                1, c -> sharding.entityRefFor(GitManagedArtifact.ENTITY_TYPE_KEY, c.coordinates().asMavenString())
+                    .<Done>ask(replyTo -> new GitCommand.RegisterRepository(URI.create(c.repository()), replyTo), Duration.ofSeconds(20))
+                    .thenApply(d -> c)
             );
+        final var key = Routers.group(CommitResolver.SERVICE_KEY);
+        final var workerRef = ctx.spawn(key, "repo-associated-commit-resolver");
+        // Step 2 - Get unresolved commits from GitManagedArtifact to perform work
+        final Flow<ArtifactUpdate.GitRepositoryAssociated, CommitResolver.ResolveCommitDetails, NotUsed> registerRepoFlow = Flow.<ArtifactUpdate.GitRepositoryAssociated>create()
+            .mapAsync(
+                1, c -> sharding.entityRefFor(GitManagedArtifact.ENTITY_TYPE_KEY, c.coordinates().asMavenString())
+                    .ask(GitCommand.GetUnresolvedVersions::new, Duration.ofSeconds(20))
+            )
+            .flatMapConcat(work -> Source.from(work.unresolvedCommits()
+                .toList().map(
+                    (t) -> new CommitResolver.ResolveCommitDetails(t._1(), t._2(), work.repositories(), null))));
+        // Step 2a - Resolve the commits
+        final var flow = ActorFlow.<CommitResolver.ResolveCommitDetails, CommitResolver.Command, Done>ask(
+            4,
+            workerRef,
+            Duration.ofMinutes(10),
+            (msg, replyTo) -> new CommitResolver.ResolveCommitDetails(
+                msg.coordinates(), msg.commit(), msg.gitRepo(), replyTo)
+        );
 
         return Flow.fromGraph(GraphDSL.create(b -> {
-            final UniformFanOutShape<Pair<String, MavenCoordinates>, Pair<String, MavenCoordinates>> balance = b.add(Balance.create(10));
-            final FlowShape<ArtifactUpdate.GitRepositoryAssociated, Pair<String, MavenCoordinates>> ingest = b.add(
-                getArtifactVersionsFlow);
-
-            b.from(ingest.out())
+            final var balance = b.add(Balance.<CommitResolver.ResolveCommitDetails>create(4));
+            final var zip = b.add(Merge.<Done>create(4));
+            final var add = b.add(registerRepo.via(registerRepoFlow));
+            b.from(add.out())
                 .toFanOut(balance);
-            final var zip = b.add(Merge.<Done>create(10));
-            for (int i = 0; i < 10; i++) {
-                final var register = b.add(registerRepoFlow);
+            for (int i = 0; i < 4; i++) {
+                final var resolver = b.add(flow);
                 b.from(balance.out(i))
-                    .via(register)
+                    .via(resolver)
                     .toInlet(zip.in(i));
+
             }
-            return FlowShape.of(ingest.in(), zip.out());
+            return FlowShape.of(add.in(), zip.out());
         }));
     }
 

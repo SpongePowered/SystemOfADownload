@@ -30,6 +30,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import java.net.URI;
 import java.time.ZonedDateTime;
+import java.util.Optional;
 
 @JsonDeserialize
 public record VersionedCommit(
@@ -38,7 +39,7 @@ public record VersionedCommit(
     String sha,
     Author author,
     Commiter commiter,
-    URI link,
+    Optional<URI> link,
     ZonedDateTime commitDate
 ) {
 
