@@ -11,9 +11,12 @@ locals {
             }
             image = {
                 replicas = 1
-                image_version = "latest"
+                image_version = "0.2-SNAPSHOT"
                 image_name = "spongepowered/systemofadownload-artifact-impl"
             }
+            extra_config = <<-EOF
+                play.filters.cors.allowedOrigins = null
+            EOF
             extra_env = local.default_database_envs
             extra_secret_envs = local.default_secret_based_envs
             kafka_topics = {
@@ -29,9 +32,12 @@ locals {
             }
             image = {
                 replicas = var.environment == "dev" ? 1 : 2
-                image_version = "latest"
+                image_version = "0.2-SNAPSHOT"
                 image_name = "spongepowered/systemofadownload-artifact-query-impl"
             }
+            extra_config = <<-EOF
+                play.filters.cors.allowedOrigins = null
+            EOF
             extra_env = local.default_database_envs
             extra_secret_envs = local.default_secret_based_envs
         }
@@ -54,11 +60,14 @@ locals {
         }
         "versions" = {
             service_name = "versions-server"
-            replicas = var.environment == "dev" ? 1 : 3
+            replicas = var.environment == "dev" ? 2 : 3
             image = {
-                version = "latest"
+                version = "0.2-SNAPSHOT"
                 name = "spongepowered/systemofadownload-versions-impl"
             }
+            extra_config = <<-EOF
+                play.filters.cors.allowedOrigins = null
+            EOF
             extra_env = local.default_database_envs
             extra_secret_envs = local.default_secret_based_envs
             kafka_topics = {
@@ -71,9 +80,12 @@ locals {
             service_name = "versions-query-server"
             replicas = var.environment == "dev" ? 1 : 3
             image = {
-                version = "latest"
+                version = "0.2-SNAPSHOT"
                 name = "spongepowered/systemofadownload-versions-query-impl"
             }
+            extra_config = <<-EOF
+                play.filters.cors.allowedOrigins = null
+            EOF
             extra_env = local.default_database_envs
             extra_secret_env = local.default_secret_based_envs
         }
@@ -81,7 +93,7 @@ locals {
             service_name = "version-synchronizer"
             replicas = 1
             image = {
-                version = "latest"
+                version = "0.2-SNAPSHOT"
                 name = "spongepowered/systemofadownload-version-synchronizer"
             }
             extra_env = local.default_database_envs
