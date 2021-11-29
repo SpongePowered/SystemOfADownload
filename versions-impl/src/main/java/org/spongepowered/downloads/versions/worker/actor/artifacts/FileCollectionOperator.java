@@ -31,6 +31,10 @@ import akka.actor.typed.receptionist.ServiceKey;
 import akka.stream.javadsl.Sink;
 import akka.stream.javadsl.Source;
 import akka.stream.typed.javadsl.ActorFlow;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 
@@ -40,8 +44,14 @@ public final class FileCollectionOperator {
 
     public static final ServiceKey<Request> KEY = ServiceKey.create(Request.class, "file-collection-operator");
 
-    public sealed interface Request {}
+    @JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
+    @JsonSubTypes({
+        @JsonSubTypes.Type(TryFindingCommitForFiles.class)
+    })
+    @JsonDeserialize
+    public sealed interface Request extends Jsonable {}
 
+    @JsonDeserialize
     public static final record TryFindingCommitForFiles(
         List<PotentiallyUsableAsset> files,
         MavenCoordinates coordinates

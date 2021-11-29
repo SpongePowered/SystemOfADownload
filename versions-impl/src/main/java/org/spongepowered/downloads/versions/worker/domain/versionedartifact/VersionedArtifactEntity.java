@@ -40,7 +40,6 @@ import akka.persistence.typed.javadsl.ReplyEffect;
 import akka.persistence.typed.javadsl.RetentionCriteria;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
 import org.spongepowered.downloads.artifact.api.Artifact;
-import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.worker.actor.artifacts.FileCollectionOperator;
 import org.spongepowered.downloads.versions.worker.actor.artifacts.PotentiallyUsableAsset;
 
@@ -54,7 +53,6 @@ public class VersionedArtifactEntity
     private final Function<ArtifactEvent, Set<String>> tagger;
     private final ActorRef<FileCollectionOperator.Request> scanFiles;
     private final ActorContext<VersionedArtifactCommand> ctx;
-    private final MavenCoordinates coordinates;
 
     public static Behavior<VersionedArtifactCommand> create(final EntityContext<VersionedArtifactCommand> context) {
         return Behaviors.setup(ctx -> {
@@ -63,22 +61,19 @@ public class VersionedArtifactEntity
             if (ctx.getLog().isTraceEnabled()) {
                 ctx.getLog().trace("Entity Context {}", context.getEntityId());
             }
-            final var coords = MavenCoordinates.parse(context.getEntityId());
-            return new VersionedArtifactEntity(context, ctx, coords, scanRef);
+            return new VersionedArtifactEntity(context, ctx, scanRef);
         });
     }
 
     private VersionedArtifactEntity(
         final EntityContext<VersionedArtifactCommand> entityContext,
         final ActorContext<VersionedArtifactCommand> ctx,
-        final MavenCoordinates coords,
         final ActorRef<FileCollectionOperator.Request> scanRef
     ) {
         super(PersistenceId.of(entityContext.getEntityTypeKey().name(), entityContext.getEntityId()));
         this.ctx = ctx;
         this.tagger = AkkaTaggerAdapter.fromLagom(entityContext, ArtifactEvent.INSTANCE);
         this.scanFiles = scanRef;
-        this.coordinates = coords;
     }
 
     @Override
@@ -151,36 +146,36 @@ public class VersionedArtifactEntity
         final VersionedArtifactCommand.AddAssets cmd
     ) {
         if (this.ctx.getLog().isTraceEnabled()) {
-            this.ctx.getLog().trace("[{}] Current assets: {}", this.coordinates, state.artifacts());
-            this.ctx.getLog().trace("[{}] Adding assets {}", this.coordinates, cmd.artifacts());
+            this.ctx.getLog().trace("[{}] Current assets: {}", state.coordinates(), state.artifacts());
+            this.ctx.getLog().trace("[{}] Adding assets {}", state.coordinates(), cmd.artifacts());
         }
         return this.Effect()
             .persist(state.addAssets(cmd))
             .thenRun(ns -> {
                 if (this.ctx.getLog().isTraceEnabled()) {
-                    this.ctx.getLog().trace("[{}] Updated assets", this.coordinates);
+                    this.ctx.getLog().trace("[{}] Updated assets", state.coordinates());
                 }
                 if (ns.needsArtifactScan()) {
                     if (this.ctx.getLog().isDebugEnabled()) {
                         this.ctx.getLog().debug(
                             "[{}] Telling FileCollectionOperator to fetch commit from files",
-                            this.coordinates
+                            state.coordinates()
                         );
                     }
                     if (this.ctx.getLog().isTraceEnabled()) {
                         this.ctx.getLog().trace(
-                            "[{}] Assets available {}", this.coordinates, ns.artifacts().map(Artifact::toString));
+                            "[{}] Assets available {}", state.coordinates(), ns.artifacts().map(Artifact::toString));
                     }
                     final var usableAssets = ns.artifacts()
                         .filter(a -> "jar".equalsIgnoreCase(a.extension()))
                         .filter(a -> a.classifier().isEmpty() || a.classifier().filter(""::equals).isPresent())
-                        .map(a -> new PotentiallyUsableAsset(this.coordinates, a.extension(), a.downloadUrl()));
+                        .map(a -> new PotentiallyUsableAsset(state.coordinates(), a.extension(), a.downloadUrl()));
                     if (!usableAssets.isEmpty()) {
                         if (this.ctx.getLog().isDebugEnabled()) {
-                            this.ctx.getLog().debug("[{}] Assets to scan {}", this.coordinates, usableAssets);
+                            this.ctx.getLog().debug("[{}] Assets to scan {}", state.coordinates(), usableAssets);
                         }
                         this.scanFiles.tell(
-                            new FileCollectionOperator.TryFindingCommitForFiles(usableAssets, this.coordinates));
+                            new FileCollectionOperator.TryFindingCommitForFiles(usableAssets, state.coordinates()));
                     }
                 }
             })

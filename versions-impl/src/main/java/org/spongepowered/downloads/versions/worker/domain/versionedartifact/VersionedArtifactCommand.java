@@ -26,6 +26,8 @@ package org.spongepowered.downloads.versions.worker.domain.versionedartifact;
 
 import akka.Done;
 import akka.actor.typed.ActorRef;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.collection.List;
@@ -35,6 +37,14 @@ import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 
 import java.net.URI;
 
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = VersionedArtifactCommand.Register.class, name = "register"),
+    @JsonSubTypes.Type(value = VersionedArtifactCommand.AddAssets.class, name = "add-assets"),
+    @JsonSubTypes.Type(value = VersionedArtifactCommand.MarkFilesAsErrored.class, name = "errored-assets"),
+    @JsonSubTypes.Type(value = VersionedArtifactCommand.RegisterRawCommit.class, name = "register-sha"),
+    @JsonSubTypes.Type(value = VersionedArtifactCommand.RegisterResolvedCommit.class, name = "register-commit"),
+})
 @JsonDeserialize
 public sealed interface VersionedArtifactCommand extends Jsonable {
 
