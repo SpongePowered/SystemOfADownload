@@ -143,7 +143,6 @@ public final class CommitResolver {
                         final var clone = Git.cloneRepository()
                             .setDirectory(repoDirectory.toFile())
                             .setProgressMonitor(writer)
-                            .setNoTags()
                             .setCloneAllBranches(false)
                             .setCloneSubmodules(true)
                             .setURI(remoteRepo.toString());
@@ -218,7 +217,7 @@ public final class CommitResolver {
                                 commitSha,
                                 author,
                                 committer,
-                                commitLink,
+                                Optional.of(commitLink),
                                 commitDateTime
                             );
                         });
