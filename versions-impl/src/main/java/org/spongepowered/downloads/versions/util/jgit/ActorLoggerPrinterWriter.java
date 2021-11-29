@@ -41,7 +41,9 @@ public final class ActorLoggerPrinterWriter extends BatchingProgressMonitor impl
     protected void onUpdate(final String taskName, final int workCurr) {
         StringBuilder s = new StringBuilder();
         format(s, taskName, workCurr);
-        this.logger.debug(s.toString());
+        if (this.logger.isDebugEnabled()) {
+            this.logger.debug(s.toString());
+        }
     }
 
     private void format(StringBuilder s, String taskName, int workCurr) {
@@ -56,7 +58,9 @@ public final class ActorLoggerPrinterWriter extends BatchingProgressMonitor impl
     protected void onEndTask(final String taskName, final int workCurr) {
         StringBuilder s = new StringBuilder();
         format(s, taskName, workCurr);
-        this.logger.debug(s.toString());
+        if (this.logger.isDebugEnabled()) {
+            this.logger.debug(s.toString());
+        }
     }
 
     @Override

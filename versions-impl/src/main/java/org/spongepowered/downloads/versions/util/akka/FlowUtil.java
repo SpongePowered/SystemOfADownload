@@ -92,7 +92,9 @@ public final class FlowUtil {
             .getOrElse(count);
 
         final Flow<T, Done, NotUsed> ignored = Flow.fromFunction(message -> {
-            LOGGER.debug("ignoring message {}", message);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("ignoring message {}", message);
+            }
             return Done.done();
         });
         return Flow.fromGraph(GraphDSL.create(builder -> {

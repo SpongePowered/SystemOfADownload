@@ -211,14 +211,18 @@ public final class ArtifactSyncWorker {
         final List<MavenCoordinates> pending
     ) {
         return Behaviors.setup(ctx -> {
-            ctx.getLog().debug("Starting work on {} with {} in queue", working, pending.size());
+            if (ctx.getLog().isDebugEnabled()) {
+                ctx.getLog().debug("Starting work on {} with {} in queue", working, pending.size());
+            }
             return Behaviors.receive(Child.class)
                 .onMessage(
                     RequestSingleRegistration.class,
                     msg -> queuedRegistrations(service, auth, working, pending.append(msg.coordinates))
                 )
                 .onMessage(Completed.class, msg -> {
-                    ctx.getLog().debug("Completed work on {}. {} remain in queue", working, pending.size());
+                    if (ctx.getLog().isDebugEnabled()) {
+                        ctx.getLog().debug("Completed work on {}. {} remain in queue", working, pending.size());
+                    }
                     if (pending.isEmpty()) {
                         return registerNewVersion(service, auth);
                     }
@@ -227,7 +231,9 @@ public final class ArtifactSyncWorker {
                     return queuedRegistrations(service, auth, next, pending.tail());
                 })
                 .onMessage(Redundant.class, msg -> {
-                    ctx.getLog().debug("Redundant work on {}, {} in queue", working, pending.size());
+                    if (ctx.getLog().isDebugEnabled()) {
+                        ctx.getLog().debug("Redundant work on {}, {} in queue", working, pending.size());
+                    }
                     if (pending.isEmpty()) {
                         return registerNewVersion(service, auth);
                     }

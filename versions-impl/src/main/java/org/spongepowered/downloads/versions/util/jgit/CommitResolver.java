@@ -113,6 +113,9 @@ public final class CommitResolver {
         final ActorRef<CommitDetailsRegistrar.Command> registrar
     ) {
         return msg -> {
+            if (ctx.getLog().isTraceEnabled()) {
+                ctx.getLog().trace("Starting commit resolution with {}", msg);
+            }
             final ObjectId objectId = ObjectId.fromString(msg.commit);
             final var tempdirPrefix = String.format(
                 "soad-%s-%s", msg.coordinates.artifactId,
@@ -134,7 +137,9 @@ public final class CommitResolver {
                             tempdirPrefix
                         );
 
-                        log.info("Preparing directory for checkout {}", repoDirectory);
+                        if (ctx.getLog().isTraceEnabled()) {
+                            log.trace("Preparing directory for checkout {}", repoDirectory);
+                        }
                         final var clone = Git.cloneRepository()
                             .setDirectory(repoDirectory.toFile())
                             .setProgressMonitor(writer)
@@ -142,7 +147,9 @@ public final class CommitResolver {
                             .setCloneAllBranches(false)
                             .setCloneSubmodules(true)
                             .setURI(remoteRepo.toString());
-                        log.debug("Checking out {} to {}", remoteRepo, repoDirectory);
+                        if (ctx.getLog().isTraceEnabled()) {
+                            log.trace("Checking out {} to {}", remoteRepo, repoDirectory);
+                        }
                         final var git = Try.of(clone::call)
                             .flatMapTry(repo ->
                                 Try.of(() -> Files.walkFileTree(
@@ -167,17 +174,27 @@ public final class CommitResolver {
                         final var resolved = revWalk.mapTry(walker -> {
                             final var revCommit = walker.lookupCommit(objectId);
                             walker.parseBody(revCommit);
-                            log.trace("Commit Body Parsed {}", revCommit);
+                            if (log.isTraceEnabled()) {
+                                log.trace("Commit Body Parsed {}", revCommit);
+                            }
                             walker.parseHeaders(revCommit);
-                            log.trace("Commit Headers Parsed {}", revCommit.getShortMessage());
+                            if (log.isTraceEnabled()) {
+                                log.trace("Commit Headers Parsed {}", revCommit.getShortMessage());
+                            }
                             final var commitTime = revCommit.getCommitTime();
-                            log.trace("Commit Revision {}", revCommit.getCommitTime());
-                            log.debug("{} at {} has {}", msg.coordinates, msg.commit, commitTime);
+                            if (log.isTraceEnabled()) {
+                                log.trace("Commit Revision {}", revCommit.getCommitTime());
+                            }
+                            if (log.isDebugEnabled()) {
+                                log.debug("{} at {} has {}", msg.coordinates, msg.commit, commitTime);
+                            }
                             return revCommit;
                         });
                         final var commitExtracted = resolved.toJavaOptional();
                         final var detailsOpt = commitExtracted.map(commit -> {
-                            log.info("Commit Resolved {}", commit);
+                            if (ctx.getLog().isTraceEnabled()) {
+                                log.trace("Commit Resolved {}", commit);
+                            }
                             final var commitMessage = commit.getShortMessage();
                             final var commitBody = commit.getFullMessage();
                             final var commitSha = commit.getId().getName();
@@ -217,6 +234,9 @@ public final class CommitResolver {
                 .find(derp -> true)
                 .toJavaOptional();
 
+            details.ifPresent(d -> {
+                ctx.getLog().info("[{}] Commit resolved: {}", msg.coordinates, d._2);
+            });
             final var future = details.map(d ->
                 AskPattern.<CommitDetailsRegistrar.Command, Done>ask(
                     registrar,

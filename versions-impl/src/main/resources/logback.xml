@@ -15,7 +15,7 @@
         <appender-ref ref="CONSOLE" />
     </appender>
 
-    <logger name="org.spongepowered.downloads.versions.worker" level="DEBUG"/>
+    <logger name="org.spongepowered.downloads.versions.worker" level="INFO"/>
 
 
     <logger name="play" level="INFO" />
