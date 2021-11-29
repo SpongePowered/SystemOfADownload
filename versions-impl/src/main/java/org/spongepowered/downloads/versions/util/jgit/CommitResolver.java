@@ -33,6 +33,12 @@ import akka.actor.typed.javadsl.AskPattern;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.receptionist.ServiceKey;
 import akka.japi.function.Function;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.Tuple;
 import io.vavr.Tuple2;
 import io.vavr.collection.List;
@@ -64,22 +70,44 @@ public final class CommitResolver {
 
     public static final ServiceKey<Command> SERVICE_KEY = ServiceKey.create(Command.class, "commit-resolver");
 
-    public sealed interface Command {
+    @JsonDeserialize
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+    @JsonSubTypes({
+        @JsonSubTypes.Type(ResolveCommitDetails.class),
+        @JsonSubTypes.Type(CommitDetailsRegistered.class),
+        @JsonSubTypes.Type(AppendFileForDeletion.class),
+
+    })
+    public sealed interface Command extends Jsonable {
     }
 
+    @JsonTypeName("resolve-commit-details")
     public static record ResolveCommitDetails(
         MavenCoordinates coordinates,
         String commit,
         List<URI> gitRepo,
         ActorRef<Done> replyTo
     ) implements Command {
+
+        @JsonCreator
+        public ResolveCommitDetails {
+        }
     }
 
+    @JsonTypeName("commit-details-registered")
     private static record CommitDetailsRegistered(ActorRef<Done> replyTo) implements Command {
 
+        @JsonCreator
+        private CommitDetailsRegistered {
+        }
     }
 
+    @JsonTypeName("append-file-for-deletion")
     private static record AppendFileForDeletion(Path path) implements Command {
+
+        @JsonCreator
+        private AppendFileForDeletion {
+        }
     }
 
     public static Behavior<Command> resolveCommit(ActorRef<CommitDetailsRegistrar.Command> registrar) {

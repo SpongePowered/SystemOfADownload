@@ -29,6 +29,12 @@ import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 import org.spongepowered.downloads.versions.worker.domain.versionedartifact.VersionedArtifactCommand;
@@ -39,16 +45,32 @@ import java.time.Duration;
 
 public final class CommitDetailsRegistrar {
 
-    public sealed interface Command {}
+    @JsonDeserialize
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+    @JsonSubTypes({
+        @JsonSubTypes.Type(HandleVersionedCommitReport.class),
+        @JsonSubTypes.Type(CompletedWork.class)
+    })
+    public sealed interface Command extends Jsonable {}
 
+    @JsonTypeName("handle-version-commit")
     public static final record HandleVersionedCommitReport(
         URI repo,
         VersionedCommit versionedCommit,
         MavenCoordinates coordinates,
         ActorRef<Done> replyTo
-    ) implements Command {}
+    ) implements Command {
+        @JsonCreator
+        public HandleVersionedCommitReport {
+        }
+    }
 
-    private static final record CompletedWork(ActorRef<Done> replyTo) implements Command {}
+    @JsonTypeName("completed-work")
+    private static final record CompletedWork(ActorRef<Done> replyTo) implements Command {
+        @JsonCreator
+        public CompletedWork {
+        }
+    }
 
     public static Behavior<Command> register() {
         return Behaviors.setup(ctx -> {
