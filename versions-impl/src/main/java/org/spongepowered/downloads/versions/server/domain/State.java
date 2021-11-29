@@ -189,7 +189,8 @@ public interface State {
 
         public java.util.List<ACEvent> addVersion(MavenCoordinates coordinates) {
             final var versions = this.collection
-                .keySet();
+                .keySet()
+                .toSortedSet(Comparator.comparing(ComparableVersion::new));
             final var newIndex = versions
                 .add(coordinates.version)
                 .toList()

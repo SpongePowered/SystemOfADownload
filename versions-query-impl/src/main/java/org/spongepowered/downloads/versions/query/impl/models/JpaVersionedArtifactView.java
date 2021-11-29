@@ -68,8 +68,6 @@ import java.util.Set;
         query = """
                 select count(v) from VersionedArtifactView v
                 where v.groupId = :groupId and v.artifactId = :artifactId and v.recommended = :recommended
-                group by v.version, v.ordering
-                 order by v.ordering
                 """
     ),
     @NamedQuery(

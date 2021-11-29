@@ -54,4 +54,20 @@ public class VersionedArtifactAggregateTest {
         Assertions.assertEquals(newArtifacts.get(), List.of(exampleArtifact, exampleNoClassifier), "List should be equal");
     }
 
+    @Test
+    public void stateReordering() {
+        final ArtifactCoordinates exampleCoordinates = new ArtifactCoordinates("com.example", "example");
+        State.ACState example = State.empty().register(new ACEvent.ArtifactCoordinatesUpdated(exampleCoordinates));
+        final var acEvents = example.addVersion(exampleCoordinates.version("0.0.1"));
+        Assertions.assertEquals(acEvents.size(), 1, "Should have one event");
+        final var zero1 = example.withVersion("0.0.1");
+        final var newEvents = zero1.addVersion(exampleCoordinates.version("0.0.2"));
+        Assertions.assertEquals(newEvents.size(), 1, "0.0.2 should be the only new event");
+        final var zero3 = zero1.withVersion("0.0.3");
+        final var addingZero2 = zero3.addVersion(exampleCoordinates.version("0.0.2"));
+        Assertions.assertEquals(addingZero2.size(), 2, "Should have 2 events");
+        Assertions.assertEquals(addingZero2.get(0), new ACEvent.ArtifactVersionRegistered(exampleCoordinates.version("0.0.2"), 1), "Should have the new event");
+        Assertions.assertEquals(addingZero2.get(1), new ACEvent.ArtifactVersionMoved(exampleCoordinates.version("0.0.2"), 1, List.of(exampleCoordinates.version("0.0.3"))), "Should have the old event");
+    }
+
 }
