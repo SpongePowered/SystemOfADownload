@@ -26,8 +26,12 @@ package org.spongepowered.downloads.versions.worker.domain.gitmanaged;
 
 import akka.Done;
 import akka.actor.typed.ActorRef;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.collection.List;
 import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
@@ -35,19 +39,61 @@ import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 
 import java.net.URI;
 
-public sealed interface GitCommand {
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonDeserialize
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = GitCommand.RegisterVersion.class, name = "register-version"),
+    @JsonSubTypes.Type(value = GitCommand.RegisterRepository.class, name = "register-repository"),
+    @JsonSubTypes.Type(value = GitCommand.RegisterRawCommit.class, name = "register-raw-commit"),
+    @JsonSubTypes.Type(value = GitCommand.GetRepositories.class, name = "get-repositories"),
+    @JsonSubTypes.Type(value = GitCommand.GetUnresolvedVersions.class, name = "get-unresolved-versions"),
+    @JsonSubTypes.Type(value = GitCommand.MarkVersionAsResolved.class, name = "mark-version-as-resolved"),
+})
+public sealed interface GitCommand extends Jsonable {
 
-    final record RegisterVersion(MavenCoordinates coordinates) implements GitCommand {}
+    final record RegisterVersion(MavenCoordinates coordinates) implements GitCommand {
+        @JsonCreator
+        public RegisterVersion {
+        }
+    }
 
-    final record RegisterRepository(URI repository, ActorRef<Done> replyTo) implements GitCommand {}
+    final record RegisterRepository(URI repository, ActorRef<Done> replyTo) implements GitCommand {
+        @JsonCreator
+        public RegisterRepository {
+        }
+    }
 
-    final record RegisterRawCommit(MavenCoordinates coordinates, String commitSha, ActorRef<Done> replyTo) implements GitCommand {}
+    final record RegisterRawCommit(
+        MavenCoordinates coordinates,
+        String commitSha,
+        ActorRef<Done> replyTo
+    ) implements GitCommand {
+        @JsonCreator
+        public RegisterRawCommit {
+        }
+    }
 
-    final record GetRepositories(ActorRef<List<URI>> replyTo) implements GitCommand {}
+    final record GetRepositories(ActorRef<List<URI>> replyTo) implements GitCommand {
+        @JsonCreator
+        public GetRepositories {
+        }
+    }
 
-    final record GetUnresolvedVersions(ActorRef<UnresolvedWork> replyTo) implements GitCommand {}
+    final record GetUnresolvedVersions(ActorRef<UnresolvedWork> replyTo) implements GitCommand {
+        @JsonCreator
+        public GetUnresolvedVersions {
+        }
+    }
 
-    final record MarkVersionAsResolved(MavenCoordinates coordinates, VersionedCommit commit, ActorRef<Done> replyTo) implements GitCommand {}
+    final record MarkVersionAsResolved(
+        MavenCoordinates coordinates,
+        VersionedCommit commit,
+        ActorRef<Done> replyTo
+    ) implements GitCommand {
+        @JsonCreator
+        public MarkVersionAsResolved {
+        }
+    }
 
     @JsonDeserialize
     @JsonSerialize
@@ -55,6 +101,10 @@ public sealed interface GitCommand {
         Map<MavenCoordinates, String> unresolvedCommits,
         List<URI> repositories
     ) {
+        @JsonCreator
+        public UnresolvedWork {
+        }
+
         public boolean isEmpty() {
             return unresolvedCommits.isEmpty();
         }

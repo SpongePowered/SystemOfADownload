@@ -29,6 +29,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
 
 public interface TagRegistration {
@@ -36,12 +37,13 @@ public interface TagRegistration {
     @JsonDeserialize
     final record Register(@JsonProperty("tag") ArtifactTagEntry entry) {}
 
+    @JsonDeserialize
     @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
     @JsonSubTypes({
         @JsonSubTypes.Type(value = Response.TagAlreadyRegistered.class, name = "AlreadyRegistered"),
         @JsonSubTypes.Type(value = Response.TagSuccessfullyRegistered.class, name = "Success")
     })
-    interface Response {
+    interface Response extends Jsonable {
 
         final record TagAlreadyRegistered(@JsonProperty String name) implements TagRegistration.Response {}
 

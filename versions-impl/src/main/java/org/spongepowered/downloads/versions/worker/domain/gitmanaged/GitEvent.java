@@ -24,8 +24,11 @@
  */
 package org.spongepowered.downloads.versions.worker.domain.gitmanaged;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
@@ -36,7 +39,8 @@ import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 
 import java.net.URI;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
+@JsonDeserialize
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
     @JsonSubTypes.Type(value = GitEvent.VersionRegistered.class),
     @JsonSubTypes.Type(value = GitEvent.RepositoryRegistered.class),
@@ -52,8 +56,28 @@ public sealed interface GitEvent extends AggregateEvent<GitEvent>, Jsonable {
         return INSTANCE;
     }
 
-    final record VersionRegistered(MavenCoordinates coordinates) implements GitEvent {}
-    final record RepositoryRegistered(URI repository) implements GitEvent {}
-    final record CommitRegistered(MavenCoordinates coordinates, String commit) implements GitEvent {}
-    final record CommitResolved(MavenCoordinates coordinates, VersionedCommit resolvedCommit) implements GitEvent {}
+    @JsonTypeName("version-registered")
+    final record VersionRegistered(MavenCoordinates coordinates) implements GitEvent {
+        @JsonCreator
+        public VersionRegistered {
+        }
+    }
+    @JsonTypeName("repository-registered")
+    final record RepositoryRegistered(URI repository) implements GitEvent {
+        @JsonCreator
+        public RepositoryRegistered {
+        }
+    }
+    @JsonTypeName("commit-extracted")
+    final record CommitRegistered(MavenCoordinates coordinates, String commit) implements GitEvent {
+        @JsonCreator
+        public CommitRegistered {
+        }
+    }
+    @JsonTypeName("commit-resolved")
+    final record CommitResolved(MavenCoordinates coordinates, VersionedCommit resolvedCommit) implements GitEvent {
+        @JsonCreator
+        public CommitResolved {
+        }
+    }
 }

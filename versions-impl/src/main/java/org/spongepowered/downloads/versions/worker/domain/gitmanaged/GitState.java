@@ -24,8 +24,10 @@
  */
 package org.spongepowered.downloads.versions.worker.domain.gitmanaged;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.collection.HashMap;
@@ -38,7 +40,7 @@ import java.net.URI;
 import java.util.Optional;
 
 @JsonDeserialize
-@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
     @JsonSubTypes.Type(GitState.Empty.class),
     @JsonSubTypes.Type(GitState.Registered.class)
@@ -59,7 +61,11 @@ public sealed interface GitState extends Jsonable {
 
     GitState withRawCommit(MavenCoordinates coordinates, String commitSha);
 
+    @JsonTypeName("empty")
     final record Empty() implements GitState {
+        @JsonCreator
+        public Empty {
+        }
 
         @Override
         public GitState withVersion(final MavenCoordinates coordinates) {
@@ -95,11 +101,16 @@ public sealed interface GitState extends Jsonable {
         }
     }
 
+    @JsonTypeName("registered")
     final record Registered(
         List<URI> repository,
         Map<MavenCoordinates, Optional<String>> commits,
         Map<MavenCoordinates, VersionedCommit> resolved
     ) implements GitState {
+
+        @JsonCreator
+        public Registered {
+        }
 
         @Override
         public GitState withVersion(final MavenCoordinates coordinates) {

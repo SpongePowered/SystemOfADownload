@@ -26,6 +26,7 @@ package org.spongepowered.downloads.versions.worker.domain.versionedartifact;
 
 import akka.Done;
 import akka.actor.typed.ActorRef;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -52,15 +53,24 @@ public sealed interface VersionedArtifactCommand extends Jsonable {
         MavenCoordinates coordinates,
         ActorRef<Done> replyTo
     ) implements VersionedArtifactCommand {
+        @JsonCreator
+        public Register {
+        }
     }
 
     final record AddAssets(
         List<Artifact> artifacts,
         ActorRef<Done> replyTo
     ) implements VersionedArtifactCommand {
+        @JsonCreator
+        public AddAssets {
+        }
     }
 
     final record MarkFilesAsErrored() implements VersionedArtifactCommand {
+        @JsonCreator
+        public MarkFilesAsErrored {
+        }
     }
 
     final record RegisterRawCommit(String commitSha) implements VersionedArtifactCommand {}
@@ -71,5 +81,8 @@ public sealed interface VersionedArtifactCommand extends Jsonable {
         ActorRef<Done> replyTo
     )
         implements VersionedArtifactCommand {
+        @JsonCreator
+        public RegisterResolvedCommit {
+        }
     }
 }
