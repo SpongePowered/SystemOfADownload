@@ -61,13 +61,15 @@ import java.util.Set;
         query = """
                 select count(v) from VersionedArtifactView v
                 where v.groupId = :groupId and v.artifactId = :artifactId
-                 """
+                """
     ),
     @NamedQuery(
         name = "VersionedArtifactView.recommendedCount",
         query = """
                 select count(v) from VersionedArtifactView v
                 where v.groupId = :groupId and v.artifactId = :artifactId and v.recommended = :recommended
+                group by v.version, v.ordering
+                 order by v.ordering
                 """
     ),
     @NamedQuery(
@@ -123,6 +125,9 @@ public class JpaVersionedArtifactView implements Serializable {
 
     @Column(name = "manual_recommendation")
     private boolean manuallyRecommended;
+
+    @Column(name = "ordering")
+    private int ordering;
 
     @OneToMany(
         targetEntity = JpaTaggedVersion.class,

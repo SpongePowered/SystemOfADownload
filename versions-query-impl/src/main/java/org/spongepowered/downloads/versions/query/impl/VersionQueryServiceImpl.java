@@ -230,11 +230,9 @@ public record VersionQueryServiceImpl(JpaSession session)
             ))
             .setParameter("groupId", query.coordinates.groupId)
             .setParameter("artifactId", query.coordinates.artifactId)
+            .setMaxResults(query.offset + query.limit)
             .getResultList();
         final var mappedByCoordinates = untaggedVersions.stream()
-            .sorted(Comparator.comparing((JpaVersionedArtifactView coords) -> {
-                return new ComparableVersion(coords.version());
-            }).reversed())
             .collect(List.collector())
             .drop(query.offset)
             .take(query.limit);

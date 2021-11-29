@@ -88,6 +88,9 @@ class JpaArtifactVersion implements Serializable {
         nullable = false)
     private String version;
 
+    @Column(name = "ordering")
+    private int ordering;
+
     @OneToMany(
         targetEntity = JpaVersionedArtifactAsset.class,
         cascade = CascadeType.ALL,
@@ -118,6 +121,10 @@ class JpaArtifactVersion implements Serializable {
     public void addAsset(final JpaVersionedArtifactAsset asset) {
         this.assets.add(asset);
         asset.setVersion(this);
+    }
+
+    public void setOrdering(final int ordering) {
+        this.ordering = ordering;
     }
 
     @Override

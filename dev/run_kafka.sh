@@ -34,6 +34,7 @@ if [ ! "${has_kafka}" ]; then
       -e KAFKA_ADVERTISED_HOST_NAME=${local_ip}         \
       -e KAFKA_ZOOKEEPER_CONNECT=${local_ip}:2181       \
       -p 9092:9092                                      \
+      -e KAFKA_CREATE_TOPICS="group-activity:1:1,artifact-details-update:6:1" \
       wurstmeister/kafka
 fi
 

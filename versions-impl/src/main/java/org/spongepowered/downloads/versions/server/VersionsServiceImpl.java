@@ -245,7 +245,7 @@ public class VersionsServiceImpl implements VersionsService,
         final ACEvent event = pair.first();
         final ArtifactUpdate update;
         if (event instanceof ACEvent.ArtifactVersionRegistered r) {
-            update = new ArtifactUpdate.ArtifactVersionRegistered(r.version);
+            update = new ArtifactUpdate.ArtifactVersionRegistered(r.version());
         } else if (event instanceof ACEvent.ArtifactTagRegistered r) {
             update = new ArtifactUpdate.TagRegistered(r.coordinates(), r.entry());
         } else if (event instanceof ACEvent.VersionedCollectionAdded c) {

@@ -61,6 +61,10 @@ import java.util.Objects;
     @JsonSubTypes.Type(
         value = ACEvent.PromotionSettingModified.class,
         name = "promotion-settings-modified"
+    ),
+    @JsonSubTypes.Type(
+        value = ACEvent.ArtifactVersionMoved.class,
+        name = "versions-resorted"
     )
 })
 public interface ACEvent extends AggregateEvent<ACEvent>, Jsonable {
@@ -104,13 +108,14 @@ public interface ACEvent extends AggregateEvent<ACEvent>, Jsonable {
         }
     }
 
-    final class ArtifactVersionRegistered implements ACEvent {
+    record ArtifactVersionRegistered(
+        MavenCoordinates version,
+        int sorting
+    ) implements ACEvent {
         @Serial private static final long serialVersionUID = 0L;
-        public final MavenCoordinates version;
 
         @JsonCreator
-        public ArtifactVersionRegistered(final MavenCoordinates version) {
-            this.version = version;
+        public ArtifactVersionRegistered {
         }
 
         @Override
@@ -153,5 +158,13 @@ public interface ACEvent extends AggregateEvent<ACEvent>, Jsonable {
         ArtifactCoordinates coordinates, ArtifactCollection collection,
         List<Artifact> newArtifacts
     ) implements ACEvent {
+    }
+
+    @JsonDeserialize
+    final record ArtifactVersionMoved(
+        MavenCoordinates coordinates,
+        int newIndex,
+        List<MavenCoordinates> reshuffled
+    ) implements ACEvent{
     }
 }

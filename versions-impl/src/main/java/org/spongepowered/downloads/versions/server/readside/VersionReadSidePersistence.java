@@ -97,7 +97,7 @@ public class VersionReadSidePersistence {
                     }
                 })
                 .setEventHandler(ACEvent.ArtifactVersionRegistered.class, (em, versionRegistered) -> {
-                    final var coordinates = versionRegistered.version;
+                    final var coordinates = versionRegistered.version();
                     final var query = em.createNamedQuery(
                         "Artifact.selectByGroupAndArtifact",
                         JpaArtifact.class
@@ -118,6 +118,7 @@ public class VersionReadSidePersistence {
                         .orElseGet(() -> {
                             final var jpaArtifactVersion = new JpaArtifactVersion();
                             jpaArtifactVersion.setVersion(version);
+                            jpaArtifactVersion.setOrdering(versionRegistered.sorting());
                             artifact.addVersion(jpaArtifactVersion);
                             refresher.tell(new VersionedTagWorker.RefreshVersionTags());
                             return jpaArtifactVersion;
@@ -191,6 +192,20 @@ public class VersionReadSidePersistence {
                             versionedAsset.setSha1(asset.sha1().getBytes(StandardCharsets.UTF_8));
                             versionedAsset.setExtension(asset.extension());
                         });
+                })
+                .setEventHandler(ACEvent.ArtifactVersionMoved.class, (em, event) -> {
+                    event.reshuffled().forEachWithIndex((v, i) -> {
+                        final var version = em.createNamedQuery(
+                                "ArtifactVersion.findByCoordinates",
+                                JpaArtifactVersion.class
+                            )
+                            .setParameter("groupId", v.groupId)
+                            .setParameter("artifactId", v.artifactId)
+                            .setParameter("version", v.version)
+                            .setMaxResults(1)
+                            .getSingleResult();
+                        version.setOrdering(i + event.newIndex());
+                    });
                 })
                 .build();
         }

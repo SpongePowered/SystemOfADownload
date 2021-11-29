@@ -88,7 +88,7 @@ public final class VersionedArtifactAggregate
             .onEvent(ACEvent.ArtifactTagRegistered.class, (state1, event1) -> state1.withTag(event1.entry()))
             .onEvent(
                 ACEvent.ArtifactVersionRegistered.class,
-                (state2, event2) -> state2.withVersion(event2.version.version)
+                (state2, event2) -> state2.withVersion(event2.version().version)
             )
             .onEvent(
                 ACEvent.PromotionSettingModified.class,
@@ -103,6 +103,7 @@ public final class VersionedArtifactAggregate
                     return newState;
                 }
             )
+            .onEvent(ACEvent.ArtifactVersionMoved.class, (state, event) -> state)
         ;
         return builder.build();
     }
@@ -176,7 +177,7 @@ public final class VersionedArtifactAggregate
             );
         }
         return this.Effect()
-            .persist(new ACEvent.ArtifactVersionRegistered(cmd.coordinates()))
+            .persist(state.addVersion(cmd.coordinates()))
             .thenReply(cmd.replyTo(), (s) -> new VersionRegistration.Response.RegisteredArtifact(cmd.coordinates()));
     }
 

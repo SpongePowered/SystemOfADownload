@@ -186,5 +186,22 @@ public interface State {
                 this.manualPromotionAllowed
             );
         }
+
+        public java.util.List<ACEvent> addVersion(MavenCoordinates coordinates) {
+            final var versions = this.collection
+                .keySet();
+            final var newIndex = versions
+                .add(coordinates.version)
+                .toList()
+                .indexOf(coordinates.version);
+            final var versionRegistered = new ACEvent.ArtifactVersionRegistered(coordinates, newIndex);
+            final var events = List.<ACEvent>empty();
+            if (newIndex >= versions.size()) {
+                return events.append(versionRegistered).toJavaList();
+            }
+            final var strings = versions.toList().subSequence(newIndex);
+            final var versionMoved = new ACEvent.ArtifactVersionMoved(coordinates, newIndex, strings.map(this.coordinates::version));
+            return events.append(versionRegistered).append(versionMoved).toJavaList();
+        }
     }
 }

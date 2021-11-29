@@ -16,7 +16,7 @@
     </appender>
 
     <logger name="org.spongepowered.downloads.versions.worker" level="DEBUG"/>
-    <logger name="org.spongepowered.synchronizer.actor" level="DEBUG"/>
+    <logger name="org.spongepowered.synchronizer.actor" level="INFO"/>
 
 
     <logger name="play" level="INFO" />
