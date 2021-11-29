@@ -320,6 +320,23 @@
             order by v.ordering
         </createView>
     </changeSet>
+    <changeSet id="20211128-21" author="gabizou">
+        <dropView viewName="versioned_changelogs" schemaName="version"/>
+        <createView viewName="versioned_changelogs"
+                    schemaName="version">
+            select distinct a.group_id, a.artifact_id, v.version, v.ordering, v.id as version_id, vc.commit_sha, vc.repo, vc.branch, vc.changelog
+            from version.version_changelogs vc
+            inner join version.artifact_versions v on v.id = vc.version_id
+            inner join version.artifacts a on a.id = v.artifact_id
+            order by v.ordering desc
+        </createView>
+        <dropView viewName="versioned_artifacts" schemaName="version"/>
+        <createView viewName="versioned_artifacts" schemaName="version">
+            select distinct a.artifact_id, a.group_id, v.version, v.ordering, v.recommended, v.manual_recommendation
+            from version.artifacts a inner join version.artifact_versions v on a.id = v.artifact_id
+            order by v.ordering desc
+        </createView>
+    </changeSet>
 
 
 </databaseChangeLog>
