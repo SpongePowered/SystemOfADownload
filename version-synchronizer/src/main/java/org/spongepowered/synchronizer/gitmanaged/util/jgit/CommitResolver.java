@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.util.jgit;
+package org.spongepowered.synchronizer.gitmanaged.util.jgit;
 
 import akka.Done;
 import akka.actor.typed.ActorRef;
@@ -47,8 +47,8 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+import org.spongepowered.downloads.versions.api.delegates.CommitDetailsRegistrar;
 import org.spongepowered.downloads.versions.api.models.VersionedCommit;
-import org.spongepowered.downloads.versions.worker.consumer.CommitDetailsRegistrar;
 
 import java.io.IOException;
 import java.net.URI;
@@ -82,7 +82,7 @@ public final class CommitResolver {
     }
 
     @JsonTypeName("resolve-commit-details")
-    public static record ResolveCommitDetails(
+    public record ResolveCommitDetails(
         MavenCoordinates coordinates,
         String commit,
         List<URI> gitRepo,
@@ -95,7 +95,7 @@ public final class CommitResolver {
     }
 
     @JsonTypeName("commit-details-registered")
-    private static record CommitDetailsRegistered(ActorRef<Done> replyTo) implements Command {
+    private record CommitDetailsRegistered(ActorRef<Done> replyTo) implements Command {
 
         @JsonCreator
         private CommitDetailsRegistered {
@@ -103,7 +103,7 @@ public final class CommitResolver {
     }
 
     @JsonTypeName("append-file-for-deletion")
-    private static record AppendFileForDeletion(Path path) implements Command {
+    private record AppendFileForDeletion(Path path) implements Command {
 
         @JsonCreator
         private AppendFileForDeletion {

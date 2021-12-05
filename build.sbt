@@ -181,8 +181,37 @@ def apiSoadProject(name: String) =
     )
   )
 
+lazy val `soad-akka-utils` = soadProject("akka-utils").settings(
+  libraryDependencies ++= Seq(
+    jacksonDataBind,
+    jacksonDataTypeJsr310,
+    jacksonDataformatCbor,
+    jacksonDatatypeJdk8,
+    jacksonParameterNames,
+    jacksonParanamer,
+    jacksonScala,
+    jacksonGuava, // Eventually not needed when we migrate off lagom
+    jacksonPcollections, // Eventually not needed when we migrate off lagom
+    // lagom for akka
+    lagomJavadslApi,
+    //Language Features for Serialization/Deserialization
+    vavrJackson,
+    // Override guice from Lagom to support Java 16
+    guice,
+    // Ensure the play filter helpers are included
+    playFilterHelpers,
+    //Test Dependencies
+    lagomJavadslTestKit,
+    junit, // Always enable Junit 5
+    jupiterInterface
+  )
+)
+
 def serverSoadProject(name: String) =
-  soadProject(name).enablePlugins(LagomJava, DockerPlugin).settings(
+  soadProject(name)
+          .enablePlugins(LagomJava, DockerPlugin)
+          .dependsOn(`soad-akka-utils`)
+          .settings(
     libraryDependencies ++= Seq(
       // Bump Jackson over Lagom's jackson
       jacksonDataBind,
@@ -325,7 +354,9 @@ lazy val `version-synchronizer` = serverSoadProject("version-synchronizer").depe
     hibernate,
     postgres,
     //XML Deserialization - to interpret Maven's metadata.xml
-    jacksonDataformatXml
+    jacksonDataformatXml,
+    // Jgit
+    jgit,
   )
 )
 

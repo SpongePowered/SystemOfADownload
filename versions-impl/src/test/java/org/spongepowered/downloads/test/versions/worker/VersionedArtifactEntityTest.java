@@ -94,9 +94,10 @@ public class VersionedArtifactEntityTest {
 
     @Test
     public void testAssetRegistration() throws URISyntaxException {
+        final var coordinates = MavenCoordinates.parse("com.example:example:1.0.0");
         this.eventSourcedTestKit
             .<Done>runCommand(ref -> new VersionedArtifactCommand.Register(
-                MavenCoordinates.parse("com.example:example:1.0.0"), ref)
+                coordinates, ref)
             )
             .state();
         final var testJarPath = this.getClass().getClassLoader().getResource("test-jar.jar");
@@ -104,7 +105,7 @@ public class VersionedArtifactEntityTest {
         final var downloadUrl = testJarPath.toURI();
         final var artifact = new Artifact(Optional.empty(), downloadUrl, "test-jar.jar", "jar", "jar");
         final var newState = this.eventSourcedTestKit
-            .<Done>runCommand(ref -> new VersionedArtifactCommand.AddAssets(List.of(artifact), ref))
+            .<Done>runCommand(ref -> new VersionedArtifactCommand.AddAssets(coordinates, List.of(artifact), ref))
             .state();
         this.fileOperatorProbe.fishForMessage(Duration.ofSeconds(10), r -> {
             if (!(r instanceof FileCollectionOperator.TryFindingCommitForFiles tfcf)) {

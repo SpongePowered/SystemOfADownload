@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.consumer;
+package org.spongepowered.synchronizer.gitmanaged;
 
 import akka.Done;
 import akka.NotUsed;
@@ -39,19 +39,17 @@ import akka.stream.javadsl.Source;
 import akka.stream.typed.javadsl.ActorFlow;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.artifact.api.event.ArtifactUpdate;
-import org.spongepowered.downloads.versions.util.akka.FlowUtil;
-import org.spongepowered.downloads.versions.util.jgit.CommitResolver;
-import org.spongepowered.downloads.versions.worker.domain.gitmanaged.GitCommand;
-import org.spongepowered.downloads.versions.worker.domain.gitmanaged.GitManagedArtifact;
-import org.spongepowered.downloads.versions.worker.domain.global.GlobalCommand;
-import org.spongepowered.downloads.versions.worker.domain.global.GlobalRegistration;
+import org.spongepowered.downloads.util.akka.FlowUtil;
+import org.spongepowered.synchronizer.gitmanaged.domain.GitCommand;
+import org.spongepowered.synchronizer.gitmanaged.domain.GitManagedArtifact;
+import org.spongepowered.synchronizer.gitmanaged.util.jgit.CommitResolver;
 
 import java.net.URI;
 import java.time.Duration;
 
 public final class ArtifactSubscriber {
 
-    public static void setup(ArtifactService artifacts, ActorContext<Void> ctx) {
+    public static void setup(ArtifactService artifacts, ActorContext<?> ctx) {
 
         final Flow<ArtifactUpdate, Done, NotUsed> flow = generateFlows(ctx);
 
@@ -60,13 +58,11 @@ public final class ArtifactSubscriber {
             .atLeastOnce(flow);
     }
 
-    private static Flow<ArtifactUpdate, Done, NotUsed> generateFlows(ActorContext<Void> ctx) {
+    private static Flow<ArtifactUpdate, Done, NotUsed> generateFlows(ActorContext<?> ctx) {
         final var sharding = ClusterSharding.get(ctx.getSystem());
         final var repoAssociatedFlow = getRepoAssociatedFlow(sharding, ctx);
-        final var artifactRegistration = getArtifactRegisteredFlow(sharding);
 
         return FlowUtil.splitClassFlows(
-            Pair.create(ArtifactUpdate.ArtifactRegistered.class, artifactRegistration),
             Pair.create(ArtifactUpdate.GitRepositoryAssociated.class, repoAssociatedFlow)
         );
     }
@@ -74,7 +70,7 @@ public final class ArtifactSubscriber {
     @SuppressWarnings("unchecked")
     private static Flow<ArtifactUpdate.GitRepositoryAssociated, Done, NotUsed> getRepoAssociatedFlow(
         ClusterSharding sharding,
-        ActorContext<Void> ctx
+        ActorContext<?> ctx
     ) {
         // Step 1 - Register the repository with GitManagedArtifact
         final var registerRepo = Flow.<ArtifactUpdate.GitRepositoryAssociated>create()
@@ -118,21 +114,6 @@ public final class ArtifactSubscriber {
             }
             return FlowShape.of(add.in(), zip.out());
         }));
-    }
-
-    private static Flow<ArtifactUpdate.ArtifactRegistered, Done, NotUsed> getArtifactRegisteredFlow(
-        ClusterSharding sharding
-    ) {
-        final var globalRegistration = Flow.<ArtifactUpdate.ArtifactRegistered>create()
-            .map(u -> sharding.entityRefFor(GlobalRegistration.ENTITY_TYPE_KEY, "global")
-                .<Done>ask(
-                    replyTo -> new GlobalCommand.RegisterArtifact(replyTo, u.coordinates()),
-                    Duration.ofMinutes(10)
-                )
-                .toCompletableFuture()
-                .join()
-            );
-        return FlowUtil.broadcast(globalRegistration);
     }
 
 }

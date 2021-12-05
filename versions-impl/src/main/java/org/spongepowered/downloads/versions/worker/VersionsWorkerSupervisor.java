@@ -30,7 +30,6 @@ import akka.cluster.Cluster;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.versions.api.VersionsService;
-import org.spongepowered.downloads.versions.worker.consumer.ArtifactSubscriber;
 import org.spongepowered.downloads.versions.worker.consumer.VersionedAssetSubscriber;
 
 /**
@@ -60,8 +59,7 @@ public final class VersionsWorkerSupervisor {
             EntityStore.setupPersistedEntities(sharding);
 
             // Kakfa subscribers
-            ArtifactSubscriber.setup(artifacts, ctx);
-            VersionedAssetSubscriber.setup(ctx, versions, sharding);
+            VersionedAssetSubscriber.setup(versions, sharding);
 
             // Workers available to do most jobs
             final var member = Cluster.get(ctx.getSystem()).selfMember();

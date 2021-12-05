@@ -59,6 +59,7 @@ public sealed interface VersionedArtifactCommand extends Jsonable {
     }
 
     final record AddAssets(
+        MavenCoordinates coordinates,
         List<Artifact> artifacts,
         ActorRef<Done> replyTo
     ) implements VersionedArtifactCommand {

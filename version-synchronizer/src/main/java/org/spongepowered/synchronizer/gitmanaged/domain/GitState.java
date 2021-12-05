@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.domain.gitmanaged;
+package org.spongepowered.synchronizer.gitmanaged.domain;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
@@ -47,8 +47,6 @@ import java.util.Optional;
 })
 public sealed interface GitState extends Jsonable {
 
-    GitState withVersion(MavenCoordinates coordinates);
-
     GitState withRepository(URI repository);
 
     List<URI> repositories();
@@ -65,11 +63,6 @@ public sealed interface GitState extends Jsonable {
     final record Empty() implements GitState {
         @JsonCreator
         public Empty {
-        }
-
-        @Override
-        public GitState withVersion(final MavenCoordinates coordinates) {
-            return new Registered(List.empty(), HashMap.of(coordinates, Optional.empty()), HashMap.empty());
         }
 
         @Override
@@ -110,14 +103,6 @@ public sealed interface GitState extends Jsonable {
 
         @JsonCreator
         public Registered {
-        }
-
-        @Override
-        public GitState withVersion(final MavenCoordinates coordinates) {
-            if (this.resolved.containsKey(coordinates)) {
-                return this;
-            }
-            return new Registered(this.repository, this.commits.put(coordinates, Optional.empty()), this.resolved);
         }
 
         @Override

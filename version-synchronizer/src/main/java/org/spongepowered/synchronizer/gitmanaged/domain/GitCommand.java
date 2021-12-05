@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.domain.gitmanaged;
+package org.spongepowered.synchronizer.gitmanaged.domain;
 
 import akka.Done;
 import akka.actor.typed.ActorRef;
@@ -42,7 +42,6 @@ import java.net.URI;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonDeserialize
 @JsonSubTypes({
-    @JsonSubTypes.Type(value = GitCommand.RegisterVersion.class, name = "register-version"),
     @JsonSubTypes.Type(value = GitCommand.RegisterRepository.class, name = "register-repository"),
     @JsonSubTypes.Type(value = GitCommand.RegisterRawCommit.class, name = "register-raw-commit"),
     @JsonSubTypes.Type(value = GitCommand.GetRepositories.class, name = "get-repositories"),
@@ -51,19 +50,13 @@ import java.net.URI;
 })
 public sealed interface GitCommand extends Jsonable {
 
-    final record RegisterVersion(MavenCoordinates coordinates) implements GitCommand {
-        @JsonCreator
-        public RegisterVersion {
-        }
-    }
-
-    final record RegisterRepository(URI repository, ActorRef<Done> replyTo) implements GitCommand {
+    record RegisterRepository(URI repository, ActorRef<Done> replyTo) implements GitCommand {
         @JsonCreator
         public RegisterRepository {
         }
     }
 
-    final record RegisterRawCommit(
+    record RegisterRawCommit(
         MavenCoordinates coordinates,
         String commitSha,
         ActorRef<Done> replyTo
@@ -73,19 +66,26 @@ public sealed interface GitCommand extends Jsonable {
         }
     }
 
-    final record GetRepositories(ActorRef<List<URI>> replyTo) implements GitCommand {
+    @JsonDeserialize
+    record RepositoryResponse(List<URI> repositories) {
+        @JsonCreator
+        public RepositoryResponse {
+        }
+    }
+
+    record GetRepositories(ActorRef<RepositoryResponse> replyTo) implements GitCommand {
         @JsonCreator
         public GetRepositories {
         }
     }
 
-    final record GetUnresolvedVersions(ActorRef<UnresolvedWork> replyTo) implements GitCommand {
+    record GetUnresolvedVersions(ActorRef<UnresolvedWork> replyTo) implements GitCommand {
         @JsonCreator
         public GetUnresolvedVersions {
         }
     }
 
-    final record MarkVersionAsResolved(
+    record MarkVersionAsResolved(
         MavenCoordinates coordinates,
         VersionedCommit commit,
         ActorRef<Done> replyTo
@@ -97,7 +97,7 @@ public sealed interface GitCommand extends Jsonable {
 
     @JsonDeserialize
     @JsonSerialize
-    final record UnresolvedWork(
+    record UnresolvedWork(
         Map<MavenCoordinates, String> unresolvedCommits,
         List<URI> repositories
     ) {

@@ -22,62 +22,43 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.domain.gitmanaged;
+package org.spongepowered.downloads.versions.api.delegates;
 
+import akka.Done;
+import akka.actor.typed.ActorRef;
+import akka.actor.typed.receptionist.ServiceKey;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 
 import java.net.URI;
 
-@JsonDeserialize
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = GitEvent.VersionRegistered.class),
-    @JsonSubTypes.Type(value = GitEvent.RepositoryRegistered.class),
-    @JsonSubTypes.Type(value = GitEvent.CommitRegistered.class),
-    @JsonSubTypes.Type(value = GitEvent.CommitResolved.class),
-})
-public sealed interface GitEvent extends AggregateEvent<GitEvent>, Jsonable {
+public final class CommitDetailsRegistrar {
 
-    AggregateEventShards<GitEvent> INSTANCE = AggregateEventTag.sharded(GitEvent.class, 10);
+    public static final ServiceKey<Command> SERVICE_KEY = ServiceKey.create(Command.class, "commit-details-registrar");
 
-    @Override
-    default AggregateEventTagger<GitEvent> aggregateTag() {
-        return INSTANCE;
+    @JsonDeserialize
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+    @JsonSubTypes({
+        @JsonSubTypes.Type(HandleVersionedCommitReport.class)
+    })
+    public interface Command extends Jsonable {}
+
+    @JsonTypeName("handle-version-commit")
+    public record HandleVersionedCommitReport(
+        URI repo,
+        VersionedCommit versionedCommit,
+        MavenCoordinates coordinates,
+        ActorRef<Done> replyTo
+    ) implements Command {
+        @JsonCreator
+        public HandleVersionedCommitReport {
+        }
     }
 
-    @JsonTypeName("version-registered")
-    final record VersionRegistered(MavenCoordinates coordinates) implements GitEvent {
-        @JsonCreator
-        public VersionRegistered {
-        }
-    }
-    @JsonTypeName("repository-registered")
-    final record RepositoryRegistered(URI repository) implements GitEvent {
-        @JsonCreator
-        public RepositoryRegistered {
-        }
-    }
-    @JsonTypeName("commit-extracted")
-    final record CommitRegistered(MavenCoordinates coordinates, String commit) implements GitEvent {
-        @JsonCreator
-        public CommitRegistered {
-        }
-    }
-    @JsonTypeName("commit-resolved")
-    final record CommitResolved(MavenCoordinates coordinates, VersionedCommit resolvedCommit) implements GitEvent {
-        @JsonCreator
-        public CommitResolved {
-        }
-    }
 }

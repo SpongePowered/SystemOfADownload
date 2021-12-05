@@ -1,4 +1,4 @@
-package org.spongepowered.downloads.test.versions.worker;
+package org.spongepowered.synchronizer.test.worker;
 
 import akka.Done;
 import akka.actor.testkit.typed.javadsl.FishingOutcomes;
@@ -8,8 +8,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
-import org.spongepowered.downloads.versions.util.jgit.CommitResolver;
-import org.spongepowered.downloads.versions.worker.consumer.CommitDetailsRegistrar;
+import org.spongepowered.downloads.versions.api.delegates.CommitDetailsRegistrar;
+import org.spongepowered.synchronizer.gitmanaged.util.jgit.CommitResolver;
 
 import java.net.URI;
 import java.time.Duration;

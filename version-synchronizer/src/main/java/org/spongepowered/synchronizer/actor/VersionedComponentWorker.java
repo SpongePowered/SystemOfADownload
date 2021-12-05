@@ -65,7 +65,7 @@ public final class VersionedComponentWorker {
     public interface Command {
     }
 
-    public static final record GatherComponentsForArtifact(
+    public record GatherComponentsForArtifact(
         MavenCoordinates coordinates,
         int count, ActorRef<Done> replyTo)
         implements Command {
@@ -75,21 +75,21 @@ public final class VersionedComponentWorker {
         }
     }
 
-    public static final record Ignored(ActorRef<Done> replyTo) implements Command {
+    public record Ignored(ActorRef<Done> replyTo) implements Command {
 
     }
 
     private interface ChildResponse extends Command {
     }
 
-    private static final record ComponentsAvailable(
+    private record ComponentsAvailable(
         MavenCoordinates coordinates,
         List<Component.Asset> assets,
         ActorRef<Done> replyTo
     ) implements ChildResponse {
     }
 
-    private static final record FailedAssetRetrieval(
+    private record FailedAssetRetrieval(
         MavenCoordinates coordinates,
         int count,
         ActorRef<Done> replyTo
@@ -173,7 +173,7 @@ public final class VersionedComponentWorker {
     private interface Gather {
     }
 
-    private static final record StartRequest(
+    private record StartRequest(
         MavenCoordinates coordinates,
         String fileType,
         ActorRef<ChildResponse> ref,
@@ -181,7 +181,7 @@ public final class VersionedComponentWorker {
     ) implements Gather {
     }
 
-    private static final record ContinueRequest(
+    private record ContinueRequest(
         MavenCoordinates coordinates,
         String fileType,
         List<Component.Asset> existing,
@@ -191,7 +191,7 @@ public final class VersionedComponentWorker {
     ) implements Gather {
     }
 
-    private static final record Completed(
+    private record Completed(
         MavenCoordinates coordinates,
         List<Component.Asset> existing,
         ActorRef<ChildResponse> replyTo,
@@ -199,7 +199,7 @@ public final class VersionedComponentWorker {
     ) implements Gather {
     }
 
-    private static final record Failed(
+    private record Failed(
         MavenCoordinates coordinates,
         List<Component.Asset> recovered,
         ActorRef<ChildResponse> replyTo,
@@ -337,27 +337,28 @@ public final class VersionedComponentWorker {
     private interface Registrar {
     }
 
-    private static final record AttemptRegistration(MavenCoordinates coordinates,
-                                                    List<Component.Asset> assets) implements Registrar {
+    private record AttemptRegistration(MavenCoordinates coordinates,
+                                       List<Component.Asset> assets) implements Registrar {
     }
 
     private interface RegistrationResult extends Registrar {
     }
 
-    private static final record AssetRegistrationCompleted(MavenCoordinates coordinates) implements RegistrationResult {
+    private record AssetRegistrationCompleted(MavenCoordinates coordinates) implements RegistrationResult {
     }
 
-    private static final record AssetRegistrationFailed(MavenCoordinates coordinates) implements RegistrationResult {
+    private record AssetRegistrationFailed(MavenCoordinates coordinates) implements RegistrationResult {
     }
 
-    private static final record WrappedResult(RegistrationResult response) implements Registrar {
+    private record WrappedResult(RegistrationResult response) implements Registrar {
     }
 
     private static Behavior<Registrar> registerAssets(
         final VersionsService service,
         final AuthUtils auth
     ) {
-        return Behaviors.setup(ctx -> Behaviors.receive(Registrar.class)
+        return Behaviors.setup(ctx ->
+            Behaviors.withTimers(timers -> Behaviors.receive(Registrar.class)
             .onMessage(AttemptRegistration.class, registration -> {
                 final var artifacts = registration.assets.map(asset ->
                         Try.of(() -> URI.create(asset.downloadUrl()))
@@ -405,7 +406,8 @@ public final class VersionedComponentWorker {
                 }
                 return Behaviors.same();
             })
-            .build());
+            .build())
+        );
     }
 
 }

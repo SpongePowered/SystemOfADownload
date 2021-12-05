@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.domain.gitmanaged;
+package org.spongepowered.synchronizer.gitmanaged.domain;
 
 import akka.Done;
 import akka.actor.typed.Behavior;
@@ -66,16 +66,12 @@ public class GitManagedArtifact extends EventSourcedBehaviorWithEnforcedReplies<
     public CommandHandlerWithReply<GitCommand, GitEvent, GitState> commandHandler() {
         final var builder = this.newCommandHandlerWithReplyBuilder();
         builder.forAnyState()
-            .onCommand(GitCommand.RegisterVersion.class, (state, cmd) -> this.Effect()
-                .persist(new GitEvent.VersionRegistered(cmd.coordinates()))
-                .thenNoReply()
-            )
             .onCommand(GitCommand.RegisterRepository.class, (state, cmd) -> this.Effect()
                 .persist(new GitEvent.RepositoryRegistered(cmd.repository()))
                 .thenReply(cmd.replyTo(), ns -> Done.done())
             )
             .onCommand(GitCommand.GetRepositories.class, (state, cmd) -> this.Effect()
-                .reply(cmd.replyTo(), state.repositories())
+                .reply(cmd.replyTo(), new GitCommand.RepositoryResponse(state.repositories()))
             )
             .onCommand(GitCommand.GetUnresolvedVersions.class, (state, cmd) -> this.Effect()
                 .reply(cmd.replyTo(), state.unresolvedVersions())
@@ -96,7 +92,6 @@ public class GitManagedArtifact extends EventSourcedBehaviorWithEnforcedReplies<
     public EventHandler<GitState, GitEvent> eventHandler() {
         final var builder = this.newEventHandlerBuilder();
         builder.forAnyState()
-            .onEvent(GitEvent.VersionRegistered.class, (state, event) -> state.withVersion(event.coordinates()))
             .onEvent(GitEvent.RepositoryRegistered.class, (state, event) -> state.withRepository(event.repository()))
             .onEvent(
                 GitEvent.CommitResolved.class,

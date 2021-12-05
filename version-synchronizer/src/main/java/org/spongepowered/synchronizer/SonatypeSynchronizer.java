@@ -37,6 +37,7 @@ import akka.actor.typed.javadsl.Routers;
 import akka.actor.typed.receptionist.ServiceKey;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.Entity;
+import akka.persistence.typed.PersistenceId;
 import akka.stream.javadsl.Flow;
 import akka.stream.javadsl.Sink;
 import akka.stream.javadsl.Source;
@@ -53,6 +54,9 @@ import org.spongepowered.downloads.versions.api.models.ArtifactUpdate;
 import org.spongepowered.synchronizer.actor.ArtifactSyncWorker;
 import org.spongepowered.synchronizer.actor.RequestArtifactsToSync;
 import org.spongepowered.synchronizer.actor.VersionedComponentWorker;
+import org.spongepowered.synchronizer.gitmanaged.ArtifactSubscriber;
+import org.spongepowered.synchronizer.gitmanaged.CommitConsumer;
+import org.spongepowered.synchronizer.gitmanaged.domain.GitManagedArtifact;
 import org.spongepowered.synchronizer.resync.ArtifactSynchronizerAggregate;
 import scala.Option;
 
@@ -67,10 +71,10 @@ public final class SonatypeSynchronizer {
     public interface Command {
     }
 
-    private static final record GatherGroupArtifacts() implements SonatypeSynchronizer.Command {
+    private record GatherGroupArtifacts() implements SonatypeSynchronizer.Command {
     }
 
-    private static final record WrappedArtifactsToSync(
+    private record WrappedArtifactsToSync(
         List<ArtifactCoordinates> artifactCoordinates) implements SonatypeSynchronizer.Command {
     }
 
@@ -81,6 +85,9 @@ public final class SonatypeSynchronizer {
         final ObjectMapper mapper
     ) {
         return Behaviors.setup(context -> {
+            CommitConsumer.setupSubscribers(versionsService, context);
+            ArtifactSubscriber.setup(artifactService, context);
+
             context.getLog().info("Initializing Artifact Maven Synchronization");
             context.getSystem().receptionist().tell(
                 new ReceptionistMessages.Register<>(key, context.getSelf(), Option.empty()));
@@ -92,8 +99,10 @@ public final class SonatypeSynchronizer {
                         ArtifactSynchronizerAggregate::create
                     )
                 );
+            clusterSharding.init(Entity.of(GitManagedArtifact.ENTITY_TYPE_KEY, ctx -> GitManagedArtifact.create(PersistenceId.of(ctx.getEntityTypeKey().name(), ctx.getEntityId()), ctx.getEntityId())));
 
-            SonatypeSynchronizer.subscribeToArtifactUpdates(context, artifactService, versionsService, clusterSharding, settings);
+            SonatypeSynchronizer.subscribeToArtifactUpdates(
+                context, artifactService, versionsService, clusterSharding, settings);
 
             SonatypeSynchronizer.subscribeToVersionedArtifactUpdates(versionsService, mapper, context, settings);
 
@@ -192,7 +201,8 @@ public final class SonatypeSynchronizer {
             final var artifactSyncPool = Routers.pool(
                 4,
                 Behaviors.supervise(ArtifactSyncWorker.create(versionsService, clusterSharding))
-                    .onFailure(SupervisorStrategy.restartWithBackoff(Duration.ofSeconds(1), Duration.ofMinutes(10), 0.2))
+                    .onFailure(
+                        SupervisorStrategy.restartWithBackoff(Duration.ofSeconds(1), Duration.ofMinutes(10), 0.2))
             );
             final var syncWorker = ctx.spawn(
                 artifactSyncPool,

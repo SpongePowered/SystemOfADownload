@@ -43,6 +43,7 @@ import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.versions.worker.actor.artifacts.FileCollectionOperator;
 import org.spongepowered.downloads.versions.worker.actor.artifacts.PotentiallyUsableAsset;
 
+import java.util.Arrays;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -101,6 +102,7 @@ public class VersionedArtifactEntity
         final var builder = this.newCommandHandlerWithReplyBuilder();
         builder.forStateType(ArtifactState.Unregistered.class)
             .onCommand(VersionedArtifactCommand.Register.class, this::onRegister)
+            .onCommand(VersionedArtifactCommand.AddAssets.class, this::onRegisterAssets)
             ;
         builder.forStateType(ArtifactState.Registered.class)
             .onCommand(VersionedArtifactCommand.Register.class, cmd -> this.Effect().reply(cmd.replyTo(), Done.done()))
@@ -110,6 +112,15 @@ public class VersionedArtifactEntity
             .onCommand(VersionedArtifactCommand.RegisterResolvedCommit.class, this::handleCompletedCommit)
             ;
         return builder.build();
+    }
+
+    private ReplyEffect<ArtifactEvent, ArtifactState> onRegisterAssets(
+        final VersionedArtifactCommand.AddAssets cmd
+    ) {
+        this.ctx.getLog().warn("[{}] Registering assets with empty state", cmd.coordinates().asStandardCoordinates());
+        return this.Effect()
+            .persist(Arrays.asList(new ArtifactEvent.Registered(cmd.coordinates()), new ArtifactEvent.AssetsUpdated(cmd.artifacts())))
+            .thenReply(cmd.replyTo(), ns -> Done.done());
     }
 
     private ReplyEffect<ArtifactEvent, ArtifactState> handleCompletedCommit(
