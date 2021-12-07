@@ -121,7 +121,7 @@ public sealed interface GitState extends Jsonable {
         @Override
         public GitCommand.UnresolvedWork unresolvedVersions() {
             final var versionsWithCommits = this.commits.filterValues(Optional::isPresent).mapValues(Optional::get);
-            return new GitCommand.UnresolvedWork(versionsWithCommits, this.repository);
+            return new GitCommand.UnresolvedWork(this.repository.isEmpty() ? HashMap.empty() : versionsWithCommits, this.repository);
         }
 
         @Override

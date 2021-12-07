@@ -49,6 +49,7 @@ import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.artifact.api.Group;
 import org.spongepowered.downloads.artifact.api.event.GroupUpdate;
 import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
+import org.spongepowered.downloads.auth.api.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
 import org.spongepowered.downloads.versions.api.models.ArtifactUpdate;
 import org.spongepowered.synchronizer.actor.ArtifactSyncWorker;
@@ -58,6 +59,7 @@ import org.spongepowered.synchronizer.gitmanaged.ArtifactSubscriber;
 import org.spongepowered.synchronizer.gitmanaged.CommitConsumer;
 import org.spongepowered.synchronizer.gitmanaged.domain.GitManagedArtifact;
 import org.spongepowered.synchronizer.resync.ArtifactSynchronizerAggregate;
+import org.spongepowered.synchronizer.versionsync.ArtifactVersionSyncModule;
 import scala.Option;
 
 import java.time.Duration;
@@ -110,7 +112,7 @@ public final class SonatypeSynchronizer {
             return Behaviors.withTimers(timers -> {
                 timers.startTimerWithFixedDelay(new GatherGroupArtifacts(), settings.versionSync.interval);
                 timers.startSingleTimer(new GatherGroupArtifacts(), settings.versionSync.startupDelay);
-                return timedSync(artifactService, versionsService, clusterSharding);
+                return timedSync(artifactService, clusterSharding);
             });
         });
     }
@@ -155,8 +157,10 @@ public final class SonatypeSynchronizer {
         final SynchronizerSettings settings
     ) {
         // region Synchronize Artifact Versions from Maven
+        final AuthUtils auth = AuthUtils.configure(context.getSystem().settings().config());
+        ArtifactVersionSyncModule.setup(context, clusterSharding, auth, versionsService);
 
-        final var syncWorkerBehavior = ArtifactSyncWorker.create(versionsService, clusterSharding);
+        final var syncWorkerBehavior = ArtifactSyncWorker.create(clusterSharding);
         final var pool = Routers.pool(
             settings.reactiveSync.poolSize,
             syncWorkerBehavior
@@ -185,7 +189,6 @@ public final class SonatypeSynchronizer {
 
     private static Behavior<Command> timedSync(
         final ArtifactService artifactService,
-        final VersionsService versionsService,
         final ClusterSharding clusterSharding
     ) {
         final AtomicInteger integer = new AtomicInteger();
@@ -200,7 +203,7 @@ public final class SonatypeSynchronizer {
             );
             final var artifactSyncPool = Routers.pool(
                 4,
-                Behaviors.supervise(ArtifactSyncWorker.create(versionsService, clusterSharding))
+                Behaviors.supervise(ArtifactSyncWorker.create(clusterSharding))
                     .onFailure(
                         SupervisorStrategy.restartWithBackoff(Duration.ofSeconds(1), Duration.ofMinutes(10), 0.2))
             );

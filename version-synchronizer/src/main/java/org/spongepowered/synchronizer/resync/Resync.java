@@ -37,7 +37,7 @@ public record Resync(
 
 }
 
-interface Response extends Command {
+sealed interface Response extends Command {
 }
 
 record Failed() implements Response {

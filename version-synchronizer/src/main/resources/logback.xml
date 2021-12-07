@@ -17,6 +17,7 @@
 
     <logger name="org.spongepowered.downloads.versions.worker" level="DEBUG"/>
     <logger name="org.spongepowered.synchronizer.actor" level="INFO"/>
+    <logger name="org.spongepowered.synchronizer.gitmanaged" level="TRACE"/>
 
 
     <logger name="play" level="INFO" />
