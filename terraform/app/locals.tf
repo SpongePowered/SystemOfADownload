@@ -31,7 +31,7 @@ locals {
                 service_name = "artifact-query"
             }
             image = {
-                replicas = var.environment == "dev" ? 1 : 2
+                replicas = var.environment == "dev" ? 1 : 1
                 image_version = "0.2-SNAPSHOT"
                 image_name = "spongepowered/systemofadownload-artifact-query-impl"
             }
@@ -78,7 +78,7 @@ locals {
         }
         "versions_query" = {
             service_name = "versions-query-server"
-            replicas = var.environment == "dev" ? 1 : 3
+            replicas = var.environment == "dev" ? 1 : 1
             image = {
                 version = "0.2-SNAPSHOT"
                 name = "spongepowered/systemofadownload-versions-query-impl"
@@ -91,7 +91,7 @@ locals {
         }
         "synchronizer" = {
             service_name = "version-synchronizer"
-            replicas = 1
+            replicas = var.environment == "dev" ? 1 : 3
             image = {
                 version = "0.2-SNAPSHOT"
                 name = "spongepowered/systemofadownload-version-synchronizer"
@@ -103,14 +103,6 @@ locals {
                 name = "artery"
                 protocol = "TCP"
             }]
-        }
-        "gateway" = {
-            service_name = "soad-gateway"
-            replicas = var.environment == "dev" ? 1 : 3
-            image = {
-                version = "latest"
-                name = "spongepowered/systemofadownload-gateway-impl"
-            }
         }
     }
 
