@@ -53,10 +53,12 @@ import org.spongepowered.downloads.auth.api.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
 import org.spongepowered.downloads.versions.api.models.ArtifactUpdate;
 import org.spongepowered.synchronizer.actor.ArtifactSyncWorker;
+import org.spongepowered.synchronizer.actor.CommitRegistrar;
 import org.spongepowered.synchronizer.actor.RequestArtifactsToSync;
 import org.spongepowered.synchronizer.actor.VersionedComponentWorker;
 import org.spongepowered.synchronizer.gitmanaged.ArtifactSubscriber;
 import org.spongepowered.synchronizer.gitmanaged.CommitConsumer;
+import org.spongepowered.synchronizer.gitmanaged.ScheduledCommitResolver;
 import org.spongepowered.synchronizer.gitmanaged.domain.GitManagedArtifact;
 import org.spongepowered.synchronizer.resync.ArtifactSynchronizerAggregate;
 import org.spongepowered.synchronizer.versionsync.ArtifactVersionSyncModule;
@@ -87,8 +89,12 @@ public final class SonatypeSynchronizer {
         final ObjectMapper mapper
     ) {
         return Behaviors.setup(context -> {
+            // don't do this, eventually we can swap this out from service layers
+            context.spawnAnonymous(Behaviors.supervise(CommitRegistrar.register(versionsService))
+                .onFailure(SupervisorStrategy.restart()));
             CommitConsumer.setupSubscribers(versionsService, context);
             ArtifactSubscriber.setup(artifactService, context);
+            ScheduledCommitResolver.setup(artifactService, context);
 
             context.getLog().info("Initializing Artifact Maven Synchronization");
             context.getSystem().receptionist().tell(

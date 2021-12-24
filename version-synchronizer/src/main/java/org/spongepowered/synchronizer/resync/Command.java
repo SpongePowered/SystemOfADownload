@@ -24,5 +24,18 @@
  */
 package org.spongepowered.synchronizer.resync;
 
-public interface Command {
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.serialization.Jsonable;
+
+@JsonDeserialize
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = Resync.class, name = "resync"),
+    @JsonSubTypes.Type(value = Failed.class, name = "failed"),
+    @JsonSubTypes.Type(value = WrappedResync.class, name = "wrapped-resync"),
+    @JsonSubTypes.Type(value = Completed.class, name = "completed"),
+})
+public interface Command extends Jsonable {
 }

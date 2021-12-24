@@ -47,8 +47,10 @@ import javax.inject.Singleton;
 import javax.persistence.EntityManager;
 import java.net.URI;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Optional;
 
@@ -66,6 +68,7 @@ public final record CommitProcessor(
     static final class CommitWriter extends ReadSideProcessor<ArtifactEvent> {
 
         private static final Logger LOGGER = LoggerFactory.getLogger("CommitWriter");
+        public static final ZonedDateTime EPOCH = ZonedDateTime.of(LocalDateTime.MIN, ZoneOffset.UTC);
 
         private final JpaReadSide readSide;
 
@@ -79,9 +82,12 @@ public final record CommitProcessor(
             return this.readSide.<ArtifactEvent>builder("version-commit-writer")
                 .setGlobalPrepare((em) -> {
                 })
-                .setEventHandler(ArtifactEvent.FilesErrored.class, (em, e) -> {})
-                .setEventHandler(ArtifactEvent.Registered.class, (em, e) -> {})
-                .setEventHandler(ArtifactEvent.AssetsUpdated.class, (em, e) -> {})
+                .setEventHandler(ArtifactEvent.FilesErrored.class, (em, e) -> {
+                })
+                .setEventHandler(ArtifactEvent.Registered.class, (em, e) -> {
+                })
+                .setEventHandler(ArtifactEvent.AssetsUpdated.class, (em, e) -> {
+                })
                 .setEventHandler(
                     ArtifactEvent.CommitAssociated.class,
                     (em, e) -> {
@@ -118,6 +124,7 @@ public final record CommitProcessor(
                 .setEventHandler(
                     ArtifactEvent.CommitResolved.class,
                     (em, e) -> {
+                        LOGGER.info("CommitResolved: {}", e.versionedCommit());
                         final var coordinates = e.coordinates();
                         final var results = getVersionedArtifacts(em, coordinates);
                         if (results.isEmpty()) {
@@ -140,7 +147,50 @@ public final record CommitProcessor(
                         em.persist(jpaChangelog);
                     }
                 )
+                .setEventHandler(
+                    ArtifactEvent.CommitUnresolved.class,
+                    (em, e) -> {
+                        System.out.println("logging commit unresolved: " + e.coordinates().asStandardCoordinates());
+                        final var coordinates = e.coordinates();
+                        final var results = getVersionedArtifacts(em, coordinates);
+                        if (results.isEmpty()) {
+                            return;
+                        }
+                        final JpaVersionedArtifact jpaVersionedArtifact = results.get(0);
+                        final var changelog = new VersionedChangelog(List.of(
+                            new VersionedChangelog.IndexedCommit(
+                                convertToInvalidCommit(e), List.empty()
+                            )), false);
+                        if (jpaVersionedArtifact.getChangelog() == null) {
+                            final var jpaVersionChangelog = new JpaVersionChangelog();
+                            jpaVersionedArtifact.setChangelog(jpaVersionChangelog);
+                            jpaVersionChangelog.setSha(e.commitId());
+                            jpaVersionChangelog.setBranch("foo");
+                            jpaVersionChangelog.setChangelog(changelog);
+                        }
+                        final var jpaChangelog = jpaVersionedArtifact.getChangelog();
+                        jpaChangelog.setChangelog(changelog);
+                        em.persist(jpaChangelog);
+                    }
+                )
                 .build();
+        }
+
+        private static VersionedCommit convertToInvalidCommit(ArtifactEvent.CommitUnresolved e) {
+            return new VersionedCommit(
+                "Commit not available",
+                """
+                This build has a commit that cannot be resolved, it may be
+                possible to resolve it in some backup, but generally this
+                build will not be supported by the community due to the
+                lack of a commit.
+                """,
+                e.commitId(),
+                new VersionedCommit.Author("", ""),
+                new VersionedCommit.Commiter("", ""),
+                Optional.empty(),
+                EPOCH
+            );
         }
 
         private java.util.List<JpaVersionedArtifact> getVersionedArtifacts(

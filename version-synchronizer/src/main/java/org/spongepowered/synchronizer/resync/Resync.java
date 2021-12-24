@@ -25,29 +25,45 @@
 package org.spongepowered.synchronizer.resync;
 
 import akka.actor.typed.ActorRef;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.maven.artifact.ArtifactMavenMetadata;
 
+@JsonDeserialize
 public record Resync(
     ArtifactCoordinates coordinates,
     ActorRef<List<MavenCoordinates>> replyTo
 ) implements Command {
+    @JsonCreator
+    public Resync {}
 
 }
 
+@JsonDeserialize
 sealed interface Response extends Command {
 }
 
+@JsonDeserialize
 record Failed() implements Response {
+    @JsonCreator
+    Failed {
+    }
 }
 
 record Completed(ArtifactMavenMetadata metadata) implements Response {
+    @JsonCreator
+    Completed {
+    }
 }
 
 record WrappedResync(
     Response response,
     ActorRef<List<MavenCoordinates>> replyTo
 ) implements Response {
+    @JsonCreator
+    WrappedResync {
+    }
 }

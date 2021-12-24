@@ -37,8 +37,6 @@ import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
 import akka.persistence.typed.javadsl.RetentionCriteria;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
-import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
@@ -46,7 +44,6 @@ import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.function.Predicate;
 
 public final class VersionedArtifactAggregate
     extends EventSourcedBehaviorWithEnforcedReplies<ACCommand, ACEvent, State> {
@@ -94,15 +91,6 @@ public final class VersionedArtifactAggregate
                 ACEvent.PromotionSettingModified.class,
                 (state, event) -> state.withPromotionDetails(event.regex(), event.enableManualPromotion())
             )
-            .onEvent(
-                ACEvent.VersionedCollectionAdded.class,
-                (state, event) -> {
-                    final State.ACState newState = state.withAddedArtifacts(
-                        event.collection().coordinates(), event.newArtifacts());
-                    this.ctx.getLog().debug("New context from versions: {}", newState.versionedArtifacts());
-                    return newState;
-                }
-            )
             .onEvent(ACEvent.ArtifactVersionMoved.class, (state, event) -> state)
         ;
         return builder.build();
@@ -133,14 +121,6 @@ public final class VersionedArtifactAggregate
                 ACCommand.UpdateArtifactTag.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest()))
             .onCommand(
                 ACCommand.RegisterPromotion.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest()))
-            .onCommand(
-                ACCommand.RegisterCollection.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest())
-            ).onCommand(
-                ACCommand.GetCollections.class, (cmd) -> {
-                    ctx.getLog().warn("Requesting artifact collections on an empty state");
-                    return this.Effect().reply(cmd.replyTo(), List.empty());
-                }
-            ).onCommand(ACCommand.GetVersions.class, cmd -> this.Effect().reply(cmd.replyTo(), List.empty()))
         ;
         builder.forStateType(State.ACState.class)
             .onCommand(ACCommand.RegisterArtifact.class, (cmd) -> this.Effect().reply(cmd.replyTo(), NotUsed.notUsed()))
@@ -148,23 +128,8 @@ public final class VersionedArtifactAggregate
             .onCommand(ACCommand.RegisterArtifactTag.class, this::handlRegisterTag)
             .onCommand(ACCommand.UpdateArtifactTag.class, this::handleUpdateTag)
             .onCommand(ACCommand.RegisterPromotion.class, this::handlePromotionSetting)
-            .onCommand(ACCommand.RegisterCollection.class, this::handleRegisterCollection)
-            .onCommand(ACCommand.GetCollections.class, this::handleGetCollections)
-            .onCommand(ACCommand.GetVersions.class, this::handleGetVersions)
         ;
         return builder.build();
-    }
-
-    private ReplyEffect<ACEvent, State> handleGetVersions(
-        final State.ACState state, final ACCommand.GetVersions cmd
-    ) {
-        return this.Effect()
-            .reply(
-                cmd.replyTo(),
-                state.collection().keySet()
-                    .map(state.coordinates()::version)
-                    .toList()
-            );
     }
 
     private ReplyEffect<ACEvent, State> handleRegisterVersion(
@@ -179,37 +144,6 @@ public final class VersionedArtifactAggregate
         return this.Effect()
             .persist(state.addVersion(cmd.coordinates()))
             .thenReply(cmd.replyTo(), (s) -> new VersionRegistration.Response.RegisteredArtifact(cmd.coordinates()));
-    }
-
-    private ReplyEffect<ACEvent, State> handleRegisterCollection(
-        final State.ACState state, final ACCommand.RegisterCollection cmd
-    ) {
-        if (!state.collection().containsKey(cmd.collection().coordinates().version)) {
-            return this.Effect().reply(cmd.replyTo(), new InvalidRequest());
-        }
-        final var existing = state.versionedArtifacts().get(cmd.collection().coordinates().version)
-            .getOrElse(List::empty);
-        final var newArtifacts = cmd.collection().components().filter(Predicate.not(existing::contains));
-
-        if (newArtifacts.isEmpty()) {
-            return this.Effect().reply(
-                cmd.replyTo(),
-                new VersionRegistration.Response.ArtifactAlreadyRegistered(cmd.collection().coordinates())
-            );
-        }
-        this.ctx.getLog().trace("Adding new artifacts {}", newArtifacts);
-        return this.Effect()
-            .persist(new ACEvent.VersionedCollectionAdded(state.coordinates(), cmd.collection(), newArtifacts))
-            .thenReply(
-                cmd.replyTo(),
-                (s) -> {
-                    this.ctx.getLog().debug(
-                        "Versioned Artifacts successfully registered {}",
-                        ((State.ACState) s).versionedArtifacts().get(cmd.collection().coordinates().version)
-                    );
-                    return new VersionRegistration.Response.RegisteredArtifact(cmd.collection().coordinates());
-                }
-            );
     }
 
     private ReplyEffect<ACEvent, State> handleRegisterArtifact(
@@ -252,16 +186,4 @@ public final class VersionedArtifactAggregate
             .thenReply(cmd.replyTo(), (s) -> new TagRegistration.Response.TagSuccessfullyRegistered());
     }
 
-    private ReplyEffect<ACEvent, State> handleGetCollections(
-        final State.ACState state,
-        final ACCommand.GetCollections cmd
-    ) {
-        this.ctx.getLog().debug("Have {}", state.versionedArtifacts());
-        final var collections = state.versionedArtifacts()
-            .toStream()
-            .map(tuple -> new ArtifactCollection(tuple._2, state.coordinates().version(tuple._1)))
-            .collect(List.collector());
-        return this.Effect()
-            .reply(cmd.replyTo(), collections);
-    }
 }

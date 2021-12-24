@@ -50,6 +50,7 @@ import org.spongepowered.downloads.auth.SOADAuth;
 import org.spongepowered.downloads.auth.api.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
 import org.spongepowered.downloads.versions.api.models.ArtifactUpdate;
+import org.spongepowered.downloads.versions.api.models.CommitRegistration;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
@@ -59,12 +60,15 @@ import org.spongepowered.downloads.versions.server.domain.ACEvent;
 import org.spongepowered.downloads.versions.server.domain.InvalidRequest;
 import org.spongepowered.downloads.versions.server.domain.VersionedArtifactAggregate;
 import org.spongepowered.downloads.versions.worker.domain.versionedartifact.ArtifactEvent;
+import org.spongepowered.downloads.versions.worker.domain.versionedartifact.VersionedArtifactCommand;
+import org.spongepowered.downloads.versions.worker.domain.versionedartifact.VersionedArtifactEntity;
 
 import java.net.URI;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -75,6 +79,8 @@ public class VersionsServiceImpl implements VersionsService,
     private final ClusterSharding clusterSharding;
     private final Duration streamTimeout = Duration.ofSeconds(30);
     private final AuthUtils auth;
+
+    public static final Pattern VALID_COORDINATE_PORTION = Pattern.compile("^[\\w.-]+$");
 
     @Inject
     public VersionsServiceImpl(
@@ -106,18 +112,16 @@ public class VersionsServiceImpl implements VersionsService,
         if (!(a instanceof GroupUpdate.ArtifactRegistered g)) {
             return Done.done();
         }
-        final var groupId = g.coordinates().groupId.toLowerCase(Locale.ROOT);
-        final var artifact = g.coordinates().artifactId.toLowerCase(Locale.ROOT);
-        return this.getCollection(groupId, artifact)
+        final var coordinates = g.coordinates();
+        return this.getCollection(coordinates)
             .<NotUsed>ask(
-                replyTo -> new ACCommand.RegisterArtifact(new ArtifactCoordinates(groupId, artifact), replyTo),
+                replyTo -> new ACCommand.RegisterArtifact(coordinates, replyTo),
                 this.streamTimeout
             )
             .thenApply(notUsed -> Done.done())
             .toCompletableFuture()
             .join();
     }
-
 
     @Override
     public Config getSecurityConfig() {
@@ -130,10 +134,9 @@ public class VersionsServiceImpl implements VersionsService,
         final String artifactId
     ) {
         return this.authorize(AuthUtils.Types.JWT, AuthUtils.Roles.ADMIN, profile -> registration -> {
-            final String sanitizedGroupId = groupId.toLowerCase(Locale.ROOT);
-            final String sanitizedArtifactId = artifactId.toLowerCase(Locale.ROOT);
+            final var coordinates = parseCoordinates(groupId, artifactId);
             if (registration instanceof VersionRegistration.Register.Version v) {
-                return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
+                return this.getCollection(coordinates)
                     .<VersionRegistration.Response>ask(
                         replyTo -> new ACCommand.RegisterVersion(v.coordinates(), replyTo),
                         this.streamTimeout
@@ -142,12 +145,23 @@ public class VersionsServiceImpl implements VersionsService,
                             throw new NotFound("unknown artifact or group");
                         }
                         return response;
-                    });
+                    })
+                    .thenCompose(r -> this.clusterSharding.entityRefFor(
+                            VersionedArtifactEntity.ENTITY_TYPE_KEY,
+                            v.coordinates().asStandardCoordinates()
+                        )
+                        .<Done>ask(
+                            replyTo -> new VersionedArtifactCommand.Register(v.coordinates(), replyTo),
+                            this.streamTimeout
+                        )
+                        .thenApply(notUsed -> r));
             }
             if (registration instanceof VersionRegistration.Register.Collection c) {
-                return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
+                return this.clusterSharding.entityRefFor(
+                        VersionedArtifactEntity.ENTITY_TYPE_KEY, c.collection().coordinates().asStandardCoordinates())
                     .<VersionRegistration.Response>ask(
-                        replyTo -> new ACCommand.RegisterCollection(c.collection(), replyTo), this.streamTimeout)
+                        replyTo -> new VersionedArtifactCommand.RegisterAssets(
+                            c.collection().coordinates(), c.collection(), replyTo), this.streamTimeout)
                     .thenApply(response -> {
                         if (response instanceof InvalidRequest) {
                             throw new NotFound("unknown artifact or group");
@@ -165,9 +179,8 @@ public class VersionsServiceImpl implements VersionsService,
         final String artifactId
     ) {
         return this.authorize(AuthUtils.Types.JWT, AuthUtils.Roles.ADMIN, profile -> registration -> {
-            final String sanitizedGroupId = groupId.toLowerCase(Locale.ROOT);
-            final String sanitizedArtifactId = artifactId.toLowerCase(Locale.ROOT);
-            return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
+            final var coordinates = parseCoordinates(groupId, artifactId);
+            return this.getCollection(coordinates)
                 .<TagRegistration.Response>ask(
                     replyTo -> new ACCommand.RegisterArtifactTag(registration.entry(), replyTo), this.streamTimeout)
                 .thenApply(response -> {
@@ -185,9 +198,8 @@ public class VersionsServiceImpl implements VersionsService,
         final String artifactId
     ) {
         return this.authorize(AuthUtils.Types.JWT, AuthUtils.Roles.ADMIN, profile -> registration -> {
-            final String sanitizedGroupId = groupId.toLowerCase(Locale.ROOT);
-            final String sanitizedArtifactId = artifactId.toLowerCase(Locale.ROOT);
-            return this.getCollection(sanitizedGroupId, sanitizedArtifactId)
+            final var coordinates = parseCoordinates(groupId, artifactId);
+            return this.getCollection(coordinates)
                 .<TagRegistration.Response>ask(
                     replyTo -> new ACCommand.UpdateArtifactTag(registration.entry(), replyTo), this.streamTimeout)
                 .thenApply(response -> {
@@ -205,6 +217,7 @@ public class VersionsServiceImpl implements VersionsService,
         final String artifactId
     ) {
         return this.authorize(AuthUtils.Types.JWT, AuthUtils.Roles.ADMIN, profile -> request -> {
+            final var coordinates = parseCoordinates(groupId, artifactId);
             if (!(request instanceof TagVersion.Request.SetRecommendationRegex s)) {
                 throw new BadRequest("unknown request");
             }
@@ -227,7 +240,7 @@ public class VersionsServiceImpl implements VersionsService,
             if (!invalidSuccesses.isEmpty()) {
                 throw new BadRequest("expected invalid versions matched regex successfully:" + invalidSuccesses);
             }
-            return this.getCollection(groupId, artifactId)
+            return this.getCollection(coordinates)
                 .<TagVersion.Response>ask(
                     replyTo -> new ACCommand.RegisterPromotion(s.regex(), replyTo, s.enableManualMarking()),
                     this.streamTimeout
@@ -241,6 +254,50 @@ public class VersionsServiceImpl implements VersionsService,
         });
     }
 
+    @Override
+    public ServiceCall<CommitRegistration, NotUsed> registerCommit(
+        final String groupId, final String artifactId, final String version
+    ) {
+        return this.authorize(AuthUtils.Types.JWT, AuthUtils.Roles.ADMIN, profile -> request -> {
+            final var coordinates = parseCoordinates(groupId, artifactId);
+            if (!VALID_COORDINATE_PORTION.matcher(version).matches()) {
+                throw new BadRequest("Invalid version: " + version);
+            }
+            final var mavenCoordinates = coordinates.version(version);
+            if (request instanceof CommitRegistration.ResolvedCommit rc) {
+                return this.clusterSharding.entityRefFor(
+                        VersionedArtifactEntity.ENTITY_TYPE_KEY,
+                        mavenCoordinates.asStandardCoordinates()
+                    )
+                    .<Done>ask(
+                        replyTo -> new VersionedArtifactCommand.RegisterResolvedCommit(
+                            rc.versionedCommit(),
+                            rc.repo(),
+                            replyTo
+                        ),
+                        Duration.ofSeconds(30)
+                    )
+                    .thenApply(done -> NotUsed.notUsed());
+            } else if (request instanceof CommitRegistration.FailedCommit uc) {
+                return this.clusterSharding.entityRefFor(
+                        VersionedArtifactEntity.ENTITY_TYPE_KEY,
+                        mavenCoordinates.asStandardCoordinates()
+                    )
+                    .<Done>ask(
+                        replyTo -> new VersionedArtifactCommand.RegisterFailedCommit(
+                            uc.commitSha(),
+                            uc.repo(),
+                            replyTo
+                        ),
+                        Duration.ofSeconds(30)
+                    )
+                    .thenApply(done -> NotUsed.notUsed());
+            }
+
+            return CompletableFuture.completedStage(NotUsed.notUsed());
+        });
+    }
+
     private static List<Pair<ArtifactUpdate, Offset>> convertEvent(Pair<ACEvent, Offset> pair) {
         final ACEvent event = pair.first();
         final ArtifactUpdate update;
@@ -248,9 +305,6 @@ public class VersionsServiceImpl implements VersionsService,
             update = new ArtifactUpdate.ArtifactVersionRegistered(r.version());
         } else if (event instanceof ACEvent.ArtifactTagRegistered r) {
             update = new ArtifactUpdate.TagRegistered(r.coordinates(), r.entry());
-        } else if (event instanceof ACEvent.VersionedCollectionAdded c) {
-            update = new ArtifactUpdate.VersionedAssetCollectionUpdated(
-                c.coordinates(), c.collection(), c.newArtifacts());
         } else {
             return Collections.emptyList();
         }
@@ -281,17 +335,32 @@ public class VersionsServiceImpl implements VersionsService,
         final ArtifactEvent event = pair.first();
         final VersionedArtifactUpdates update;
         if (event instanceof ArtifactEvent.CommitAssociated r) {
-            update = new VersionedArtifactUpdates.CommitExtracted(r.coordinates(), r.repos().map(URI::create), r.commitSha());
+            update = new VersionedArtifactUpdates.CommitExtracted(
+                r.coordinates(), r.repos().map(URI::create), r.commitSha());
         } else if (event instanceof ArtifactEvent.CommitResolved r) {
-            update = new VersionedArtifactUpdates.GitCommitDetailsAssociated(r.coordinates(), r.repo(), r.versionedCommit());
+            update = new VersionedArtifactUpdates.GitCommitDetailsAssociated(
+                r.coordinates(), r.repo(), r.versionedCommit());
         } else {
             return Collections.emptyList();
         }
         return List.of(Pair.apply(update, pair.second()));
     }
-    private EntityRef<ACCommand> getCollection(final String groupId, final String artifactId) {
+
+    private EntityRef<ACCommand> getCollection(final ArtifactCoordinates coordinates) {
         return this.clusterSharding.entityRefFor(
-            VersionedArtifactAggregate.ENTITY_TYPE_KEY, groupId + ":" + artifactId);
+            VersionedArtifactAggregate.ENTITY_TYPE_KEY, coordinates.asMavenString());
+    }
+
+    private static ArtifactCoordinates parseCoordinates(final String groupID, final String artifactID) {
+        final String sanitizedGroupId = groupID.toLowerCase(Locale.ROOT);
+        if (!VALID_COORDINATE_PORTION.matcher(sanitizedGroupId).matches()) {
+            throw new BadRequest("Invalid groupId: " + groupID);
+        }
+        final String sanitizedArtifactId = artifactID.toLowerCase(Locale.ROOT);
+        if (!VALID_COORDINATE_PORTION.matcher(sanitizedArtifactId).matches()) {
+            throw new BadRequest("Invalid artifactId: " + artifactID);
+        }
+        return new ArtifactCoordinates(sanitizedGroupId, sanitizedArtifactId);
     }
 
     @Override

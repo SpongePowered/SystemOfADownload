@@ -24,12 +24,14 @@
  */
 package org.spongepowered.downloads.versions.api;
 
+import akka.NotUsed;
 import com.lightbend.lagom.javadsl.api.Descriptor;
 import com.lightbend.lagom.javadsl.api.Service;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.broker.Topic;
 import com.lightbend.lagom.javadsl.api.transport.Method;
 import org.spongepowered.downloads.versions.api.models.ArtifactUpdate;
+import org.spongepowered.downloads.versions.api.models.CommitRegistration;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
 import org.spongepowered.downloads.versions.api.models.TagVersion;
 import org.spongepowered.downloads.versions.api.models.VersionRegistration;
@@ -46,6 +48,8 @@ public interface VersionsService extends Service {
 
     ServiceCall<TagVersion.Request, TagVersion.Response> tagVersion(String groupId, String artifactId);
 
+    ServiceCall<CommitRegistration, NotUsed> registerCommit(String groupId, String artifactId, String version);
+
     Topic<ArtifactUpdate> artifactUpdateTopic();
 
     Topic<VersionedArtifactUpdates> versionedArtifactUpdatesTopic();
@@ -57,7 +61,8 @@ public interface VersionsService extends Service {
                 Service.restCall(Method.POST, "/versions/groups/:groupId/artifacts/:artifactId/versions", this::registerArtifactCollection),
                 Service.restCall(Method.POST, "/versions/groups/:groupId/artifacts/:artifactId/tags", this::registerArtifactTag),
                 Service.restCall(Method.PATCH, "/versions/groups/:groupId/artifacts/:artifactId/tags", this::updateArtifactTag),
-                Service.restCall(Method.POST, "/versions/groups/:groupId/artifacts/:artifactId/promotion", this::tagVersion)
+                Service.restCall(Method.POST, "/versions/groups/:groupId/artifacts/:artifactId/promotion", this::tagVersion),
+                Service.restCall(Method.PUT, "/versions/groups/:groupId/artifacts/:artifactId/versions/:version/commit", this::registerCommit)
              )
             .withTopics(
                 Service.topic("artifact-update", this::artifactUpdateTopic),

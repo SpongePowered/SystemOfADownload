@@ -35,8 +35,6 @@ import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.Artifact;
-import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
@@ -75,37 +73,12 @@ public interface ACEvent extends AggregateEvent<ACEvent>, Jsonable {
         return INSTANCE;
     }
 
-    final class ArtifactCoordinatesUpdated implements ACEvent {
-        @Serial private static final long serialVersionUID = 0L;
-        public final ArtifactCoordinates coordinates;
+    record ArtifactCoordinatesUpdated(ArtifactCoordinates coordinates) implements ACEvent {
 
         @JsonCreator
-        public ArtifactCoordinatesUpdated(final ArtifactCoordinates coordinates) {
-            this.coordinates = coordinates;
+        public ArtifactCoordinatesUpdated {
         }
 
-        @Override
-        public boolean equals(final Object obj) {
-            if (obj == this) {
-                return true;
-            }
-            if (obj == null || obj.getClass() != this.getClass()) {
-                return false;
-            }
-            final var that = (ArtifactCoordinatesUpdated) obj;
-            return Objects.equals(this.coordinates, that.coordinates);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(this.coordinates);
-        }
-
-        @Override
-        public String toString() {
-            return "ArtifactCoordinatesUpdated[" +
-                "coordinates=" + this.coordinates + ']';
-        }
     }
 
     record ArtifactVersionRegistered(
@@ -143,25 +116,18 @@ public interface ACEvent extends AggregateEvent<ACEvent>, Jsonable {
     }
 
     @JsonDeserialize
-    final record ArtifactTagRegistered(ArtifactCoordinates coordinates, @JsonProperty("entry") ArtifactTagEntry entry)
+    record ArtifactTagRegistered(ArtifactCoordinates coordinates, @JsonProperty("entry") ArtifactTagEntry entry)
         implements ACEvent {
 
     }
 
     @JsonDeserialize
-    final record PromotionSettingModified(ArtifactCoordinates coordinates, String regex, boolean enableManualPromotion)
+    record PromotionSettingModified(ArtifactCoordinates coordinates, String regex, boolean enableManualPromotion)
         implements ACEvent {
     }
 
     @JsonDeserialize
-    final record VersionedCollectionAdded(
-        ArtifactCoordinates coordinates, ArtifactCollection collection,
-        List<Artifact> newArtifacts
-    ) implements ACEvent {
-    }
-
-    @JsonDeserialize
-    final record ArtifactVersionMoved(
+    record ArtifactVersionMoved(
         MavenCoordinates coordinates,
         int newIndex,
         List<MavenCoordinates> reshuffled

@@ -33,8 +33,6 @@ import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.maven.artifact.ArtifactMavenMetadata;
 
-import java.util.Objects;
-
 interface SynchronizeEvent extends Jsonable, AggregateEvent<SynchronizeEvent> {
 
     AggregateEventShards<SynchronizeEvent> TAG = AggregateEventTag.sharded(SynchronizeEvent.class, 10);
@@ -45,15 +43,11 @@ interface SynchronizeEvent extends Jsonable, AggregateEvent<SynchronizeEvent> {
     }
 
     @JsonDeserialize
-    final class SynchronizedArtifacts implements SynchronizeEvent {
-
-        public final ArtifactMavenMetadata metadata;
-        public final String updatedTime;
-
+    record SynchronizedArtifacts(
+        ArtifactMavenMetadata metadata,
+        String updatedTime
+    ) implements SynchronizeEvent {
         @JsonCreator
-        public SynchronizedArtifacts(final ArtifactMavenMetadata metadata, final String updatedTime) {
-            this.metadata = Objects.requireNonNull(metadata, "metadata");
-            this.updatedTime = Objects.requireNonNull(updatedTime, "updatedTime");
-        }
+        public SynchronizedArtifacts {}
     }
 }

@@ -22,61 +22,63 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.worker.domain.versionedartifact;
+package org.spongepowered.synchronizer.actor;
 
+import akka.Done;
+import akka.actor.typed.ActorRef;
+import akka.actor.typed.receptionist.ServiceKey;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
-import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 
 import java.net.URI;
 
-@JsonDeserialize
-@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
-public sealed interface ArtifactEvent extends AggregateEvent<ArtifactEvent>, Jsonable {
+public final class CommitDetailsRegistrar {
 
-    AggregateEventShards<ArtifactEvent> INSTANCE = AggregateEventTag.sharded(ArtifactEvent.class, 100);
+    public static final ServiceKey<Command> SERVICE_KEY = ServiceKey.create(Command.class, "commit-details-registrar");
 
-    @Override
-    default AggregateEventTagger<ArtifactEvent> aggregateTag() {
-        return INSTANCE;
-    }
+    @JsonDeserialize
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+    @JsonSubTypes({
+        @JsonSubTypes.Type(HandleVersionedCommitReport.class),
+        @JsonSubTypes.Type(CommitNotFound.class),
+        @JsonSubTypes.Type(CompletedWork.class)
+    })
+    public sealed interface Command extends Jsonable {}
 
-    final record Registered(MavenCoordinates coordinates) implements ArtifactEvent {
-    }
-
-    final record AssetsUpdated(MavenCoordinates coordinates, List<Artifact> artifacts) implements ArtifactEvent {
-    }
-
-    final record FilesErrored() implements ArtifactEvent {
-    }
-
-    final record CommitAssociated(MavenCoordinates coordinates, List<String> repos, String commitSha)
-        implements ArtifactEvent {
+    @JsonTypeName("handle-version-commit")
+    public record HandleVersionedCommitReport(
+        URI repo,
+        VersionedCommit versionedCommit,
+        MavenCoordinates coordinates,
+        ActorRef<Done> replyTo
+    ) implements Command {
         @JsonCreator
-        public CommitAssociated {
+        public HandleVersionedCommitReport {
         }
     }
 
-    final record CommitResolved(
-        MavenCoordinates coordinates,
+    @JsonTypeName("commit-not-found")
+    public record CommitNotFound(
         URI repo,
-        VersionedCommit versionedCommit
-    ) implements ArtifactEvent {
+        String commitId,
+        MavenCoordinates coordinates,
+        ActorRef<Done> replyTo
+    ) implements Command {
+        @JsonCreator
+        public CommitNotFound {
+        }
     }
 
-    public record CommitUnresolved(
-        MavenCoordinates coordinates,
-        String commitId
-    )
-        implements ArtifactEvent {
+    @JsonTypeName("completed-work")
+    record CompletedWork(ActorRef<Done> replyTo) implements Command {
+        @JsonCreator
+        public CompletedWork {
+        }
     }
 }

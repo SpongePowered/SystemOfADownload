@@ -30,7 +30,6 @@ import akka.cluster.Cluster;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.versions.api.VersionsService;
-import org.spongepowered.downloads.versions.worker.consumer.VersionedAssetSubscriber;
 
 /**
  * The "reactive" side of Versions where it performs all the various tasks
@@ -49,17 +48,11 @@ import org.spongepowered.downloads.versions.worker.consumer.VersionedAssetSubscr
  */
 public final class VersionsWorkerSupervisor {
 
-    public static Behavior<Void> bootstrapWorkers(
-        final ArtifactService artifacts,
-        final VersionsService versions
-    ) {
+    public static Behavior<Void> bootstrapWorkers() {
         return Behaviors.setup(ctx -> {
             final ClusterSharding sharding = ClusterSharding.get(ctx.getSystem());
             // Persistent EventBased Actors
             EntityStore.setupPersistedEntities(sharding);
-
-            // Kakfa subscribers
-            VersionedAssetSubscriber.setup(versions, sharding);
 
             // Workers available to do most jobs
             final var member = Cluster.get(ctx.getSystem()).selfMember();

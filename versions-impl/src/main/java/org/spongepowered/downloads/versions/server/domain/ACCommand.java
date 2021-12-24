@@ -30,8 +30,6 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.Jsonable;
-import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.TagRegistration;
@@ -47,55 +45,38 @@ import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
     @JsonSubTypes.Type(value = ACCommand.RegisterArtifactTag.class, name = "register-tag"),
     @JsonSubTypes.Type(value = ACCommand.UpdateArtifactTag.class, name = "update-tag"),
     @JsonSubTypes.Type(value = ACCommand.RegisterPromotion.class, name = "register-promotion"),
-    @JsonSubTypes.Type(value = ACCommand.RegisterCollection.class, name = "register-collection"),
-    @JsonSubTypes.Type(value = ACCommand.GetCollections.class, name = "get-collection"),
 })
 public sealed interface ACCommand extends Jsonable{
 
-    final record RegisterArtifact(
+    record RegisterArtifact(
         ArtifactCoordinates coordinates,
         ActorRef<NotUsed> replyTo
     ) implements ACCommand {
     }
 
-    final record RegisterVersion(
+    record RegisterVersion(
         MavenCoordinates coordinates,
         ActorRef<VersionRegistration.Response> replyTo
     ) implements ACCommand {
     }
 
-    final record RegisterArtifactTag(
+    record RegisterArtifactTag(
         ArtifactTagEntry entry,
         ActorRef<TagRegistration.Response> replyTo
     ) implements ACCommand {
     }
 
-    final record UpdateArtifactTag(
+    record UpdateArtifactTag(
         ArtifactTagEntry entry,
         ActorRef<TagRegistration.Response> replyTo
     ) implements ACCommand {
     }
 
-    final record RegisterPromotion(
+    record RegisterPromotion(
         String regex,
         ActorRef<TagVersion.Response> replyTo,
         boolean enableManualMarking
     ) implements ACCommand {
     }
 
-    final record RegisterCollection(
-        ArtifactCollection collection,
-        ActorRef<VersionRegistration.Response> replyTo
-    ) implements ACCommand {
-    }
-
-    final record GetVersions(
-        ActorRef<List<MavenCoordinates>> replyTo
-    ) implements ACCommand {
-    }
-
-    final record GetCollections(
-        List<MavenCoordinates> coordinates,
-        ActorRef<List<ArtifactCollection>> replyTo
-    ) implements ACCommand {}
 }

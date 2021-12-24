@@ -33,7 +33,9 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.Artifact;
+import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
+import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 
 import java.net.URI;
@@ -43,6 +45,7 @@ import java.net.URI;
     @JsonSubTypes.Type(value = VersionedArtifactCommand.Register.class, name = "register"),
     @JsonSubTypes.Type(value = VersionedArtifactCommand.AddAssets.class, name = "add-assets"),
     @JsonSubTypes.Type(value = VersionedArtifactCommand.MarkFilesAsErrored.class, name = "errored-assets"),
+    @JsonSubTypes.Type(value = VersionedArtifactCommand.RegisterAssets.class, name = "register-assets"),
     @JsonSubTypes.Type(value = VersionedArtifactCommand.RegisterRawCommit.class, name = "register-sha"),
     @JsonSubTypes.Type(value = VersionedArtifactCommand.RegisterResolvedCommit.class, name = "register-commit"),
 })
@@ -55,6 +58,16 @@ public sealed interface VersionedArtifactCommand extends Jsonable {
     ) implements VersionedArtifactCommand {
         @JsonCreator
         public Register {
+        }
+    }
+
+    record RegisterAssets(
+        MavenCoordinates coordinates,
+        ArtifactCollection collection,
+        ActorRef<VersionRegistration.Response> replyTo
+    ) implements VersionedArtifactCommand {
+        @JsonCreator
+        public RegisterAssets {
         }
     }
 
@@ -85,5 +98,13 @@ public sealed interface VersionedArtifactCommand extends Jsonable {
         @JsonCreator
         public RegisterResolvedCommit {
         }
+    }
+
+    record RegisterFailedCommit(
+        String commitId,
+        URI repo,
+        ActorRef<Done> replyTo
+    )
+        implements VersionedArtifactCommand {
     }
 }

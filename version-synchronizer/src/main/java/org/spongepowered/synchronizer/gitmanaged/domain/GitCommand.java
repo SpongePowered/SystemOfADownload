@@ -67,9 +67,27 @@ public sealed interface GitCommand extends Jsonable {
     }
 
     @JsonDeserialize
-    record RepositoryResponse(List<URI> repositories) {
+    @JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
+    sealed interface RepositoryResponse extends Jsonable {
+        List<URI> repositories();
+    }
+
+    @JsonDeserialize
+    record RepositoriesAvaiable(List<URI> repositories) implements RepositoryResponse {
         @JsonCreator
-        public RepositoryResponse {
+        public RepositoriesAvaiable {
+        }
+    }
+
+    @JsonDeserialize
+    record NoRepositories() implements RepositoryResponse {
+        @JsonCreator
+        public NoRepositories {
+        }
+
+        @Override
+        public List<URI> repositories() {
+            return List.empty();
         }
     }
 
@@ -100,13 +118,17 @@ public sealed interface GitCommand extends Jsonable {
     record UnresolvedWork(
         Map<MavenCoordinates, String> unresolvedCommits,
         List<URI> repositories
-    ) {
+    ) implements Jsonable {
         @JsonCreator
         public UnresolvedWork {
         }
 
         public boolean isEmpty() {
             return unresolvedCommits.isEmpty();
+        }
+
+        public boolean hasWork() {
+            return !unresolvedCommits.isEmpty() && !this.repositories.isEmpty();
         }
     }
 }

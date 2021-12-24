@@ -40,6 +40,7 @@ import akka.persistence.typed.javadsl.ReplyEffect;
 import akka.persistence.typed.javadsl.RetentionCriteria;
 import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
 import org.spongepowered.downloads.artifact.api.Artifact;
+import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 import org.spongepowered.downloads.versions.worker.actor.artifacts.FileCollectionOperator;
 import org.spongepowered.downloads.versions.worker.actor.artifacts.PotentiallyUsableAsset;
 
@@ -93,6 +94,7 @@ public class VersionedArtifactEntity
             .onEvent(ArtifactEvent.FilesErrored.class, (s, e) -> s.markFilesErrored())
             .onEvent(ArtifactEvent.CommitAssociated.class, (s, e) -> s.withCommit(e.commitSha()))
             .onEvent(ArtifactEvent.CommitResolved.class, ArtifactState.Registered::resolveCommit)
+            .onEvent(ArtifactEvent.CommitUnresolved.class, ArtifactState.Registered::markCommitAsUnresolved)
             ;
         return builder.build();
     }
@@ -102,24 +104,88 @@ public class VersionedArtifactEntity
         final var builder = this.newCommandHandlerWithReplyBuilder();
         builder.forStateType(ArtifactState.Unregistered.class)
             .onCommand(VersionedArtifactCommand.Register.class, this::onRegister)
-            .onCommand(VersionedArtifactCommand.AddAssets.class, this::onRegisterAssets)
+            .onCommand(VersionedArtifactCommand.AddAssets.class, this::onEmptyAddAssets)
+            .onCommand(VersionedArtifactCommand.RegisterAssets.class, this::onEmptyRegisterAssets)
             ;
         builder.forStateType(ArtifactState.Registered.class)
             .onCommand(VersionedArtifactCommand.Register.class, cmd -> this.Effect().reply(cmd.replyTo(), Done.done()))
+            .onCommand(VersionedArtifactCommand.RegisterAssets.class, this::onRegisterAssets)
             .onCommand(VersionedArtifactCommand.AddAssets.class, this::onAddAssets)
             .onCommand(VersionedArtifactCommand.MarkFilesAsErrored.class, this::onMarkFilesAsErrored)
             .onCommand(VersionedArtifactCommand.RegisterRawCommit.class, this::onRegisterRawCommit)
             .onCommand(VersionedArtifactCommand.RegisterResolvedCommit.class, this::handleCompletedCommit)
+            .onCommand(VersionedArtifactCommand.RegisterFailedCommit.class, this::handleFailedCommit)
             ;
         return builder.build();
     }
 
+    private ReplyEffect<ArtifactEvent, ArtifactState> handleFailedCommit(
+        final ArtifactState.Registered state,
+        final VersionedArtifactCommand.RegisterFailedCommit cmd
+    ) {
+        ctx.getLog().info("[{}] Commit {} failed to resolve", state.coordinates().asStandardCoordinates(), cmd.commitId());
+        return this.Effect()
+            .persist(state.failedCommit(cmd.commitId()))
+            .thenReply(cmd.replyTo(), ns -> Done.done());
+    }
+
     private ReplyEffect<ArtifactEvent, ArtifactState> onRegisterAssets(
+        final ArtifactState.Registered state,
+        final VersionedArtifactCommand.RegisterAssets cmd
+    ) {
+        final var artifacts = cmd.collection().components();
+        if (this.ctx.getLog().isTraceEnabled()) {
+            this.ctx.getLog().trace("[{}] Current assets: {}", state.coordinates(), state.artifacts());
+            this.ctx.getLog().trace("[{}] Adding assets {}", state.coordinates(), artifacts);
+        }
+        return this.Effect()
+            .persist(state.addAssets(artifacts))
+            .thenRun(ns -> {
+                if (this.ctx.getLog().isTraceEnabled()) {
+                    this.ctx.getLog().trace("[{}] Updated assets", state.coordinates());
+                }
+                if (ns.needsArtifactScan()) {
+                    if (this.ctx.getLog().isDebugEnabled()) {
+                        this.ctx.getLog().debug(
+                            "[{}] Telling FileCollectionOperator to fetch commit from files",
+                            state.coordinates()
+                        );
+                    }
+                    if (this.ctx.getLog().isTraceEnabled()) {
+                        this.ctx.getLog().trace(
+                            "[{}] Assets available {}", state.coordinates(), ns.artifacts().map(Artifact::toString));
+                    }
+                    final var usableAssets = ns.artifacts()
+                        .filter(a -> "jar".equalsIgnoreCase(a.extension()))
+                        .filter(a -> a.classifier().isEmpty() || a.classifier().filter(""::equals).isPresent())
+                        .map(a -> new PotentiallyUsableAsset(state.coordinates(), a.extension(), a.downloadUrl()));
+                    if (!usableAssets.isEmpty()) {
+                        if (this.ctx.getLog().isDebugEnabled()) {
+                            this.ctx.getLog().debug("[{}] Assets to scan {}", state.coordinates(), usableAssets);
+                        }
+                        this.scanFiles.tell(
+                            new FileCollectionOperator.TryFindingCommitForFiles(usableAssets, state.coordinates()));
+                    }
+                }
+            })
+            .thenReply(cmd.replyTo(), ns -> new VersionRegistration.Response.RegisteredArtifact(cmd.coordinates()));
+    }
+
+    private ReplyEffect<ArtifactEvent, ArtifactState> onEmptyRegisterAssets(
+        final VersionedArtifactCommand.RegisterAssets cmd
+    ) {
+        this.ctx.getLog().warn("[{}] Registering collection on empty state", cmd.coordinates().asStandardCoordinates());
+        return this.Effect()
+            .persist(Arrays.asList(new ArtifactEvent.Registered(cmd.coordinates()), new ArtifactEvent.AssetsUpdated(cmd.coordinates(), cmd.collection().components())))
+            .thenReply(cmd.replyTo(), ns -> new VersionRegistration.Response.RegisteredArtifact(cmd.coordinates()));
+    }
+
+    private ReplyEffect<ArtifactEvent, ArtifactState> onEmptyAddAssets(
         final VersionedArtifactCommand.AddAssets cmd
     ) {
         this.ctx.getLog().warn("[{}] Registering assets with empty state", cmd.coordinates().asStandardCoordinates());
         return this.Effect()
-            .persist(Arrays.asList(new ArtifactEvent.Registered(cmd.coordinates()), new ArtifactEvent.AssetsUpdated(cmd.artifacts())))
+            .persist(Arrays.asList(new ArtifactEvent.Registered(cmd.coordinates()), new ArtifactEvent.AssetsUpdated(cmd.coordinates(), cmd.artifacts())))
             .thenReply(cmd.replyTo(), ns -> Done.done());
     }
 
@@ -128,6 +194,7 @@ public class VersionedArtifactEntity
     ) {
         this.ctx.getLog().info("Received completed commit {}", cmd.versionedCommit());
         if (state.fileStatus().commit().isPresent()) {
+            this.ctx.getLog().warn("[{}] Ignoring {} with already registered commit {}", state.coordinates().asStandardCoordinates(), cmd.versionedCommit(), state.fileStatus().commit().get());
             return this.Effect().reply(cmd.replyTo(), Done.done());
         }
         return this.Effect()
@@ -145,7 +212,13 @@ public class VersionedArtifactEntity
             .thenNoReply();
     }
 
-    private ReplyEffect<ArtifactEvent, ArtifactState> onMarkFilesAsErrored() {
+    private ReplyEffect<ArtifactEvent, ArtifactState> onMarkFilesAsErrored(ArtifactState state, VersionedArtifactCommand.MarkFilesAsErrored cmd) {
+        if (state.needsArtifactScan()) {
+            return this.Effect()
+                .persist(new ArtifactEvent.FilesErrored())
+                .thenRun(ns -> this.ctx.getLog().debug("File as failed {}", ns))
+                .thenNoReply();
+        }
         return this.Effect()
             .persist(new ArtifactEvent.FilesErrored())
             .thenRun(ns -> this.ctx.getLog().debug("File as failed {}", ns))
@@ -161,7 +234,7 @@ public class VersionedArtifactEntity
             this.ctx.getLog().trace("[{}] Adding assets {}", state.coordinates(), cmd.artifacts());
         }
         return this.Effect()
-            .persist(state.addAssets(cmd))
+            .persist(state.addAssets(cmd.artifacts()))
             .thenRun(ns -> {
                 if (this.ctx.getLog().isTraceEnabled()) {
                     this.ctx.getLog().trace("[{}] Updated assets", state.coordinates());

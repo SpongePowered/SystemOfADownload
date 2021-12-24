@@ -31,10 +31,8 @@ import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.cluster.Member;
 import org.spongepowered.downloads.util.akka.ClusterUtil;
-import org.spongepowered.downloads.versions.api.delegates.CommitDetailsRegistrar;
 import org.spongepowered.downloads.versions.worker.actor.artifacts.CommitExtractor;
 import org.spongepowered.downloads.versions.worker.actor.artifacts.FileCollectionOperator;
-import org.spongepowered.downloads.versions.worker.actor.delegates.InternalCommitRegistrar;
 import org.spongepowered.downloads.versions.worker.actor.delegates.RawCommitReceiver;
 
 import java.util.UUID;
@@ -49,6 +47,7 @@ public final class WorkerSpawner {
 
         for (int i = 0; i < poolSizePerInstance; i++) {
             final var commitFetcherUID = UUID.randomUUID();
+
             if (member.hasRole("file-extractor")) {
                 final ActorRef<CommitExtractor.ChildCommand> commitExtractor = ClusterUtil.spawnRemotableWorker(
                     ctx,
@@ -68,12 +67,6 @@ public final class WorkerSpawner {
                 );
             }
 
-            ClusterUtil.spawnRemotableWorker(
-                ctx,
-                InternalCommitRegistrar::register,
-                () -> CommitDetailsRegistrar.SERVICE_KEY,
-                () -> "internal-commit-registrar" + commitFetcherUID
-            );
         }
 
     }

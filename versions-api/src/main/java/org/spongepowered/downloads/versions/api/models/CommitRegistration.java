@@ -22,43 +22,40 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.versions.api.delegates;
+package org.spongepowered.downloads.versions.api.models;
 
-import akka.Done;
-import akka.actor.typed.ActorRef;
-import akka.actor.typed.receptionist.ServiceKey;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
-import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 
 import java.net.URI;
 
-public final class CommitDetailsRegistrar {
+@JsonDeserialize
+@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
+@JsonSubTypes({
+    @JsonSubTypes.Type(CommitRegistration.ResolvedCommit.class),
+    @JsonSubTypes.Type(CommitRegistration.FailedCommit.class)
+})
+public sealed interface CommitRegistration extends Jsonable {
 
-    public static final ServiceKey<Command> SERVICE_KEY = ServiceKey.create(Command.class, "commit-details-registrar");
-
-    @JsonDeserialize
-    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-    @JsonSubTypes({
-        @JsonSubTypes.Type(HandleVersionedCommitReport.class)
-    })
-    public interface Command extends Jsonable {}
-
-    @JsonTypeName("handle-version-commit")
-    public record HandleVersionedCommitReport(
+    record ResolvedCommit(
         URI repo,
         VersionedCommit versionedCommit,
-        MavenCoordinates coordinates,
-        ActorRef<Done> replyTo
-    ) implements Command {
+        MavenCoordinates coordinates
+    ) implements CommitRegistration {
         @JsonCreator
-        public HandleVersionedCommitReport {
+        public ResolvedCommit {
         }
     }
 
+    record FailedCommit(
+        String commitSha, URI repo
+    ) implements CommitRegistration {
+        @JsonCreator
+        public FailedCommit {
+        }
+    }
 }

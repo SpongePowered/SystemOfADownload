@@ -29,9 +29,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.Artifact;
-import org.spongepowered.downloads.artifact.api.ArtifactCollection;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
@@ -40,7 +37,6 @@ import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
 @JsonSubTypes({
     @JsonSubTypes.Type(value = ArtifactUpdate.ArtifactVersionRegistered.class, name = "new-version"),
     @JsonSubTypes.Type(value = ArtifactUpdate.TagRegistered.class, name = "tag-update"),
-    @JsonSubTypes.Type(value = ArtifactUpdate.VersionedAssetCollectionUpdated.class, name = "asset-added"),
 })
 public interface ArtifactUpdate {
 
@@ -60,14 +56,4 @@ public interface ArtifactUpdate {
         }
     }
 
-    @JsonDeserialize
-    record VersionedAssetCollectionUpdated(
-        ArtifactCoordinates coordinates,
-        ArtifactCollection collection,
-        @JsonProperty("newArtifacts") List<Artifact> artifacts
-    ) implements ArtifactUpdate {
-        @JsonCreator
-        public VersionedAssetCollectionUpdated {
-        }
-    }
 }

@@ -37,12 +37,16 @@ import akka.stream.javadsl.GraphDSL;
 import akka.stream.javadsl.Merge;
 import akka.stream.javadsl.Source;
 import akka.stream.typed.javadsl.ActorFlow;
+import io.vavr.collection.HashMap;
+import io.vavr.collection.List;
+import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.artifact.api.event.ArtifactUpdate;
 import org.spongepowered.downloads.util.akka.FlowUtil;
 import org.spongepowered.synchronizer.gitmanaged.domain.GitCommand;
 import org.spongepowered.synchronizer.gitmanaged.domain.GitManagedArtifact;
-import org.spongepowered.synchronizer.gitmanaged.util.jgit.CommitResolver;
+import org.spongepowered.synchronizer.gitmanaged.util.jgit.CommitResolutionManager;
 
 import java.net.URI;
 import java.time.Duration;
@@ -50,7 +54,6 @@ import java.time.Duration;
 public final class ArtifactSubscriber {
 
     public static void setup(ArtifactService artifacts, ActorContext<?> ctx) {
-
         final Flow<ArtifactUpdate, Done, NotUsed> flow = generateFlows(ctx);
 
         artifacts.artifactUpdate()
@@ -73,34 +76,46 @@ public final class ArtifactSubscriber {
         ActorContext<?> ctx
     ) {
         // Step 1 - Register the repository with GitManagedArtifact
-        final var registerRepo = Flow.<ArtifactUpdate.GitRepositoryAssociated>create()
-            .mapAsync(
-                1, c -> sharding.entityRefFor(GitManagedArtifact.ENTITY_TYPE_KEY, c.coordinates().asMavenString())
-                    .<Done>ask(replyTo -> new GitCommand.RegisterRepository(URI.create(c.repository()), replyTo), Duration.ofSeconds(20))
-                    .thenApply(d -> c)
-            );
-        final var key = Routers.group(CommitResolver.SERVICE_KEY);
+        final var registerRepo = Flow.<ArtifactUpdate.GitRepositoryAssociated, ArtifactUpdate.GitRepositoryAssociated>fromFunction(
+            c -> sharding.entityRefFor(GitManagedArtifact.ENTITY_TYPE_KEY, c.coordinates().asMavenString())
+                .<Done>ask(
+                    replyTo -> new GitCommand.RegisterRepository(URI.create(c.repository()), replyTo),
+                    Duration.ofSeconds(20)
+                )
+                .thenApply(d -> c)
+                .toCompletableFuture()
+                .join()
+        );
+        final var key = Routers.group(CommitResolutionManager.SERVICE_KEY);
         final var workerRef = ctx.spawn(key, "repo-associated-commit-resolver");
         // Step 2 - Get unresolved commits from GitManagedArtifact to perform work
-        final Flow<ArtifactUpdate.GitRepositoryAssociated, CommitResolver.ResolveCommitDetails, NotUsed> registerRepoFlow = Flow.<ArtifactUpdate.GitRepositoryAssociated>create()
+        final Flow<ArtifactUpdate.GitRepositoryAssociated, CommitResolutionManager.ResolveCommitDetails, NotUsed> registerRepoFlow = Flow.<ArtifactUpdate.GitRepositoryAssociated>create()
             .mapAsync(
                 1, c -> sharding.entityRefFor(GitManagedArtifact.ENTITY_TYPE_KEY, c.coordinates().asMavenString())
                     .ask(GitCommand.GetUnresolvedVersions::new, Duration.ofSeconds(20))
             )
-            .flatMapConcat(work -> Source.from(work.unresolvedCommits()
-                .toList().map(
-                    (t) -> new CommitResolver.ResolveCommitDetails(t._1(), t._2(), work.repositories(), null))));
+            .flatMapConcat(work -> {
+                final Map<MavenCoordinates, String> tuple2s = work.repositories().isEmpty()
+                    ? HashMap.empty()
+                    : work.unresolvedCommits();
+                final List<CommitResolutionManager.ResolveCommitDetails> requests = tuple2s
+                    .toList().map(
+                        (t) -> new CommitResolutionManager.ResolveCommitDetails(
+                            t._1(), t._2(), work.repositories(), null)
+                    );
+                return Source.from(requests);
+            });
         // Step 2a - Resolve the commits
-        final var flow = ActorFlow.<CommitResolver.ResolveCommitDetails, CommitResolver.Command, Done>ask(
+        final var flow = ActorFlow.<CommitResolutionManager.ResolveCommitDetails, CommitResolutionManager.Command, Done>ask(
             4,
             workerRef,
             Duration.ofMinutes(10),
-            (msg, replyTo) -> new CommitResolver.ResolveCommitDetails(
+            (msg, replyTo) -> new CommitResolutionManager.ResolveCommitDetails(
                 msg.coordinates(), msg.commit(), msg.gitRepo(), replyTo)
         );
 
         return Flow.fromGraph(GraphDSL.create(b -> {
-            final var balance = b.add(Balance.<CommitResolver.ResolveCommitDetails>create(4));
+            final var balance = b.add(Balance.<CommitResolutionManager.ResolveCommitDetails>create(4));
             final var zip = b.add(Merge.<Done>create(4));
             final var add = b.add(registerRepo.via(registerRepoFlow));
             b.from(add.out())

@@ -98,7 +98,7 @@ public final class ArtifactSynchronizerAggregate
             .forAnyState()
             .onEvent(
                 SynchronizeEvent.SynchronizedArtifacts.class,
-                (event) -> new SyncState(event.updatedTime, event.metadata)
+                (event) -> new SyncState(event.updatedTime(), event.metadata())
             );
         return builder.build();
     }

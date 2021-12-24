@@ -35,6 +35,7 @@ import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.VersionedCommit;
 
 import java.net.URI;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -83,8 +84,8 @@ public sealed interface ArtifactState extends Jsonable {
         Optional<String> commitSha,
         Optional<VersionedCommit> commit,
         boolean scanned,
-        io.vavr.collection.List<Artifact> artifacts
-    ) {
+        io.vavr.collection.List<Artifact> artifacts,
+        boolean resolutionError) {
         @JsonCreator
         public FileStatus {
         }
@@ -93,9 +94,19 @@ public sealed interface ArtifactState extends Jsonable {
             Optional.empty(),
             Optional.empty(),
             true,
-            io.vavr.collection.List.empty()
+            io.vavr.collection.List.empty(),
+            false
         );
 
+        public FileStatus withResultionError(boolean b) {
+            return new FileStatus(
+                commitSha,
+                commit,
+                scanned,
+                artifacts,
+                b
+            );
+        }
     }
 
     static Registered register(final ArtifactEvent.Registered event) {
@@ -107,6 +118,9 @@ public sealed interface ArtifactState extends Jsonable {
         HashSet<String> repo,
         FileStatus fileStatus
     ) implements ArtifactState {
+
+        public Registered {
+        }
 
         @Override
         public Optional<String> commitSha() {
@@ -128,15 +142,15 @@ public sealed interface ArtifactState extends Jsonable {
             return this.repo.toList().map(URI::create);
         }
 
-        public List<ArtifactEvent> addAssets(VersionedArtifactCommand.AddAssets cmd) {
+        public List<ArtifactEvent> addAssets(io.vavr.collection.List<Artifact> artifacts) {
 
-            final var filtered = cmd.artifacts()
+            final var filtered = artifacts
                 .filter(Predicate.not(a -> this.fileStatus.artifacts.map(Artifact::downloadUrl).contains(a.downloadUrl())));
             if (filtered.isEmpty()) {
                 return List.of();
             }
 
-            return List.of(new ArtifactEvent.AssetsUpdated(filtered));
+            return List.of(new ArtifactEvent.AssetsUpdated(this.coordinates, filtered));
         }
 
         public ArtifactState withAssets(io.vavr.collection.List<Artifact> artifacts) {
@@ -147,7 +161,8 @@ public sealed interface ArtifactState extends Jsonable {
                     this.fileStatus.commitSha,
                     this.fileStatus.commit,
                     this.fileStatus.commit.isPresent() || this.fileStatus.commitSha.isPresent(),
-                    artifacts
+                    artifacts,
+                    false
                 )
             );
         }
@@ -165,7 +180,8 @@ public sealed interface ArtifactState extends Jsonable {
                     this.fileStatus().commitSha,
                     this.fileStatus.commit,
                     true,
-                    this.fileStatus.artifacts
+                    this.fileStatus.artifacts,
+                    false
                 )
             );
         }
@@ -185,7 +201,8 @@ public sealed interface ArtifactState extends Jsonable {
                     Optional.of(commitSha),
                     this.fileStatus.commit,
                     true,
-                    this.fileStatus.artifacts
+                    this.fileStatus.artifacts,
+                    false
                 )
             );
         }
@@ -198,7 +215,8 @@ public sealed interface ArtifactState extends Jsonable {
                     this.fileStatus.commitSha,
                     Optional.of(event.versionedCommit()),
                     this.fileStatus.scanned,
-                    this.fileStatus.artifacts
+                    this.fileStatus.artifacts,
+                    false
                 )
             );
         }
@@ -208,6 +226,20 @@ public sealed interface ArtifactState extends Jsonable {
                 this.coordinates,
                 this.repo.add(repository),
                 this.fileStatus
+            );
+        }
+
+        public List<ArtifactEvent> failedCommit(String commitId) {
+            return this.fileStatus.commit.map(v -> Collections.<ArtifactEvent>emptyList())
+                .orElseGet(() -> List.of(new ArtifactEvent.CommitUnresolved(this.coordinates, commitId)));
+        }
+
+        public ArtifactState markCommitAsUnresolved(ArtifactEvent.CommitUnresolved a) {
+            final var status = this.fileStatus.withResultionError(true);
+            return new Registered(
+                this.coordinates,
+                this.repo,
+                status
             );
         }
     }

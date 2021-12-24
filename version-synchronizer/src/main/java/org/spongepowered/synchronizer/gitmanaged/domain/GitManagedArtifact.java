@@ -33,6 +33,7 @@ import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
+import akka.persistence.typed.javadsl.RetentionCriteria;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
 public class GitManagedArtifact extends EventSourcedBehaviorWithEnforcedReplies<GitCommand, GitEvent, GitState> {
@@ -71,7 +72,8 @@ public class GitManagedArtifact extends EventSourcedBehaviorWithEnforcedReplies<
                 .thenReply(cmd.replyTo(), ns -> Done.done())
             )
             .onCommand(GitCommand.GetRepositories.class, (state, cmd) -> this.Effect()
-                .reply(cmd.replyTo(), new GitCommand.RepositoryResponse(state.repositories()))
+                .reply(cmd.replyTo(), state.repositories().isEmpty() ?
+                    new GitCommand.NoRepositories() : new GitCommand.RepositoriesAvaiable(state.repositories()))
             )
             .onCommand(GitCommand.GetUnresolvedVersions.class, (state, cmd) -> this.Effect()
                 .reply(cmd.replyTo(), state.unresolvedVersions())
@@ -92,7 +94,10 @@ public class GitManagedArtifact extends EventSourcedBehaviorWithEnforcedReplies<
     public EventHandler<GitState, GitEvent> eventHandler() {
         final var builder = this.newEventHandlerBuilder();
         builder.forAnyState()
-            .onEvent(GitEvent.RepositoryRegistered.class, (state, event) -> state.withRepository(event.repository()))
+            .onEvent(
+                GitEvent.RepositoryRegistered.class,
+                (state, event) -> state.withRepository(event.repository())
+            )
             .onEvent(
                 GitEvent.CommitResolved.class,
                 (state, event) -> state.withResolvedVersion(event.coordinates(), event.resolvedCommit())
@@ -105,4 +110,8 @@ public class GitManagedArtifact extends EventSourcedBehaviorWithEnforcedReplies<
         return builder.build();
     }
 
+    @Override
+    public RetentionCriteria retentionCriteria() {
+        return RetentionCriteria.snapshotEvery(10, 2);
+    }
 }

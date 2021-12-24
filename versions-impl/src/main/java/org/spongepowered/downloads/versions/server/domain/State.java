@@ -61,7 +61,7 @@ public interface State {
         }
 
         public ACState register(ACEvent.ArtifactCoordinatesUpdated event) {
-            return new ACState(event.coordinates);
+            return new ACState(event.coordinates());
         }
     }
 
