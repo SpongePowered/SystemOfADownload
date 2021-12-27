@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.synchronizer.resync;
+package org.spongepowered.synchronizer.resync.domain;
 
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.ActorContext;
@@ -39,6 +39,8 @@ import io.vavr.collection.List;
 import io.vavr.control.Try;
 import io.vavr.jackson.datatype.VavrModule;
 import org.spongepowered.downloads.maven.artifact.ArtifactMavenMetadata;
+import org.spongepowered.synchronizer.resync.ResyncExtension;
+import org.spongepowered.synchronizer.resync.ResyncSettings;
 
 import javax.xml.stream.XMLInputFactory;
 import java.io.Serial;
@@ -107,16 +109,16 @@ public final class ArtifactSynchronizerAggregate
     public CommandHandlerWithReply<Command, SynchronizeEvent, SyncState> commandHandler() {
         final var builder = this.newCommandHandlerWithReplyBuilder()
             .forAnyState()
-            .onCommand(Resync.class, this::handleResync)
-            .onCommand(WrappedResync.class, this::handleResponse);
+            .onCommand(Command.Resync.class, this::handleResync)
+            .onCommand(Command.WrappedResync.class, this::handleResponse);
         return builder.build();
     }
 
-    private ReplyEffect<SynchronizeEvent, SyncState> handleResponse(SyncState state, WrappedResync cmd) {
-        if (cmd.response() instanceof Failed) {
+    private ReplyEffect<SynchronizeEvent, SyncState> handleResponse(SyncState state, Command.WrappedResync cmd) {
+        if (cmd.response() instanceof Command.Failed) {
             return this.Effect().reply(cmd.replyTo(), List.empty());
         }
-        if (cmd.response() instanceof Completed c) {
+        if (cmd.response() instanceof Command.Completed c) {
             final var metadata = c.metadata();
             if (metadata.versioning().lastUpdated.equals(state.lastUpdated)) {
                 final var versionsToSync = state.versions.versioning()
@@ -132,7 +134,7 @@ public final class ArtifactSynchronizerAggregate
     }
 
 
-    private ReplyEffect<SynchronizeEvent, SyncState> handleResync(SyncState state, Resync cmd) {
+    private ReplyEffect<SynchronizeEvent, SyncState> handleResync(SyncState state, Command.Resync cmd) {
         final var groupId = !state.groupId.equals(cmd.coordinates().groupId)
             ? cmd.coordinates().groupId
             : state.groupId;
@@ -154,9 +156,9 @@ public final class ArtifactSynchronizerAggregate
                             throwable
                         );
                     }
-                    return new WrappedResync(new Failed(), cmd.replyTo());
+                    return new Command.WrappedResync(new Command.Failed(), cmd.replyTo());
                 }
-                return new WrappedResync(new Completed(response), cmd.replyTo());
+                return new Command.WrappedResync(new Command.Completed(response), cmd.replyTo());
             }
         );
         return this.Effect().noReply();

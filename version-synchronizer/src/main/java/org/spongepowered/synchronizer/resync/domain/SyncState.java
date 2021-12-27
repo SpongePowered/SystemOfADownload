@@ -22,21 +22,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.synchronizer.resync;
+package org.spongepowered.synchronizer.resync.domain;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.maven.artifact.ArtifactMavenMetadata;
 import org.spongepowered.downloads.maven.artifact.Versioning;
 
-final class SyncState {
+@JsonDeserialize
+final class SyncState implements Jsonable {
 
     public final String groupId;
     public final String artifactId;
     public final String lastUpdated;
     public final ArtifactMavenMetadata versions;
 
+    @JsonIgnore
     static final SyncState EMPTY = new SyncState("", new ArtifactMavenMetadata("", "", new Versioning()));
 
+    @JsonCreator
     public SyncState(
         final String lastUpdated,
         final ArtifactMavenMetadata versions

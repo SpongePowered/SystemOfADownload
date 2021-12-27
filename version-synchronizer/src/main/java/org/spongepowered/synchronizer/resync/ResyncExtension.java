@@ -28,7 +28,7 @@ import akka.actor.AbstractExtensionId;
 import akka.actor.ExtendedActorSystem;
 import akka.actor.ExtensionIdProvider;
 
-class ResyncExtension extends AbstractExtensionId<ResyncSettings>
+public class ResyncExtension extends AbstractExtensionId<ResyncSettings>
     implements ExtensionIdProvider {
     public static final ResyncExtension SettingsProvider = new ResyncExtension();
 

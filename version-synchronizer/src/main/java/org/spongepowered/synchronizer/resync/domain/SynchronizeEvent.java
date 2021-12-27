@@ -22,20 +22,32 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.synchronizer.resync;
+package org.spongepowered.synchronizer.resync.domain;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
+import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
+import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
+import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
+import org.spongepowered.downloads.maven.artifact.ArtifactMavenMetadata;
 
-@JsonDeserialize
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = Resync.class, name = "resync"),
-    @JsonSubTypes.Type(value = Failed.class, name = "failed"),
-    @JsonSubTypes.Type(value = WrappedResync.class, name = "wrapped-resync"),
-    @JsonSubTypes.Type(value = Completed.class, name = "completed"),
-})
-public interface Command extends Jsonable {
+interface SynchronizeEvent extends Jsonable, AggregateEvent<SynchronizeEvent> {
+
+    AggregateEventShards<SynchronizeEvent> TAG = AggregateEventTag.sharded(SynchronizeEvent.class, 10);
+
+    @Override
+    default AggregateEventTagger<SynchronizeEvent> aggregateTag() {
+        return TAG;
+    }
+
+    @JsonDeserialize
+    record SynchronizedArtifacts(
+        ArtifactMavenMetadata metadata,
+        String updatedTime
+    ) implements SynchronizeEvent {
+        @JsonCreator
+        public SynchronizedArtifacts {}
+    }
 }

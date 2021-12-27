@@ -53,8 +53,11 @@ import io.vavr.collection.List;
 import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
+import org.spongepowered.downloads.artifact.api.Group;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.artifact.api.event.ArtifactUpdate;
+import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
+import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
 import org.spongepowered.downloads.util.akka.FlowUtil;
 import org.spongepowered.synchronizer.SonatypeSynchronizer;
 import org.spongepowered.synchronizer.gitmanaged.domain.GitCommand;
@@ -101,6 +104,38 @@ public final class ScheduledCommitResolver {
         artifactService.artifactUpdate()
             .subscribe()
             .atLeastOnce(FlowUtil.splitClassFlows(Pair.create(ArtifactUpdate.ArtifactRegistered.class, sync)));
+        final Flow<ArtifactService, GroupsResponse, NotUsed> getGroups = Flow.fromFunction(s -> s.getGroups()
+            .invoke()
+            .toCompletableFuture()
+            .join());
+        Source.single(artifactService)
+            .via(getGroups
+                .flatMapConcat((GroupsResponse r) -> parseResponseIntoArtifacts(artifactService, r)))
+            .via(ActorFlow.ask(scheduler, Duration.ofSeconds(10), Register::new))
+            .to(Sink.ignore())
+            .run(context.getSystem());
+    }
+
+    private static Source<ArtifactCoordinates, NotUsed> parseResponseIntoArtifacts(
+        ArtifactService artifactService,
+        GroupsResponse r
+    ) {
+        final Source<String, NotUsed> groups;
+        if (r instanceof GroupsResponse.Available a) {
+            groups = Source.from(a.groups.map(Group::getGroupCoordinates));
+        } else {
+            groups = Source.empty();
+        }
+        final var groupsToArtifacts = Flow.<String>create()
+            .mapConcat(g -> {
+                final var join = artifactService.getArtifacts(g).invoke().toCompletableFuture().join();
+                if (join instanceof GetArtifactsResponse.ArtifactsAvailable aa) {
+                    return aa.artifactIds().map(id -> new ArtifactCoordinates(g, id));
+                } else {
+                    return List.empty();
+                }
+            });
+        return groups.via(groupsToArtifacts);
     }
 
     private static Flow<ArtifactUpdate.ArtifactRegistered, Done, NotUsed> registerForSync(

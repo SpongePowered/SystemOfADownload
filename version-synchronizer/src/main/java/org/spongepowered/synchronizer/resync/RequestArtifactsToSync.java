@@ -22,11 +22,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.synchronizer.actor;
+package org.spongepowered.synchronizer.resync;
 
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.Behaviors;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
@@ -34,22 +37,24 @@ import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
 
 public class RequestArtifactsToSync {
 
-    public interface Command {
+    @JsonDeserialize
+    @JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
+    public sealed interface Command extends Jsonable {
     }
 
-    public static final record GatherGroupArtifacts(
+    public record GatherGroupArtifacts(
         String groupCoordinates,
         ActorRef<RequestArtifactsToSync.ArtifactsToSync> replyTo
     ) implements Command {
     }
 
-    private static final record WrappedArtifactsToSync(
+    private record WrappedArtifactsToSync(
         ArtifactsToSync result,
         ActorRef<ArtifactsToSync> replyTo
     ) implements Command {
     }
 
-    public static final record ArtifactsToSync(
+    public record ArtifactsToSync(
         List<ArtifactCoordinates> artifactsNeeded
     ) {
     }
@@ -57,8 +62,8 @@ public class RequestArtifactsToSync {
     public static Behavior<RequestArtifactsToSync.Command> create(
         final ArtifactService artifactService
     ) {
-        return Behaviors.receive((ctx, msg) -> {
-            if (msg instanceof GatherGroupArtifacts g) {
+        return Behaviors.setup(ctx -> Behaviors.receive(RequestArtifactsToSync.Command.class)
+            .onMessage(GatherGroupArtifacts.class, (g) -> {
                 final var listCompletableFuture = artifactService.getArtifacts(g.groupCoordinates).invoke()
                     .thenApply(artifactsResponse -> {
                         if (!(artifactsResponse instanceof GetArtifactsResponse.ArtifactsAvailable a)) {
@@ -74,12 +79,12 @@ public class RequestArtifactsToSync {
                     return new WrappedArtifactsToSync(new ArtifactsToSync(List.empty()), g.replyTo);
                 });
                 return Behaviors.same();
-            }
-            if (msg instanceof WrappedArtifactsToSync w) {
+            })
+            .onMessage(WrappedArtifactsToSync.class, (w) -> {
                 w.replyTo.tell(w.result);
-            }
-            return Behaviors.same();
-        });
+                return Behaviors.same();
+            })
+            .build());
     }
 
 }

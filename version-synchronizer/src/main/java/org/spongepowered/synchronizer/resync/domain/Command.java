@@ -22,32 +22,61 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.synchronizer.resync;
+package org.spongepowered.synchronizer.resync.domain;
 
+import akka.actor.typed.ActorRef;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.lightbend.lagom.javadsl.persistence.AggregateEvent;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
-import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
+import io.vavr.collection.List;
+import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
+import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.maven.artifact.ArtifactMavenMetadata;
 
-interface SynchronizeEvent extends Jsonable, AggregateEvent<SynchronizeEvent> {
+@JsonDeserialize
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = Command.Resync.class, name = "resync"),
+    @JsonSubTypes.Type(value = Command.Failed.class, name = "failed"),
+    @JsonSubTypes.Type(value = Command.WrappedResync.class, name = "wrapped-resync"),
+    @JsonSubTypes.Type(value = Command.Completed.class, name = "completed"),
+})
+public interface Command extends Jsonable {
+    @JsonDeserialize
+    record Resync(
+        ArtifactCoordinates coordinates,
+        ActorRef<List<MavenCoordinates>> replyTo
+    ) implements Command {
+        @JsonCreator
+        public Resync {}
 
-    AggregateEventShards<SynchronizeEvent> TAG = AggregateEventTag.sharded(SynchronizeEvent.class, 10);
+    }
 
-    @Override
-    default AggregateEventTagger<SynchronizeEvent> aggregateTag() {
-        return TAG;
+    record Completed(ArtifactMavenMetadata metadata) implements Response {
+        @JsonCreator
+        public Completed {
+        }
     }
 
     @JsonDeserialize
-    record SynchronizedArtifacts(
-        ArtifactMavenMetadata metadata,
-        String updatedTime
-    ) implements SynchronizeEvent {
+    sealed interface Response extends Command {
+    }
+
+    @JsonDeserialize
+    record Failed() implements Response {
         @JsonCreator
-        public SynchronizedArtifacts {}
+        public Failed {
+        }
+    }
+
+    record WrappedResync(
+        Response response,
+        ActorRef<List<MavenCoordinates>> replyTo
+    ) implements Response {
+        @JsonCreator
+        public WrappedResync {
+        }
     }
 }

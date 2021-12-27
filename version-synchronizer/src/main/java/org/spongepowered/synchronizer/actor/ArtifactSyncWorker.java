@@ -32,8 +32,7 @@ import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
-import org.spongepowered.synchronizer.resync.ArtifactSynchronizerAggregate;
-import org.spongepowered.synchronizer.resync.Resync;
+import org.spongepowered.synchronizer.resync.domain.ArtifactSynchronizerAggregate;
 import org.spongepowered.synchronizer.versionsync.ArtifactVersionSyncEntity;
 import org.spongepowered.synchronizer.versionsync.SyncRegistration;
 
@@ -98,7 +97,7 @@ public final class ArtifactSyncWorker {
                 ctx.pipeToSelf(
                     globalResyncRef
                         .<List<MavenCoordinates>>ask(
-                            replyTo -> new Resync(msg.coordinates, replyTo), settings.individualTimeOut)
+                            replyTo -> new org.spongepowered.synchronizer.resync.domain.Command.Resync(msg.coordinates, replyTo), settings.individualTimeOut)
                         .thenCompose(response ->
                             versionSyncRef
                                 .<Done>ask(

@@ -24,62 +24,30 @@
  */
 package org.spongepowered.synchronizer;
 
-import akka.Done;
-import akka.NotUsed;
-import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
-import akka.actor.typed.DispatcherSelector;
 import akka.actor.typed.SupervisorStrategy;
-import akka.actor.typed.internal.receptionist.ReceptionistMessages;
-import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
-import akka.actor.typed.javadsl.Routers;
-import akka.actor.typed.receptionist.ServiceKey;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.Entity;
+import akka.cluster.typed.ClusterSingleton;
+import akka.cluster.typed.SingletonActor;
 import akka.persistence.typed.PersistenceId;
-import akka.stream.javadsl.Flow;
-import akka.stream.javadsl.Sink;
-import akka.stream.javadsl.Source;
-import akka.stream.typed.javadsl.ActorFlow;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
-import org.spongepowered.downloads.artifact.api.Group;
-import org.spongepowered.downloads.artifact.api.event.GroupUpdate;
-import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
-import org.spongepowered.downloads.auth.api.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
-import org.spongepowered.downloads.versions.api.models.ArtifactUpdate;
-import org.spongepowered.synchronizer.actor.ArtifactSyncWorker;
 import org.spongepowered.synchronizer.actor.CommitRegistrar;
-import org.spongepowered.synchronizer.actor.RequestArtifactsToSync;
-import org.spongepowered.synchronizer.actor.VersionedComponentWorker;
+import org.spongepowered.synchronizer.assetsync.VersionConsumer;
 import org.spongepowered.synchronizer.gitmanaged.ArtifactSubscriber;
 import org.spongepowered.synchronizer.gitmanaged.CommitConsumer;
 import org.spongepowered.synchronizer.gitmanaged.ScheduledCommitResolver;
 import org.spongepowered.synchronizer.gitmanaged.domain.GitManagedArtifact;
-import org.spongepowered.synchronizer.resync.ArtifactSynchronizerAggregate;
-import org.spongepowered.synchronizer.versionsync.ArtifactVersionSyncModule;
-import scala.Option;
-
-import java.time.Duration;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicInteger;
+import org.spongepowered.synchronizer.resync.ResyncManager;
+import org.spongepowered.synchronizer.resync.domain.ArtifactSynchronizerAggregate;
+import org.spongepowered.synchronizer.versionsync.ArtifactConsumer;
 
 public final class SonatypeSynchronizer {
 
-    private static final ServiceKey<Command> key = ServiceKey.create(Command.class, "Synchronizer");
-
     public interface Command {
-    }
-
-    private record GatherGroupArtifacts() implements SonatypeSynchronizer.Command {
-    }
-
-    private record WrappedArtifactsToSync(
-        List<ArtifactCoordinates> artifactCoordinates) implements SonatypeSynchronizer.Command {
     }
 
     public static Behavior<SonatypeSynchronizer.Command> create(
@@ -96,9 +64,6 @@ public final class SonatypeSynchronizer {
             ArtifactSubscriber.setup(artifactService, context);
             ScheduledCommitResolver.setup(artifactService, context);
 
-            context.getLog().info("Initializing Artifact Maven Synchronization");
-            context.getSystem().receptionist().tell(
-                new ReceptionistMessages.Register<>(key, context.getSelf(), Option.empty()));
             final var settings = SynchronizationExtension.SettingsProvider.get(context.getSystem());
             clusterSharding
                 .init(
@@ -109,168 +74,22 @@ public final class SonatypeSynchronizer {
                 );
             clusterSharding.init(Entity.of(GitManagedArtifact.ENTITY_TYPE_KEY, ctx -> GitManagedArtifact.create(PersistenceId.of(ctx.getEntityTypeKey().name(), ctx.getEntityId()), ctx.getEntityId())));
 
-            SonatypeSynchronizer.subscribeToArtifactUpdates(
+            ArtifactConsumer.subscribeToArtifactUpdates(
                 context, artifactService, versionsService, clusterSharding, settings);
 
-            SonatypeSynchronizer.subscribeToVersionedArtifactUpdates(versionsService, mapper, context, settings);
+            VersionConsumer.subscribeToVersionedArtifactUpdates(versionsService, mapper, context, settings);
+
+            final var resyncManager = ResyncManager.create(artifactService, settings.versionSync);
+            final var resyncBehavior = Behaviors.supervise(resyncManager)
+                .onFailure(
+                SupervisorStrategy.restart());
+            final var actor = SingletonActor.of(resyncBehavior, "artifact-sync");
+            ClusterSingleton.get(context.getSystem()).init(actor);
 
             // Scheduled full resynchronization with maven and therefor sonatype
-            return Behaviors.withTimers(timers -> {
-                timers.startTimerWithFixedDelay(new GatherGroupArtifacts(), settings.versionSync.interval);
-                timers.startSingleTimer(new GatherGroupArtifacts(), settings.versionSync.startupDelay);
-                return timedSync(artifactService, clusterSharding);
-            });
+            return Behaviors.receive(SonatypeSynchronizer.Command.class)
+                .build();
         });
-    }
-
-    private static void subscribeToVersionedArtifactUpdates(
-        final VersionsService versionsService, final ObjectMapper mapper, final ActorContext<Command> context,
-        final SynchronizerSettings settings
-    ) {
-        // region Synchronize Versioned Assets through Sonatype Search
-        final var componentPool = Routers.pool(
-            settings.asset.poolSize,
-            Behaviors.supervise(VersionedComponentWorker.gatherComponents(versionsService, mapper))
-                .onFailure(settings.asset.backoff)
-        );
-        final var componentRef = context.spawn(
-            componentPool,
-            "version-component-registration",
-            DispatcherSelector.defaultDispatcher()
-        );
-        final Flow<ArtifactUpdate, Done, NotUsed> versionedFlow = ActorFlow.ask(
-            settings.asset.parallelism,
-            componentRef,
-            settings.asset.timeout,
-            (g, b) -> {
-                if (!(g instanceof ArtifactUpdate.ArtifactVersionRegistered a)) {
-                    return new VersionedComponentWorker.Ignored(b);
-                }
-                return new VersionedComponentWorker.GatherComponentsForArtifact(a.coordinates(), b);
-            }
-        );
-        versionsService.artifactUpdateTopic()
-            .subscribe()
-            .atLeastOnce(versionedFlow);
-        // endregion
-    }
-
-    private static void subscribeToArtifactUpdates(
-        final ActorContext<SonatypeSynchronizer.Command> context,
-        final ArtifactService artifactService,
-        final VersionsService versionsService,
-        final ClusterSharding clusterSharding,
-        final SynchronizerSettings settings
-    ) {
-        // region Synchronize Artifact Versions from Maven
-        final AuthUtils auth = AuthUtils.configure(context.getSystem().settings().config());
-        ArtifactVersionSyncModule.setup(context, clusterSharding, auth, versionsService);
-
-        final var syncWorkerBehavior = ArtifactSyncWorker.create(clusterSharding);
-        final var pool = Routers.pool(
-            settings.reactiveSync.poolSize,
-            syncWorkerBehavior
-        );
-
-        final var registrationRef = context.spawn(
-            pool,
-            "group-event-subscriber",
-            DispatcherSelector.defaultDispatcher()
-        );
-        final Flow<GroupUpdate, Done, NotUsed> actorAsk = ActorFlow.ask(
-            settings.reactiveSync.parallelism,
-            registrationRef, settings.reactiveSync.timeOut,
-            (g, b) -> {
-                if (!(g instanceof GroupUpdate.ArtifactRegistered a)) {
-                    return new ArtifactSyncWorker.Ignored(b);
-                }
-                return new ArtifactSyncWorker.PerformResync(a.coordinates(), b);
-            }
-        );
-        artifactService.groupTopic()
-            .subscribe()
-            .atLeastOnce(actorAsk);
-        // endregion
-    }
-
-    private static Behavior<Command> timedSync(
-        final ArtifactService artifactService,
-        final ClusterSharding clusterSharding
-    ) {
-        final AtomicInteger integer = new AtomicInteger();
-        return Behaviors.setup((ctx) -> {
-            final var dispatch = DispatcherSelector.defaultDispatcher();
-            final int i = integer.incrementAndGet();
-            final var requester = ctx.spawn(
-                Behaviors.supervise(RequestArtifactsToSync.create(artifactService)).onFailure(
-                    SupervisorStrategy.restart()),
-                String.format("requester-%d-%d", i, System.currentTimeMillis()),
-                dispatch
-            );
-            final var artifactSyncPool = Routers.pool(
-                4,
-                Behaviors.supervise(ArtifactSyncWorker.create(clusterSharding))
-                    .onFailure(
-                        SupervisorStrategy.restartWithBackoff(Duration.ofSeconds(1), Duration.ofMinutes(10), 0.2))
-            );
-            final var syncWorker = ctx.spawn(
-                artifactSyncPool,
-                String.format("pooled-artifact-synchronization-workers-%d-%d", i, System.currentTimeMillis()),
-                dispatch
-            );
-            return passSyncedArtifacts(artifactService, requester, syncWorker);
-        });
-    }
-
-    private static Behavior<Command> passSyncedArtifacts(
-        final ArtifactService artifactService,
-        final ActorRef<RequestArtifactsToSync.Command> requester,
-        final ActorRef<ArtifactSyncWorker.Command> syncWorker
-    ) {
-        return Behaviors.setup(ctx -> {
-                final var requestFlow = ActorFlow.ask(
-                    requester,
-                    Duration.ofSeconds(30),
-                    RequestArtifactsToSync.GatherGroupArtifacts::new
-                );
-
-                final var registrationFlow = ActorFlow.ask(
-                    syncWorker,
-                    Duration.ofMinutes(20),
-                    ArtifactSyncWorker.PerformResync::new
-                );
-                return Behaviors.receive(Command.class)
-                    .onMessage(WrappedArtifactsToSync.class, result -> {
-                        Source.from(result.artifactCoordinates)
-                            .async()
-                            .via(registrationFlow.async())
-                            .runWith(Sink.ignore(), ctx.getSystem());
-                        return Behaviors.same();
-                    })
-                    .onMessage(GatherGroupArtifacts.class, g -> {
-                        final var makeRequest = artifactService.getGroups()
-                            .invoke()
-                            .thenApply(groups -> ((GroupsResponse.Available) groups).groups)
-                            .thenCompose(groups -> {
-                                final Sink<List<ArtifactCoordinates>, CompletionStage<List<ArtifactCoordinates>>> fold = Sink.fold(
-                                    List.empty(), List::appendAll);
-                                return Source.from(groups.map(Group::getGroupCoordinates).asJava())
-                                    .async()
-                                    .via(requestFlow)
-                                    .map(RequestArtifactsToSync.ArtifactsToSync::artifactsNeeded)
-                                    .runWith(fold, ctx.getSystem());
-                            });
-                        ctx.pipeToSelf(makeRequest, (ok, exception) -> {
-                            if (exception != null) {
-                                ctx.getLog().error("Failed to process sync", exception);
-                            }
-                            return new WrappedArtifactsToSync(ok);
-                        });
-                        return Behaviors.same();
-                    })
-                    .build();
-            }
-        );
     }
 
 }
