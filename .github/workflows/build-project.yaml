@@ -43,14 +43,18 @@ jobs:
             -   name: Set up sponge repo credentials
                 run: |
                     mkdir ~/.sbt
-                    echo "username=${{ secrets.SPONGE_MAVEN_REPO_USER }}" >> ~/.sbt/.credentials
-                    echo "realm=Sonatype Nexus Repository Manager" >> ~/.sbt/.credentials
-                    echo "password=${{ secrets.SPONGE_MAVEN_REPO_PASSWORD }}" >> ~/.sbt/.credentials
-                    echo "host=repo-new.spongepowered.org" >> ~/.sbt/.credentials
+                    echo "realm=Sonatype Nexus Repository Manager" >> ~/.sbt/sponge_creds
+                    echo "host=repo-new.spongepowered.org" >> ~/.sbt/sponge_creds
+                    echo "user=${{ secrets.SPONGE_MAVEN_REPO_USER }}" >> ~/.sbt/sponge_creds
+                    echo "password=${{ secrets.SPONGE_MAVEN_REPO_PASSWORD }}" >> ~/.sbt/sponge_creds
+                    cat ~/.sbt/sponge_creds
             -   name: Publish To Sponge Repos
-                run: sbt -v publish
+                run: |
+                    sbt -v publish
+                    rm -f ~/.sbt/sponge_creds
                 env:
                     REPO_NAME: "Sponge Repository"
+                    REPO_CREDENTIAL_FILE: "sponge_creds"
                     CI_SYSTEM: Github Actions
                     GITHUB_USERNAME: "${{ github.actor }}"
                     GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
@@ -60,14 +64,17 @@ jobs:
                 run: |
                     mkdir -p ~/.sbt
                     rm -f ~/.sbt/.credentials
-                    echo "username=${{ github.actor }}" >> ~/.sbt/.credentials
-                    echo "realm=GitHub Packages" >> ~/.sbt/.credentials
-                    echo "password=${{ secrets.GITHUB_TOKEN }}" >> ~/.sbt/.credentials
-                    echo "host=maven.pkg.github.com" >> ~/.sbt/.credentials
+                    echo "realm=GitHub Packages" >> ~/.sbt/github_creds
+                    echo "host=maven.pkg.github.com" >> ~/.sbt/github_creds
+                    echo "user=${{ github.actor }}" >> ~/.sbt/github_creds
+                    echo "password=${{ secrets.GITHUB_TOKEN }}" >> ~/.sbt/github_creds
             -   name: Publish to GitHub Packages
-                run: sbt -v publish
+                run: |
+                    sbt -v publish
+                    rm -f ~/.sbt/github_creds
                 env:
                     REPO_NAME: "GitHub Packages"
+                    REPO_CREDENTIAL_FILE: "github_creds"
                     CI_SYSTEM: Github Actions
                     GITHUB_USERNAME: ${{ github.actor }}
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -77,14 +84,17 @@ jobs:
                 run: |
                     mkdir -p ~/.sbt
                     rm -f ~/.sbt/.credentials
-                    echo "username=${{ secrets.SPONGE_MAVEN_OSSRH_USER }}" >> ~/.sbt/.credentials
-                    echo "realm=Maven Central" >> ~/.sbt/.credentials
-                    echo "password=${{ secrets.SPONGE_MAVEN_OSSRH_PASSWORD }}" >> ~/.sbt/.credentials
-                    echo "host=oss.sonatype.org" >> ~/.sbt/.credentials
+                    echo "realm=Maven Central" >> ~/.sbt/sonatype
+                    echo "host=oss.sonatype.org" >> ~/.sbt/sonatype
+                    echo "user=${{ secrets.SPONGE_MAVEN_OSSRH_USER }}" >> ~/.sbt/sonatype
+                    echo "password=${{ secrets.SPONGE_MAVEN_OSSRH_PASSWORD }}" >> ~/.sbt/sonatype
             -   name: Publish to Maven Central
-                run: sbt -v publish
+                run: |
+                    sbt -v publish
+                    rm -f ~/.sbt/sonatype
                 env:
                     REPO_NAME: "Maven Central"
+                    REPO_CREDENTIAL_FILE: "sonatype"
                     CI_SYSTEM: Github Actions
                     GITHUB_USERNAME: ${{ github.actor }}
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

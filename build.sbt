@@ -32,15 +32,15 @@ ThisBuild / versionScheme := Some("early-semver")
 // we can take advantage of environment variables to publish to multiple
 // repositories within the same job.
 ThisBuild / publishTo := {
-  (sys.env.get("REPO_NAME"), sys.env.get("SONATYPE_SNAPSHOT_REPO"), sys.env.get("SONATYPE_RELEASE_REPO")) match {
-    case (Some(name), Some(snapshotRepo), Some(releaseRepo)) => {
-      credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
+  (sys.env.get("REPO_NAME"), sys.env.get("REPO_CREDENTIAL_FILE"), sys.env.get("SONATYPE_SNAPSHOT_REPO"), sys.env.get("SONATYPE_RELEASE_REPO")) match {
+    case (Some(name), Some(repoTarget), Some(snapshotRepo), Some(releaseRepo)) => {
+      credentials += Credentials(Path.userHome / ".sbt" / repoTarget)
       if (isSnapshot.value)
         Some(name at snapshotRepo)
       else
         Some(name at releaseRepo)
     }
-    case (_, _, _) => None
+    case (_, _, _, _) => None
   }
 }
 
