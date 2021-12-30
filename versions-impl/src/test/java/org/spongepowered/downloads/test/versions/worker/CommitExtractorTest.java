@@ -42,7 +42,7 @@ public class CommitExtractorTest {
         final var asset = new PotentiallyUsableAsset(coordinates, ".jar", testJarPath.toURI());
         extractor.tell(new CommitExtractor.AttemptFileCommit(asset, replyTo.ref()));
 
-        replyTo.expectMessageClass(CommitExtractor.FailedToRetrieveCommit.class);
+        replyTo.expectMessageClass(CommitExtractor.NoCommitsFoundForFile.class);
     }
 
     @Test
@@ -55,7 +55,7 @@ public class CommitExtractorTest {
         final var asset = new PotentiallyUsableAsset(coordinates, ".jar", testJarPath.toURI());
         extractor.tell(new CommitExtractor.AttemptFileCommit(asset, replyTo.ref()));
 
-        replyTo.expectMessageClass(CommitExtractor.FailedToRetrieveCommit.class);
+        replyTo.expectMessageClass(CommitExtractor.NoCommitsFoundForFile.class);
     }
 
 }

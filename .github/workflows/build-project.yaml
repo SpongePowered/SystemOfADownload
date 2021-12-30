@@ -23,7 +23,7 @@ jobs:
                     distribution: 'temurin'
                     java-version: '17'
             -   name: Build with SBT
-                run: sbt -v ${{matrix.project}} / test
+                run: sbt -v ${{matrix.project}}/test
     publish:
         needs: test
         if: ${{ github.event_name == 'push' }}
@@ -42,7 +42,7 @@ jobs:
                     distribution: 'temurin'
                     java-version: '17'
             -   name: Build with SBT
-                run: sbt -v ${{matrix.project}} / Docker / stage
+                run: sbt -v ${{matrix.project}}/Docker/stage
             -   name: Set up QEMU
                 uses: docker/setup-qemu-action@v1.2.0
             -   name: Set up Docker Buildx
