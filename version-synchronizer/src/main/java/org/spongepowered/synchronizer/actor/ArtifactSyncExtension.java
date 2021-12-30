@@ -32,6 +32,7 @@ import akka.actor.ExtensionIdProvider;
 import com.typesafe.config.Config;
 
 import java.time.Duration;
+import java.util.StringJoiner;
 import java.util.concurrent.TimeUnit;
 
 public class ArtifactSyncExtension extends AbstractExtensionId<ArtifactSyncExtension.Settings>
@@ -66,6 +67,18 @@ public class ArtifactSyncExtension extends AbstractExtensionId<ArtifactSyncExten
             this.timeOut = Duration.ofSeconds(config.getDuration("time-out", TimeUnit.SECONDS));
             this.individualTimeOut = Duration.ofSeconds(config.getDuration("registration-time-out", TimeUnit.SECONDS));
 
+        }
+
+        @Override
+        public String toString() {
+            return new StringJoiner(
+                ", ", Settings.class.getSimpleName() + "[", "]")
+                .add("poolSize=" + poolSize)
+                .add("versionFanoutParallelism=" + versionFanoutParallelism)
+                .add("parallelism=" + parallelism)
+                .add("timeOut=" + timeOut)
+                .add("individualTimeOut=" + individualTimeOut)
+                .toString();
         }
     }
 }

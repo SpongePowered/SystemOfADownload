@@ -31,7 +31,9 @@ import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.broker.Topic;
 import com.lightbend.lagom.javadsl.api.broker.kafka.KafkaProperties;
 import com.lightbend.lagom.javadsl.api.transport.Method;
+import org.spongepowered.downloads.artifact.api.event.ArtifactUpdate;
 import org.spongepowered.downloads.artifact.api.event.GroupUpdate;
+import org.spongepowered.downloads.artifact.api.query.ArtifactDetails;
 import org.spongepowered.downloads.artifact.api.query.ArtifactRegistration;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
@@ -48,11 +50,15 @@ public interface ArtifactService extends Service {
 
     ServiceCall<GroupRegistration.RegisterGroupRequest, GroupRegistration.Response> registerGroup();
 
+    ServiceCall<ArtifactDetails.Update<?>, ArtifactDetails.Response> updateDetails(String groupId, String artifactId);
+
     ServiceCall<NotUsed, GroupResponse> getGroup(String groupId);
 
     ServiceCall<NotUsed, GroupsResponse> getGroups();
 
     Topic<GroupUpdate> groupTopic();
+
+    Topic<ArtifactUpdate> artifactUpdate();
 
     @Override
     default Descriptor descriptor() {
@@ -62,11 +68,14 @@ public interface ArtifactService extends Service {
                 Service.restCall(Method.GET, "/artifacts/groups", this::getGroups),
                 Service.restCall(Method.POST, "/artifacts/groups", this::registerGroup),
                 Service.restCall(Method.GET, "/artifacts/groups/:groupId/artifacts", this::getArtifacts),
-                Service.restCall(Method.POST, "/artifacts/groups/:groupId/artifacts", this::registerArtifacts)
+                Service.restCall(Method.POST, "/artifacts/groups/:groupId/artifacts", this::registerArtifacts),
+                Service.restCall(Method.PATCH, "/artifacts/groups/:groupId/artifacts/:artifactId/update", this::updateDetails)
             )
             .withTopics(
                 Service.topic("group-activity", this::groupTopic)
-                    .withProperty(KafkaProperties.partitionKeyStrategy(), GroupUpdate::groupId)
+                    .withProperty(KafkaProperties.partitionKeyStrategy(), GroupUpdate::groupId),
+                Service.topic("artifact-details-update", this::artifactUpdate)
+                    .withProperty(KafkaProperties.partitionKeyStrategy(), ArtifactUpdate::partitionKey)
             )
             .withAutoAcl(true);
     }

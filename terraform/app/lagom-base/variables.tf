@@ -16,6 +16,26 @@ variable "environment" {
     type = string
 }
 
+variable "cpu_max" {
+    type = string
+    default = "1000m"
+}
+
+variable "cpu_min" {
+    type = string
+    default = "100m"
+}
+
+variable "memory_max" {
+    type = string
+    default = "700Mi"
+}
+
+variable "memory_min" {
+    type = string
+    default = "200Mi"
+}
+
 variable "namespace" {
     type = string
 }

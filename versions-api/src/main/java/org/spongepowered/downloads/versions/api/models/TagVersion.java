@@ -30,6 +30,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.collection.List;
 
 public interface TagVersion {
@@ -66,7 +67,7 @@ public interface TagVersion {
     @JsonSubTypes({
         @JsonSubTypes.Type(value = TagVersion.Response.TagSuccessfullyRegistered.class, name = "Success")
     })
-    interface Response {
+    interface Response extends Jsonable {
 
         @JsonSerialize
         final record TagSuccessfullyRegistered() implements TagVersion.Response {}

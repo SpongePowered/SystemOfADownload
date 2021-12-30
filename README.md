@@ -1,7 +1,5 @@
 # SystemOfADownload
 
-![Actions Status](https://github.com/SpongePowered/SystemOfADownload/workflows/.github/workflows/build-project.yaml/badge.svg)
-
 The metadata generator webapp that serves up enhanced information
 and "tagging" for artifacts from a Maven repository. This is intended to
 serve as a backend to power the data to generate for serving an enhanced
@@ -12,6 +10,7 @@ downloads website.
 - Java 16
 - Docker
 - sbt 1.15
+- terraform (if you want to deploy to a kubernetes cluster)
 
 ## Technologies in use
 
@@ -30,20 +29,13 @@ that goes at length about how the system works together.
 
 ### Containerization Out of the Box
 
-SOAD is targeted at being deployed with either Docker locally or running on a
+SOAD is targeted at being deployed with either sbt in-development or deployed on a
 Kubernetes cluster.
 
 ### Services
-Each service (maven module) in this project is meant to represent a specific
-domain of control/knowledge, and as such, rendered into its own service. They are
-as follows
-- `ArtifactService`
-- `CommitService`
-- `ChangelogService`
-- `SonatypeWebhookService`
-- `AuthService`
-- `GraphQLService`
+Each service is loosely intended on the desired workload/grouped boundaries of knowledge.
 
+In a sense, the data
 The first three are what effectively being given as model views to exploring a paired
 [Sonatype Nexus] repository instance for artifacts and presenting/serving them in a
 more user friendlier way by providing git-like changelogs between artifacts. 

@@ -27,6 +27,7 @@ package org.spongepowered.downloads.versions.query.impl;
 import akka.NotUsed;
 import com.lightbend.lagom.javadsl.api.ServiceCall;
 import com.lightbend.lagom.javadsl.api.deser.ExceptionMessage;
+import com.lightbend.lagom.javadsl.api.transport.BadRequest;
 import com.lightbend.lagom.javadsl.api.transport.NotFound;
 import com.lightbend.lagom.javadsl.api.transport.TransportErrorCode;
 import com.lightbend.lagom.javadsl.api.transport.TransportException;
@@ -41,6 +42,7 @@ import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.versions.query.api.VersionsQueryService;
 import org.spongepowered.downloads.versions.query.api.models.QueryVersions;
+import org.spongepowered.downloads.versions.query.api.models.VersionedChangelog;
 import org.spongepowered.downloads.versions.query.impl.models.JpaTaggedVersion;
 import org.spongepowered.downloads.versions.query.impl.models.JpaVersionedArtifactView;
 
@@ -50,9 +52,11 @@ import javax.persistence.PersistenceException;
 import java.util.Comparator;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 public record VersionQueryServiceImpl(JpaSession session)
     implements VersionsQueryService {
+    public static final Pattern VALID_COORDINATE_PORTION = Pattern.compile("^[\\w.-]+$");
 
     @Inject
     public VersionQueryServiceImpl {
@@ -67,23 +71,26 @@ public record VersionQueryServiceImpl(JpaSession session)
         final Optional<Integer> offset,
         final Optional<Boolean> recommended
     ) {
-        return request -> this.session.withTransaction(
-            t -> {
-                if (groupId.isBlank() || artifactId.isBlank()) {
-                    throw new NotFound("unknown artifact");
-                }
-                try {
-                    final var query = new VersionQuery(groupId, artifactId, tags, limit, offset, recommended);
-
-                    if (query.tags.isEmpty()) {
-                        return getUntaggedVersions(t, query);
+        return request -> {
+            validateCoordinates(groupId, artifactId);
+            return this.session.withTransaction(
+                t -> {
+                    if (groupId.isBlank() || artifactId.isBlank()) {
+                        throw new NotFound("unknown artifact");
                     }
-                    return getTaggedVersions(t, query);
-                } catch (PersistenceException e) {
-                    throw new TransportException(
-                        TransportErrorCode.InternalServerError, new ExceptionMessage("Internal Server Error", ""));
-                }
-            });
+                    try {
+                        final var query = new VersionQuery(groupId, artifactId, tags, limit, offset, recommended);
+
+                        if (query.tags.isEmpty()) {
+                            return getUntaggedVersions(t, query);
+                        }
+                        return getTaggedVersions(t, query);
+                    } catch (PersistenceException e) {
+                        throw new TransportException(
+                            TransportErrorCode.InternalServerError, new ExceptionMessage("Internal Server Error", ""));
+                    }
+                });
+        };
     }
 
     @Override
@@ -93,57 +100,76 @@ public record VersionQueryServiceImpl(JpaSession session)
         final Optional<String> tags,
         final Optional<Boolean> recommended
     ) {
-        return request -> this.session.withTransaction(
-            t -> {
-                if (groupId.isBlank() || artifactId.isBlank()) {
-                    throw new NotFound("unknown artifact");
-                }
-                try {
-                    final var query = new VersionQuery(groupId, artifactId, tags, recommended.orElse(false));
+        return request -> {
+            validateCoordinates(groupId, artifactId);
 
-                    final var info = query.tags.isEmpty() ? getUntaggedVersions(t, query) : getTaggedVersions(t, query);
-                    final var version = info.artifacts().keySet().head();
-                    final var coordinates = query.coordinates.version(version);
-                    final var versionedArtifact = t.createNamedQuery(
-                            "VersionedArtifactView.findExplicitly", JpaVersionedArtifactView.class)
-                        .setParameter("groupId", coordinates.groupId)
-                        .setParameter("artifactId", coordinates.artifactId)
-                        .setParameter("version", coordinates.version)
-                        .getSingleResult();
-                    return new QueryVersions.VersionDetails(
-                        coordinates, versionedArtifact.asArtifactList(),
-                        versionedArtifact.getTagValues(), versionedArtifact.isRecommended()
-                    );
-                } catch (PersistenceException e) {
-                    throw new TransportException(
-                        TransportErrorCode.InternalServerError, new ExceptionMessage("Internal Server Error", ""));
-                }
-            });
+            return this.session.withTransaction(
+                t -> {
+                    if (groupId.isBlank() || artifactId.isBlank()) {
+                        throw new NotFound("unknown artifact");
+                    }
+                    try {
+                        final var query = new VersionQuery(groupId, artifactId, tags, recommended.orElse(false));
+
+                        final var info = query.tags.isEmpty()
+                            ? getUntaggedVersions(t, query)
+                            : getTaggedVersions(t, query);
+                        final var version = info.artifacts().keySet().head();
+                        final var coordinates = query.coordinates.version(version);
+                        final var artifacts = t.createNamedQuery(
+                                "VersionedArtifactView.findExplicitly", JpaVersionedArtifactView.class)
+                            .setParameter("groupId", coordinates.groupId)
+                            .setParameter("artifactId", coordinates.artifactId)
+                            .setParameter("version", coordinates.version)
+                            .getResultList();
+                        if (artifacts.isEmpty()) {
+                            throw new NotFound("versioned artifact not found");
+                        }
+                        final var versionedArtifact = artifacts.get(0);
+                        final Optional<VersionedChangelog> commit = versionedArtifact.asVersionedCommit();
+                        return new QueryVersions.VersionDetails(
+                            coordinates, commit, versionedArtifact.asArtifactList(),
+                            versionedArtifact.getTagValues(), versionedArtifact.isRecommended()
+
+                        );
+                    } catch (PersistenceException e) {
+                        e.printStackTrace();
+                        throw new TransportException(
+                            TransportErrorCode.InternalServerError, new ExceptionMessage("Internal Server Error", ""));
+                    }
+                });
+        };
     }
 
     @Override
     public ServiceCall<NotUsed, QueryVersions.VersionDetails> versionDetails(
         final String groupId, final String artifactId, final String version
     ) {
-        return notUsed -> this.session.withTransaction(em -> {
-            final var sanitizedGroupId = groupId.toLowerCase(Locale.ROOT).trim();
-            final var sanitizedArtifactId = artifactId.toLowerCase(Locale.ROOT).trim();
-            final var sanitizedVersion = version.trim();
-            return em.createNamedQuery("VersionedArtifactView.findFullVersionDetails", JpaVersionedArtifactView.class)
-                .setParameter("groupId", sanitizedGroupId)
-                .setParameter("artifactId", sanitizedArtifactId)
-                .setParameter("version", sanitizedVersion)
-                .getResultList()
-                .stream()
-                .findFirst()
-                .map(versionView -> {
-                    final var coordinates = versionView.asMavenCoordinates();
-                    final var assets = versionView.asArtifactList();
-                    final var tags = versionView.getTagValues();
-                    return new QueryVersions.VersionDetails(coordinates, assets, tags, versionView.isRecommended());
-                })
-                .orElseThrow(() -> new NotFound("group or artifact or version not found"));
-        });
+        return notUsed -> {
+            validateCoordinates(groupId, artifactId);
+            return this.session.withTransaction(em -> {
+                final var sanitizedGroupId = groupId.toLowerCase(Locale.ROOT).trim();
+                final var sanitizedArtifactId = artifactId.toLowerCase(Locale.ROOT).trim();
+                final var sanitizedVersion = version.trim();
+                return em.createNamedQuery(
+                        "VersionedArtifactView.findFullVersionDetails", JpaVersionedArtifactView.class)
+                    .setParameter("groupId", sanitizedGroupId)
+                    .setParameter("artifactId", sanitizedArtifactId)
+                    .setParameter("version", sanitizedVersion)
+                    .getResultList()
+                    .stream()
+                    .findFirst()
+                    .map(versionView -> {
+                        final var coordinates = versionView.asMavenCoordinates();
+                        final var assets = versionView.asArtifactList();
+                        final var tags = versionView.getTagValues();
+                        final var commit = versionView.asVersionedCommit();
+                        return new QueryVersions.VersionDetails(
+                            coordinates, commit, assets, tags, versionView.isRecommended());
+                    })
+                    .orElseThrow(() -> new NotFound("group or artifact or version not found"));
+            });
+        };
     }
 
     private static record ParameterizedTag(String tagName, String tagValue) {
@@ -221,11 +247,9 @@ public record VersionQueryServiceImpl(JpaSession session)
             ))
             .setParameter("groupId", query.coordinates.groupId)
             .setParameter("artifactId", query.coordinates.artifactId)
+            .setMaxResults(query.offset + query.limit)
             .getResultList();
         final var mappedByCoordinates = untaggedVersions.stream()
-            .sorted(Comparator.comparing((JpaVersionedArtifactView coords) -> {
-                return new ComparableVersion(coords.version());
-            }).reversed())
             .collect(List.collector())
             .drop(query.offset)
             .take(query.limit);
@@ -284,6 +308,17 @@ public record VersionQueryServiceImpl(JpaSession session)
             versionsForQuery.mapValues(tuple -> tuple._1.asTagCollection()), query.offset, query.limit,
             validatedVersion.size()
         );
+    }
+
+    private static void validateCoordinates(final String groupID, final String artifactID) {
+        final String sanitizedGroupId = groupID.toLowerCase(Locale.ROOT);
+        if (!VALID_COORDINATE_PORTION.matcher(sanitizedGroupId).matches()) {
+            throw new BadRequest("Invalid groupId: " + groupID);
+        }
+        final String sanitizedArtifactId = artifactID.toLowerCase(Locale.ROOT);
+        if (!VALID_COORDINATE_PORTION.matcher(sanitizedArtifactId).matches()) {
+            throw new BadRequest("Invalid artifactId: " + artifactID);
+        }
     }
 
 }

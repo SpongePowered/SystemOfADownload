@@ -31,7 +31,7 @@ resource "kubernetes_deployment" "systemofadownload-postgres" {
                     name = var.name
                     image = local.image
 
-                    args = ["-c", "max_connections=500"]
+                    args = ["-c", "max_connections=500", "-c", "shared_buffers=1024MB"]
                     env {
                         name = "POSTGRES_PASSWORD"
                         value_from {

@@ -24,7 +24,7 @@ variable "postgres_password" {
 
 variable "jvm_args" {
     type = string
-    default = "java -XX:+UnlockExperimentalVMOptions --illegal-access=permit -cp '/maven/*' -Dplay.http.secret.key=$PLAY_APPLICATION_SECRET -Dconfig.resource=/etc/production.conf play.core.server.ProdServerStart"
+    default = "java -XX:+UnlockExperimentalVMOptions --add-opens=java.base/java.lang=ALL-UNNAMED -cp '/maven/*' -Dplay.http.secret.key=$PLAY_APPLICATION_SECRET -Dconfig.resource=/etc/production.conf play.core.server.ProdServerStart"
 }
 
 variable "lagom_services" {

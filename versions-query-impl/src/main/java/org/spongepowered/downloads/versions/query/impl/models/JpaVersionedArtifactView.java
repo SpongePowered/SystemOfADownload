@@ -32,14 +32,17 @@ import org.hibernate.annotations.Immutable;
 import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.query.api.models.TagCollection;
+import org.spongepowered.downloads.versions.query.api.models.VersionedChangelog;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.NamedQueries;
 import javax.persistence.NamedQuery;
 import javax.persistence.OneToMany;
+import javax.persistence.OneToOne;
 import javax.persistence.Table;
 import java.io.Serializable;
 import java.net.URI;
@@ -58,7 +61,7 @@ import java.util.Set;
         query = """
                 select count(v) from VersionedArtifactView v
                 where v.groupId = :groupId and v.artifactId = :artifactId
-                 """
+                """
     ),
     @NamedQuery(
         name = "VersionedArtifactView.recommendedCount",
@@ -84,7 +87,7 @@ import java.util.Set;
         name = "VersionedArtifactView.findExplicitly",
         query = """
                 select v from VersionedArtifactView v
-                inner join fetch v.tags
+                left join fetch v.tags
                 where v.artifactId = :artifactId and v.groupId = :groupId and v.version = :version
                 """
     ),
@@ -92,8 +95,8 @@ import java.util.Set;
         name = "VersionedArtifactView.findFullVersionDetails",
         query = """
                 select v from VersionedArtifactView v
-                inner join fetch v.tags
-                inner join fetch v.assets
+                left join fetch v.tags
+                left join fetch v.assets
                 where v.artifactId = :artifactId and v.groupId = :groupId and v.version = :version
                 """
     )
@@ -121,8 +124,12 @@ public class JpaVersionedArtifactView implements Serializable {
     @Column(name = "manual_recommendation")
     private boolean manuallyRecommended;
 
+    @Column(name = "ordering")
+    private int ordering;
+
     @OneToMany(
         targetEntity = JpaTaggedVersion.class,
+        fetch = FetchType.LAZY,
         cascade = CascadeType.ALL,
         orphanRemoval = true,
         mappedBy = "versionView")
@@ -131,10 +138,18 @@ public class JpaVersionedArtifactView implements Serializable {
     @OneToMany(
         targetEntity = JpaVersionedAsset.class,
         cascade = CascadeType.ALL,
+        fetch = FetchType.LAZY,
         orphanRemoval = true,
         mappedBy = "versionView"
     )
     private Set<JpaVersionedAsset> assets;
+
+    @OneToOne(
+        targetEntity = JpaVersionedChangelog.class,
+        mappedBy = "versionView",
+        fetch = FetchType.LAZY
+    )
+    private JpaVersionedChangelog changelog;
 
     public Set<JpaTaggedVersion> getTags() {
         return tags;
@@ -185,6 +200,14 @@ public class JpaVersionedArtifactView implements Serializable {
                 )
             ).collect(List.collector())
             .sorted(Comparator.comparing(artifact -> artifact.classifier().orElse("")));
+    }
+
+    public Optional<VersionedChangelog> asVersionedCommit() {
+        final var changelog = this.changelog;
+        if (changelog == null) {
+            return Optional.empty();
+        }
+        return Optional.of(changelog.getChangelog());
     }
 
     @Override

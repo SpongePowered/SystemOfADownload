@@ -55,4 +55,5 @@ public interface ArtifactUpdate {
         public TagRegistered {
         }
     }
+
 }

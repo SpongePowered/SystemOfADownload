@@ -2,16 +2,20 @@
     <persistence-unit name="default" transaction-type="RESOURCE_LOCAL">
         <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
         <non-jta-data-source>DefaultDS</non-jta-data-source>
-        <class>org.spongepowered.downloads.versions.readside.JpaArtifactVersion</class>
-        <class>org.spongepowered.downloads.versions.readside.JpaArtifact</class>
-        <class>org.spongepowered.downloads.versions.readside.JpaArtifactTag</class>
-        <class>org.spongepowered.downloads.versions.readside.JpaArtifactRegexRecommendation</class>
-        <class>org.spongepowered.downloads.versions.readside.JpaVersionedArtifactAsset</class>
+        <class>org.spongepowered.downloads.versions.server.readside.JpaArtifactVersion</class>
+        <class>org.spongepowered.downloads.versions.server.readside.JpaArtifact</class>
+        <class>org.spongepowered.downloads.versions.server.readside.JpaArtifactTag</class>
+        <class>org.spongepowered.downloads.versions.server.readside.JpaArtifactRegexRecommendation</class>
+        <class>org.spongepowered.downloads.versions.server.readside.JpaVersionedArtifactAsset</class>
+        <class>org.spongepowered.downloads.versions.worker.readside.model.JpaVersionedArtifact</class>
+        <class>org.spongepowered.downloads.versions.worker.readside.model.JpaVersionChangelog</class>
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
         <properties>
             <property name="hibernate.connection.driver_class" value="org.postgresql.Driver"/>
             <property name="hibernate.default_schema" value="public"/>
             <property name="hibernate.dialect" value="org.hibernate.dialect.PostgreSQL10Dialect"/>
+            <property name="hibernate.connection.isolation" value="3"/>
+            <property name="transactionIsolation" value="TRANSACTION_REPEATABLE_READ"/>
         </properties>
     </persistence-unit>
 </persistence>

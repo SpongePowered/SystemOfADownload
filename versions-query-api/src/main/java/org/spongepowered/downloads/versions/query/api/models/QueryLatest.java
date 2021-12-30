@@ -30,12 +30,15 @@ import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.Artifact;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 
+import java.util.Optional;
+
 public interface QueryLatest {
 
     @JsonSerialize
     record VersionInfo(MavenCoordinates coordinates,
                        List<Artifact> assets,
                        Map<String, String> tagValues,
+                       Optional<VersionedCommit> commit,
                        boolean recommended
     ) {
     }

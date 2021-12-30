@@ -27,19 +27,89 @@ package org.spongepowered.downloads.artifact.details;
 import akka.NotUsed;
 import akka.actor.typed.ActorRef;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.javadsl.api.transport.NotFound;
 import com.lightbend.lagom.serialization.Jsonable;
+import io.vavr.control.Either;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
+import org.spongepowered.downloads.artifact.api.query.ArtifactDetails;
 
+import java.net.URL;
+
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME,
+    property = "type")
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = DetailsCommand.RegisterArtifact.class,
+        name = "register"),
+    @JsonSubTypes.Type(value = DetailsCommand.UpdateWebsite.class,
+        name = "website"),
+    @JsonSubTypes.Type(value = DetailsCommand.UpdateGitRepository.class,
+        name = "git-repository"
+    ),
+    @JsonSubTypes.Type(value = DetailsCommand.UpdateIssues.class,
+        name = "issues"),
+    @JsonSubTypes.Type(value = DetailsCommand.UpdateDisplayName.class,
+        name = "display-name")
+})
 public interface DetailsCommand extends Jsonable {
 
     @JsonDeserialize
-    record RegisterArtifact(ArtifactCoordinates coordinates,
-                            String displayName, ActorRef<NotUsed> replyTo)
+    final record RegisterArtifact(ArtifactCoordinates coordinates,
+                                  String displayName, ActorRef<NotUsed> replyTo)
         implements DetailsCommand {
 
         @JsonCreator
         public RegisterArtifact {
+        }
+    }
+
+    @JsonDeserialize
+    final record UpdateWebsite(
+        ArtifactCoordinates coordinates,
+        URL website,
+        ActorRef<Either<NotFound, ArtifactDetails.Response>> replyTo
+    ) implements DetailsCommand {
+
+        @JsonCreator
+        public UpdateWebsite {
+        }
+    }
+
+    @JsonDeserialize
+    final record UpdateDisplayName(
+        ArtifactCoordinates coordinates,
+        String displayName,
+        ActorRef<Either<NotFound, ArtifactDetails.Response>> replyTo
+    ) implements DetailsCommand {
+
+        @JsonCreator
+        public UpdateDisplayName {
+        }
+    }
+
+    @JsonDeserialize
+    final record UpdateGitRepository(
+        ArtifactCoordinates coordinates,
+        String gitRemote,
+        ActorRef<Either<NotFound, ArtifactDetails.Response>> replyTo
+    ) implements DetailsCommand {
+
+        @JsonCreator
+        public UpdateGitRepository {
+        }
+    }
+
+    @JsonDeserialize
+    final record UpdateIssues(
+        ArtifactCoordinates coords,
+        URL validUrl,
+        ActorRef<Either<NotFound, ArtifactDetails.Response>> replyTo
+    ) implements DetailsCommand {
+
+        @JsonCreator
+        public UpdateIssues {
         }
     }
 }

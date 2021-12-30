@@ -8,6 +8,6 @@ locals {
     // and the Mebibyte notation for base 2 instead of base 10 Megabyte.
     cpu = "100m"
     memory = "500Mi"
-    cpu_max = "1000m"
+    cpu_max = "4000m"
     memory_max = "2Gi"
 }

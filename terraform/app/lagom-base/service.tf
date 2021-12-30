@@ -65,12 +65,12 @@ resource "kubernetes_deployment" "lagom-instances" {
 
                     resources {
                         requests = {
-                            cpu = "100m"
-                            memory = "200Mi"
+                            cpu = var.cpu_min
+                            memory = var.memory_min
                         }
                         limits = {
-                            cpu = "750m"
-                            memory = "1Gi"
+                            cpu = var.cpu_max
+                            memory = var.memory_max
                         }
                     }
                     dynamic "env" {
@@ -132,8 +132,8 @@ resource "kubernetes_deployment" "lagom-instances" {
                             path = "health/alive"
                             port = "management"
                         }
-                        initial_delay_seconds = 20
-                        failure_threshold = 1
+                        initial_delay_seconds = 45
+                        failure_threshold = 3
                         success_threshold = 1
                         period_seconds = 5
                     }
@@ -142,10 +142,10 @@ resource "kubernetes_deployment" "lagom-instances" {
                             port = "management"
                             path = "health/ready"
                         }
-                        initial_delay_seconds = 20
+                        initial_delay_seconds = 30
                         period_seconds = 5
                         success_threshold = 1
-                        failure_threshold = 3
+                        failure_threshold = 10
                     }
                     port {
                         name = "remoting"

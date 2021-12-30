@@ -28,32 +28,50 @@ import akka.NotUsed;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
+import akka.cluster.sharding.typed.javadsl.EntityContext;
 import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
 import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
+import com.lightbend.lagom.javadsl.api.transport.NotFound;
+import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
+import io.vavr.control.Either;
+import org.spongepowered.downloads.artifact.api.query.ArtifactDetails;
 import org.spongepowered.downloads.artifact.details.state.DetailsState;
 import org.spongepowered.downloads.artifact.details.state.EmptyState;
 import org.spongepowered.downloads.artifact.details.state.PopulatedState;
 
 import java.util.List;
+import java.util.Set;
+import java.util.function.Function;
 
 public class ArtifactDetailsEntity
     extends EventSourcedBehaviorWithEnforcedReplies<DetailsCommand, DetailsEvent, DetailsState> {
+    private static final Either<NotFound, ArtifactDetails.Response> NOT_FOUND = Either.left(
+        new NotFound("group or artifact not found"));
     public static EntityTypeKey<DetailsCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(
         DetailsCommand.class, "DetailsEntity");
     private final String artifactId;
     private final ActorContext<DetailsCommand> ctx;
+    private final Function<DetailsEvent, Set<String>> tagger;
 
-    private ArtifactDetailsEntity(ActorContext<DetailsCommand> ctx, String entityId, PersistenceId persistenceId) {
+    private ArtifactDetailsEntity(
+        ActorContext<DetailsCommand> ctx,
+        final EntityContext<DetailsCommand> context,
+        String entityId, PersistenceId persistenceId
+    ) {
         super(persistenceId);
         this.artifactId = entityId;
         this.ctx = ctx;
+        this.tagger = AkkaTaggerAdapter.fromLagom(context, DetailsEvent.TAG);
     }
 
-    public static Behavior<DetailsCommand> create(String entityId, PersistenceId persistenceId) {
-        return Behaviors.setup(ctx -> new ArtifactDetailsEntity(ctx, entityId, persistenceId));
+    public static Behavior<DetailsCommand> create(
+        final EntityContext<DetailsCommand> context,
+        String entityId, PersistenceId persistenceId
+    ) {
+        return Behaviors.setup(ctx -> new ArtifactDetailsEntity(ctx, context, entityId, persistenceId));
     }
 
     @Override
@@ -68,11 +86,14 @@ public class ArtifactDetailsEntity
         builder.forAnyState()
             .onEvent(
                 DetailsEvent.ArtifactRegistered.class,
-                (state, event) -> new PopulatedState(event.coordinates, state.displayName(), state.website(), state.gitRepository(), state.issues())
-            )
-            .onEvent(DetailsEvent.ArtifactDetailsUpdated.class,
-                (state, event) -> new PopulatedState(event.coordinates, event.displayName, state.website(), state.gitRepository(), state.issues())
+                (state, event) -> new PopulatedState(
+                    event.coordinates(), state.displayName(), state.website(), state.gitRepository(), state.issues())
             );
+        builder.forStateType(PopulatedState.class)
+            .onEvent(DetailsEvent.ArtifactDetailsUpdated.class, PopulatedState::withDisplayName)
+            .onEvent(DetailsEvent.ArtifactGitRepositoryUpdated.class, PopulatedState::withGitRepo)
+            .onEvent(DetailsEvent.ArtifactIssuesUpdated.class, PopulatedState::withIssues)
+            .onEvent(DetailsEvent.ArtifactWebsiteUpdated.class, PopulatedState::withWebsite);
 
         return builder.build();
     }
@@ -81,7 +102,6 @@ public class ArtifactDetailsEntity
     public CommandHandlerWithReply<DetailsCommand, DetailsEvent, DetailsState> commandHandler() {
         final var builder = this.newCommandHandlerWithReplyBuilder();
 
-        builder.forNullState();
         builder.forStateType(EmptyState.class)
             .onCommand(
                 DetailsCommand.RegisterArtifact.class,
@@ -91,14 +111,103 @@ public class ArtifactDetailsEntity
                         new DetailsEvent.ArtifactDetailsUpdated(cmd.coordinates(), cmd.displayName())
                     ))
                     .thenReply(cmd.replyTo(), (state) -> NotUsed.notUsed())
+            )
+            .onCommand(
+                DetailsCommand.UpdateIssues.class,
+                cmd -> this.Effect().reply(cmd.replyTo(), NOT_FOUND)
+            )
+            .onCommand(
+                DetailsCommand.UpdateWebsite.class,
+                cmd -> this.Effect().reply(cmd.replyTo(), NOT_FOUND)
+            )
+            .onCommand(
+                DetailsCommand.UpdateDisplayName.class,
+                cmd -> this.Effect().reply(cmd.replyTo(), NOT_FOUND)
+            )
+            .onCommand(
+                DetailsCommand.UpdateGitRepository.class,
+                cmd -> this.Effect().reply(cmd.replyTo(), NOT_FOUND)
             );
 
         builder.forStateType(PopulatedState.class)
             .onCommand(
                 DetailsCommand.RegisterArtifact.class,
                 (s, cmd) -> this.Effect().reply(cmd.replyTo(), NotUsed.notUsed())
+            )
+            .onCommand(
+                DetailsCommand.UpdateIssues.class,
+                (s, cmd) -> this.Effect()
+                    .persist(new DetailsEvent.ArtifactIssuesUpdated(s.coordinates(), cmd.validUrl().toString()))
+                    .thenReply(
+                        cmd.replyTo(),
+                        us -> Either.right(
+                            new ArtifactDetails.Response(
+                                us.coordinates().artifactId,
+                                us.displayName(),
+                                us.website(),
+                                us.issues(),
+                                us.gitRepository()
+                            )
+                        )
+                    )
+            )
+            .onCommand(
+                DetailsCommand.UpdateWebsite.class,
+                (s, cmd) -> this.Effect()
+                    .persist(new DetailsEvent.ArtifactIssuesUpdated(s.coordinates(), cmd.website().toString()))
+                    .thenReply(
+                        cmd.replyTo(),
+                        us -> Either.right(
+                            new ArtifactDetails.Response(
+                                us.coordinates().artifactId,
+                                us.displayName(),
+                                us.website(),
+                                us.issues(),
+                                us.gitRepository()
+                            )
+                        )
+                    )
+            )
+            .onCommand(
+                DetailsCommand.UpdateDisplayName.class,
+                (s, cmd) -> this.Effect()
+                    .persist(new DetailsEvent.ArtifactIssuesUpdated(s.coordinates(), cmd.displayName()))
+                    .thenReply(
+                        cmd.replyTo(),
+                        us -> Either.right(
+                            new ArtifactDetails.Response(
+                                us.coordinates().artifactId,
+                                us.displayName(),
+                                us.website(),
+                                us.issues(),
+                                us.gitRepository()
+                            )
+                        )
+                    )
+            )
+            .onCommand(
+                DetailsCommand.UpdateGitRepository.class,
+                (s, cmd) -> this.Effect()
+                    .persist(new DetailsEvent.ArtifactGitRepositoryUpdated(s.coordinates(), cmd.gitRemote()))
+                    .thenReply(
+                        cmd.replyTo(),
+                        us -> Either.right(
+                            new ArtifactDetails.Response(
+                                us.coordinates().artifactId,
+                                us.displayName(),
+                                us.website(),
+                                us.issues(),
+                                us.gitRepository()
+                            )
+                        )
+                    )
             );
 
         return builder.build();
+    }
+
+    @Override
+    public Set<String> tagsFor(final DetailsEvent detailsEvent) {
+        return this.tagger.apply(detailsEvent);
     }
 }

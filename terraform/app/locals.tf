@@ -11,14 +11,19 @@ locals {
             }
             image = {
                 replicas = 1
-                image_version = "latest"
+                image_version = "0.2-SNAPSHOT"
                 image_name = "spongepowered/systemofadownload-artifact-impl"
             }
+            extra_config = <<-EOF
+            EOF
             extra_env = local.default_database_envs
             extra_secret_envs = local.default_secret_based_envs
             kafka_topics = {
                 "artifact-updates" = {
                     topic = "group-activity"
+                }
+                "artifact-details-update" = {
+                    topic = "artifact-details-update"
                 }
             }
         }
@@ -28,10 +33,12 @@ locals {
                 service_name = "artifact-query"
             }
             image = {
-                replicas = var.environment == "dev" ? 1 : 2
-                image_version = "latest"
+                replicas = var.environment == "dev" ? 1 : 1
+                image_version = "0.2-SNAPSHOT"
                 image_name = "spongepowered/systemofadownload-artifact-query-impl"
             }
+            extra_config = <<-EOF
+            EOF
             extra_env = local.default_database_envs
             extra_secret_envs = local.default_secret_based_envs
         }
@@ -54,34 +61,41 @@ locals {
         }
         "versions" = {
             service_name = "versions-server"
-            replicas = var.environment == "dev" ? 1 : 3
+            replicas = var.environment == "dev" ? 2 : 3
             image = {
-                version = "latest"
+                version = "0.2-SNAPSHOT"
                 name = "spongepowered/systemofadownload-versions-impl"
             }
+            extra_config = <<-EOF
+            EOF
             extra_env = local.default_database_envs
             extra_secret_envs = local.default_secret_based_envs
             kafka_topics = {
                 "artifact-versions" = {
                     topic = "artifact-update"
                 }
+                "asset-updates" = {
+                    topic = "versioned-artifact-updates"
+                }
             }
         }
         "versions_query" = {
             service_name = "versions-query-server"
-            replicas = var.environment == "dev" ? 1 : 3
+            replicas = var.environment == "dev" ? 1 : 1
             image = {
-                version = "latest"
+                version = "0.2-SNAPSHOT"
                 name = "spongepowered/systemofadownload-versions-query-impl"
             }
+            extra_config = <<-EOF
+            EOF
             extra_env = local.default_database_envs
             extra_secret_env = local.default_secret_based_envs
         }
         "synchronizer" = {
             service_name = "version-synchronizer"
-            replicas = 1
+            replicas = var.environment == "dev" ? 1 : 1
             image = {
-                version = "latest"
+                version = "0.2-SNAPSHOT"
                 name = "spongepowered/systemofadownload-version-synchronizer"
             }
             extra_env = local.default_database_envs
@@ -91,14 +105,6 @@ locals {
                 name = "artery"
                 protocol = "TCP"
             }]
-        }
-        "gateway" = {
-            service_name = "soad-gateway"
-            replicas = var.environment == "dev" ? 1 : 3
-            image = {
-                version = "latest"
-                name = "spongepowered/systemofadownload-gateway-impl"
-            }
         }
     }
 

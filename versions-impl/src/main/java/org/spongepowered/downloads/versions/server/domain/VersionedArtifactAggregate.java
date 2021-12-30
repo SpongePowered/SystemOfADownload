@@ -1,0 +1,189 @@
+/*
+ * This file is part of SystemOfADownload, licensed under the MIT License (MIT).
+ *
+ * Copyright (c) SpongePowered <https://spongepowered.org/>
+ * Copyright (c) contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+package org.spongepowered.downloads.versions.server.domain;
+
+import akka.NotUsed;
+import akka.actor.typed.Behavior;
+import akka.actor.typed.javadsl.ActorContext;
+import akka.actor.typed.javadsl.Behaviors;
+import akka.cluster.sharding.typed.javadsl.EntityContext;
+import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
+import akka.persistence.typed.PersistenceId;
+import akka.persistence.typed.javadsl.CommandHandlerWithReply;
+import akka.persistence.typed.javadsl.EventHandler;
+import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
+import akka.persistence.typed.javadsl.ReplyEffect;
+import akka.persistence.typed.javadsl.RetentionCriteria;
+import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
+import org.spongepowered.downloads.versions.api.models.TagRegistration;
+import org.spongepowered.downloads.versions.api.models.TagVersion;
+import org.spongepowered.downloads.versions.api.models.VersionRegistration;
+
+import java.util.Locale;
+import java.util.Set;
+import java.util.function.Function;
+
+public final class VersionedArtifactAggregate
+    extends EventSourcedBehaviorWithEnforcedReplies<ACCommand, ACEvent, State> {
+
+    public static EntityTypeKey<ACCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(ACCommand.class, "VersionedArtifact");
+    private final Function<ACEvent, Set<String>> tagger;
+    private final ActorContext<ACCommand> ctx;
+
+    public static Behavior<ACCommand> create(final EntityContext<ACCommand> context) {
+        return Behaviors.setup(ctx -> new VersionedArtifactAggregate(context, ctx));
+    }
+
+    private VersionedArtifactAggregate(
+        final EntityContext<ACCommand> context,
+        final ActorContext<ACCommand> ctx
+    ) {
+        super(
+            // PersistenceId needs a typeHint (or namespace) and entityId,
+            // we take then from the EntityContext
+            PersistenceId.of(
+                context.getEntityTypeKey().name(), // <- type hint
+                context.getEntityId() // <- business id
+            ));
+        this.tagger = AkkaTaggerAdapter.fromLagom(context, ACEvent.INSTANCE);
+        this.ctx = ctx;
+    }
+
+    @Override
+    public State emptyState() {
+        return State.empty();
+    }
+
+    @Override
+    public EventHandler<State, ACEvent> eventHandler() {
+        final var builder = this.newEventHandlerBuilder();
+        builder.forStateType(State.Empty.class)
+            .onEvent(ACEvent.ArtifactCoordinatesUpdated.class, State.Empty::register);
+        builder.forStateType(State.ACState.class)
+            .onEvent(ACEvent.ArtifactTagRegistered.class, (state1, event1) -> state1.withTag(event1.entry()))
+            .onEvent(
+                ACEvent.ArtifactVersionRegistered.class,
+                (state2, event2) -> state2.withVersion(event2.version().version)
+            )
+            .onEvent(
+                ACEvent.PromotionSettingModified.class,
+                (state, event) -> state.withPromotionDetails(event.regex(), event.enableManualPromotion())
+            )
+            .onEvent(ACEvent.ArtifactVersionsResorted.class, (state, event) -> state)
+        ;
+        return builder.build();
+    }
+
+    @Override
+    public Set<String> tagsFor(final ACEvent acEvent) {
+        return this.tagger.apply(acEvent);
+    }
+
+    @Override
+    public RetentionCriteria retentionCriteria() {
+        return RetentionCriteria.snapshotEvery(10, 2);
+    }
+
+    @Override
+    public CommandHandlerWithReply<ACCommand, ACEvent, State> commandHandler() {
+        final var builder = this.newCommandHandlerWithReplyBuilder();
+        builder.forStateType(State.Empty.class)
+            .onCommand(ACCommand.RegisterArtifact.class, this::handleRegisterArtifact)
+            .onCommand(
+                ACCommand.RegisterArtifactTag.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest()))
+            .onCommand(
+                ACCommand.RegisterVersion.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest()))
+            .onCommand(
+                ACCommand.RegisterArtifactTag.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest()))
+            .onCommand(
+                ACCommand.UpdateArtifactTag.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest()))
+            .onCommand(
+                ACCommand.RegisterPromotion.class, (cmd) -> this.Effect().reply(cmd.replyTo(), new InvalidRequest()))
+        ;
+        builder.forStateType(State.ACState.class)
+            .onCommand(ACCommand.RegisterArtifact.class, (cmd) -> this.Effect().reply(cmd.replyTo(), NotUsed.notUsed()))
+            .onCommand(ACCommand.RegisterVersion.class, this::handleRegisterVersion)
+            .onCommand(ACCommand.RegisterArtifactTag.class, this::handlRegisterTag)
+            .onCommand(ACCommand.UpdateArtifactTag.class, this::handleUpdateTag)
+            .onCommand(ACCommand.RegisterPromotion.class, this::handlePromotionSetting)
+        ;
+        return builder.build();
+    }
+
+    private ReplyEffect<ACEvent, State> handleRegisterVersion(
+        final State.ACState state, final ACCommand.RegisterVersion cmd
+    ) {
+        if (state.collection().containsKey(cmd.coordinates().version)) {
+            return this.Effect().reply(
+                cmd.replyTo(),
+                new VersionRegistration.Response.ArtifactAlreadyRegistered(cmd.coordinates())
+            );
+        }
+        return this.Effect()
+            .persist(state.addVersion(cmd.coordinates()))
+            .thenReply(cmd.replyTo(), (s) -> new VersionRegistration.Response.RegisteredArtifact(cmd.coordinates()));
+    }
+
+    private ReplyEffect<ACEvent, State> handleRegisterArtifact(
+        final State.Empty state,
+        final ACCommand.RegisterArtifact cmd
+    ) {
+        return this.Effect()
+            .persist(new ACEvent.ArtifactCoordinatesUpdated(cmd.coordinates()))
+            .thenReply(cmd.replyTo(), (s) -> NotUsed.notUsed());
+    }
+
+    private ReplyEffect<ACEvent, State> handlRegisterTag(
+        final State.ACState state,
+        final ACCommand.RegisterArtifactTag cmd
+    ) {
+        if (state.tags().containsKey(cmd.entry().name().toLowerCase(Locale.ROOT))) {
+            return this.Effect().reply(
+                cmd.replyTo(), new TagRegistration.Response.TagAlreadyRegistered(cmd.entry().name()));
+        }
+        return this.Effect()
+            .persist(new ACEvent.ArtifactTagRegistered(state.coordinates(), cmd.entry()))
+            .thenReply(cmd.replyTo(), (s) -> new TagRegistration.Response.TagSuccessfullyRegistered());
+    }
+
+    private ReplyEffect<ACEvent, State> handlePromotionSetting(
+        final State.ACState state,
+        final ACCommand.RegisterPromotion cmd
+    ) {
+        return this.Effect()
+            .persist(new ACEvent.PromotionSettingModified(state.coordinates(), cmd.regex(), cmd.enableManualMarking()))
+            .thenReply(cmd.replyTo(), (s) -> new TagVersion.Response.TagSuccessfullyRegistered());
+    }
+
+    private ReplyEffect<ACEvent, State> handleUpdateTag(
+        final State.ACState state,
+        final ACCommand.UpdateArtifactTag cmd
+    ) {
+        return this.Effect()
+            .persist(new ACEvent.ArtifactTagRegistered(state.coordinates(), cmd.entry()))
+            .thenReply(cmd.replyTo(), (s) -> new TagRegistration.Response.TagSuccessfullyRegistered());
+    }
+
+}

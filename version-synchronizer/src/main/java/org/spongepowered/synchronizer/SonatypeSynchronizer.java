@@ -24,53 +24,30 @@
  */
 package org.spongepowered.synchronizer;
 
-import akka.Done;
-import akka.NotUsed;
-import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
-import akka.actor.typed.DispatcherSelector;
 import akka.actor.typed.SupervisorStrategy;
-import akka.actor.typed.internal.receptionist.ReceptionistMessages;
 import akka.actor.typed.javadsl.Behaviors;
-import akka.actor.typed.javadsl.Routers;
-import akka.actor.typed.receptionist.ServiceKey;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.Entity;
-import akka.stream.javadsl.Flow;
-import akka.stream.javadsl.Sink;
-import akka.stream.javadsl.Source;
-import akka.stream.typed.javadsl.ActorFlow;
+import akka.cluster.typed.ClusterSingleton;
+import akka.cluster.typed.SingletonActor;
+import akka.persistence.typed.PersistenceId;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
-import org.spongepowered.downloads.artifact.api.Group;
-import org.spongepowered.downloads.artifact.api.event.GroupUpdate;
-import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
 import org.spongepowered.downloads.versions.api.VersionsService;
-import org.spongepowered.downloads.versions.api.models.ArtifactUpdate;
-import org.spongepowered.synchronizer.actor.ArtifactSyncWorker;
-import org.spongepowered.synchronizer.actor.RequestArtifactsToSync;
-import org.spongepowered.synchronizer.actor.VersionedComponentWorker;
-import org.spongepowered.synchronizer.resync.ArtifactSynchronizerAggregate;
-import scala.Option;
-
-import java.time.Duration;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.atomic.AtomicInteger;
+import org.spongepowered.synchronizer.actor.CommitRegistrar;
+import org.spongepowered.synchronizer.assetsync.VersionConsumer;
+import org.spongepowered.synchronizer.gitmanaged.ArtifactSubscriber;
+import org.spongepowered.synchronizer.gitmanaged.CommitConsumer;
+import org.spongepowered.synchronizer.gitmanaged.ScheduledCommitResolver;
+import org.spongepowered.synchronizer.gitmanaged.domain.GitManagedArtifact;
+import org.spongepowered.synchronizer.resync.ResyncManager;
+import org.spongepowered.synchronizer.resync.domain.ArtifactSynchronizerAggregate;
+import org.spongepowered.synchronizer.versionsync.ArtifactConsumer;
 
 public final class SonatypeSynchronizer {
 
-    private static final ServiceKey<Command> key = ServiceKey.create(Command.class, "Synchronizer");
-
     public interface Command {
-    }
-
-    private static final record GatherGroupArtifacts() implements SonatypeSynchronizer.Command {
-    }
-
-    private static final record WrappedArtifactsToSync(
-        List<ArtifactCoordinates> artifactCoordinates) implements SonatypeSynchronizer.Command {
     }
 
     public static Behavior<SonatypeSynchronizer.Command> create(
@@ -80,8 +57,13 @@ public final class SonatypeSynchronizer {
         final ObjectMapper mapper
     ) {
         return Behaviors.setup(context -> {
-            context.getSystem().receptionist().tell(
-                new ReceptionistMessages.Register<>(key, context.getSelf(), Option.empty()));
+            // don't do this, eventually we can swap this out from service layers
+            context.spawnAnonymous(Behaviors.supervise(CommitRegistrar.register(versionsService))
+                .onFailure(SupervisorStrategy.restart()));
+            CommitConsumer.setupSubscribers(versionsService, context);
+            ArtifactSubscriber.setup(artifactService, context);
+            ScheduledCommitResolver.setup(artifactService, context);
+
             final var settings = SynchronizationExtension.SettingsProvider.get(context.getSystem());
             clusterSharding
                 .init(
@@ -90,147 +72,24 @@ public final class SonatypeSynchronizer {
                         ArtifactSynchronizerAggregate::create
                     )
                 );
-            // region Synchronize Artifact Versions from Maven
+            clusterSharding.init(Entity.of(GitManagedArtifact.ENTITY_TYPE_KEY, ctx -> GitManagedArtifact.create(PersistenceId.of(ctx.getEntityTypeKey().name(), ctx.getEntityId()), ctx.getEntityId())));
 
-            final var syncWorkerBehavior = ArtifactSyncWorker.create(versionsService, clusterSharding);
-            final var pool = Routers.pool(
-                settings.reactiveSync.poolSize,
-                syncWorkerBehavior
-            );
+            ArtifactConsumer.subscribeToArtifactUpdates(
+                context, artifactService, versionsService, clusterSharding, settings);
 
-            final var registrationRef = context.spawn(
-                pool,
-                "group-event-subscriber",
-                DispatcherSelector.defaultDispatcher()
-            );
-            final Flow<GroupUpdate, Done, NotUsed> actorAsk = ActorFlow.ask(
-                settings.reactiveSync.parallelism,
-                registrationRef, settings.reactiveSync.timeOut,
-                (g, b) -> {
-                    if (!(g instanceof GroupUpdate.ArtifactRegistered a)) {
-                        return new ArtifactSyncWorker.Ignored(b);
-                    }
-                    return new ArtifactSyncWorker.PerformResync(a.coordinates(), b);
-                }
-            );
-            artifactService.groupTopic()
-                .subscribe()
-                .atLeastOnce(actorAsk);
-            // endregion
+            VersionConsumer.subscribeToVersionedArtifactUpdates(versionsService, mapper, context, settings);
 
-            // region Synchronize Versioned Assets through Sonatype Search
-            final var componentPool = Routers.pool(
-                settings.asset.poolSize,
-                Behaviors.supervise(VersionedComponentWorker.gatherComponents(versionsService, mapper))
-                    .onFailure(settings.asset.backoff)
-            );
-            final var componentRef = context.spawn(
-                componentPool,
-                "version-component-registration",
-                DispatcherSelector.defaultDispatcher()
-            );
-            final Flow<ArtifactUpdate, Done, NotUsed> versionedFlow = ActorFlow.ask(
-                settings.asset.parallelism,
-                componentRef,
-                settings.asset.timeout,
-                (g, b) -> {
-                    if (!(g instanceof ArtifactUpdate.ArtifactVersionRegistered a)) {
-                        return new VersionedComponentWorker.Ignored(b);
-                    }
-                    return new VersionedComponentWorker.GatherComponentsForArtifact(a.coordinates(), b);
-                }
-            );
-            versionsService.artifactUpdateTopic()
-                .subscribe()
-                .atLeastOnce(versionedFlow);
-            // endregion
+            final var resyncManager = ResyncManager.create(artifactService, settings.versionSync);
+            final var resyncBehavior = Behaviors.supervise(resyncManager)
+                .onFailure(
+                SupervisorStrategy.restart());
+            final var actor = SingletonActor.of(resyncBehavior, "artifact-sync");
+            ClusterSingleton.get(context.getSystem()).init(actor);
 
             // Scheduled full resynchronization with maven and therefor sonatype
-            return Behaviors.withTimers(timers -> {
-                timers.startTimerWithFixedDelay(new GatherGroupArtifacts(), settings.versionSync.interval);
-                timers.startSingleTimer(new GatherGroupArtifacts(), settings.versionSync.startupDelay);
-                return timedSync(artifactService, versionsService, clusterSharding);
-            });
+            return Behaviors.receive(SonatypeSynchronizer.Command.class)
+                .build();
         });
-    }
-
-    private static Behavior<Command> timedSync(
-        final ArtifactService artifactService,
-        final VersionsService versionsService,
-        final ClusterSharding clusterSharding
-    ) {
-        final AtomicInteger integer = new AtomicInteger();
-        return Behaviors.setup((ctx) -> {
-            final var dispatch = DispatcherSelector.defaultDispatcher();
-            final int i = integer.incrementAndGet();
-            final var requester = ctx.spawn(
-                Behaviors.supervise(RequestArtifactsToSync.create(artifactService)).onFailure(
-                    SupervisorStrategy.restart()),
-                String.format("requester-%d-%d", i, System.currentTimeMillis()),
-                dispatch
-            );
-            final var artifactSyncPool = Routers.pool(
-                4,
-                ArtifactSyncWorker.create(versionsService, clusterSharding)
-            );
-            final var syncWorker = ctx.spawn(
-                artifactSyncPool,
-                String.format("pooled-artifact-synchronization-workers-%d-%d", i, System.currentTimeMillis()),
-                dispatch
-            );
-            return passSyncedArtifacts(artifactService, requester, syncWorker);
-        });
-    }
-
-    private static Behavior<Command> passSyncedArtifacts(
-        final ArtifactService artifactService,
-        final ActorRef<RequestArtifactsToSync.Command> requester,
-        final ActorRef<ArtifactSyncWorker.Command> syncWorker
-    ) {
-        return Behaviors.setup(ctx -> {
-                final var requestFlow = ActorFlow.ask(
-                    requester,
-                    Duration.ofSeconds(30),
-                    RequestArtifactsToSync.GatherGroupArtifacts::new
-                );
-
-                final var registrationFlow = ActorFlow.ask(
-                    syncWorker,
-                    Duration.ofMinutes(20),
-                    ArtifactSyncWorker.PerformResync::new
-                );
-                return Behaviors.receive(Command.class)
-                    .onMessage(WrappedArtifactsToSync.class, result -> {
-                        Source.from(result.artifactCoordinates)
-                            .async()
-                            .via(registrationFlow.async())
-                            .runWith(Sink.ignore(), ctx.getSystem());
-                        return Behaviors.same();
-                    })
-                    .onMessage(GatherGroupArtifacts.class, g -> {
-                        final var makeRequest = artifactService.getGroups()
-                            .invoke()
-                            .thenApply(groups -> ((GroupsResponse.Available) groups).groups)
-                            .thenCompose(groups -> {
-                                final Sink<List<ArtifactCoordinates>, CompletionStage<List<ArtifactCoordinates>>> fold = Sink.fold(
-                                    List.empty(), List::appendAll);
-                                return Source.from(groups.map(Group::getGroupCoordinates).asJava())
-                                    .async()
-                                    .via(requestFlow)
-                                    .map(RequestArtifactsToSync.ArtifactsToSync::artifactsNeeded)
-                                    .runWith(fold, ctx.getSystem());
-                            });
-                        ctx.pipeToSelf(makeRequest, (ok, exception) -> {
-                            if (exception != null) {
-                                ctx.getLog().error("Failed to process sync", exception);
-                            }
-                            return new WrappedArtifactsToSync(ok);
-                        });
-                        return Behaviors.same();
-                    })
-                    .build();
-            }
-        );
     }
 
 }

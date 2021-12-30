@@ -16,7 +16,7 @@ resource "kubernetes_job" "soad-liquibase-migration" {
             spec {
                 container {
                     name = "soad-liquibase"
-                    image = "spongepowered/systemofadownload-liquibase:latest"
+                    image = "spongepowered/systemofadownload-liquibase:0.2-SNAPSHOT"
 
                     env {
                         name = "URL"
