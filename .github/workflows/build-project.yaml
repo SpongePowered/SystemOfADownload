@@ -23,7 +23,7 @@ jobs:
                     distribution: 'temurin'
                     java-version: '17'
             -   name: Build with SBT
-                run: sbt -v {{matrix.project}} / test
+                run: sbt -v ${{matrix.project}} / test
     publish:
         needs: test
         if: ${{ github.event_name == 'push' }}
@@ -42,7 +42,7 @@ jobs:
                     distribution: 'temurin'
                     java-version: '17'
             -   name: Build with SBT
-                run: sbt -v {{matrix.project}} / Docker / stage
+                run: sbt -v ${{matrix.project}} / Docker / stage
             -   name: Set up QEMU
                 uses: docker/setup-qemu-action@v1.2.0
             -   name: Set up Docker Buildx
@@ -56,7 +56,7 @@ jobs:
             -   name: Build and push
                 uses: docker/build-push-action@v2
                 with:
-                    context: ./{{ matrix.project }}/target/docker/stage/
+                    context: ./${{ matrix.project }}/target/docker/stage/
                     platforms: linux/amd64,linux/arm64
                     push: true
-                    tags: spongepowered/systemofadownload-{{matrix.project}}:latest,spongepowered/systemofadownload-{{matrix.project}}:{{ github.ref }}
+                    tags: spongepowered/systemofadownload-${{matrix.project}}:latest,spongepowered/systemofadownload-${{matrix.project}}:${{ github.ref }}
