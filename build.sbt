@@ -12,6 +12,37 @@ ThisBuild / scalaVersion := "2.13.6"
 ThisBuild / organizationName := "SpongePowered"
 ThisBuild / startYear := Some(2020)
 ThisBuild / licenses += ("MIT", url("https://opensource.org/licenses/MIT"))
+ThisBuild / scmInfo := Some(ScmInfo(url("https://github.com/SpongePowered/SystemOfADownload"),
+  "scm:git@github.com:spongepowered/systemofadownload.git"))
+ThisBuild / developers := List(
+  Developer(
+    id    = "gabizou",
+    name  = "Gabriel Harris-Rouquette",
+    email = "gabizou@spongepowered.org",
+    url   = url("https://github.com/gabizou")
+  )
+)
+ThisBuild / description := "A Web Application for indexing and cataloging Artifacts in Maven Repositories"
+ThisBuild / homepage := Some(url("https://github.com/SpongePowered/SystemOfADownload"))
+ThisBuild / pomIncludeRepository := { _ => false }
+ThisBuild / publishMavenStyle := true
+ThisBuild / versionScheme := Some("early-semver")
+
+// Basically, because of sbt's limited publishing to only one repository,
+// we can take advantage of environment variables to publish to multiple
+// repositories within the same job.
+ThisBuild / publishTo := {
+  (sys.env.get("REPO_NAME"), sys.env.get("SONATYPE_SNAPSHOT_REPO"), sys.env.get("SONATYPE_RELEASE_REPO")) match {
+    case (Some(name), Some(snapshotRepo), Some(releaseRepo)) => {
+      credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
+      if (isSnapshot.value)
+        Some(name at snapshotRepo)
+      else
+        Some(name at releaseRepo)
+    }
+    case (_, _, _) => None
+  }
+}
 
 // Deployed Repositories
 // TODO - Figure out deploying to our sonatype and to maven central

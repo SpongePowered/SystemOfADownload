@@ -24,7 +24,81 @@ jobs:
                     java-version: '17'
             -   name: Build with SBT
                 run: sbt -v ${{matrix.project}}/test
-    publish:
+    publish-maven:
+        needs: test
+        if: ${{ github.event_name == 'push' }}
+        runs-on: ubuntu-latest
+        env:
+            JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --illegal-access=permit
+            JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --illegal-access=permit
+        steps:
+            -   uses: actions/checkout@v2
+            -   name: Set up SBT
+                uses: actions/setup-java@v2
+                with:
+                    distribution: 'temurin'
+                    java-version: '17'
+            -   name: Coursier cache
+                uses: coursier/cache-action@v6
+            -   name: Set up sponge repo credentials
+                run: |
+                    mkdir ~/.sbt
+                    echo "username=${{ secrets.SPONGE_MAVEN_REPO_USER }}" >> ~/.sbt/.credentials
+                    echo "realm=Sonatype Nexus Repository Manager" >> ~/.sbt/.credentials
+                    echo "password=${{ secrets.SPONGE_MAVEN_REPO_PASSWORD }}" >> ~/.sbt/.credentials
+                    echo "host=repo-new.spongepowered.org" >> ~/.sbt/.credentials
+            -   name: Publish To Sponge Repos
+                run: sbt -v publish
+                env:
+                    REPO_NAME: "Sponge Repository"
+                    CI_SYSTEM: Github Actions
+                    GITHUB_USERNAME: "${{ github.actor }}"
+                    GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+                    SONATYPE_SNAPSHOT_REPO: "${{ secrets.SPONGE_MAVEN_SNAPSHOT_REPO_URL }}"
+                    SONATYPE_RELEASE_REPO: "${{ secrets.SPONGE_MAVEN_RELEASE_REPO_URL }}"
+            -   name: Set up GitHub Packages credentials
+                run: |
+                    mkdir -p ~/.sbt
+                    rm -f ~/.sbt/.credentials
+                    echo "username=${{ github.actor }}" >> ~/.sbt/.credentials
+                    echo "realm=GitHub Packages" >> ~/.sbt/.credentials
+                    echo "password=${{ secrets.GITHUB_TOKEN }}" >> ~/.sbt/.credentials
+                    echo "host=maven.pkg.github.com" >> ~/.sbt/.credentials
+            -   name: Publish to GitHub Packages
+                run: sbt -v publish
+                env:
+                    REPO_NAME: "GitHub Packages"
+                    CI_SYSTEM: Github Actions
+                    GITHUB_USERNAME: ${{ github.actor }}
+                    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                    SONATYPE_SNAPSHOT_REPO: "https://maven.pkg.github.com/SpongePowered/SystemOfADownload"
+                    SONATYPE_RELEASE_REPO: "https://maven.pkg.github.com/SpongePowered/SystemOfADownload"
+            -   name: Set up Maven Central credentials
+                run: |
+                    mkdir -p ~/.sbt
+                    rm -f ~/.sbt/.credentials
+                    echo "username=${{ secrets.SPONGE_MAVEN_OSSRH_USER }}" >> ~/.sbt/.credentials
+                    echo "realm=Maven Central" >> ~/.sbt/.credentials
+                    echo "password=${{ secrets.SPONGE_MAVEN_OSSRH_PASSWORD }}" >> ~/.sbt/.credentials
+                    echo "host=oss.sonatype.org" >> ~/.sbt/.credentials
+            -   name: Publish to Maven Central
+                run: sbt -v publish
+                env:
+                    REPO_NAME: "Maven Central"
+                    CI_SYSTEM: Github Actions
+                    GITHUB_USERNAME: ${{ github.actor }}
+                    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                    SONATYPE_SNAPSHOT_REPO: "https://oss.sonatype.org/content/repositories/snapshots"
+                    SONATYPE_RELEASE_REPO: "https://oss.sonatype.org/service/local/staging/deploy/maven2"
+            -   name: Cleanup before cache
+                shell: bash
+                run: |
+                    rm -rf "$HOME/.ivy2/local" || true
+                    find $HOME/Library/Caches/Coursier/v1        -name "ivydata-*.properties" -delete || true
+                    find $HOME/.ivy2/cache                       -name "ivydata-*.properties" -delete || true
+                    find $HOME/.cache/coursier/v1                -name "ivydata-*.properties" -delete || true
+                    find $HOME/.sbt                              -name "*.lock"               -delete || true
+    publish-docker-image:
         needs: test
         if: ${{ github.event_name == 'push' }}
         runs-on: ubuntu-latest
