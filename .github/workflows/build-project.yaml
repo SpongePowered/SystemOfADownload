@@ -59,4 +59,4 @@ jobs:
                     context: ./${{ matrix.project }}/target/docker/stage/
                     platforms: linux/amd64,linux/arm64
                     push: true
-                    tags: spongepowered/systemofadownload-${{matrix.project}}:latest,spongepowered/systemofadownload-${{matrix.project}}:${{ github.sha }},spongepowered/systemofadownload-${{matrix.project}}:${{ github.ref_name }}
+                    tags: ghcr.io/spongepowered/systemofadownload-${{matrix.project}}:latest,ghcr.io/spongepowered/systemofadownload-${{matrix.project}}:${{ github.sha }},ghcr.io/spongepowered/systemofadownload-${{matrix.project}}:${{ github.ref_name }}
