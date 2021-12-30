@@ -10,13 +10,14 @@ jobs:
     license-check:
         runs-on: ubuntu-latest
         env:
-            JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --illegal-access=permit
-            JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --illegal-access=permit
+            JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
+            JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
         steps:
             -   uses: actions/checkout@v2
             -   name: Set up SBT
-                uses: olafurpg/setup-scala@v10
+                uses: actions/setup-java@v2
                 with:
-                    java-version: adopt@1.16
+                    distribution: 'temurin'
+                    java-version: '17'
             -   name: Build with SBT
                 run: sbt -v headerCheck

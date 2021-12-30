@@ -9,28 +9,54 @@ on:
 jobs:
     test:
         runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                project: [ 'artifact-impl', 'artifact-query-impl', 'auth-impl', 'version-synchronizer', 'versions-impl', 'versions-query-impl' ]
         env:
-            JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --illegal-access=permit
-            JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --illegal-access=permit
+            JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --add-opens=java.base/java.lang=ALL-UNNAMED
+            JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --add-opens=java.base/java.lang=ALL-UNNAMED
         steps:
             -   uses: actions/checkout@v2
             -   name: Set up SBT
-                uses: olafurpg/setup-scala@v10
+                uses: actions/setup-java@v2
                 with:
-                    java-version: adopt@1.16
+                    distribution: 'temurin'
+                    java-version: '17'
             -   name: Build with SBT
-                run: sbt -v test
+                run: sbt -v {{matrix.project}} / test
     publish:
         needs: test
+        if: ${{ github.event_name == 'push' }}
         runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                project: [ 'artifact-impl', 'artifact-query-impl', 'auth-impl', 'version-synchronizer', 'versions-impl', 'versions-query-impl' ]
         env:
             JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --illegal-access=permit
             JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --illegal-access=permit
         steps:
             -   uses: actions/checkout@v2
             -   name: Set up SBT
-                uses: olafurpg/setup-scala@v10
+                uses: actions/setup-java@v2
                 with:
-                    java-version: adopt@1.16
+                    distribution: 'temurin'
+                    java-version: '17'
             -   name: Build with SBT
-                run: sbt -v docker:publishLocal
+                run: sbt -v {{matrix.project}} / Docker / stage
+            -   name: Set up QEMU
+                uses: docker/setup-qemu-action@v1.2.0
+            -   name: Set up Docker Buildx
+                uses: docker/setup-buildx-action@v1.6.0
+            -   name: Login to DockerHub
+                uses: docker/login-action@v1
+                with:
+                    registry: ghcr.io
+                    username: ${{ github.actor }}
+                    password: ${{ secrets.GITHUB_TOKEN }}
+            -   name: Build and push
+                uses: docker/build-push-action@v2
+                with:
+                    context: ./{{ matrix.project }}/target/docker/stage/
+                    platforms: linux/amd64,linux/arm64
+                    push: true
+                    tags: spongepowered/systemofadownload-{{matrix.project}}:latest,spongepowered/systemofadownload-{{matrix.project}}:{{ github.ref }}
