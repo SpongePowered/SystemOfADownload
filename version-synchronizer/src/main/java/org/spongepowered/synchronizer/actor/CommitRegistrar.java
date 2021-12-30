@@ -28,9 +28,14 @@ import akka.Done;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.receptionist.Receptionist;
+import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import org.spongepowered.downloads.auth.api.utils.AuthUtils;
 import org.spongepowered.downloads.versions.api.VersionsService;
 import org.spongepowered.downloads.versions.api.models.CommitRegistration;
+import org.spongepowered.synchronizer.gitmanaged.domain.GitCommand;
+import org.spongepowered.synchronizer.gitmanaged.domain.GitManagedArtifact;
+
+import java.time.Duration;
 
 public class CommitRegistrar {
 
@@ -40,6 +45,7 @@ public class CommitRegistrar {
         return Behaviors.setup(ctx -> {
             final var registration = Receptionist.register(CommitDetailsRegistrar.SERVICE_KEY, ctx.getSelf());
             ctx.getSystem().receptionist().tell(registration);
+            final var sharding = ClusterSharding.get(ctx.getSystem());
             final var auth = AuthUtils.configure(ctx.getSystem().settings().config());
             return Behaviors.receive(CommitDetailsRegistrar.Command.class)
                 .onMessage(CommitDetailsRegistrar.HandleVersionedCommitReport.class, msg -> {
@@ -62,6 +68,10 @@ public class CommitRegistrar {
                     final var future = auth.internalAuth(versionsService.registerCommit(
                             msg.coordinates().groupId, msg.coordinates().artifactId, msg.coordinates().version
                         )).invoke(new CommitRegistration.FailedCommit(msg.commitId(), msg.repo()))
+                        .thenCompose(done -> sharding.entityRefFor(GitManagedArtifact.ENTITY_TYPE_KEY,
+                                msg.coordinates().asArtifactCoordinates().asMavenString())
+                            .<Done>ask(replyTo -> new GitCommand.MarkVersionAsUnresolveable(replyTo, msg.coordinates(), msg.commitId()),
+                                Duration.ofMinutes(10)))
                         .toCompletableFuture();
 
                     ctx.pipeToSelf(future, (done, failure) -> {

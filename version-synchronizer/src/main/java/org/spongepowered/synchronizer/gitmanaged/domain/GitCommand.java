@@ -32,6 +32,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.lightbend.lagom.serialization.Jsonable;
+import io.vavr.collection.HashMap;
 import io.vavr.collection.List;
 import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
@@ -47,6 +48,7 @@ import java.net.URI;
     @JsonSubTypes.Type(value = GitCommand.GetRepositories.class, name = "get-repositories"),
     @JsonSubTypes.Type(value = GitCommand.GetUnresolvedVersions.class, name = "get-unresolved-versions"),
     @JsonSubTypes.Type(value = GitCommand.MarkVersionAsResolved.class, name = "mark-version-as-resolved"),
+    @JsonSubTypes.Type(value = GitCommand.MarkVersionAsUnresolveable.class, name = "mark-version-as-unresolveable"),
 })
 public sealed interface GitCommand extends Jsonable {
 
@@ -113,6 +115,14 @@ public sealed interface GitCommand extends Jsonable {
         }
     }
 
+    record MarkVersionAsUnresolveable(
+        ActorRef<Done> replyTo,
+        MavenCoordinates coordinates,
+        String commitSha
+    ) implements GitCommand {}
+
+
+    static final UnresolvedWork EMPTY = new UnresolvedWork(HashMap.empty(), List.empty());
     @JsonDeserialize
     @JsonSerialize
     record UnresolvedWork(

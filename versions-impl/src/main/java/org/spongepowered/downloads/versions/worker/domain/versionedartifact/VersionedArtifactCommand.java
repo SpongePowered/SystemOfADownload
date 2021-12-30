@@ -107,4 +107,6 @@ public sealed interface VersionedArtifactCommand extends Jsonable {
     )
         implements VersionedArtifactCommand {
     }
+
+    public record RefreshCommitResolution() implements VersionedArtifactCommand { }
 }

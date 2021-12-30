@@ -39,6 +39,7 @@ import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagValue;
 
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Locale;
 import java.util.Objects;
@@ -191,8 +192,8 @@ public interface State {
             final var versions = this.collection
                 .keySet()
                 .toSortedSet(Comparator.comparing(ComparableVersion::new));
-            final var newIndex = versions
-                .add(coordinates.version)
+            final var newVersions = versions.add(coordinates.version);
+            final var newIndex = newVersions
                 .toList()
                 .indexOf(coordinates.version);
             final var versionRegistered = new ACEvent.ArtifactVersionRegistered(coordinates, newIndex);
@@ -200,8 +201,22 @@ public interface State {
             if (newIndex >= versions.size()) {
                 return events.append(versionRegistered).toJavaList();
             }
-            final var strings = versions.toList().subSequence(newIndex);
-            final var versionMoved = new ACEvent.ArtifactVersionMoved(coordinates, newIndex, strings.map(this.coordinates::version));
+            if (versions.size() == newVersions.size()) {
+                return Collections.emptyList();
+            }
+            // Figure out how many versions are being resorted
+            final var sortedVersions = newVersions.toSortedSet(Comparator.comparing(ComparableVersion::new));
+            final java.util.Map<String, Integer> versionsByIndex = new java.util.HashMap<>();
+            versions.forEachWithIndex(versionsByIndex::put);
+            final java.util.Map<String, Integer> updatedVersionsIndecies = new java.util.HashMap<>();
+            sortedVersions.forEachWithIndex(updatedVersionsIndecies::put);
+            versionsByIndex.forEach((version, oldIndex) -> {
+                if (Objects.equals(updatedVersionsIndecies.get(version), oldIndex)) {
+                    updatedVersionsIndecies.remove(version);
+                }
+            });
+            final var trimmedIndecies = HashMap.ofAll(updatedVersionsIndecies);
+            final var versionMoved = new ACEvent.ArtifactVersionsResorted(this.coordinates, trimmedIndecies);
             return events.append(versionRegistered).append(versionMoved).toJavaList();
         }
     }

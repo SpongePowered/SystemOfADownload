@@ -15,14 +15,14 @@
         <appender-ref ref="CONSOLE" />
     </appender>
 
-    <logger name="org.spongepowered.downloads.versions.worker" level="DEBUG"/>
+    <logger name="org.spongepowered.downloads.versions.worker" level="INFO"/>
     <logger name="org.spongepowered.synchronizer.actor" level="INFO"/>
-    <logger name="org.spongepowered.synchronizer.gitmanaged" level="TRACE"/>
-    <logger name="org.spongepowered.synchronizer.gitmanaged.util.jgit" level="TRACE"/>
+    <logger name="org.spongepowered.synchronizer.gitmanaged" level="INFO"/>
+    <logger name="org.spongepowered.synchronizer.gitmanaged.util.jgit" level="INFO"/>
 
 
     <logger name="Hibernate Types" level="WARN"/>
-    <logger name="play" level="INFO" />
+    <logger name="play" level="WARN" />
     <logger name="akka" level="WARN" />
     <logger name="akka.event.slf4j" level="WARN" />
     <logger name="org.apache.kafka" level="WARN" />

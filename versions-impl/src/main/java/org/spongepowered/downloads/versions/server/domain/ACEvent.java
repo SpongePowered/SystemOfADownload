@@ -34,7 +34,7 @@ import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
-import io.vavr.collection.List;
+import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.versions.api.models.tags.ArtifactTagEntry;
@@ -61,7 +61,7 @@ import java.util.Objects;
         name = "promotion-settings-modified"
     ),
     @JsonSubTypes.Type(
-        value = ACEvent.ArtifactVersionMoved.class,
+        value = ACEvent.ArtifactVersionsResorted.class,
         name = "versions-resorted"
     )
 })
@@ -127,10 +127,8 @@ public interface ACEvent extends AggregateEvent<ACEvent>, Jsonable {
     }
 
     @JsonDeserialize
-    record ArtifactVersionMoved(
-        MavenCoordinates coordinates,
-        int newIndex,
-        List<MavenCoordinates> reshuffled
+    record ArtifactVersionsResorted(
+        ArtifactCoordinates coordinates, Map<String, Integer> versionordering
     ) implements ACEvent{
     }
 }

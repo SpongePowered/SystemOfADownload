@@ -119,6 +119,7 @@ public class VersionReadSidePersistence {
                             jpaArtifactVersion.setOrdering(versionRegistered.sorting());
                             artifact.addVersion(jpaArtifactVersion);
                             refresher.tell(new VersionedTagWorker.RefreshVersionTags());
+                            refresher.tell(new VersionedTagWorker.RefreshVersionRecommendation(coordinates.asArtifactCoordinates()));
                             return jpaArtifactVersion;
                         });
                 })
@@ -171,18 +172,18 @@ public class VersionReadSidePersistence {
 
                     refresher.tell(new VersionedTagWorker.RefreshVersionRecommendation(promotion.coordinates()));
                 })
-                .setEventHandler(ACEvent.ArtifactVersionMoved.class, (em, event) -> {
-                    event.reshuffled().forEachWithIndex((v, i) -> {
-                        final var version = em.createNamedQuery(
+                .setEventHandler(ACEvent.ArtifactVersionsResorted.class, (em, event) -> {
+                    event.versionordering().forEach((v, ordering) -> {
+                        final var jpaVersion = em.createNamedQuery(
                                 "ArtifactVersion.findByCoordinates",
                                 JpaArtifactVersion.class
                             )
-                            .setParameter("groupId", v.groupId)
-                            .setParameter("artifactId", v.artifactId)
-                            .setParameter("version", v.version)
+                            .setParameter("groupId", event.coordinates().groupId)
+                            .setParameter("artifactId", event.coordinates().artifactId)
+                            .setParameter("version", v)
                             .setMaxResults(1)
                             .getSingleResult();
-                        version.setOrdering(i + event.newIndex());
+                        jpaVersion.setOrdering(ordering);
                     });
                 })
                 .build();

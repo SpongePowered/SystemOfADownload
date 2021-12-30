@@ -115,15 +115,31 @@ public class VersionedArtifactEntity
             .onCommand(VersionedArtifactCommand.RegisterRawCommit.class, this::onRegisterRawCommit)
             .onCommand(VersionedArtifactCommand.RegisterResolvedCommit.class, this::handleCompletedCommit)
             .onCommand(VersionedArtifactCommand.RegisterFailedCommit.class, this::handleFailedCommit)
+            .onCommand(VersionedArtifactCommand.RefreshCommitResolution.class, this::handleRefreshCommitStatus)
             ;
         return builder.build();
+    }
+
+    private ReplyEffect<ArtifactEvent, ArtifactState> handleRefreshCommitStatus(final ArtifactState.Registered state, final VersionedArtifactCommand.RefreshCommitResolution cmd) {
+        if (state.fileStatus().commit().isPresent()) {
+            return this.Effect().noReply();
+        }
+        if (state.commitSha().isEmpty()) {
+            return this.Effect().noReply();
+        }
+        return this.Effect()
+            .persist(new ArtifactEvent.CommitAssociated(state.coordinates(), state.repo().toList(), state.commitSha().get()))
+            .thenNoReply();
     }
 
     private ReplyEffect<ArtifactEvent, ArtifactState> handleFailedCommit(
         final ArtifactState.Registered state,
         final VersionedArtifactCommand.RegisterFailedCommit cmd
     ) {
-        ctx.getLog().info("[{}] Commit {} failed to resolve", state.coordinates().asStandardCoordinates(), cmd.commitId());
+        if (ctx.getLog().isDebugEnabled()) {
+            ctx.getLog().debug(
+                "[{}] Commit {} failed to resolve", state.coordinates().asStandardCoordinates(), cmd.commitId());
+        }
         return this.Effect()
             .persist(state.failedCommit(cmd.commitId()))
             .thenReply(cmd.replyTo(), ns -> Done.done());
@@ -192,7 +208,9 @@ public class VersionedArtifactEntity
     private ReplyEffect<ArtifactEvent, ArtifactState> handleCompletedCommit(
         final ArtifactState.Registered state, final VersionedArtifactCommand.RegisterResolvedCommit cmd
     ) {
-        this.ctx.getLog().info("Received completed commit {}", cmd.versionedCommit());
+        if (this.ctx.getLog().isTraceEnabled()) {
+            this.ctx.getLog().trace("Received completed commit {}", cmd.versionedCommit());
+        }
         if (state.fileStatus().commit().isPresent()) {
             this.ctx.getLog().warn("[{}] Ignoring {} with already registered commit {}", state.coordinates().asStandardCoordinates(), cmd.versionedCommit(), state.fileStatus().commit().get());
             return this.Effect().reply(cmd.replyTo(), Done.done());

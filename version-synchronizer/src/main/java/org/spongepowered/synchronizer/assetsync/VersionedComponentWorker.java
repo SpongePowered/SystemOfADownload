@@ -32,6 +32,7 @@ import akka.actor.typed.SupervisorStrategy;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Routers;
+import akka.pattern.CircuitBreakerOpenException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.vavr.collection.List;
 import io.vavr.control.Try;
@@ -49,8 +50,11 @@ import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeoutException;
 
 public final class VersionedComponentWorker {
     public static final String ASSET_SEARCH_ENDPOINT =
@@ -379,19 +383,29 @@ public final class VersionedComponentWorker {
                     .map(Optional::get);
                 final var collection = new ArtifactCollection(artifacts, registration.coordinates);
 
-                final var registrationFuture = service.registerArtifactCollection(
-                        registration.coordinates.groupId,
-                        registration.coordinates.artifactId
-                    ).handleRequestHeader(request -> request.withHeader(
-                        auth.internalHeaderKey(),
-                        auth.internalHeaderSecret()
-                    ))
-                    .invoke(new VersionRegistration.Register.Collection(collection));
+                ;
+                final var registrationFuture = auth.internalAuth(service.registerArtifactCollection(
+                    registration.coordinates.groupId,
+                    registration.coordinates.artifactId
+                )).invoke(new VersionRegistration.Register.Collection(collection));
 
                 ctx.pipeToSelf(registrationFuture, (response, throwable) -> {
                     if (throwable != null) {
-                        ctx.getLog().error("Failed asset registration for ", throwable);
+                        if (throwable instanceof CompletionException ce) {
+                            throwable = ce.getCause();
+                        }
+                        if (throwable instanceof CircuitBreakerOpenException cboe) {
+                            ctx.getLog().warn("Rescheduling asset registration for {}", registration.coordinates);
+                            timers.startSingleTimer(registration.coordinates, registration, Duration.ofMillis(cboe.remainingDuration().toMillis()));
+                            return new WrappedResult(new AssetRegistrationFailed(registration.coordinates));
+                        } else if (throwable instanceof TimeoutException) {
+                            ctx.getLog().warn("Rescheduling asset registration for {}", registration.coordinates);
+                            timers.startSingleTimer(registration.coordinates, registration, Duration.ofSeconds(2));
+                            return new WrappedResult(new AssetRegistrationFailed(registration.coordinates));
+                        }
+                        ctx.getLog().error("Failed to register asset for " + registration.coordinates.asStandardCoordinates(), throwable);
                         return new WrappedResult(new AssetRegistrationFailed(registration.coordinates));
+
                     }
                     return new WrappedResult(new AssetRegistrationCompleted(registration.coordinates));
                 });

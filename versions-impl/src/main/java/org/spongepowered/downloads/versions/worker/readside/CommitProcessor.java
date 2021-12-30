@@ -46,6 +46,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import javax.persistence.EntityManager;
 import java.net.URI;
+import java.net.URL;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -124,7 +125,6 @@ public final record CommitProcessor(
                 .setEventHandler(
                     ArtifactEvent.CommitResolved.class,
                     (em, e) -> {
-                        LOGGER.info("CommitResolved: {}", e.versionedCommit());
                         final var coordinates = e.coordinates();
                         final var results = getVersionedArtifacts(em, coordinates);
                         if (results.isEmpty()) {
@@ -136,7 +136,8 @@ public final record CommitProcessor(
                             jpaVersionedArtifact.setChangelog(jpaVersionChangelog);
                             jpaVersionChangelog.setSha(e.versionedCommit().sha());
                             jpaVersionChangelog.setBranch("foo");
-                            Try.of(e.repo()::toURL)
+                            final var commitUrl = e.repo().toString().replace(".git", "") + "/commit/" + e.versionedCommit().sha();
+                            Try.of(() -> new URL(commitUrl))
                                 .toJavaOptional()
                                 .ifPresent(jpaVersionChangelog::setRepo);
                         }
@@ -150,7 +151,6 @@ public final record CommitProcessor(
                 .setEventHandler(
                     ArtifactEvent.CommitUnresolved.class,
                     (em, e) -> {
-                        System.out.println("logging commit unresolved: " + e.coordinates().asStandardCoordinates());
                         final var coordinates = e.coordinates();
                         final var results = getVersionedArtifacts(em, coordinates);
                         if (results.isEmpty()) {

@@ -46,6 +46,8 @@ import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 })
 public sealed interface VersionRegistrationState extends Jsonable {
 
+    ArtifactCoordinates coordinates();
+
     default boolean isActive() {
         return false;
     }
@@ -78,6 +80,11 @@ public sealed interface VersionRegistrationState extends Jsonable {
     record Empty() implements VersionRegistrationState {
         @JsonCreator
         public Empty {
+        }
+
+        @Override
+        public ArtifactCoordinates coordinates() {
+            return new ArtifactCoordinates("", "");
         }
 
         @Override
@@ -178,7 +185,7 @@ public sealed interface VersionRegistrationState extends Jsonable {
                 .map(this.coordinates::version)
                 .toList()
                 .sorted()
-                .take(50);
+                .take(10);
         }
 
         @Override
@@ -285,6 +292,9 @@ public sealed interface VersionRegistrationState extends Jsonable {
         public VersionRegistrationState startBatch(
             final List<MavenCoordinates> batched
         ) {
+            if (!this.queue.isEmpty()) {
+                return this;
+            }
             final var toBatch = batched.filter(
                 c -> this.versions.getOrElse(c.version, Registration.UNREGISTERED) == Registration.UNREGISTERED
             ).appendAll(this.queue);
@@ -308,6 +318,19 @@ public sealed interface VersionRegistrationState extends Jsonable {
                 this.versions.put(coordinates.version, Registration.UNREGISTERED),
                 this.queue
             );
+        }
+
+        @Override
+        public List<MavenCoordinates> getNextBatch() {
+            if (this.queue.isEmpty()) {
+                return this.versions.filterValues(registration -> registration == Registration.UNREGISTERED)
+                    .keySet()
+                    .map(this.coordinates::version)
+                    .toList()
+                    .sorted()
+                    .take(10);
+            }
+            return this.queue;
         }
     }
 }

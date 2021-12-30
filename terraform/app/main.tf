@@ -20,6 +20,8 @@ module "artifacts_server" {
 
     encryption_key = local.encryption_key
     signature_key = local.signature_key
+    cpu_max = "500m"
+    memory_max = "512Mi"
 }
 
 module "artifacts_query_server" {
@@ -42,6 +44,8 @@ module "artifacts_query_server" {
 
     encryption_key = local.encryption_key
     signature_key = local.signature_key
+    cpu_max = "500m"
+    memory_max = "500Mi"
 }
 
 module "auth_server" {
@@ -58,6 +62,9 @@ module "auth_server" {
 
     encryption_key = local.encryption_key
     signature_key = local.signature_key
+    cpu_max = "200m"
+    memory_max = "300Mi"
+
 }
 
 module "versions" {
@@ -75,6 +82,9 @@ module "versions" {
     extra_secret_envs = local.soad_app_configs.versions.extra_secret_envs
     namespace = var.namespace
     environment = var.environment
+    cpu_max = "1000m"
+    cpu_min = "100m"
+    memory_max = "1Gi"
 
     encryption_key = local.encryption_key
     signature_key = local.signature_key
@@ -96,6 +106,8 @@ module "versions_query" {
     environment = var.environment
     encryption_key = local.encryption_key
     signature_key = local.signature_key
+    memory_max = "400Mi"
+    cpu_max = "300m"
 }
 
 module "versions_syncrhonizer" {

@@ -45,7 +45,7 @@ import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 })
 public interface DetailsEvent extends AggregateEvent<DetailsEvent>, Jsonable {
 
-    AggregateEventShards<DetailsEvent> TAG = AggregateEventTag.sharded(DetailsEvent.class, 10);
+    AggregateEventShards<DetailsEvent> TAG = AggregateEventTag.sharded(DetailsEvent.class, 3);
 
     @Override
     default AggregateEventTagger<DetailsEvent> aggregateTag() {

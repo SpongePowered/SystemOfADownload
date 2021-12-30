@@ -181,70 +181,43 @@ def apiSoadProject(name: String) =
     )
   )
 
-lazy val `soad-akka-utils` = soadProject("akka-utils").settings(
-  libraryDependencies ++= Seq(
-    jacksonDataBind,
-    jacksonDataTypeJsr310,
-    jacksonDataformatCbor,
-    jacksonDatatypeJdk8,
-    jacksonParameterNames,
-    jacksonParanamer,
-    jacksonScala,
-    jacksonGuava, // Eventually not needed when we migrate off lagom
-    jacksonPcollections, // Eventually not needed when we migrate off lagom
-    // lagom for akka
-    lagomJavadslApi,
-    //Language Features for Serialization/Deserialization
-    vavrJackson,
-    // Override guice from Lagom to support Java 16
-    guice,
-    // Ensure the play filter helpers are included
-    playFilterHelpers,
-    //Test Dependencies
-    lagomJavadslTestKit,
-    junit, // Always enable Junit 5
-    jupiterInterface
-  )
-)
-
 def serverSoadProject(name: String) =
   soadProject(name)
           .enablePlugins(LagomJava, DockerPlugin)
-          .dependsOn(`soad-akka-utils`)
           .settings(
-    libraryDependencies ++= Seq(
-      // Bump Jackson over Lagom's jackson
-      jacksonDataBind,
-      jacksonDataTypeJsr310,
-      jacksonDataformatCbor,
-      jacksonDatatypeJdk8,
-      jacksonParameterNames,
-      jacksonParanamer,
-      jacksonScala,
-      jacksonGuava, // Eventually not needed when we migrate off lagom
-      jacksonPcollections, // Eventually not needed when we migrate off lagom
-      //Lagom Dependencies
-      // Specifically set up Akka-Clustering
-      lagomJavadslCluster,
-      // Set up Discovery between Services
-      lagomJavadslAkkaDiscovery,
-      akkaKubernetesDiscovery,
-      // I mean, we are a server, aren't we?
-      lagomJavadslServer,
-      // Set up logging
-      lagomLogback,
-      //Language Features for Serialization/Deserialization
-      vavrJackson,
-      // Override guice from Lagom to support Java 16
-      guice,
-      // Ensure the play filter helpers are included
-      playFilterHelpers,
-      //Test Dependencies
-      lagomJavadslTestKit,
-      junit, // Always enable Junit 5
-      jupiterInterface
-    )
-  ).settings(
+            libraryDependencies ++= Seq(
+              // Bump Jackson over Lagom's jackson
+              jacksonDataBind,
+              jacksonDataTypeJsr310,
+              jacksonDataformatCbor,
+              jacksonDatatypeJdk8,
+              jacksonParameterNames,
+              jacksonParanamer,
+              jacksonScala,
+              jacksonGuava, // Eventually not needed when we migrate off lagom
+              jacksonPcollections, // Eventually not needed when we migrate off lagom
+              //Lagom Dependencies
+              // Specifically set up Akka-Clustering
+              lagomJavadslCluster,
+              // Set up Discovery between Services
+              lagomJavadslAkkaDiscovery,
+              akkaKubernetesDiscovery,
+              // I mean, we are a server, aren't we?
+              lagomJavadslServer,
+              // Set up logging
+              lagomLogback,
+              //Language Features for Serialization/Deserialization
+              vavrJackson,
+              // Override guice from Lagom to support Java 16
+              guice,
+              // Ensure the play filter helpers are included
+              playFilterHelpers,
+              //Test Dependencies
+              lagomJavadslTestKit,
+              junit, // Always enable Junit 5
+              jupiterInterface
+            )
+          ).settings(
     dockerUpdateLatest := true,
     dockerBaseImage := "openjdk:17.0.1-slim",
     dockerChmodType := DockerChmodType.UserGroupWriteExecute,

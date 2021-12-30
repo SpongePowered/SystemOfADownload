@@ -25,9 +25,11 @@
 package org.spongepowered.synchronizer.gitmanaged.domain;
 
 import akka.Done;
+import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
+import akka.actor.typed.javadsl.Routers;
 import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
 import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
@@ -35,6 +37,7 @@ import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.RetentionCriteria;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
+import org.spongepowered.synchronizer.gitmanaged.ScheduledCommitResolver;
 
 public class GitManagedArtifact extends EventSourcedBehaviorWithEnforcedReplies<GitCommand, GitEvent, GitState> {
 
@@ -43,16 +46,23 @@ public class GitManagedArtifact extends EventSourcedBehaviorWithEnforcedReplies<
 
     private final ActorContext<GitCommand> ctx;
     private final ArtifactCoordinates coordinates;
+    private ActorRef<ScheduledCommitResolver.ScheduledRefresh> scheduledRefresh;
 
     public static Behavior<GitCommand> create(final PersistenceId persistenceId, final String entityId) {
-        return Behaviors.setup(ctx -> new GitManagedArtifact(persistenceId, entityId, ctx));
+        return Behaviors.setup(ctx -> {
+            final var group = Routers.group(ScheduledCommitResolver.SCHEDULED_REFRESH);
+            final var scheduledRefresh = ctx.spawnAnonymous(group);
+            return new GitManagedArtifact(persistenceId, entityId, ctx, scheduledRefresh);
+        });
     }
 
     private GitManagedArtifact(
         final PersistenceId persistenceId,
-        final String entityId, final ActorContext<GitCommand> ctx
+        final String entityId, final ActorContext<GitCommand> ctx,
+        final ActorRef<ScheduledCommitResolver.ScheduledRefresh> scheduledRefresh
     ) {
         super(persistenceId);
+        this.scheduledRefresh = scheduledRefresh;
         final var split = entityId.split(":");
         this.coordinates = new ArtifactCoordinates(split[0], split[1]);
         this.ctx = ctx;
@@ -69,21 +79,32 @@ public class GitManagedArtifact extends EventSourcedBehaviorWithEnforcedReplies<
         builder.forAnyState()
             .onCommand(GitCommand.RegisterRepository.class, (state, cmd) -> this.Effect()
                 .persist(new GitEvent.RepositoryRegistered(cmd.repository()))
+                .thenRun(ns -> this.scheduledRefresh.tell(new ScheduledCommitResolver.Refresh()))
                 .thenReply(cmd.replyTo(), ns -> Done.done())
             )
             .onCommand(GitCommand.GetRepositories.class, (state, cmd) -> this.Effect()
                 .reply(cmd.replyTo(), state.repositories().isEmpty() ?
                     new GitCommand.NoRepositories() : new GitCommand.RepositoriesAvaiable(state.repositories()))
             )
-            .onCommand(GitCommand.GetUnresolvedVersions.class, (state, cmd) -> this.Effect()
-                .reply(cmd.replyTo(), state.unresolvedVersions())
+            .onCommand(GitCommand.GetUnresolvedVersions.class, (state, cmd) -> {
+                final var unresolvedWork = state.unresolvedVersions();
+                this.ctx.getLog().debug("Unresolved versions: {}", unresolvedWork);
+                return this.Effect()
+                        .reply(cmd.replyTo(), unresolvedWork);
+                }
             )
             .onCommand(GitCommand.MarkVersionAsResolved.class, (state, cmd) -> this.Effect()
                 .persist(new GitEvent.CommitResolved(cmd.coordinates(), cmd.commit()))
+                .thenRun(() -> this.scheduledRefresh.tell(new ScheduledCommitResolver.Refresh()))
                 .thenReply(cmd.replyTo(), ns -> Done.done())
             )
+            .onCommand(GitCommand.MarkVersionAsUnresolveable.class, (state, cmd) -> this.Effect()
+                .persist(new GitEvent.CommitUnresolvable(cmd.coordinates(), cmd.commitSha()))
+                .thenRun(() -> this.scheduledRefresh.tell(new ScheduledCommitResolver.Refresh()))
+                .thenReply(cmd.replyTo(), ns -> Done.done()))
             .onCommand(GitCommand.RegisterRawCommit.class, (state, cmd) -> this.Effect()
                 .persist(new GitEvent.CommitRegistered(cmd.coordinates(), cmd.commitSha()))
+                .thenRun(() -> this.scheduledRefresh.tell(new ScheduledCommitResolver.Refresh()))
                 .thenReply(cmd.replyTo(), ns -> Done.done())
             )
         ;
@@ -105,6 +126,9 @@ public class GitManagedArtifact extends EventSourcedBehaviorWithEnforcedReplies<
             .onEvent(
                 GitEvent.CommitRegistered.class,
                 (state, event) -> state.withRawCommit(event.coordinates(), event.commit())
+            ).onEvent(
+                GitEvent.CommitUnresolvable.class,
+                (state, event) -> state.withUnresolvedVersion(event.coordinates(), event.commit())
             )
         ;
         return builder.build();

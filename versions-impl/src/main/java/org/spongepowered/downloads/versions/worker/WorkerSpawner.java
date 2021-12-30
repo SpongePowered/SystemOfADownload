@@ -24,13 +24,14 @@
  */
 package org.spongepowered.downloads.versions.worker;
 
-import akka.actor.typed.ActorRef;
 import akka.actor.typed.ActorSystem;
+import akka.actor.typed.DispatcherSelector;
 import akka.actor.typed.SupervisorStrategy;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
+import akka.actor.typed.javadsl.Routers;
+import akka.actor.typed.receptionist.Receptionist;
 import akka.cluster.Member;
-import org.spongepowered.downloads.util.akka.ClusterUtil;
 import org.spongepowered.downloads.versions.worker.actor.artifacts.CommitExtractor;
 import org.spongepowered.downloads.versions.worker.actor.artifacts.FileCollectionOperator;
 import org.spongepowered.downloads.versions.worker.actor.delegates.RawCommitReceiver;
@@ -44,31 +45,30 @@ public final class WorkerSpawner {
         final var versionConfig = VersionExtension.Settings.get(system);
         final var poolSizePerInstance = versionConfig.commitFetch.poolSize;
 
-
-        for (int i = 0; i < poolSizePerInstance; i++) {
+        if (member.hasRole("file-extractor")) {
             final var commitFetcherUID = UUID.randomUUID();
+            final var behavior = CommitExtractor.extractCommitFromAssets();
+            final var assetRefresher = Behaviors.supervise(behavior)
+                .onFailure(SupervisorStrategy.resume());
+            final var pool = Routers.pool(poolSizePerInstance, assetRefresher);
 
-            if (member.hasRole("file-extractor")) {
-                final ActorRef<CommitExtractor.ChildCommand> commitExtractor = ClusterUtil.spawnRemotableWorker(
-                    ctx,
-                    CommitExtractor::extractCommitFromAssets,
-                    () -> CommitExtractor.SERVICE_KEY,
-                    () -> "file-commit-worker-" + commitFetcherUID
-                );
-                final var uid = UUID.randomUUID();
-                final var receiver = Behaviors.supervise(RawCommitReceiver.receive())
-                    .onFailure(SupervisorStrategy.resume());
-                final var receiverRef = ctx.spawn(receiver, "file-scan-result-receiver-" + uid);
-                ClusterUtil.spawnRemotableWorker(
-                    ctx,
-                    () -> FileCollectionOperator.scanJarFilesForCommit(commitExtractor, receiverRef),
-                    () -> FileCollectionOperator.KEY,
-                    () -> "file-collection-worker-" + commitFetcherUID
-                );
-            }
+            final var commitExtractorRef = ctx.spawn(
+                pool,
+                "file-commit-worker-" + commitFetcherUID,
+                DispatcherSelector.defaultDispatcher()
+            );
+            // Announce it to the cluster
+            ctx.getSystem().receptionist().tell(Receptionist.register(CommitExtractor.SERVICE_KEY, commitExtractorRef));
 
+            final var receiver = Behaviors.supervise(RawCommitReceiver.receive())
+                .onFailure(SupervisorStrategy.resume());
+            final var receiverRef = ctx.spawn(receiver, "file-scan-result-receiver-" + commitFetcherUID);
+            final var jarScanner = FileCollectionOperator.scanJarFilesForCommit(commitExtractorRef, receiverRef);
+            final var supervisedScanner = Behaviors.supervise(jarScanner).onFailure(SupervisorStrategy.resume());
+            final var scannerPool = Routers.pool(poolSizePerInstance, supervisedScanner);
+            final var scannerRef = ctx.spawn(scannerPool, "file-collection-worker-" + commitFetcherUID);
+            ctx.getSystem().receptionist().tell(Receptionist.register(FileCollectionOperator.KEY, scannerRef));
         }
-
     }
 
 

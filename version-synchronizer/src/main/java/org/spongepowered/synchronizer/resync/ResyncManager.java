@@ -40,8 +40,8 @@ public final class ResyncManager {
         final SynchronizerSettings.VersionSync versionSync
     ) {
         return Behaviors.withTimers(t -> {
-            t.startTimerWithFixedDelay(new PerformResync(), versionSync.interval);
-            t.startSingleTimer(new PerformResync(), versionSync.startupDelay);
+            t.startTimerWithFixedDelay("resync", new PerformResync(), versionSync.interval);
+            t.startSingleTimer("start", new PerformResync(), versionSync.startupDelay);
             return setup(artifactService);
         });
     }

@@ -57,6 +57,7 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 /**
  * An {@link akka.actor.Actor} that accepts a Versioned Artifact with a commit
@@ -111,10 +112,17 @@ public final class CommitResolutionManager {
     ) {
         return Behaviors.setup(ctx -> Behaviors.receive(Command.class)
             .onMessage(ResolveCommitDetails.class, msg -> {
-                if (!state.repositoriesCloned.containsKey(msg.coordinates.asArtifactCoordinates())) {
+                if (ctx.getLog().isTraceEnabled()) {
+                    ctx.getLog().trace("Resolving commit details for {}", msg.coordinates);
+                }
+                final var repoState = state.repositoriesCloned.get(msg.coordinates.asArtifactCoordinates());
+                if (repoState.isEmpty()) {
                     if (msg.gitRepo.isEmpty()) {
                         msg.replyTo.tell(Done.done());
                         return Behaviors.same();
+                    }
+                    if (ctx.getLog().isDebugEnabled()) {
+                        ctx.getLog().debug("[{}] Cloning {}", msg.coordinates, msg.gitRepo);
                     }
                     ctx.ask(
                         RepositoryCloner.CloneResponse.class,
@@ -126,8 +134,27 @@ public final class CommitResolutionManager {
                     );
                     return waitingForClones(cloner, registrar, materializer, state, List.empty());
                 }
-                final var repos = state.repositoriesCloned.get(msg.coordinates.asArtifactCoordinates()).get();
-                startCommitResolution(materializer, ctx, msg, repos);
+                final var artifactRepoState = repoState.get();
+                final var unclonedRepos = artifactRepoState.repositories.filter(Predicate.not(artifactRepoState.checkedOut::containsKey));
+                final var newUncloned = msg.gitRepo.filter(Predicate.not(artifactRepoState.checkedOut::containsKey));
+                final var allUncloned = unclonedRepos.addAll(newUncloned);
+                if (!allUncloned.isEmpty()) {
+                    if (ctx.getLog().isDebugEnabled()) {
+                        ctx.getLog().debug("[{}] Cloning {}", msg.coordinates.asStandardCoordinates(), allUncloned);
+                    }
+                    ctx.ask(
+                        RepositoryCloner.CloneResponse.class,
+                        cloner,
+                        Duration.ofMinutes(20),
+                        replyTo -> new RepositoryCloner.CloneRepos(
+                            msg.coordinates.asArtifactCoordinates(), allUncloned.toList(), replyTo),
+                        handleCloneResponse(ctx, msg, state)
+                    );
+
+                    return waitingForClones(cloner, registrar, materializer, state, List.empty());
+                }
+
+                startCommitResolution(materializer, ctx, msg, artifactRepoState);
 
                 return waitingForResolution(cloner, registrar, materializer, state, List.empty());
             })
@@ -211,7 +238,9 @@ public final class CommitResolutionManager {
                         )
                     );
                 } else if (result instanceof AssetCommitResolver.CommitResolved resolved) {
-                    ctx.getLog().info("[{}] Resolved commit {}", request.coordinates, resolved.commit());
+                    if (ctx.getLog().isTraceEnabled()) {
+                        ctx.getLog().info("[{}] Resolved commit {}", request.coordinates, resolved.commit().link());
+                    }
                     final var commit = resolved.commit();
 
                     registrar.tell(
@@ -223,7 +252,7 @@ public final class CommitResolutionManager {
                 return Behaviors.same();
             })
             .onMessage(CompletedResolutionAttempts.class, msg -> {
-                ctx.getLog().info("[{}] Completed commit {} resolution", msg.msg.coordinates, msg.msg.commit);
+                ctx.getLog().info("[{}] Completed commit {} resolution", msg.msg.coordinates.asStandardCoordinates(), msg.msg.commit);
                 msg.msg.replyTo.tell(Done.done());
                 return completeResolution(cloner, registrar, materializer, state, queue, ctx);
             })

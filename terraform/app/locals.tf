@@ -15,13 +15,15 @@ locals {
                 image_name = "spongepowered/systemofadownload-artifact-impl"
             }
             extra_config = <<-EOF
-                play.filters.cors.allowedOrigins = null
             EOF
             extra_env = local.default_database_envs
             extra_secret_envs = local.default_secret_based_envs
             kafka_topics = {
                 "artifact-updates" = {
                     topic = "group-activity"
+                }
+                "artifact-details-update" = {
+                    topic = "artifact-details-update"
                 }
             }
         }
@@ -36,7 +38,6 @@ locals {
                 image_name = "spongepowered/systemofadownload-artifact-query-impl"
             }
             extra_config = <<-EOF
-                play.filters.cors.allowedOrigins = null
             EOF
             extra_env = local.default_database_envs
             extra_secret_envs = local.default_secret_based_envs
@@ -66,13 +67,15 @@ locals {
                 name = "spongepowered/systemofadownload-versions-impl"
             }
             extra_config = <<-EOF
-                play.filters.cors.allowedOrigins = null
             EOF
             extra_env = local.default_database_envs
             extra_secret_envs = local.default_secret_based_envs
             kafka_topics = {
                 "artifact-versions" = {
                     topic = "artifact-update"
+                }
+                "asset-updates" = {
+                    topic = "versioned-artifact-updates"
                 }
             }
         }
@@ -84,14 +87,13 @@ locals {
                 name = "spongepowered/systemofadownload-versions-query-impl"
             }
             extra_config = <<-EOF
-                play.filters.cors.allowedOrigins = null
             EOF
             extra_env = local.default_database_envs
             extra_secret_env = local.default_secret_based_envs
         }
         "synchronizer" = {
             service_name = "version-synchronizer"
-            replicas = var.environment == "dev" ? 1 : 3
+            replicas = var.environment == "dev" ? 1 : 1
             image = {
                 version = "0.2-SNAPSHOT"
                 name = "spongepowered/systemofadownload-version-synchronizer"

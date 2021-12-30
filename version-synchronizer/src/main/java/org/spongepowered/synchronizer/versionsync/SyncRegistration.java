@@ -33,6 +33,8 @@ import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 
+import java.time.Duration;
+
 @JsonDeserialize
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
@@ -49,6 +51,8 @@ public sealed interface SyncRegistration extends Jsonable {
 
     @JsonTypeName("register")
     record Register(MavenCoordinates coordinates) implements SyncRegistration {
+        public Register {
+        }
     }
 
     @JsonTypeName("register-batch")
@@ -72,6 +76,11 @@ public sealed interface SyncRegistration extends Jsonable {
 
     @JsonTypeName("failed-registration")
     record RetryFailed(MavenCoordinates coordinates) implements SyncRegistration {
+    }
+
+    @JsonTypeName("delay-retry-registration")
+    record DelayRegistration(MavenCoordinates coordinates, Duration duration) implements SyncRegistration {
+
     }
 
     @JsonTypeName("group-missing")

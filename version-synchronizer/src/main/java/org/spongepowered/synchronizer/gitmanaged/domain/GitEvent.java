@@ -48,7 +48,7 @@ import java.net.URI;
 })
 public sealed interface GitEvent extends AggregateEvent<GitEvent>, Jsonable {
 
-    AggregateEventShards<GitEvent> INSTANCE = AggregateEventTag.sharded(GitEvent.class, 10);
+    AggregateEventShards<GitEvent> INSTANCE = AggregateEventTag.sharded(GitEvent.class, 3);
 
     @Override
     default AggregateEventTagger<GitEvent> aggregateTag() {
@@ -71,6 +71,13 @@ public sealed interface GitEvent extends AggregateEvent<GitEvent>, Jsonable {
     final record CommitResolved(MavenCoordinates coordinates, VersionedCommit resolvedCommit) implements GitEvent {
         @JsonCreator
         public CommitResolved {
+        }
+    }
+
+    @JsonTypeName("commit-unresolved")
+    record CommitUnresolvable(MavenCoordinates coordinates, String commit) implements GitEvent {
+        @JsonCreator
+        public CommitUnresolvable {
         }
     }
 }

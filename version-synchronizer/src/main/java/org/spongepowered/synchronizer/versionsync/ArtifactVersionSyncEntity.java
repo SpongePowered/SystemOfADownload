@@ -25,17 +25,21 @@
 package org.spongepowered.synchronizer.versionsync;
 
 import akka.Done;
+import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
+import akka.actor.typed.javadsl.Routers;
 import akka.actor.typed.javadsl.TimerScheduler;
 import akka.cluster.sharding.typed.javadsl.EntityTypeKey;
+import akka.pattern.CircuitBreakerOpenException;
 import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.RecoveryCompleted;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
 import akka.persistence.typed.javadsl.ReplyEffect;
+import akka.persistence.typed.javadsl.RetentionCriteria;
 import akka.persistence.typed.javadsl.SignalHandler;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
@@ -45,6 +49,8 @@ import org.spongepowered.downloads.versions.api.models.VersionRegistration;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
@@ -58,12 +64,18 @@ public class ArtifactVersionSyncEntity
     private final TimerScheduler<SyncRegistration> timers;
     private final AuthUtils auth;
     private final VersionsService service;
+    private final ActorRef<BatchVersionSyncManager.Command> batchSync;
 
     public static Behavior<SyncRegistration> create(
         final AuthUtils auth, final VersionsService service, final PersistenceId persistenceId
     ) {
-        return Behaviors.setup(ctx ->
-            Behaviors.withTimers(timers -> new ArtifactVersionSyncEntity(ctx, timers, auth, service, persistenceId)));
+
+        return Behaviors.setup(ctx -> {
+            final var router = Routers.group(BatchVersionSyncManager.KEY);
+            final var ref = ctx.spawnAnonymous(router);
+            return Behaviors.withTimers(
+                timers -> new ArtifactVersionSyncEntity(ctx, timers, auth, service, persistenceId, ref));
+        });
     }
 
     public ArtifactVersionSyncEntity(
@@ -71,13 +83,15 @@ public class ArtifactVersionSyncEntity
         final TimerScheduler<SyncRegistration> timers,
         final AuthUtils auth,
         final VersionsService service,
-        final PersistenceId persistenceId
+        final PersistenceId persistenceId,
+        final ActorRef<BatchVersionSyncManager.Command> ref
     ) {
         super(persistenceId);
         this.ctx = ctx;
         this.timers = timers;
         this.auth = auth;
         this.service = service;
+        this.batchSync = ref;
     }
 
     @Override
@@ -91,10 +105,21 @@ public class ArtifactVersionSyncEntity
         builder.forAnyState()
             .onEvent(
                 VersionSyncEvent.RegisteredBatch.class,
-                (state, evt) -> state.acceptBatch(evt.artifact(), evt.coordinates())
+                (state, evt) -> {
+                    this.batchSync.tell(new BatchVersionSyncManager.ArtifactToSync(evt.artifact()));
+                    return state.acceptBatch(evt.artifact(), evt.coordinates());
+                }
             )
-            .onEvent(VersionSyncEvent.RegisteredVersion.class, (state, evt) -> state.acceptVersion(evt.coordinates()))
-            .onEvent(VersionSyncEvent.ResolvedVersion.class, (state, evt) -> state.resolvedVersion(evt.coordinates()))
+            .onEvent(VersionSyncEvent.RegisteredVersion.class, (state, evt) -> {
+                this.batchSync.tell(
+                    new BatchVersionSyncManager.ArtifactToSync(evt.coordinates().asArtifactCoordinates()));
+                return state.acceptVersion(evt.coordinates());
+            })
+            .onEvent(VersionSyncEvent.ResolvedVersion.class, (state, evt) -> {
+                this.batchSync.tell(
+                    new BatchVersionSyncManager.ArtifactToSync(evt.coordinates().asArtifactCoordinates()));
+                return state.resolvedVersion(evt.coordinates());
+            })
             .onEvent(VersionSyncEvent.StartedBatchRegistration.class, (state, evt) -> state.startBatch(evt.batched()))
             .onEvent(VersionSyncEvent.FailedVersion.class, (state, evt) -> state.failedVersion(evt.coordinates()))
         ;
@@ -113,25 +138,36 @@ public class ArtifactVersionSyncEntity
                 return this.Effect()
                     .persist(new VersionSyncEvent.RegisteredVersion(cmd.coordinates()))
                     .thenRun(
-                        () -> this.timers.startSingleTimer(SyncRegistration.Timeout.INSTANCE, Duration.ofSeconds(1)))
+                        () -> this.timers.startSingleTimer(
+                            cmd.coordinates(), SyncRegistration.Timeout.INSTANCE, Duration.ofSeconds(1)))
                     .thenNoReply();
             })
             .onCommand(SyncRegistration.MarkRegistered.class, (state, cmd) -> this.Effect()
                 .persist(new VersionSyncEvent.ResolvedVersion(cmd.coordinates()))
+                .thenRun(this::checkIfStillHasPending)
                 .thenNoReply()
             )
+            .onCommand(SyncRegistration.DelayRegistration.class, (state, cmd) -> {
+                this.timers.startSingleTimer(
+                    cmd.coordinates(), new SyncRegistration.RetryFailed(cmd.coordinates()), cmd.duration());
+                return this.Effect().noReply();
+            })
             .onCommand(SyncRegistration.RetryFailed.class, (state, cmd) -> {
-                    final var request = this.createRegistrationRequest(cmd.coordinates());
-                    this.ctx.pipeToSelf(request.serviceCall().get(), request.onComplete()::apply);
-                    return this.Effect()
-                        .noReply();
-                }
-            )
+                final var request = this.createRegistrationRequest(cmd.coordinates());
+                this.ctx.pipeToSelf(request.serviceCall().get(), request.onComplete()::apply);
+                return this.Effect()
+                    .noReply();
+            })
             .onCommand(SyncRegistration.Refresh.class, (state, cmd) -> {
-                if (state.isActive()) {
-                    final List<MavenCoordinates> pending = state.getPending();
-                    this.ctx.getLog().info("Still awaiting for versions to complete registration: {}", pending);
-                    this.timers.startSingleTimer(SyncRegistration.Refresh.INSTANCE, Duration.ofSeconds(2));
+                final List<MavenCoordinates> pending = state.getPending();
+                if (state.isActive() && !pending.isEmpty()) {
+                    if (this.ctx.getLog().isDebugEnabled()) {
+                        this.ctx.getLog().debug("Still awaiting for versions to complete registration: {}", pending);
+                    }
+                    pending.forEachWithIndex((coordinates, index) -> this.timers.startSingleTimer(coordinates,
+                        new SyncRegistration.RetryFailed(coordinates), Duration.ofSeconds((int) (1 + (0.2 * index)))
+                    ));
+                    this.timers.startSingleTimer("refresh", SyncRegistration.Refresh.INSTANCE, Duration.ofSeconds(20 + pending.size()));
                     return this.Effect().noReply();
                 }
                 return this.registerVersionsInBatches(state);
@@ -148,7 +184,9 @@ public class ArtifactVersionSyncEntity
             )
             .onCommand(SyncRegistration.SyncBatch.class, (state, cmd) -> this.Effect()
                 .persist(new VersionSyncEvent.RegisteredBatch(cmd.artifact(), cmd.coordinates()))
-                .thenRun(() -> this.timers.startSingleTimer(SyncRegistration.Timeout.INSTANCE, Duration.ofSeconds(1)))
+                .thenRun(() -> this.timers.startSingleTimer("timeout", SyncRegistration.Timeout.INSTANCE,
+                    Duration.ofSeconds(1)
+                ))
                 .thenReply(cmd.replyTo(), ns -> Done.done()))
             .onCommand(SyncRegistration.Timeout.class, (state, cmd) -> this.registerVersionsInBatches(state))
         ;
@@ -158,25 +196,49 @@ public class ArtifactVersionSyncEntity
     private void checkIfStillHasPending(VersionRegistrationState state) {
         // Go ahead and ask the state to update for the next batch
         if (!state.isActive()) {
-            this.timers.startSingleTimer(SyncRegistration.Refresh.INSTANCE, Duration.ofMillis(500));
+            if (this.ctx.getLog().isTraceEnabled()) {
+                this.ctx.getLog().trace("No more pending versions, scheduling a refresh in 500 milliseconds");
+            }
+            this.timers.startSingleTimer("refresh", SyncRegistration.Refresh.INSTANCE, Duration.ofMillis(500));
+        } else {
+            if (this.ctx.getLog().isTraceEnabled()) {
+                this.ctx.getLog().trace("State is currently active, {}", state.getPending());
+            }
         }
     }
 
     private ReplyEffect<VersionSyncEvent, VersionRegistrationState> registerVersionsInBatches(
         VersionRegistrationState state
     ) {
-        if (state.isActive()) {
+        if (state.isActive() && !state.getPending().isEmpty()) {
+            final var pending = state.getPending();
+            this.ctx.getLog().warn("Resubmitting version registration due to pending versions: {}", pending);
+            pending.map(this::createRegistrationRequest).forEach(
+                p -> this.ctx.pipeToSelf(p.serviceCall().get(), p.onComplete::apply));
+            return this.Effect().noReply();
+        }
+        if (!state.getPending().isEmpty()) {
+            if (this.ctx.getLog().isDebugEnabled()) {
+                this.ctx.getLog().debug("Rescheduling Refresh due to Pending registrations: {}", state.getPending());
+            }
+            this.timers.startSingleTimer("refresh", SyncRegistration.Refresh.INSTANCE, Duration.ofSeconds(2));
+            this.batchSync.tell(new BatchVersionSyncManager.ArtifactToSync(state.coordinates()));
             return this.Effect().noReply();
         }
         final List<MavenCoordinates> batched = state.getNextBatch();
         if (batched.isEmpty()) {
+            if (this.ctx.getLog().isTraceEnabled()) {
+                this.ctx.getLog().trace("No more pending batches");
+            }
             return this.Effect().noReply();
         }
         final var map = batched.map(this::createRegistrationRequest);
         return this.Effect()
             .persist(new VersionSyncEvent.StartedBatchRegistration(batched))
             .thenRun(ns -> map.forEach(p -> this.ctx.pipeToSelf(p.serviceCall().get(), p.onComplete()::apply)))
-            .thenRun(ns -> this.timers.startSingleTimer(SyncRegistration.Refresh.INSTANCE, Duration.ofMillis(100)))
+            .thenRun(
+                ns -> this.timers.startSingleTimer("refresh", SyncRegistration.Refresh.INSTANCE, Duration.ofSeconds(2)))
+            .thenRun(ns -> this.batchSync.tell(new BatchVersionSyncManager.ArtifactToSync(ns.coordinates())))
             .thenNoReply();
     }
 
@@ -188,6 +250,17 @@ public class ArtifactVersionSyncEntity
             .toCompletableFuture();
         final var onComplete = (BiFunction<VersionRegistration.Response, Throwable, SyncRegistration>) (ok, failure) -> {
             if (failure != null) {
+                if (failure instanceof CompletionException ce) {
+                    failure = ce.getCause();
+                }
+                if (failure instanceof CircuitBreakerOpenException cbe) {
+                    this.ctx.getLog().warn("Circuit breaker is open, delaying registration of {}", c);
+                    return new SyncRegistration.DelayRegistration(
+                        c, Duration.ofMillis(cbe.remainingDuration().toMillis()).plus(Duration.ofSeconds(4)));
+                } else if (failure instanceof TimeoutException) {
+                    ctx.getLog().warn("Rescheduling asset registration for {}", c);
+                    return new SyncRegistration.DelayRegistration(c, Duration.ofSeconds(2));
+                }
                 ctx.getLog().error(
                     String.format(
                         "Received error trying to synchronize %s",
@@ -222,8 +295,13 @@ public class ArtifactVersionSyncEntity
         final var builder = this.newSignalHandlerBuilder();
         // Enable restarting our timers
         builder.onSignal(RecoveryCompleted.class, (state, signal) -> {
-            this.timers.startSingleTimer(SyncRegistration.Refresh.INSTANCE, Duration.ofMillis(500));
+            this.timers.startSingleTimer("refresh", SyncRegistration.Refresh.INSTANCE, Duration.ofMillis(500));
         });
         return super.signalHandler();
+    }
+
+    @Override
+    public RetentionCriteria retentionCriteria() {
+        return RetentionCriteria.snapshotEvery(100, 2);
     }
 }

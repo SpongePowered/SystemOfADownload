@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.util.akka;
+package org.spongepowered.synchronizer.akka;
 
 import akka.Done;
 import akka.NotUsed;

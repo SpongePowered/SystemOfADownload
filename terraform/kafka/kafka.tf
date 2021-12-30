@@ -30,7 +30,7 @@ resource "kubernetes_manifest" "lagom-kafka" {
                         id = 0
                         type = "persistent-claim"
                         size = "5Gi"
-                        deleteClaim = "false"
+                        deleteClaim = "true"
                     }]
                 }
                 config = {
@@ -52,7 +52,7 @@ resource "kubernetes_manifest" "lagom-kafka" {
                 storage = {
                     type = "persistent-claim"
                     size = "2Gi"
-                    deleteClaim = "false"
+                    deleteClaim = "true"
                 }
                 template = {
                     pod = {

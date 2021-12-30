@@ -43,7 +43,7 @@ import io.vavr.collection.Map;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.artifact.api.event.ArtifactUpdate;
-import org.spongepowered.downloads.util.akka.FlowUtil;
+import org.spongepowered.synchronizer.akka.FlowUtil;
 import org.spongepowered.synchronizer.gitmanaged.domain.GitCommand;
 import org.spongepowered.synchronizer.gitmanaged.domain.GitManagedArtifact;
 import org.spongepowered.synchronizer.gitmanaged.util.jgit.CommitResolutionManager;

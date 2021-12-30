@@ -35,7 +35,7 @@ import org.spongepowered.downloads.maven.artifact.ArtifactMavenMetadata;
 
 interface SynchronizeEvent extends Jsonable, AggregateEvent<SynchronizeEvent> {
 
-    AggregateEventShards<SynchronizeEvent> TAG = AggregateEventTag.sharded(SynchronizeEvent.class, 10);
+    AggregateEventShards<SynchronizeEvent> TAG = AggregateEventTag.sharded(SynchronizeEvent.class, 3);
 
     @Override
     default AggregateEventTagger<SynchronizeEvent> aggregateTag() {

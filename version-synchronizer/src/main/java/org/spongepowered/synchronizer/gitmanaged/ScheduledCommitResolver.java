@@ -31,7 +31,11 @@ import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Routers;
+import akka.actor.typed.receptionist.Receptionist;
+import akka.actor.typed.receptionist.ServiceKey;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
+import akka.cluster.typed.ClusterSingleton;
+import akka.cluster.typed.SingletonActor;
 import akka.japi.Pair;
 import akka.stream.Graph;
 import akka.stream.Materializer;
@@ -58,8 +62,8 @@ import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 import org.spongepowered.downloads.artifact.api.event.ArtifactUpdate;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
-import org.spongepowered.downloads.util.akka.FlowUtil;
 import org.spongepowered.synchronizer.SonatypeSynchronizer;
+import org.spongepowered.synchronizer.akka.FlowUtil;
 import org.spongepowered.synchronizer.gitmanaged.domain.GitCommand;
 import org.spongepowered.synchronizer.gitmanaged.domain.GitManagedArtifact;
 import org.spongepowered.synchronizer.gitmanaged.util.jgit.CommitResolutionManager;
@@ -68,6 +72,9 @@ import java.time.Duration;
 
 public final class ScheduledCommitResolver {
 
+    public static final ServiceKey<ScheduledRefresh> SCHEDULED_REFRESH = ServiceKey.create(
+        ScheduledRefresh.class, "scheduled-refresh");
+
     @JsonTypeInfo(use = JsonTypeInfo.Id.NAME,
         property = "type")
     @JsonSubTypes({
@@ -75,12 +82,17 @@ public final class ScheduledCommitResolver {
         @JsonSubTypes.Type(Register.class),
         @JsonSubTypes.Type(CommitResolved.class),
         @JsonSubTypes.Type(WorkCompleted.class),
+        @JsonSubTypes.Type(Resync.class)
     })
-    sealed interface ScheduledRefresh extends Jsonable {
+    public sealed interface ScheduledRefresh extends Jsonable {
     }
 
     @JsonTypeName("refresh")
-    record Refresh() implements ScheduledRefresh {
+    public record Refresh() implements ScheduledRefresh {
+    }
+
+    @JsonTypeName("resync")
+    record Resync() implements ScheduledRefresh {
     }
 
     @JsonTypeName("register-coordinates")
@@ -99,21 +111,12 @@ public final class ScheduledCommitResolver {
         ArtifactService artifactService,
         ActorContext<SonatypeSynchronizer.Command> context
     ) {
-        final var scheduler = context.spawn(setup(), "ScheduledCommitResolver");
+        final var singleton = SingletonActor.of(setup(artifactService), "ScheduledCommitResolver");
+        final var scheduler = ClusterSingleton.get(context.getSystem()).init(singleton);
         final var sync = registerForSync(scheduler);
         artifactService.artifactUpdate()
             .subscribe()
             .atLeastOnce(FlowUtil.splitClassFlows(Pair.create(ArtifactUpdate.ArtifactRegistered.class, sync)));
-        final Flow<ArtifactService, GroupsResponse, NotUsed> getGroups = Flow.fromFunction(s -> s.getGroups()
-            .invoke()
-            .toCompletableFuture()
-            .join());
-        Source.single(artifactService)
-            .via(getGroups
-                .flatMapConcat((GroupsResponse r) -> parseResponseIntoArtifacts(artifactService, r)))
-            .via(ActorFlow.ask(scheduler, Duration.ofSeconds(10), Register::new))
-            .to(Sink.ignore())
-            .run(context.getSystem());
     }
 
     private static Source<ArtifactCoordinates, NotUsed> parseResponseIntoArtifacts(
@@ -145,34 +148,63 @@ public final class ScheduledCommitResolver {
             scheduler, Duration.ofMinutes(1), (reg, replyTo) -> new Register(reg.coordinates(), replyTo));
     }
 
-    public static Behavior<ScheduledRefresh> setup() {
-        return Behaviors.setup(ctx -> Behaviors.withTimers(timers -> Behaviors.receive(ScheduledRefresh.class)
-            .onMessage(Register.class, msg -> {
-                msg.replyTo.tell(Done.done());
-                final var key = Routers.group(CommitResolutionManager.SERVICE_KEY);
-                final ActorRef<CommitResolutionManager.Command> workerRef = ctx.spawn(
-                    key, "repo-associated-commit-resolver");
-                timers.startSingleTimer(new Refresh(), Duration.ofMinutes(1));
-                return waiting(workerRef, HashSet.of(msg.coordinates()));
-            })
-            .build()));
+    private static Behavior<ScheduledRefresh> setup(
+        final ArtifactService artifactService
+    ) {
+        return Behaviors.setup(ctx -> Behaviors.withTimers(timers -> {
+            ctx.getSystem().receptionist().tell(Receptionist.register(SCHEDULED_REFRESH, ctx.getSelf()));
+            ctx.getLog().info("Starting ScheduledCommitResolver");
+            timers.startSingleTimer("resync", new Resync(), Duration.ofSeconds(30));
+            timers.startPeriodicTimer("refresh", new Refresh(), Duration.ofMinutes(1));
+            ctx.getLog().info("Scheduled refresh every minute");
+
+            return Behaviors.receive(ScheduledRefresh.class)
+                .onMessage(Register.class, msg -> {
+                    msg.replyTo.tell(Done.done());
+                    final var key = Routers.group(CommitResolutionManager.SERVICE_KEY);
+                    final ActorRef<CommitResolutionManager.Command> workerRef = ctx.spawn(
+                        key, "repo-associated-commit-resolver");
+                    return waiting(workerRef, HashSet.of(msg.coordinates()), artifactService);
+                })
+                .onMessage(Refresh.class, msg -> Behaviors.same())
+                .onMessage(Resync.class, msg -> resyncArtifactCoordinates(artifactService, ctx))
+                .build();
+        }));
+    }
+
+    private static Behavior<ScheduledRefresh> resyncArtifactCoordinates(
+        ArtifactService artifactService, ActorContext<ScheduledRefresh> ctx
+    ) {
+        final Flow<ArtifactService, GroupsResponse, NotUsed> getGroups = Flow.fromFunction(s -> s.getGroups()
+            .invoke()
+            .toCompletableFuture()
+            .join());
+        Source.single(artifactService)
+            .via(getGroups
+                .flatMapConcat((GroupsResponse r) -> parseResponseIntoArtifacts(artifactService, r)))
+            .via(ActorFlow.ask(ctx.getSelf(), Duration.ofSeconds(10), Register::new))
+            .to(Sink.ignore())
+            .run(ctx.getSystem());
+        return Behaviors.same();
     }
 
     private static Behavior<ScheduledRefresh> waiting(
         final ActorRef<CommitResolutionManager.Command> workerRef,
-        final HashSet<ArtifactCoordinates> artifactsKeepingTracked
+        final HashSet<ArtifactCoordinates> artifactsKeepingTracked,
+        final ArtifactService artifactService
     ) {
         return Behaviors.setup(ctx -> Behaviors.withTimers(timers -> {
             final ClusterSharding sharding = ClusterSharding.get(ctx.getSystem());
             final Materializer mat = Materializer.createMaterializer(ctx.getSystem());
             return Behaviors.receive(ScheduledRefresh.class)
+                .onMessage(Resync.class, msg -> resyncArtifactCoordinates(artifactService, ctx))
                 .onMessage(Refresh.class, msg -> {
                     performRefresh(workerRef, artifactsKeepingTracked, ctx, sharding, mat);
-                    return working(workerRef, artifactsKeepingTracked);
+                    return working(workerRef, artifactsKeepingTracked, artifactService);
                 })
                 .onMessage(Register.class, msg -> {
                     msg.replyTo.tell(Done.done());
-                    return waiting(workerRef, artifactsKeepingTracked.add(msg.coordinates()));
+                    return waiting(workerRef, artifactsKeepingTracked.add(msg.coordinates()), artifactService);
                 })
                 .build();
         }));
@@ -190,6 +222,7 @@ public final class ScheduledCommitResolver {
         final Flow<ArtifactCoordinates, GitCommand.UnresolvedWork, NotUsed> workFetcherFlow = getWork(sharding).log(
             "work-fetcher");
         final Flow<GitCommand.UnresolvedWork, CommitResolutionManager.ResolveCommitDetails, NotUsed> parseWorkFlow = Flow.<GitCommand.UnresolvedWork>create()
+            .log("parse-work")
             .flatMapConcat(work -> {
                 final Map<MavenCoordinates, String> tuple2s = work.unresolvedCommits();
                 final List<CommitResolutionManager.ResolveCommitDetails> requests = tuple2s
@@ -199,7 +232,7 @@ public final class ScheduledCommitResolver {
                     );
                 return Source.from(requests);
             });
-        final Flow<CommitResolutionManager.ResolveCommitDetails, Done, NotUsed> commitResolverAskFlow = ActorFlow.<CommitResolutionManager.ResolveCommitDetails, CommitResolutionManager.Command, Done>ask(
+        final Flow<CommitResolutionManager.ResolveCommitDetails, Done, NotUsed> commitResolverAskFlow = ActorFlow.ask(
             4,
             workerRef,
             Duration.ofMinutes(10),
@@ -210,7 +243,7 @@ public final class ScheduledCommitResolver {
             final SourceShape<ArtifactCoordinates> artifacts = b.add(artifactsToWorkOn);
             final var balance = b.add(Balance.<CommitResolutionManager.ResolveCommitDetails>create(4));
             final var zip = b.add(Merge.<Done>create(4));
-            final var getWork = b.add(workFetcherFlow.async());
+            final var getWork = b.add(workFetcherFlow);
             final var parseWork = b.add(parseWorkFlow.async());
             b.from(artifacts.out())
                 .via(getWork)
@@ -224,9 +257,10 @@ public final class ScheduledCommitResolver {
             }
             return SourceShape.of(zip.out());
         });
+        final var log = ctx.getLog();
         final Sink<ScheduledRefresh, NotUsed> sink = ActorSink.actorRef(
             ctx.getSelf(), new WorkCompleted(), t -> {
-                ctx.getLog().error("Got an error while resolving commits", t);
+                log.error("Got an error while resolving commits", t);
                 return new WorkCompleted();
             });
         Source.fromGraph(graph)
@@ -237,26 +271,31 @@ public final class ScheduledCommitResolver {
 
     private static Behavior<ScheduledRefresh> working(
         ActorRef<CommitResolutionManager.Command> workerRef,
-        final HashSet<ArtifactCoordinates> artifactsKeepingTracked
+        final HashSet<ArtifactCoordinates> artifactsKeepingTracked,
+        final ArtifactService artifactService
     ) {
         return Behaviors.setup(ctx -> Behaviors.withTimers(timers -> Behaviors.receive(ScheduledRefresh.class)
+            .onMessage(Resync.class, msg -> resyncArtifactCoordinates(artifactService, ctx))
             .onMessage(Refresh.class, msg -> Behaviors.same())
             .onMessage(Register.class, msg -> {
                 msg.replyTo.tell(Done.done());
-                return working(workerRef, artifactsKeepingTracked.add(msg.coordinates()));
+                return working(workerRef, artifactsKeepingTracked.add(msg.coordinates()), artifactService
+                );
             })
             .onMessage(CommitResolved.class, msg -> Behaviors.same())
             .onMessage(WorkCompleted.class, msg -> {
                 timers.startSingleTimer(new Refresh(), Duration.ofMinutes(1));
-                return waiting(workerRef, artifactsKeepingTracked);
+                return waiting(workerRef, artifactsKeepingTracked, artifactService);
             })
             .build()));
     }
 
     private static Flow<ArtifactCoordinates, GitCommand.UnresolvedWork, NotUsed> getWork(ClusterSharding sharding) {
         return Flow.<ArtifactCoordinates>create()
-            .mapAsync(1, artifact -> sharding.entityRefFor(GitManagedArtifact.ENTITY_TYPE_KEY, artifact.asMavenString())
-                .ask(GitCommand.GetUnresolvedVersions::new, Duration.ofMinutes(4)))
+            .map(artifact -> sharding.entityRefFor(GitManagedArtifact.ENTITY_TYPE_KEY, artifact.asMavenString())
+                .ask(GitCommand.GetUnresolvedVersions::new, Duration.ofSeconds(30))
+                .toCompletableFuture()
+                .join())
             .filter(GitCommand.UnresolvedWork::hasWork);
     }
 

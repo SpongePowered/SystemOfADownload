@@ -91,7 +91,7 @@ public final class VersionedArtifactAggregate
                 ACEvent.PromotionSettingModified.class,
                 (state, event) -> state.withPromotionDetails(event.regex(), event.enableManualPromotion())
             )
-            .onEvent(ACEvent.ArtifactVersionMoved.class, (state, event) -> state)
+            .onEvent(ACEvent.ArtifactVersionsResorted.class, (state, event) -> state)
         ;
         return builder.build();
     }

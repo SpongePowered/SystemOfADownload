@@ -65,9 +65,8 @@ public class VersionedArtifactAggregateTest {
         Assertions.assertEquals(newEvents.size(), 1, "0.0.2 should be the only new event");
         final var zero3 = zero1.withVersion("0.0.3");
         final var addingZero2 = zero3.addVersion(exampleCoordinates.version("0.0.2"));
-        Assertions.assertEquals(addingZero2.size(), 2, "Should have 2 events");
-        Assertions.assertEquals(addingZero2.get(0), new ACEvent.ArtifactVersionRegistered(exampleCoordinates.version("0.0.2"), 1), "Should have the new event");
-        Assertions.assertEquals(addingZero2.get(1), new ACEvent.ArtifactVersionMoved(exampleCoordinates.version("0.0.2"), 1, List.of(exampleCoordinates.version("0.0.3"))), "Should have the old event");
+        Assertions.assertEquals(1, addingZero2.size(), "Should have 1 event");
+        Assertions.assertEquals(new ACEvent.ArtifactVersionRegistered(exampleCoordinates.version("0.0.2"), 1), addingZero2.get(0),"Should have the new event");
     }
 
 }

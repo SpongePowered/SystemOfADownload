@@ -49,7 +49,7 @@ import org.spongepowered.downloads.artifact.api.MavenCoordinates;
 })
 public sealed interface VersionSyncEvent extends AggregateEvent<VersionSyncEvent>, Jsonable {
 
-    AggregateEventShards<VersionSyncEvent> INSTANCE = AggregateEventTag.sharded(VersionSyncEvent.class, 10);
+    AggregateEventShards<VersionSyncEvent> INSTANCE = AggregateEventTag.sharded(VersionSyncEvent.class, 3);
 
     @Override
     default AggregateEventTagger<VersionSyncEvent> aggregateTag() {

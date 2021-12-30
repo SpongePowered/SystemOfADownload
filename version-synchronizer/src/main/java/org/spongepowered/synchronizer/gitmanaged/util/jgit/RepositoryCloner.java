@@ -29,7 +29,6 @@ import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
-import akka.actor.typed.receptionist.ServiceKey;
 import akka.japi.Pair;
 import akka.stream.Materializer;
 import akka.stream.javadsl.Flow;
@@ -55,9 +54,6 @@ import java.util.UUID;
 import java.util.function.Function;
 
 public final class RepositoryCloner {
-
-    public static final ServiceKey<CloneCommand> CLONE_COMMAND_KEY = ServiceKey.create(
-        CloneCommand.class, "clone-command");
 
     sealed interface CloneCommand extends Jsonable {
     }
@@ -89,6 +85,12 @@ public final class RepositoryCloner {
     }
 
     record SuccessfullyCloned(
+        ArtifactCoordinates coordinates,
+        Map<URI, Path> checkedOut
+    ) implements CloneResponse {
+    }
+
+    record PartialClone(
         ArtifactCoordinates coordinates,
         Map<URI, Path> checkedOut
     ) implements CloneResponse {
@@ -144,37 +146,61 @@ public final class RepositoryCloner {
             })
             .onMessage(CloneSucceeded.class, msg -> {
                 final var newState = state.withSucceeded(msg.repo, msg.path);
-                ctx.getLog().info("Clone Succeeded for {}", msg.repo);
+                if (ctx.getLog().isDebugEnabled()) {
+                    ctx.getLog().debug("Clone Succeeded for {}", msg.repo);
+                }
                 return cloning(newState, materializer, queue);
+            })
+            .onMessage(CloneFailedCompletion.class, msg -> {
+                ctx.getLog().warn("[{}] Clone failed for {}", msg.coordinates, msg.cause);
+                state.command.replyTo.tell(new PartialClone(state.coordinates, state.checkedOut));
+                return cloneNextOrWait(materializer, queue, ctx);
             })
             .onMessage(CloneCompleted.class, msg -> {
                 ctx.getLog().info("Clone completed for {}", state.coordinates);
                 state.command.replyTo.tell(new SuccessfullyCloned(state.coordinates, state.checkedOut));
-                if (queue.isEmpty()) {
-                    return waiting(materializer);
-                }
-                final var head = queue.head();
-                final var nextState = new CloneState(
-                    head,
-                    head.coordinates
-                );
-                callClone(ctx, materializer, head);
-                return cloning(nextState, materializer, queue.tail());
+                return cloneNextOrWait(materializer, queue, ctx);
             })
             .build());
+    }
+
+    private static Behavior<CloneCommand> cloneNextOrWait(
+        final Materializer materializer, final List<CloneRepos> queue,
+        final ActorContext<CloneCommand> ctx
+    ) {
+        if (queue.isEmpty()) {
+            return waiting(materializer);
+        }
+        final var head = queue.head();
+        final var nextState = new CloneState(
+            head,
+            head.coordinates
+        );
+        callClone(ctx, materializer, head);
+        return cloning(nextState, materializer, queue.tail());
     }
 
     private static void callClone(ActorContext<CloneCommand> ctx, Materializer materializer, CloneRepos head) {
         final Source<URI, NotUsed> urls = Source.from(head.urls);
         final var log = ctx.getLog();
         final Flow<URI, CloneCommand, NotUsed> flow = Flow.fromFunction(url -> cloneRepo(log, head.coordinates, url)
-            .<CloneCommand>map(path -> new CloneSucceeded(head.coordinates, url, path))
-            .<CloneCommand>mapLeft(uri -> new CloneFailed(head.coordinates, uri.first(), uri.second()))
+            .<CloneCommand>map(path -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Cloned {} to {}", head.coordinates.asMavenString(), url, path);
+                }
+                return new CloneSucceeded(head.coordinates, url, path);
+            })
+            .<CloneCommand>mapLeft(uri -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Clone failed for {}", head.coordinates.asMavenString(), uri);
+                }
+                return new CloneFailed(head.coordinates, uri.first(), uri.second());
+            })
             .fold(Function.identity(), Function.identity())
         );
         final Sink<CloneCommand, NotUsed> sink = ActorSink.actorRef(
             ctx.getSelf(), new CloneCompleted(head.coordinates),
-            t -> new CloneFailed(head.coordinates, null, t)
+            t -> new CloneFailedCompletion(head.coordinates, t)
         );
         urls
             .via(flow)
@@ -188,6 +214,13 @@ public final class RepositoryCloner {
         URI repo,
         Throwable cause
     ) implements CloneCommand {
+    }
+
+    private record CloneFailedCompletion(
+        ArtifactCoordinates coordinates,
+        Throwable cause
+    ) implements CloneCommand {
+
     }
 
     private record CloneSucceeded(

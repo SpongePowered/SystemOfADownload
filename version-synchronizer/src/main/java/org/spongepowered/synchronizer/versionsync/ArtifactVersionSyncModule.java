@@ -24,7 +24,9 @@
  */
 package org.spongepowered.synchronizer.versionsync;
 
+import akka.actor.typed.SupervisorStrategy;
 import akka.actor.typed.javadsl.ActorContext;
+import akka.actor.typed.javadsl.Behaviors;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import akka.cluster.sharding.typed.javadsl.Entity;
 import akka.persistence.typed.PersistenceId;
@@ -40,6 +42,8 @@ public class ArtifactVersionSyncModule {
         final AuthUtils authUtils,
         final VersionsService service
     ) {
+        ctx.spawnAnonymous(Behaviors.supervise(BatchVersionSyncManager.setup())
+            .onFailure(SupervisorStrategy.resume()));
         sharding.init(Entity.of(
             ArtifactVersionSyncEntity.ENTITY_TYPE_KEY,
             context -> ArtifactVersionSyncEntity.create(authUtils, service,

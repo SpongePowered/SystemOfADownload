@@ -194,6 +194,9 @@ public sealed interface ArtifactState extends Jsonable {
         }
 
         public ArtifactState withCommit(String commitSha) {
+            if (this.fileStatus.commitSha.isPresent()) {
+                return this;
+            }
             return new Registered(
                 this.coordinates,
                 this.repo,

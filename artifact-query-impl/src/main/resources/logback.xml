@@ -27,8 +27,8 @@
     <logger name="org.hibernate" level="WARN"/>
     <logger name="com.zaxxer.hikari.HikariDataSource" level="WARN"/>
     <logger name="play.api.db" level="WARN"/>
-    <logger name="play.api.Play" level="WARN"/>
-    <logger name="play.api.http.EnabledFilters" level="WARN"/>
+    <logger name="play.api.Play" level="INFO"/>
+    <logger name="play.api.http.EnabledFilters" level="INFO"/>
     <root level="INFO">
         <appender-ref ref="ASYNC"/>
     </root>

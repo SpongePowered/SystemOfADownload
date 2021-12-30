@@ -65,12 +65,12 @@ resource "kubernetes_deployment" "lagom-instances" {
 
                     resources {
                         requests = {
-                            cpu = "100m"
-                            memory = "200Mi"
+                            cpu = var.cpu_min
+                            memory = var.memory_min
                         }
                         limits = {
-                            cpu = "750m"
-                            memory = "1Gi"
+                            cpu = var.cpu_max
+                            memory = var.memory_max
                         }
                     }
                     dynamic "env" {

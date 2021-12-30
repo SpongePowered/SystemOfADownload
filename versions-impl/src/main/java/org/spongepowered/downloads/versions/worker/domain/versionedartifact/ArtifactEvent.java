@@ -43,7 +43,7 @@ import java.net.URI;
 @JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
 public sealed interface ArtifactEvent extends AggregateEvent<ArtifactEvent>, Jsonable {
 
-    AggregateEventShards<ArtifactEvent> INSTANCE = AggregateEventTag.sharded(ArtifactEvent.class, 100);
+    AggregateEventShards<ArtifactEvent> INSTANCE = AggregateEventTag.sharded(ArtifactEvent.class, 3);
 
     @Override
     default AggregateEventTagger<ArtifactEvent> aggregateTag() {

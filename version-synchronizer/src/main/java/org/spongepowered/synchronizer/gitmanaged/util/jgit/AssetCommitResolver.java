@@ -94,9 +94,9 @@ public final class AssetCommitResolver {
         MavenCoordinates coordinates, Logger log
     ) {
         return Flow.<Tuple3<URI, Path, ObjectId>, Optional<Pair<URI, VersionedCommit>>>fromFunction(tuple3 -> {
-            if (log.isTraceEnabled()) {
-                log.trace("Resolving commit {} for {}", tuple3._3.getName(), coordinates);
-                log.trace("Opening Git directory {}", tuple3._2);
+            if (log.isDebugEnabled()) {
+                log.debug("Resolving commit {} for {}", tuple3._3.getName(), coordinates);
+                log.debug("Opening Git directory {}", tuple3._2);
             }
             final var directory = tuple3._2().toFile();
             final var git = Git.open(directory);
@@ -163,13 +163,14 @@ public final class AssetCommitResolver {
             final var timeZone = committerIdent
                 .getTimeZone();
             final var commitDateTime = instant.atZone(timeZone.toZoneId());
+            final var commitUrl = URI.create(repo.toString() + "/commit/" + commitId);
             return Pair.apply(repo, new VersionedCommit(
                 commitMessage,
                 commitBody,
                 commitId,
                 author,
                 committer,
-                Optional.of(repo),
+                Optional.of(commitUrl),
                 commitDateTime
             ));
         };
