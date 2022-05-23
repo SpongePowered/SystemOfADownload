@@ -96,42 +96,37 @@ runLiquibase := {
 
 // region dependency versions
 
-lazy val vavrVersion = "0.10.3"
-lazy val vavr = "io.vavr" % "vavr" % vavrVersion
-lazy val vavrJackson = "io.vavr" % "vavr-jackson" % vavrVersion
+lazy val vavr = "io.vavr" % "vavr" % "0.10.3"
+lazy val vavrJackson = "io.vavr" % "vavr-jackson" % "0.10.3"
 
-lazy val pac4jVersion = "3.7.0"
-lazy val pac4jHttp = "org.pac4j" % "pac4j-http" % pac4jVersion
-lazy val pac4jJwt = "org.pac4j" % "pac4j-jwt" % pac4jVersion
+lazy val pac4jHttp = "org.pac4j" % "pac4j-http" % "3.7.0"
+lazy val pac4jJwt = "org.pac4j" % "pac4j-jwt" % "3.7.0"
 
-lazy val lagomPac4jVersion = "2.2.1"
-lazy val lagomPac4j = "org.pac4j" %% "lagom-pac4j" % lagomPac4jVersion
-lazy val lagomPac4jLdap = "org.pac4j" % "pac4j-ldap" % pac4jVersion
+lazy val lagomPac4j = "org.pac4j" %% "lagom-pac4j" % "2.2.1"
+lazy val lagomPac4jLdap = "org.pac4j" % "pac4j-ldap" % "3.7.0"
 
-lazy val junitVersion = "5.7.2" // Enable Junit5
-lazy val junit = "org.junit.jupiter" % "junit-jupiter-api" % junitVersion % Test
-lazy val jupiterInterfaceVersion = "0.9.1" // sbt-jupiter-interface
-lazy val jupiterInterface = "net.aichler" % "jupiter-interface" % jupiterInterfaceVersion % Test
+// Enable Junit5
+lazy val junit = "org.junit.jupiter" % "junit-jupiter-api" % "5.7.2" % Test
+// sbt-jupiter-interface
+lazy val jupiterInterface = "net.aichler" % "jupiter-interface" % "0.9.1" % Test
 
 
-// region - jackson dependency bumps to 2.12.5
-lazy val jacksonVersion = "2.12.5" // Play jackson uses 2.11, but 2.12 is backwards compatible
-lazy val jacksonDataBind = "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion
-lazy val jacksonDataTypeJsr310 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonVersion
-lazy val jacksonDataformatXml = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % jacksonVersion
-lazy val jacksonDataformatCbor = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % jacksonVersion
-lazy val jacksonDatatypeJdk8 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % jacksonVersion
-lazy val jacksonParameterNames = "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % jacksonVersion
-lazy val jacksonParanamer = "com.fasterxml.jackson.module" % "jackson-module-paranamer" % jacksonVersion
-lazy val jacksonScala = "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion
-lazy val jacksonGuava = "com.fasterxml.jackson.datatype" % "jackson-datatype-guava" % jacksonVersion
-lazy val jacksonPcollections = "com.fasterxml.jackson.datatype" % "jackson-datatype-pcollections" % jacksonVersion
+// Play jackson uses 2.11, but 2.12 is backwards compatible
+lazy val jacksonDataBind = "com.fasterxml.jackson.core" % "jackson-databind" % "2.12.5"
+lazy val jacksonDataTypeJsr310 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.12.5"
+lazy val jacksonDataformatXml = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % "2.12.5"
+lazy val jacksonDataformatCbor = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % "2.12.5"
+lazy val jacksonDatatypeJdk8 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % "2.12.5"
+lazy val jacksonParameterNames = "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.12.5"
+lazy val jacksonParanamer = "com.fasterxml.jackson.module" % "jackson-module-paranamer" % "2.12.5"
+lazy val jacksonScala = "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.12.5"
+lazy val jacksonGuava = "com.fasterxml.jackson.datatype" % "jackson-datatype-guava" % "2.12.5"
+lazy val jacksonPcollections = "com.fasterxml.jackson.datatype" % "jackson-datatype-pcollections" % "2.12.5"
 // endregion
 
 lazy val akkaStreamTyped = "com.typesafe.akka" %% "akka-stream-typed" % LagomVersion.akka
 lazy val akkaPersistenceTestkit = "com.typesafe.akka" %% "akka-persistence-testkit" % LagomVersion.akka % Test
-val AkkaManagementVersion = "1.1.1"
-lazy val akkaKubernetesDiscovery = "com.lightbend.akka.discovery" %% "akka-discovery-kubernetes-api" % AkkaManagementVersion
+lazy val akkaKubernetesDiscovery = "com.lightbend.akka.discovery" %% "akka-discovery-kubernetes-api" % "1.1.1"
 
 lazy val playFilterHelpers = "com.typesafe.play" %% "filters-helpers" % LagomVersion.play
 
@@ -250,7 +245,7 @@ def serverSoadProject(name: String) =
             )
           ).settings(
     dockerUpdateLatest := true,
-    dockerBaseImage := "openjdk:17.0.1-slim",
+    dockerBaseImage := "eclipse-temurin:17.0.3_7-jre",
     dockerChmodType := DockerChmodType.UserGroupWriteExecute,
     dockerExposedPorts := Seq(9000, 8558, 2552),
     dockerLabels ++= Map(
@@ -369,9 +364,9 @@ lazy val `sonatype` = soadProject("sonatype").settings(
     //Language Features
     vavr,
     //Jackson Serialization
-    "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonVersion,
-    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
-    "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion,
+    "com.fasterxml.jackson.core" % "jackson-annotations" % "2.12.5",
+    "com.fasterxml.jackson.core" % "jackson-databind" % "2.12.5",
+    "com.fasterxml.jackson.core" % "jackson-core" % "2.12.5",
     //Test Dependencies
     junit,
     jupiterInterface,
