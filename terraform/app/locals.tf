@@ -12,7 +12,7 @@ locals {
             image = {
                 replicas = 1
                 image_version = "0.2-SNAPSHOT"
-                image_name = "spongepowered/systemofadownload-artifact-impl"
+                image_name = "ghcr.io/spongepowered/systemofadownload-artifact-impl"
             }
             extra_config = <<-EOF
             EOF
@@ -35,7 +35,7 @@ locals {
             image = {
                 replicas = var.environment == "dev" ? 1 : 1
                 image_version = "0.2-SNAPSHOT"
-                image_name = "spongepowered/systemofadownload-artifact-query-impl"
+                image_name = "ghcr.io/spongepowered/systemofadownload-artifact-query-impl"
             }
             extra_config = <<-EOF
             EOF
@@ -50,7 +50,7 @@ locals {
             image = {
                 replicas = 1
                 image_version = "latest"
-                image_name = "spongepowered/systemofadownload-auth-impl"
+                image_name = "ghcr.io/spongepowered/systemofadownload-auth-impl"
             }
             extra_config =  <<-EOF
             systemofadownload.auth {
@@ -64,7 +64,7 @@ locals {
             replicas = var.environment == "dev" ? 2 : 3
             image = {
                 version = "0.2-SNAPSHOT"
-                name = "spongepowered/systemofadownload-versions-impl"
+                name = "ghcr.io/spongepowered/systemofadownload-versions-impl"
             }
             extra_config = <<-EOF
             EOF
@@ -84,7 +84,7 @@ locals {
             replicas = var.environment == "dev" ? 1 : 1
             image = {
                 version = "0.2-SNAPSHOT"
-                name = "spongepowered/systemofadownload-versions-query-impl"
+                name = "ghcr.io/spongepowered/systemofadownload-versions-query-impl"
             }
             extra_config = <<-EOF
             EOF
@@ -96,7 +96,7 @@ locals {
             replicas = var.environment == "dev" ? 1 : 1
             image = {
                 version = "0.2-SNAPSHOT"
-                name = "spongepowered/systemofadownload-version-synchronizer"
+                name = "ghcr.io/spongepowered/systemofadownload-version-synchronizer"
             }
             extra_env = local.default_database_envs
             extra_secret_env = local.default_secret_based_envs
