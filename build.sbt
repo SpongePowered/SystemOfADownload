@@ -96,7 +96,7 @@ runLiquibase := {
 
 // region dependency versions
 
-lazy val vavr = "io.vavr" % "vavr" % "0.10.3"
+lazy val vavr = "io.vavr" % "vavr" % "0.10.4"
 lazy val vavrJackson = "io.vavr" % "vavr-jackson" % "0.10.3"
 
 lazy val pac4jHttp = "org.pac4j" % "pac4j-http" % "3.7.0"
@@ -126,12 +126,12 @@ lazy val jacksonPcollections = "com.fasterxml.jackson.datatype" % "jackson-datat
 
 lazy val akkaStreamTyped = "com.typesafe.akka" %% "akka-stream-typed" % LagomVersion.akka
 lazy val akkaPersistenceTestkit = "com.typesafe.akka" %% "akka-persistence-testkit" % LagomVersion.akka % Test
-lazy val akkaKubernetesDiscovery = "com.lightbend.akka.discovery" %% "akka-discovery-kubernetes-api" % "1.1.1"
+lazy val akkaKubernetesDiscovery = "com.lightbend.akka.discovery" %% "akka-discovery-kubernetes-api" % "1.1.3"
 
 lazy val playFilterHelpers = "com.typesafe.play" %% "filters-helpers" % LagomVersion.play
 
 lazy val hibernate = "org.hibernate" % "hibernate-core" % "5.5.4.Final"
-lazy val postgres = "org.postgresql" % "postgresql" % "42.3.1"
+lazy val postgres = "org.postgresql" % "postgresql" % "42.3.5"
 lazy val hibernateTypes = "com.vladmihalcea" % "hibernate-types-55" % "2.14.0"
 
 lazy val guice = "com.google.inject" % "guice" % "5.0.1"
@@ -288,7 +288,7 @@ def implSoadProjectWithPersistence(name: String, implFor: Project) =
 
 lazy val `artifact-api` = apiSoadProject("artifact-api").settings(
   //Maven Dependency for Version Parsing
-  libraryDependencies += "org.apache.maven" % "maven-artifact" % "3.8.1"
+  libraryDependencies += "org.apache.maven" % "maven-artifact" % "3.8.5"
 )
 lazy val `artifact-impl` = implSoadProjectWithPersistence("artifact-impl", `artifact-api`).dependsOn(
   //Inter module dependencies
