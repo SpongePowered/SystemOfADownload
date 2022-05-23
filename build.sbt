@@ -136,7 +136,7 @@ lazy val hibernateTypes = "com.vladmihalcea" % "hibernate-types-55" % "2.14.0"
 
 lazy val guice = "com.google.inject" % "guice" % "5.0.1"
 
-lazy val jgit = "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r"
+lazy val jgit = "org.eclipse.jgit" % "org.eclipse.jgit" % "6.1.0.202203080745-r"
 lazy val jgit_jsch = "org.eclipse.jgit" % "org.eclipse.jgit.ssh.jsch" % "5.13.0.202109080827-r"
 
 // endregion
