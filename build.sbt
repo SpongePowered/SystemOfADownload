@@ -6,7 +6,7 @@ import scala.sys.process.Process
 
 ThisBuild / organization := "org.spongepowered"
 ThisBuild / version := "0.2-SNAPSHOT"
-ThisBuild / scalaVersion := "2.13.6"
+ThisBuild / scalaVersion := "2.13.8"
 
 // License setup
 ThisBuild / organizationName := "SpongePowered"
