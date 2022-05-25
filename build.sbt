@@ -96,6 +96,9 @@ runLiquibase := {
 
 // region dependency versions
 
+//noinspection SbtDependencyVersionInspection
+ThisBuild / libraryDependencySchemes += "org.scala-lang.modules" %% "scala-java8-compat" % "always"
+
 lazy val vavr = "io.vavr" % "vavr" % "0.10.4"
 lazy val vavrJackson = "io.vavr" % "vavr-jackson" % "0.10.3"
 
