@@ -291,7 +291,7 @@ def implSoadProjectWithPersistence(name: String, implFor: Project) =
 
 lazy val `artifact-api` = apiSoadProject("artifact-api").settings(
   //Maven Dependency for Version Parsing
-  libraryDependencies += "org.apache.maven" % "maven-artifact" % "3.8.5"
+  libraryDependencies += "org.apache.maven" % "maven-artifact" % "3.8.6"
 )
 lazy val `artifact-impl` = implSoadProjectWithPersistence("artifact-impl", `artifact-api`).dependsOn(
   //Inter module dependencies
