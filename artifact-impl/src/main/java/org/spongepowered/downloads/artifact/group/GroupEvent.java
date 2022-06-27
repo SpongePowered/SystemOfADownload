@@ -34,10 +34,10 @@ import com.lightbend.lagom.javadsl.persistence.AggregateEventShards;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTag;
 import com.lightbend.lagom.javadsl.persistence.AggregateEventTagger;
 import com.lightbend.lagom.serialization.Jsonable;
+import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
 import java.io.Serial;
 import java.util.Objects;
-import java.util.StringJoiner;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
@@ -106,52 +106,19 @@ public interface GroupEvent extends AggregateEvent<GroupEvent>, Jsonable {
     }
 
     @JsonTypeName("artifact-registered")
-    @JsonDeserialize
-    final class ArtifactRegistered implements GroupEvent {
+        @JsonDeserialize
+    record ArtifactRegistered(
+        String groupId,
+        String artifact
+    ) implements GroupEvent {
 
-        @Serial private static final long serialVersionUID = 6319289932327553919L;
-
-        public final String groupId;
-        public final String artifact;
+        public ArtifactCoordinates coordinates() {
+            return new ArtifactCoordinates(this.groupId, this.artifact);
+        }
 
         @JsonCreator
-        public ArtifactRegistered(final String groupId, final String artifact) {
-            this.groupId = groupId;
-            this.artifact = artifact;
-        }
-
-        @Override
-        public String groupId() {
-            return this.groupId;
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || this.getClass() != o.getClass()) {
-                return false;
-            }
-            final ArtifactRegistered that = (ArtifactRegistered) o;
-            return Objects.equals(this.groupId, that.groupId) && Objects.equals(this.artifact, that.artifact);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(this.groupId, this.artifact);
-        }
-
-        @Override
-        public String toString() {
-            return new StringJoiner(
-                ", ",
-                ArtifactRegistered.class.getSimpleName() + "[",
-                "]"
-            )
-                .add("groupId='" + this.groupId + "'")
-                .add("artifact='" + this.artifact + "'")
-                .toString();
+        public ArtifactRegistered {
         }
     }
+
 }

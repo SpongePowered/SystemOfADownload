@@ -31,47 +31,23 @@ import io.vavr.collection.Map;
 import io.vavr.collection.SortedSet;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
-import java.util.Objects;
-import java.util.StringJoiner;
-
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
     @JsonSubTypes.Type(value = GetArtifactDetailsResponse.RetrievedArtifact.class,
         name = "latest")
 })
-public interface GetArtifactDetailsResponse {
+public sealed interface GetArtifactDetailsResponse {
 
     @JsonSerialize
-    record RetrievedArtifact(ArtifactCoordinates coordinates,
-                             String displayName, String website, String gitRepository,
-                             String issues,
-                             Map<String, SortedSet<String>> tags) implements GetArtifactDetailsResponse {
+    record RetrievedArtifact(
+        ArtifactCoordinates coordinates,
+        String displayName,
+        String website,
+        String gitRepository,
+        String issues,
+        Map<String, SortedSet<String>> tags
+    ) implements GetArtifactDetailsResponse {
 
-        @Override
-        public boolean equals(final Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            RetrievedArtifact that = (RetrievedArtifact) o;
-            return Objects.equals(coordinates, that.coordinates) && Objects.equals(
-                displayName, that.displayName);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(coordinates, displayName);
-        }
-
-        @Override
-        public String toString() {
-            return new StringJoiner(", ", RetrievedArtifact.class.getSimpleName() + "[", "]")
-                .add("coordinates=" + coordinates)
-                .add("displayName='" + displayName + "'")
-                .toString();
-        }
     }
 }

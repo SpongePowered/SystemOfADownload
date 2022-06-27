@@ -85,15 +85,15 @@ public class ArtifactReadside {
                 "Artifact.findById",
                 JpaArtifact.class
             );
-            return artifactQuery.setParameter("groupId", coordinates.groupId)
-                .setParameter("artifactId", coordinates.artifactId)
+            return artifactQuery.setParameter("groupId", coordinates.groupId())
+                .setParameter("artifactId", coordinates.artifactId())
                 .setMaxResults(1)
                 .getResultStream()
                 .findFirst()
                 .orElseGet(() -> {
                     final var jpaArtifact = new JpaArtifact();
-                    jpaArtifact.setGroupId(coordinates.groupId);
-                    jpaArtifact.setArtifactId(coordinates.artifactId);
+                    jpaArtifact.setGroupId(coordinates.groupId());
+                    jpaArtifact.setArtifactId(coordinates.artifactId());
                     em.persist(jpaArtifact);
                     return jpaArtifact;
                 });

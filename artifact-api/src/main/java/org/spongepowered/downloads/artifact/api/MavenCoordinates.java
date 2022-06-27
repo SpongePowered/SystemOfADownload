@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
 @JsonDeserialize
 public final class MavenCoordinates implements Comparable<MavenCoordinates> {
 
-    private static final Pattern MAVEN_REGEX = Pattern.compile("[-\\w.]+");
+    private static final Pattern MAVEN_REGEX = Pattern.compile("^[-\\w.]+$");
 
     /**
      * The group id of an artifact, as defined by the Apache Maven documentation.

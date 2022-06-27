@@ -51,11 +51,11 @@ public final class ArtifactDetails {
             name = "gitRepository"),
     })
     @JsonDeserialize
-    public interface Update<T> {
+    public sealed interface Update<T> {
 
         Either<BadRequest, T> validate();
 
-        final record Website(
+        record Website(
             @JsonProperty(required = true) String website
         ) implements Update<URL> {
 
@@ -70,7 +70,7 @@ public final class ArtifactDetails {
             }
         }
 
-        final record DisplayName(
+        record DisplayName(
             @JsonProperty(required = true) String display
         ) implements Update<String> {
 
@@ -84,7 +84,7 @@ public final class ArtifactDetails {
             }
         }
 
-        final record Issues(
+        record Issues(
             @JsonProperty(required = true) String issues
         ) implements Update<URL> {
             @JsonCreator
@@ -98,7 +98,7 @@ public final class ArtifactDetails {
             }
         }
 
-        final record GitRepository(
+        record GitRepository(
             @JsonProperty(required = true) String gitRepo
         ) implements Update<URL> {
 
@@ -115,7 +115,7 @@ public final class ArtifactDetails {
     }
 
     @JsonSerialize
-    public final record Response(
+    public record Response(
         String name,
         String displayName,
         String website,

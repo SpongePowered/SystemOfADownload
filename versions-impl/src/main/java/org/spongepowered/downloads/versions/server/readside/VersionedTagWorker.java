@@ -127,8 +127,8 @@ public final class VersionedTagWorker {
                     final int rowsAffected = data.refreshRecommendations
                         .map(coordinates -> em.createNativeQuery(
                                 "select version.refreshVersionRecommendations(:artifactId, :groupId)")
-                            .setParameter("artifactId", coordinates.artifactId)
-                            .setParameter("groupId", coordinates.groupId)
+                            .setParameter("artifactId", coordinates.artifactId())
+                            .setParameter("groupId", coordinates.groupId())
                             .getSingleResult())
                         .sum().intValue();
                     return new Completed(data, updatedVersionedTags, rowsAffected);

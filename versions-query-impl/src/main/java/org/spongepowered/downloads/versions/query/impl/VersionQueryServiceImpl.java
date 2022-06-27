@@ -229,8 +229,8 @@ public record VersionQueryServiceImpl(JpaSession session)
                 .setParameter("recommended", isRecommended)
             )
             .orElseGet(() -> em.createNamedQuery("VersionedArtifactView.count", Long.class))
-            .setParameter("groupId", query.coordinates.groupId)
-            .setParameter("artifactId", query.coordinates.artifactId)
+            .setParameter("groupId", query.coordinates.groupId())
+            .setParameter("artifactId", query.coordinates.artifactId())
             .getSingleResult().intValue();
         if (totalCount <= 0) {
             throw new NotFound("group or artifact not found");
@@ -245,8 +245,8 @@ public record VersionQueryServiceImpl(JpaSession session)
             .orElseGet(() -> em.createNamedQuery(
                 "VersionedArtifactView.findByArtifact", JpaVersionedArtifactView.class
             ))
-            .setParameter("groupId", query.coordinates.groupId)
-            .setParameter("artifactId", query.coordinates.artifactId)
+            .setParameter("groupId", query.coordinates.groupId())
+            .setParameter("artifactId", query.coordinates.artifactId())
             .setMaxResults(query.offset + query.limit)
             .getResultList();
         final var mappedByCoordinates = untaggedVersions.stream()
@@ -277,8 +277,8 @@ public record VersionQueryServiceImpl(JpaSession session)
             .orElseGet(() -> em.createNamedQuery(
                 "TaggedVersion.findAllMatchingTagValues", JpaTaggedVersion.class
             ))
-            .setParameter("groupId", query.coordinates.groupId)
-            .setParameter("artifactId", query.coordinates.artifactId)
+            .setParameter("groupId", query.coordinates.groupId())
+            .setParameter("artifactId", query.coordinates.artifactId())
             .setParameter("tagName", tag.tagName)
             .setParameter("tagValue", tag.tagValue + "%")
             .getResultStream()

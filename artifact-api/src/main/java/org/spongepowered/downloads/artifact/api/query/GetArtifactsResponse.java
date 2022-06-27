@@ -29,89 +29,31 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.lightbend.lagom.serialization.Jsonable;
 import io.vavr.collection.List;
-
-import java.util.Objects;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
     @JsonSubTypes.Type(value = GetArtifactsResponse.GroupMissing.class, name = "UnknownGroup"),
     @JsonSubTypes.Type(value = GetArtifactsResponse.ArtifactsAvailable.class, name = "Artifacts"),
 })
-public interface GetArtifactsResponse {
+public sealed interface GetArtifactsResponse extends Jsonable {
 
     @JsonSerialize
-    final class GroupMissing implements GetArtifactsResponse {
-
-        @JsonProperty
-        private final String groupRequested;
+    record GroupMissing(@JsonProperty String groupRequested) implements GetArtifactsResponse {
 
         @JsonCreator
-        public GroupMissing(
-            final String groupRequested
-        ) {
-            this.groupRequested = groupRequested;
-        }
-
-        public String groupRequested() {
-            return this.groupRequested;
-        }
-
-        @Override
-        public boolean equals(final Object obj) {
-            if (obj == this) return true;
-            if (obj == null || obj.getClass() != this.getClass()) return false;
-            final var that = (GroupMissing) obj;
-            return Objects.equals(this.groupRequested, that.groupRequested);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(this.groupRequested);
-        }
-
-        @Override
-        public String toString() {
-            return "GroupMissing[" +
-                "groupRequested=" + this.groupRequested + ']';
+        public GroupMissing {
         }
 
     }
 
     @JsonSerialize
-    final class ArtifactsAvailable implements GetArtifactsResponse {
-
-        @JsonProperty
-        private final List<String> artifactIds;
+    record ArtifactsAvailable(@JsonProperty List<String> artifactIds)
+        implements GetArtifactsResponse {
 
         @JsonCreator
-        public ArtifactsAvailable(
-            final List<String> artifactIds
-        ) {
-            this.artifactIds = artifactIds;
-        }
-
-        public List<String> artifactIds() {
-            return this.artifactIds;
-        }
-
-        @Override
-        public boolean equals(final Object obj) {
-            if (obj == this) return true;
-            if (obj == null || obj.getClass() != this.getClass()) return false;
-            final var that = (ArtifactsAvailable) obj;
-            return Objects.equals(this.artifactIds, that.artifactIds);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(this.artifactIds);
-        }
-
-        @Override
-        public String toString() {
-            return "ArtifactsAvailable[" +
-                "artifactIds=" + this.artifactIds + ']';
+        public ArtifactsAvailable {
         }
 
     }
