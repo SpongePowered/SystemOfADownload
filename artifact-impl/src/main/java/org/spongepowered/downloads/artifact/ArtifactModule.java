@@ -30,12 +30,12 @@ import com.lightbend.lagom.javadsl.server.ServiceGuiceSupport;
 import org.pac4j.core.config.Config;
 import org.spongepowered.downloads.artifact.api.ArtifactService;
 import org.spongepowered.downloads.artifact.readside.ArtifactReadside;
+import org.spongepowered.downloads.artifact.transport.RestArtifactService;
 import org.spongepowered.downloads.auth.SOADAuth;
 import org.spongepowered.downloads.auth.api.utils.AuthUtils;
 import play.Environment;
 
 public class ArtifactModule extends AbstractModule implements ServiceGuiceSupport {
-
     private final Environment environment;
     private final com.typesafe.config.Config config;
     private final AuthUtils auth;
@@ -46,10 +46,9 @@ public class ArtifactModule extends AbstractModule implements ServiceGuiceSuppor
         this.auth = AuthUtils.configure(config);
     }
 
-
     @Override
     protected void configure() {
-        this.bindService(ArtifactService.class, ArtifactServiceImpl.class);
+        this.bindService(ArtifactService.class, RestArtifactService.class);
         this.bind(ArtifactReadside.class).asEagerSingleton();
     }
 

@@ -135,11 +135,11 @@ public final class ArtifactSynchronizerAggregate
 
 
     private ReplyEffect<SynchronizeEvent, SyncState> handleResync(SyncState state, Command.Resync cmd) {
-        final var groupId = !state.groupId.equals(cmd.coordinates().groupId)
-            ? cmd.coordinates().groupId
+        final var groupId = !state.groupId.equals(cmd.coordinates().groupId())
+            ? cmd.coordinates().groupId()
             : state.groupId;
-        final var artifactId = !state.artifactId.equals(cmd.coordinates().artifactId)
-            ? cmd.coordinates().artifactId
+        final var artifactId = !state.artifactId.equals(cmd.coordinates().artifactId())
+            ? cmd.coordinates().artifactId()
             : state.artifactId;
         ctx.pipeToSelf(
             getArtifactMetadata(groupId, artifactId),

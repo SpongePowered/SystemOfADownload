@@ -239,7 +239,7 @@ public final class RepositoryCloner {
         final URI remoteRepo
     ) {
         final var tempdirPrefix = String.format(
-            "soad-%s-%s", coordinates.artifactId,
+            "soad-%s-%s", coordinates.artifactId(),
             UUID.randomUUID()
         );
         final var repoDirectory = Try.of(() -> Files.createTempDirectory(

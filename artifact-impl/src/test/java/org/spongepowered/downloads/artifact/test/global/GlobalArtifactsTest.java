@@ -28,7 +28,6 @@ import akka.Done;
 import akka.actor.testkit.typed.javadsl.TestKitJunitResource;
 import akka.persistence.testkit.javadsl.EventSourcedBehaviorTestKit;
 import akka.persistence.typed.PersistenceId;
-import com.typesafe.config.ConfigFactory;
 import io.vavr.collection.List;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -40,29 +39,14 @@ import org.spongepowered.downloads.artifact.global.GlobalCommand;
 import org.spongepowered.downloads.artifact.global.GlobalEvent;
 import org.spongepowered.downloads.artifact.global.GlobalRegistration;
 import org.spongepowered.downloads.artifact.global.GlobalState;
+import org.spongepowered.downloads.artifact.test.akka.EventBehaviorTestkit;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class GlobalArtifactsTest implements BeforeEachCallback {
 
     // If actor refs are being used, the testkit needs to have the akka modules
     // locally.
-    public static final TestKitJunitResource testkit = new TestKitJunitResource(ConfigFactory.parseString(
-            """
-            akka.serialization.jackson {
-                # The Jackson JSON serializer will register these modules.
-                jackson-modules += "akka.serialization.jackson.AkkaJacksonModule"
-                jackson-modules += "akka.serialization.jackson.AkkaTypedJacksonModule"
-                # AkkaStreamsModule optionally included if akka-streams is in classpath
-                jackson-modules += "akka.serialization.jackson.AkkaStreamJacksonModule"
-                jackson-modules += "com.fasterxml.jackson.module.paramnames.ParameterNamesModule"
-                jackson-modules += "com.fasterxml.jackson.datatype.jdk8.Jdk8Module"
-                jackson-modules += "com.fasterxml.jackson.module.scala.DefaultScalaModule"
-                jackson-modules += "io.vavr.jackson.datatype.VavrModule"
-            }
-            """
-        )
-        .resolve() // Resolve the config first
-        .withFallback(EventSourcedBehaviorTestKit.config()));
+    public static final TestKitJunitResource testkit = EventBehaviorTestkit.createTestKit();
 
     private final EventSourcedBehaviorTestKit<GlobalCommand, GlobalEvent, GlobalState> behaviorKit = EventSourcedBehaviorTestKit.create(
         testkit.system(), GlobalRegistration.create(

@@ -52,8 +52,7 @@ public enum VersionType {
                 stringJoiner.add(split[i]);
             }
 
-            final var unTimestampedVersion = stringJoiner.add(SNAPSHOT_VERSION).toString();
-            return unTimestampedVersion;
+            return stringJoiner.add(SNAPSHOT_VERSION).toString();
         }
     },
 
@@ -82,9 +81,9 @@ public enum VersionType {
     Verifies the pattern that the snapshot version is date.time-build formatted,
     enables the pattern match for a timestamped snapshot
      */
-    private static final Pattern VERSION_FILE_PATTERN = Pattern.compile("^(.*)-([0-9]{8}.[0-9]{6})-([0-9]+)$");
+    private static final Pattern VERSION_FILE_PATTERN = Pattern.compile("^(.*)-(\\d{8}.\\d{6})-(\\d+)$");
 
-    private static final Pattern TIMESTAMP_TO_REPLACE = Pattern.compile("([0-9]{8}.[0-9]{6})-([0-9]+)$");
+    private static final Pattern TIMESTAMP_TO_REPLACE = Pattern.compile("(\\d{8}.\\d{6})-(\\d+)$");
 
     public static VersionType fromVersion(final String version) {
         if (version == null || version.isEmpty()) {
@@ -106,11 +105,6 @@ public enum VersionType {
         return RELEASE;
     }
 
-    /**
-     * Gets whether this version is a snapshot of any kind.
-     *
-     * @return
-     */
     public boolean isSnapshot() {
         return false;
     }

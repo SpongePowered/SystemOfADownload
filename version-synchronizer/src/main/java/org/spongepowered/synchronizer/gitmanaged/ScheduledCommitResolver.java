@@ -125,7 +125,7 @@ public final class ScheduledCommitResolver {
     ) {
         final Source<String, NotUsed> groups;
         if (r instanceof GroupsResponse.Available a) {
-            groups = Source.from(a.groups.map(Group::getGroupCoordinates));
+            groups = Source.from(a.groups().map(Group::groupCoordinates));
         } else {
             groups = Source.empty();
         }
