@@ -17,8 +17,8 @@
 
     <logger name="org.spongepowered.downloads.versions.worker" level="INFO"/>
     <logger name="org.spongepowered.synchronizer.actor" level="INFO"/>
-    <logger name="org.spongepowered.synchronizer.gitmanaged" level="INFO"/>
-    <logger name="org.spongepowered.synchronizer.gitmanaged.util.jgit" level="INFO"/>
+    <logger name="org.spongepowered.synchronizer.gitmanaged" level="DEBUG"/>
+    <logger name="org.spongepowered.synchronizer.gitmanaged.util.jgit" level="DEBUG"/>
 
 
     <logger name="Hibernate Types" level="WARN"/>

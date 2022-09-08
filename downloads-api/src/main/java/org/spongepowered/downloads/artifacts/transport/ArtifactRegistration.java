@@ -22,27 +22,61 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.api.query;
+package org.spongepowered.downloads.artifacts.transport;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.Group;
+import com.lightbend.lagom.serialization.Jsonable;
+import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = GroupsResponse.Available.class, name = "Groups")
-})
-public interface GroupsResponse {
+public final class ArtifactRegistration {
 
     @JsonSerialize
-    record Available(@JsonProperty List<Group> groups)
-        implements GroupsResponse {
+    public record RegisterArtifact(
+        @JsonProperty(required = true) String artifactId,
+        @JsonProperty(required = true) String displayName
+    ) {
+
         @JsonCreator
-        public Available {
+        public RegisterArtifact(final String artifactId, final String displayName) {
+            this.artifactId = artifactId;
+            this.displayName = displayName;
         }
+
+    }
+
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME,
+        property = "type")
+    @JsonSubTypes({
+        @JsonSubTypes.Type(value = Response.GroupMissing.class,
+            name = "UnknownGroup"),
+        @JsonSubTypes.Type(value = Response.ArtifactRegistered.class,
+            name = "RegisteredArtifact"),
+        @JsonSubTypes.Type(value = Response.ArtifactAlreadyRegistered.class,
+            name = "AlreadyRegistered"),
+    })
+    public sealed interface Response extends Jsonable {
+
+        @JsonSerialize
+        record ArtifactRegistered(@JsonProperty ArtifactCoordinates coordinates) implements Response {
+
+        }
+
+        @JsonSerialize
+        record ArtifactAlreadyRegistered(
+            @JsonProperty String artifactName,
+            @JsonProperty String groupId
+        ) implements Response {
+
+        }
+
+        @JsonSerialize
+        record GroupMissing(@JsonProperty("groupId") String s) implements Response {
+
+        }
+
     }
 }

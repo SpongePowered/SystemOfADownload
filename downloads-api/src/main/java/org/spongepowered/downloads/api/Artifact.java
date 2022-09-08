@@ -22,27 +22,25 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.api.query;
+package org.spongepowered.downloads.api;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.Group;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = GroupsResponse.Available.class, name = "Groups")
-})
-public interface GroupsResponse {
+import java.net.URI;
+import java.util.Optional;
 
-    @JsonSerialize
-    record Available(@JsonProperty List<Group> groups)
-        implements GroupsResponse {
-        @JsonCreator
-        public Available {
-        }
+@JsonSerialize
+public final record Artifact(
+    @JsonProperty Optional<String> classifier,
+    @JsonProperty URI downloadUrl,
+    @JsonProperty String md5,
+    @JsonProperty String sha1,
+    @JsonProperty String extension
+) {
+    @JsonCreator
+    public Artifact {
     }
+
 }

@@ -30,67 +30,19 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.Group;
 
-import java.util.Objects;
-
 public final class GroupRegistration {
 
     @JsonDeserialize
-    public static final class RegisterGroupRequest {
+        public record RegisterGroupRequest(
+            @JsonProperty(required = true) String name,
+                                           @JsonProperty(required = true) String groupCoordinates,
+                                           @JsonProperty(required = true) String website
+    ) {
 
-        /**
-         * The name of the group, displayed for reading purposes
-         */
-        @JsonProperty(required = true)
-        public final String name;
-        /**
-         * The maven group coordinates of the group.
-         */
-        @JsonProperty(required = true)
-        public final String groupCoordinates;
-        /**
-         * A website for the group
-         */
-        @JsonProperty(required = true)
-        public final String website;
+            @JsonCreator
+            public RegisterGroupRequest { }
 
-        @JsonCreator
-        public RegisterGroupRequest(
-            final String name,
-            final String groupCoordinates,
-            final String website
-        ) {
-            this.name = name;
-            this.groupCoordinates = groupCoordinates;
-            this.website = website;
         }
-
-        @Override
-        public boolean equals(final Object obj) {
-            if (obj == this) {
-                return true;
-            }
-            if (obj == null || obj.getClass() != this.getClass()) {
-                return false;
-            }
-            final var that = (RegisterGroupRequest) obj;
-            return Objects.equals(this.name, that.name) &&
-                Objects.equals(this.groupCoordinates, that.groupCoordinates) &&
-                Objects.equals(this.website, that.website);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(this.name, this.groupCoordinates, this.website);
-        }
-
-        @Override
-        public String toString() {
-            return "RegisterGroupRequest[" +
-                "name=" + this.name + ", " +
-                "groupCoordinates=" + this.groupCoordinates + ", " +
-                "website=" + this.website + ']';
-        }
-    }
 
     public interface Response extends Jsonable {
 

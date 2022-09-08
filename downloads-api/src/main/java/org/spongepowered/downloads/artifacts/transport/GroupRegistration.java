@@ -22,27 +22,35 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.api.query;
+package org.spongepowered.downloads.artifacts.transport;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.vavr.collection.List;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.Group;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = GroupsResponse.Available.class, name = "Groups")
-})
-public interface GroupsResponse {
+public final class GroupRegistration {
 
-    @JsonSerialize
-    record Available(@JsonProperty List<Group> groups)
-        implements GroupsResponse {
-        @JsonCreator
-        public Available {
+    @JsonDeserialize
+        public record RegisterGroupRequest(
+            @JsonProperty(required = true) String name,
+                                           @JsonProperty(required = true) String groupCoordinates,
+                                           @JsonProperty(required = true) String website
+    ) {
+
+            @JsonCreator
+            public RegisterGroupRequest { }
+
+        }
+
+    public interface Response extends Jsonable {
+
+        record GroupAlreadyRegistered(String groupNameRequested) implements Response {
+        }
+
+        record GroupRegistered(Group group) implements Response {
+
         }
     }
 }

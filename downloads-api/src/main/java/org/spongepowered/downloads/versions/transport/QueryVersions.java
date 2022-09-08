@@ -22,27 +22,36 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.api.query;
+package org.spongepowered.downloads.versions.transport;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.Group;
+import io.vavr.collection.Map;
+import org.spongepowered.downloads.api.Artifact;
+import org.spongepowered.downloads.api.MavenCoordinates;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = GroupsResponse.Available.class, name = "Groups")
-})
-public interface GroupsResponse {
+import java.util.Optional;
+
+public interface QueryVersions {
 
     @JsonSerialize
-    record Available(@JsonProperty List<Group> groups)
-        implements GroupsResponse {
+    record VersionInfo(@JsonProperty Map<String, TagCollection> artifacts, int offset, int limit, int size) {
+
         @JsonCreator
-        public Available {
+        public VersionInfo {
         }
     }
+
+    @JsonSerialize
+    record VersionDetails(
+        @JsonProperty("coordinates") MavenCoordinates coordinates,
+        @JsonProperty("commit") Optional<VersionedChangelog> commit,
+        @JsonProperty("assets") List<Artifact> components,
+        @JsonProperty("tags") Map<String, String> tagValues,
+        @JsonProperty("recommended") boolean recommended
+        ) {
+    }
+
 }

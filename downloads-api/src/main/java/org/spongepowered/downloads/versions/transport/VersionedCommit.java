@@ -22,27 +22,48 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.api.query;
+package org.spongepowered.downloads.versions.transport;
+
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.Group;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = GroupsResponse.Available.class, name = "Groups")
-})
-public interface GroupsResponse {
+import java.net.URI;
+import java.time.ZonedDateTime;
 
-    @JsonSerialize
-    record Available(@JsonProperty List<Group> groups)
-        implements GroupsResponse {
+@JsonDeserialize
+public record VersionedCommit(
+    String message,
+    String body,
+    String sha,
+    Author author,
+    Commiter commiter,
+    URI link,
+    ZonedDateTime commitDate
+) {
+
+    @JsonCreator
+    public VersionedCommit {
+    }
+
+    @JsonDeserialize
+    public record Author(
+        String name,
+        String email
+    ) {
         @JsonCreator
-        public Available {
+        public Author {
+        }
+    }
+
+    @JsonDeserialize
+    public record Commiter(
+        String name,
+        String email
+    ) {
+        @JsonCreator
+        public Commiter {
         }
     }
 }
+
