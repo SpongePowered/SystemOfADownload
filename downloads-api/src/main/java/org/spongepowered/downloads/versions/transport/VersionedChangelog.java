@@ -22,27 +22,44 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.api.query;
+package org.spongepowered.downloads.versions.transport;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.Group;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = GroupsResponse.Available.class, name = "Groups")
-})
-public interface GroupsResponse {
+import java.net.URI;
 
-    @JsonSerialize
-    record Available(@JsonProperty List<Group> groups)
-        implements GroupsResponse {
+@JsonDeserialize
+public final record VersionedChangelog(
+    List<IndexedCommit> commits,
+    @JsonInclude(JsonInclude.Include.NON_DEFAULT) boolean processing
+) {
+
+    @JsonCreator
+    public VersionedChangelog {
+    }
+
+    @JsonDeserialize
+    public final record IndexedCommit(
+        VersionedCommit commit,
+        List<Submodule> submoduleCommits
+    ) {
         @JsonCreator
-        public Available {
+        public IndexedCommit {
         }
     }
+
+    @JsonDeserialize
+    public final record Submodule(
+        String name,
+        URI gitRepository,
+        List<IndexedCommit> commits
+    ) {
+        @JsonCreator
+        public Submodule {
+        }
+    }
+
 }

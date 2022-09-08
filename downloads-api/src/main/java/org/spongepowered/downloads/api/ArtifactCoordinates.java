@@ -22,27 +22,45 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.api.query;
+package org.spongepowered.downloads.api;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.Group;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = GroupsResponse.Available.class, name = "Groups")
-})
-public interface GroupsResponse {
+import java.util.StringJoiner;
 
-    @JsonSerialize
-    record Available(@JsonProperty List<Group> groups)
-        implements GroupsResponse {
-        @JsonCreator
-        public Available {
-        }
+@JsonDeserialize
+public record ArtifactCoordinates(
+    @JsonProperty(required = true) String groupId,
+    @JsonProperty(required = true) String artifactId
+) {
+    @JsonCreator
+    public ArtifactCoordinates {
+    }
+
+    public MavenCoordinates version(String version) {
+        return MavenCoordinates.parse(
+            new StringJoiner(":").add(this.groupId()).add(this.artifactId()).add(version).toString());
+    }
+
+    public String asMavenString() {
+        return this.groupId() + ":" + this.artifactId();
+    }
+
+    /**
+     * The group id of an artifact, as defined by the Apache Maven documentation.
+     * See <a href="https://maven.apache.org/pom.html#Maven_Coordinates">Maven Coordinates</a>.
+     */
+    public String groupId() {
+        return groupId;
+    }
+
+    /**
+     * The artifact id of an artifact, as defined by the Apache Maven documentation.
+     * See <a href="https://maven.apache.org/pom.html#Maven_Coordinates">Maven Coordinates</a>.
+     */
+    public String artifactId() {
+        return artifactId;
     }
 }

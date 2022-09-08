@@ -37,10 +37,10 @@ public final class GroupManager {
     public CompletionStage<GroupRegistration.Response> registerGroup(
         GroupRegistration.RegisterGroupRequest registration
     ) {
-        final String mavenCoordinates = registration.groupCoordinates;
-        final String name = registration.name;
-        final String website = registration.website;
-        return this.groupEntity(registration.groupCoordinates.toLowerCase(Locale.ROOT))
+        final String mavenCoordinates = registration.groupCoordinates();
+        final String name = registration.name();
+        final String website = registration.website();
+        return this.groupEntity(registration.groupCoordinates().toLowerCase(Locale.ROOT))
             .<GroupRegistration.Response>ask(
                 replyTo -> new GroupCommand.RegisterGroup(mavenCoordinates, name, website, replyTo),
                 this.askTimeout

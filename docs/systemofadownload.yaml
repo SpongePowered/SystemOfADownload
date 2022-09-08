@@ -1,0 +1,324 @@
+openapi: 3.0.1
+info:
+    title: SystemOfADownload - API
+    description: >-
+        An indexing service for making downloads of maven artifacts easier and more
+        human readable.
+    version: 1.0.0
+servers:
+    -   url: https://dl-api-new.spongepowered.org/api/v2
+        description: The main API server
+paths:
+    /groups:
+        get:
+            summary: Get list of registered groups
+            operationId: getGroups
+            responses:
+                '200':
+                    description: The list of groups registered
+                    content:
+                        application/json:
+                            schema:
+                                items:
+                                    $ref: '#/components/schemas/Group'
+    /groups/{groupID}:
+        get:
+            summary: Get a group information
+            operationId: getGroup
+            parameters:
+                -   $ref: '#/components/parameters/GroupID'
+            responses:
+                '200':
+                    $ref: '#/components/responses/GroupResponse'
+                '404':
+                    $ref: '#/components/responses/404'
+    /groups/{groupID}/artifacts:
+        get:
+            operationId: getArtifacts
+            parameters:
+                -   $ref: '#/components/parameters/GroupID'
+            responses:
+                '200':
+                    $ref: '#/components/responses/200ArtifactsAvailable'
+                '404':
+                    $ref: '#/components/responses/404'
+    /groups/{groupID}/artifacts/{artifactID}:
+        get:
+            operationId: getArtifact
+            parameters:
+                -   $ref: '#/components/parameters/GroupID'
+                -   $ref: '#/components/parameters/ArtifactId'
+            responses:
+                '200':
+                    description: The artifact information
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Artifact'
+                '404':
+                    $ref: '#/components/responses/404'
+    /groups/{groupID}/artifacts/{artifactID}/versions:
+        get:
+            operationId: getVersions
+            parameters:
+                -   $ref: '#/components/parameters/GroupID'
+                -   $ref: '#/components/parameters/ArtifactId'
+                -   $ref: '#/components/parameters/Tags'
+                -   $ref: '#/components/parameters/Limit'
+                -   $ref: '#/components/parameters/Offset'
+            responses:
+                '200':
+                    description: The list of versions available
+                    content:
+                        application/json:
+                            schema:
+                                properties:
+                                    artifacts:
+                                        type: object
+                                        additionalProperties:
+                                            $ref: '#/components/schemas/Version'
+                                        example:
+                                            1.12.2-7.4.7:
+                                                tagValues:
+                                                    minecraft: 1.12.2
+                                                    api: '7.4'
+                                                recommended: true
+                '404':
+                    $ref: '#/components/responses/404'
+    /groups/{groupID}/artifacts/{artifactID}/versions/{version}:
+        summary: versionDetails
+        get:
+            operationId: getVersionDetails
+            parameters:
+                -   $ref: '#/components/parameters/GroupID'
+                -   $ref: '#/components/parameters/ArtifactId'
+                -   $ref: '#/components/parameters/Version'
+            responses:
+                '200':
+                    description: The details of the version specifically
+                    content:
+                        application/json:
+                            schema:
+                                properties:
+
+components:
+    schemas:
+        Group:
+            type: object
+            properties:
+                groupCoordinates:
+                    type: string
+                    description: The maven coordinates for the group, e.g. org.spongepowered
+                name:
+                    type: string
+                    description: >-
+                        The name of the group, often times different than the group
+                        coordinates, e.g. SpongePowered
+                website:
+                    type: string
+                    description: >-
+                        The registered website for the group, usually a homepage, e.g.
+                        https://www.spongepowered.org
+        GroupMissing:
+            type: object
+            properties:
+                groupID:
+                    type: string
+                    description: The group ID in maven coordinate format, e.g. com.example
+        Coordinates:
+            type: object
+            properties:
+                groupId:
+                    type: string
+                    description: The group ID in maven coordinate format, e.g. com.example
+                    example: org.spongepowered
+                artifactId:
+                    type: string
+                    description: The artifact ID in maven coordinate format, e.g. example-plugin
+                    example: spongevanilla
+        Artifact:
+            description: An artifact with information
+            type: object
+            properties:
+                coordinates:
+                    $ref: '#/components/schemas/Coordinates'
+                name:
+                    type: string
+                    description: The name of the artifact
+                    example: spongevanilla
+                displayName:
+                    type: string
+                    description: The display name of the artifact
+                    example: SpongeVanilla
+                website:
+                    type: string
+                    description: The website of the artifact
+                    example: https://spongepowered.org/
+                issues:
+                    type: string
+                    description: The url for submitting issues
+                    example: https://github.com/SpongePowered/SpongeVanilla/issues
+                gitRepository:
+                    type: string
+                    description: The git repository of the artifact
+                    example: https://github.com/spongepowered/sponge
+                tags:
+                    type: object
+                    example:
+                        api:
+                            - '9.0'
+                            - '8.1'
+                            - '8.0'
+                            - '7.4'
+                            - '7.3'
+                            - '7.2'
+                            - '7.1'
+                            - '7.0'
+                            - '5.0'
+                        minecraft:
+                            - 1.18.2
+                            - 1.16.5
+                            - 1.12.2
+                            - 1.12.1
+                            - '1.12'
+                            - 1.11.2
+                            - '1.11'
+                            - 1.10.2
+                            - 1.9.4
+                            - '1.9'
+                            - 1.8.9
+                            - '1.8'
+                    additionalProperties:
+                        type: array
+                        items:
+                            type: string
+                            example:
+                                - 1.16.5
+                                - 1.12.2
+                                - '1.12'
+                                - 1.10.2
+                                - 1.8.9
+                                - '1.8'
+        Version:
+            type: object
+            properties:
+                recommended:
+                    type: boolean
+                    description: Whether or not this version is recommended
+                    example: true
+                tagValues:
+                    type: object
+                    description: The tag values for this version
+                    additionalProperties:
+                        type: string
+                        description: The value of the tag
+                    example:
+                        api: '8.0'
+                        minecraft: 1.16.5
+    parameters:
+        GroupID:
+            name: groupID
+            in: path
+            description: The group ID in maven coordinate format
+            example: org.spongepowered
+            required: true
+            schema:
+                type: string
+        ArtifactId:
+            name: artifactID
+            in: path
+            description: The artifact id in maven coordinate format
+            example: spongevanilla
+            required: true
+            schema:
+                type: string
+        Recommended:
+            name: recommended
+            in: query
+            description: Whether to only return recommended versions
+            example: true
+            schema:
+                type: boolean
+        Tags:
+            name: tags
+            in: query
+            schema:
+                type: string
+            description: >
+                The tags to filter by. Formatted in a comma separated list of tags where
+                the tag key
+                
+                and value are joined by a colon. Chaining multiple tags is supported.
+                Conflicting tags
+                
+                will be ignored.
+            example: api:8.0,minecraft:1.16.5
+        Limit:
+            name: limit
+            in: query
+            description: The limit of results to return
+            example: 10
+            schema:
+                type: integer
+                minimum: 1
+                maximum: 10
+        Offset:
+            name: offset
+            in: query
+            description: The offset of results to return
+            example: 10
+            schema:
+                type: integer
+        Version:
+            name: version
+            in: path
+            description: The version string
+            example: '1.16.5-8.1.0-RC1153'
+            required: true
+            schema:
+                type: string
+    responses:
+        '404':
+            description: Not found
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            name:
+                                type: string
+                                description: The name of the error
+                                example: NotFound
+                            detail:
+                                type: string
+                                description: The detail of the error
+                                example: group or artifact not found
+        GroupResponse:
+            description: Available Group Information
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            group:
+                                $ref: '#/components/schemas/Group'
+        404GroupMissing:
+            description: Group not found
+            content:
+                application/json:
+                    schema:
+                        $ref: '#/components/schemas/GroupMissing'
+        200ArtifactsAvailable:
+            description: Artifacts available within a Group
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            artifactIds:
+                                type: array
+                                items:
+                                    type: string
+                                    description: >-
+                                        The maven coordinate formatted id of an artifact, e.g.
+                                        spongevanilla

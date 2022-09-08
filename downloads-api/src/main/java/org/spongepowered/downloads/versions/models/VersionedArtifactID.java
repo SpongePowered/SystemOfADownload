@@ -22,27 +22,38 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.api.query;
+package org.spongepowered.downloads.versions.models;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import io.vavr.collection.List;
-import org.spongepowered.downloads.artifact.api.Group;
+import java.io.Serializable;
+import java.util.Objects;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = GroupsResponse.Available.class, name = "Groups")
-})
-public interface GroupsResponse {
+public class VersionedArtifactID implements Serializable {
+    private String artifactId;
 
-    @JsonSerialize
-    record Available(@JsonProperty List<Group> groups)
-        implements GroupsResponse {
-        @JsonCreator
-        public Available {
+    private String groupId;
+
+    private String version;
+
+    public VersionedArtifactID(final String artifactId, final String groupId, final String version) {
+        this.artifactId = artifactId;
+        this.groupId = groupId;
+        this.version = version;
+    }
+
+    @Override
+    public boolean equals(final Object o) {
+        if (this == o) {
+            return true;
         }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        VersionedArtifactID that = (VersionedArtifactID) o;
+        return artifactId.equals(that.artifactId) && groupId.equals(that.groupId) && version.equals(that.version);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(artifactId, groupId, version);
     }
 }

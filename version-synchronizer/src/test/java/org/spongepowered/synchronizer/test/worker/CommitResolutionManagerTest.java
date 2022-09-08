@@ -100,4 +100,21 @@ public class CommitResolutionManagerTest {
         ));
         probe.fishForMessage(Duration.ofSeconds(60), m -> FishingOutcomes.complete());
     }
+
+    @Test
+    public void verifyCommitFromTwoRepositories() {
+        final var teller = testKit.createTestProbe(CommitDetailsRegistrar.Command.class);
+        final var actor = testKit.spawn(CommitResolutionManager.resolveCommit(teller.ref()));
+        final var coords = new ArtifactCoordinates("org.spongepowered", "spongevanilla").version("1.16.5-8.1.0-RC1184");
+        final var commit = "6e443ec04ded4385d12c2e609360e81a770fbfcb";
+        final var url = "https://github.com/spongepowered/spongevanilla.git";
+        final var newUrl = "https://github.com/spongepowered/sponge.git";
+        final var repos = List.of(URI.create(newUrl), URI.create(url));
+        final var probe = testKit.<Done>createTestProbe();
+        final var replyTo = probe.ref();
+        actor.tell(new CommitResolutionManager.ResolveCommitDetails(
+            coords, commit, repos, replyTo
+        ));
+        probe.fishForMessage(Duration.ofMinutes(10), m -> FishingOutcomes.complete());
+    }
 }

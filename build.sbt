@@ -16,10 +16,10 @@ ThisBuild / scmInfo := Some(ScmInfo(url("https://github.com/SpongePowered/System
   "scm:git@github.com:spongepowered/systemofadownload.git"))
 ThisBuild / developers := List(
   Developer(
-    id    = "gabizou",
-    name  = "Gabriel Harris-Rouquette",
+    id = "gabizou",
+    name = "Gabriel Harris-Rouquette",
     email = "gabizou@spongepowered.org",
-    url   = url("https://github.com/gabizou")
+    url = url("https://github.com/gabizou")
   )
 )
 ThisBuild / description := "A Web Application for indexing and cataloging Artifacts in Maven Repositories"
@@ -114,18 +114,21 @@ lazy val junit = "org.junit.jupiter" % "junit-jupiter-api" % "5.7.2" % Test
 lazy val jupiterInterface = "net.aichler" % "jupiter-interface" % "0.9.1" % Test
 
 
-// Play jackson uses 2.11, but 2.12 is backwards compatible
-lazy val jacksonDataBind = "com.fasterxml.jackson.core" % "jackson-databind" % "2.12.5"
-lazy val jacksonDataTypeJsr310 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.12.5"
-lazy val jacksonDataformatXml = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % "2.12.5"
-lazy val jacksonDataformatCbor = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % "2.12.5"
-lazy val jacksonDatatypeJdk8 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % "2.12.5"
-lazy val jacksonParameterNames = "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.12.5"
-lazy val jacksonParanamer = "com.fasterxml.jackson.module" % "jackson-module-paranamer" % "2.12.5"
-lazy val jacksonScala = "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.12.5"
-lazy val jacksonGuava = "com.fasterxml.jackson.datatype" % "jackson-datatype-guava" % "2.12.5"
-lazy val jacksonPcollections = "com.fasterxml.jackson.datatype" % "jackson-datatype-pcollections" % "2.12.5"
+// Play jackson uses 2.11, but 2.13 is backwards compatible
+lazy val jacksonDataBind = "com.fasterxml.jackson.core" % "jackson-databind" % "2.13.3"
+lazy val jacksonDataTypeJsr310 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.13.3"
+lazy val jacksonDataformatXml = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % "2.13.3"
+lazy val jacksonDataformatCbor = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % "2.13.3"
+lazy val jacksonDatatypeJdk8 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % "2.13.3"
+lazy val jacksonParameterNames = "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.13.3"
+lazy val jacksonParanamer = "com.fasterxml.jackson.module" % "jackson-module-paranamer" % "2.13.3"
+lazy val jacksonScala = "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.3"
+lazy val jacksonGuava = "com.fasterxml.jackson.datatype" % "jackson-datatype-guava" % "2.13.3"
+lazy val jacksonPcollections = "com.fasterxml.jackson.datatype" % "jackson-datatype-pcollections" % "2.13.3"
 // endregion
+
+lazy val akkaHttp = "com.typesafe.akka" %% "akka-http" % LagomVersion.akkaHttp
+lazy val akkaJackson = "com.typesafe.akka" %% "akka-http-jackson" % LagomVersion.akkaHttp
 
 lazy val akkaStreamTyped = "com.typesafe.akka" %% "akka-stream-typed" % LagomVersion.akka
 lazy val akkaPersistenceTestkit = "com.typesafe.akka" %% "akka-persistence-testkit" % LagomVersion.akka % Test
@@ -133,14 +136,20 @@ lazy val akkaKubernetesDiscovery = "com.lightbend.akka.discovery" %% "akka-disco
 
 lazy val playFilterHelpers = "com.typesafe.play" %% "filters-helpers" % LagomVersion.play
 
-lazy val hibernate = "org.hibernate" % "hibernate-core" % "5.5.4.Final"
-lazy val postgres = "org.postgresql" % "postgresql" % "42.3.5"
-lazy val hibernateTypes = "com.vladmihalcea" % "hibernate-types-55" % "2.14.0"
+lazy val hibernate = "org.hibernate" % "hibernate-core" % "5.5.6"
+lazy val postgres = "org.postgresql" % "postgresql" % "42.5.0"
+lazy val hibernateTypes = "com.vladmihalcea" % "hibernate-types-55" % "2.18.0"
 
-lazy val guice = "com.google.inject" % "guice" % "5.0.1"
+lazy val guice = "com.google.inject" % "guice" % "5.1.0"
 
 lazy val jgit = "org.eclipse.jgit" % "org.eclipse.jgit" % "6.1.0.202203080745-r"
 lazy val jgit_jsch = "org.eclipse.jgit" % "org.eclipse.jgit.ssh.jsch" % "6.1.0.202203080745-r"
+
+lazy val mavenArtifact = "org.apache.maven" % "maven-artifact" % "3.8.5"
+
+lazy val testContainers = "org.testcontainers" % "testcontainers" % "1.17.3" % Test
+lazy val testContainersJunit = "org.testcontainers" % "junit-jupiter" % "1.17.3" % Test
+lazy val testContainersPostgres = "org.testcontainers" % "postgresql" % "1.17.3" % Test
 
 // endregion
 
@@ -149,7 +158,7 @@ lazy val jgit_jsch = "org.eclipse.jgit" % "org.eclipse.jgit.ssh.jsch" % "6.1.0.2
 def soadProject(name: String) =
   Project(name, file(name)).settings(
     moduleName := s"systemofadownload-$name",
-    Compile / javacOptions := Seq("--release", "17", "-parameters", "-encoding", "UTF-8"), //Override the settings Lagom sets
+    Compile / javacOptions := Seq("--release", "17", "--enable-preview", "-parameters", "-encoding", "UTF-8"), //Override the settings Lagom sets
     artifactName := { (_: ScalaVersion, module: ModuleID, artifact: Artifact) =>
       s"${artifact.name}-${module.revision}.${artifact.extension}"
     },
@@ -308,6 +317,50 @@ lazy val `artifact-query-api` = apiSoadProject("artifact-query-api").dependsOn(
 lazy val `artifact-query-impl` = implSoadProjectWithPersistence("artifact-query-impl", `artifact-query-api`).settings(
   libraryDependencies += playFilterHelpers
 )
+lazy val `downloads-api` = soadProject("downloads-api").enablePlugins(DockerPlugin)
+        .settings(
+          libraryDependencies ++= Seq(
+            // App
+            mavenArtifact,
+
+            // Akka
+            akkaHttp,
+            akkaStreamTyped,
+            akkaKubernetesDiscovery,
+
+            // Jackson serialization
+            akkaJackson,
+            jacksonDataBind,
+            jacksonDataTypeJsr310,
+            jacksonDataformatCbor,
+            jacksonDatatypeJdk8,
+            jacksonParameterNames,
+            jacksonParanamer,
+            jacksonScala,
+            //Language Features
+            vavr,
+            // Persistence
+            hibernate,
+            postgres,
+            // Testing
+            akkaPersistenceTestkit,
+            junit,
+            jupiterInterface
+          ),
+          dockerUpdateLatest := true,
+          dockerBaseImage := "eclipse-temurin:17.0.3_7-jre",
+          dockerChmodType := DockerChmodType.UserGroupWriteExecute,
+          dockerExposedPorts := Seq(9000, 8558, 2552),
+          //  dockerLabels ++= Map(
+          //    "author" -> "spongepowered"
+          //  ),
+          Docker / maintainer := "spongepowered",
+          Docker / packageName := s"systemofadownload-$name",
+          dockerUsername := Some("spongepowered"),
+          Universal / javaOptions ++= Seq(
+            "-Dpidfile.path=/dev/null"
+          )
+        )
 
 lazy val `versions-api` = apiSoadProject("versions-api").dependsOn(
   //Module Dependencies
