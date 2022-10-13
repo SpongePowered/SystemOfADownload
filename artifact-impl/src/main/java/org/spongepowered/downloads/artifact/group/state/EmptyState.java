@@ -24,9 +24,17 @@
  */
 package org.spongepowered.downloads.artifact.group.state;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.spongepowered.downloads.artifact.api.Group;
 
-public final class EmptyState implements GroupState {
+@JsonDeserialize
+public record EmptyState() implements GroupState {
+
+    @JsonCreator
+    public EmptyState {
+    }
+
     @Override
     public boolean isEmpty() {
         return true;

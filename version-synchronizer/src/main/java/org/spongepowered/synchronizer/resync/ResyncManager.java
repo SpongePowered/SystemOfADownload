@@ -124,11 +124,11 @@ public final class ResyncManager {
             .onMessage(PerformResync.class, g -> {
                 final var makeRequest = artifactService.getGroups()
                     .invoke()
-                    .thenApply(groups -> ((GroupsResponse.Available) groups).groups)
+                    .thenApply(groups -> ((GroupsResponse.Available) groups).groups())
                     .thenCompose(groups -> {
                         final Sink<List<ArtifactCoordinates>, CompletionStage<List<ArtifactCoordinates>>> fold = Sink.fold(
                             List.empty(), List::appendAll);
-                        return Source.from(groups.map(Group::getGroupCoordinates).asJava())
+                        return Source.from(groups.map(Group::groupCoordinates).asJava())
                             .async()
                             .via(requestFlow)
                             .map(RequestArtifactsToSync.ArtifactsToSync::artifactsNeeded)

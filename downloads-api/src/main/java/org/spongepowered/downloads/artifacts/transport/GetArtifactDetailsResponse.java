@@ -22,21 +22,28 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.api;
+package org.spongepowered.downloads.artifacts.transport;
 
-import com.fasterxml.jackson.annotation.JsonValue;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import io.vavr.collection.Map;
+import io.vavr.collection.SortedSet;
+import org.spongepowered.downloads.api.ArtifactCoordinates;
 
-@JsonDeserialize
-public enum Ordering {
-    Ascending("asc"),
-    Descending("desc");
+import java.io.Serializable;
+import java.util.Optional;
 
-    @JsonValue
-    public final String representation;
+@JsonSerialize
+public record GetArtifactDetailsResponse(Optional<RetrievedArtifact> maybeArtifact) {
 
+    @JsonSerialize
+    record RetrievedArtifact(
+        ArtifactCoordinates coordinates,
+        String displayName,
+        String website,
+        String gitRepository,
+        String issues,
+        Map<String, SortedSet<String>> tags
+    ) implements Serializable {
 
-    Ordering(final String representation) {
-        this.representation = representation;
     }
 }

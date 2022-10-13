@@ -67,7 +67,7 @@ public interface GroupUpdate extends Jsonable {
 
         @Override
         public String groupId() {
-            return this.coordinates.groupId;
+            return this.coordinates.groupId();
         }
     }
 

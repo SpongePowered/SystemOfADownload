@@ -40,7 +40,7 @@ public record PopulatedState(ArtifactCoordinates coordinates,
     }
 
     public boolean isEmpty() {
-        return this.coordinates.artifactId.isBlank() && this.coordinates.groupId.isBlank();
+        return this.coordinates.artifactId().isBlank() && this.coordinates.groupId().isBlank();
     }
 
     public DetailsState withDisplayName(DetailsEvent.ArtifactDetailsUpdated event) {

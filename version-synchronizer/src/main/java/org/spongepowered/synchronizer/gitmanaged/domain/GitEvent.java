@@ -56,19 +56,19 @@ public sealed interface GitEvent extends AggregateEvent<GitEvent>, Jsonable {
     }
 
     @JsonTypeName("repository-registered")
-    final record RepositoryRegistered(URI repository) implements GitEvent {
+    record RepositoryRegistered(URI repository) implements GitEvent {
         @JsonCreator
         public RepositoryRegistered {
         }
     }
     @JsonTypeName("commit-extracted")
-    final record CommitRegistered(MavenCoordinates coordinates, String commit) implements GitEvent {
+    record CommitRegistered(MavenCoordinates coordinates, String commit) implements GitEvent {
         @JsonCreator
         public CommitRegistered {
         }
     }
     @JsonTypeName("commit-resolved")
-    final record CommitResolved(MavenCoordinates coordinates, VersionedCommit resolvedCommit) implements GitEvent {
+    record CommitResolved(MavenCoordinates coordinates, VersionedCommit resolvedCommit) implements GitEvent {
         @JsonCreator
         public CommitResolved {
         }

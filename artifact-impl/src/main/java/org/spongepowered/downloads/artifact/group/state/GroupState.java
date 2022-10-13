@@ -24,9 +24,17 @@
  */
 package org.spongepowered.downloads.artifact.group.state;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.Group;
 
-public interface GroupState {
+@JsonDeserialize
+@JsonSubTypes({
+    @JsonSubTypes.Type(value = PopulatedState.class, name = "populated"),
+    @JsonSubTypes.Type(value = EmptyState.class, name = "empty")
+})
+public interface GroupState extends Jsonable {
 
     boolean isEmpty();
 

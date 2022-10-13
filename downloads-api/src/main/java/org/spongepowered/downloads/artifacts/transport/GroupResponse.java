@@ -22,19 +22,15 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifact.errors;
+package org.spongepowered.downloads.artifacts.transport;
 
-import com.lightbend.lagom.javadsl.api.transport.TransportErrorCode;
-import com.lightbend.lagom.javadsl.api.transport.TransportException;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import org.spongepowered.downloads.api.Group;
 
-public class GitRemoteValidationException extends TransportException {
+import java.io.Serializable;
+import java.util.Optional;
 
-    public GitRemoteValidationException(String message) {
-        super(TransportErrorCode.BadRequest, message);
-    }
-
-    public GitRemoteValidationException(String message, final Throwable cause) {
-        super(TransportErrorCode.BadRequest, message, cause);
-    }
+@JsonSerialize
+public record GroupResponse(Optional<Group> group) implements Serializable {
 
 }

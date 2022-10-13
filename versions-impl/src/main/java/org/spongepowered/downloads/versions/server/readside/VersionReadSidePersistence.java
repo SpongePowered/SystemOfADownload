@@ -83,14 +83,14 @@ public class VersionReadSidePersistence {
                         "Artifact.selectByGroupAndArtifact",
                         JpaArtifact.class
                     );
-                    final var singleResult = artifactQuery.setParameter("groupId", coordinates.groupId)
-                        .setParameter("artifactId", coordinates.artifactId)
+                    final var singleResult = artifactQuery.setParameter("groupId", coordinates.groupId())
+                        .setParameter("artifactId", coordinates.artifactId())
                         .setMaxResults(1)
                         .getResultList();
                     if (singleResult.isEmpty()) {
                         final var jpaArtifact = new JpaArtifact();
-                        jpaArtifact.setGroupId(coordinates.groupId);
-                        jpaArtifact.setArtifactId(coordinates.artifactId);
+                        jpaArtifact.setGroupId(coordinates.groupId());
+                        jpaArtifact.setArtifactId(coordinates.artifactId());
                         em.persist(jpaArtifact);
                     }
                 })
@@ -129,8 +129,8 @@ public class VersionReadSidePersistence {
                         "Artifact.selectWithTags",
                         JpaArtifact.class
                     );
-                    artifactQuery.setParameter("groupId", coordinates.groupId);
-                    artifactQuery.setParameter("artifactId", coordinates.artifactId);
+                    artifactQuery.setParameter("groupId", coordinates.groupId());
+                    artifactQuery.setParameter("artifactId", coordinates.artifactId());
                     final var tag = tagRegistered.entry();
                     final var artifact = artifactQuery.getSingleResult();
                     final var jpaTag = artifact.getTags().stream()
@@ -153,8 +153,8 @@ public class VersionReadSidePersistence {
                         JpaArtifact.class
                     );
 
-                    artifactQuery.setParameter("groupId", coordinates.groupId);
-                    artifactQuery.setParameter("artifactId", coordinates.artifactId);
+                    artifactQuery.setParameter("groupId", coordinates.groupId());
+                    artifactQuery.setParameter("artifactId", coordinates.artifactId());
                     final var artifact = artifactQuery.getSingleResult();
                     final var recommendation = em.createNamedQuery(
                             "RegexRecommendation.findByArtifact", JpaArtifactRegexRecommendation.class)
@@ -178,8 +178,8 @@ public class VersionReadSidePersistence {
                                 "ArtifactVersion.findByCoordinates",
                                 JpaArtifactVersion.class
                             )
-                            .setParameter("groupId", event.coordinates().groupId)
-                            .setParameter("artifactId", event.coordinates().artifactId)
+                            .setParameter("groupId", event.coordinates().groupId())
+                            .setParameter("artifactId", event.coordinates().artifactId())
                             .setParameter("version", v)
                             .setMaxResults(1)
                             .getSingleResult();

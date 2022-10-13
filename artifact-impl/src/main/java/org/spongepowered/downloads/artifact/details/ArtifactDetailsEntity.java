@@ -142,7 +142,7 @@ public class ArtifactDetailsEntity
                         cmd.replyTo(),
                         us -> Either.right(
                             new ArtifactDetails.Response(
-                                us.coordinates().artifactId,
+                                us.coordinates().artifactId(),
                                 us.displayName(),
                                 us.website(),
                                 us.issues(),
@@ -159,7 +159,7 @@ public class ArtifactDetailsEntity
                         cmd.replyTo(),
                         us -> Either.right(
                             new ArtifactDetails.Response(
-                                us.coordinates().artifactId,
+                                us.coordinates().artifactId(),
                                 us.displayName(),
                                 us.website(),
                                 us.issues(),
@@ -176,7 +176,7 @@ public class ArtifactDetailsEntity
                         cmd.replyTo(),
                         us -> Either.right(
                             new ArtifactDetails.Response(
-                                us.coordinates().artifactId,
+                                us.coordinates().artifactId(),
                                 us.displayName(),
                                 us.website(),
                                 us.issues(),
@@ -193,7 +193,7 @@ public class ArtifactDetailsEntity
                         cmd.replyTo(),
                         us -> Either.right(
                             new ArtifactDetails.Response(
-                                us.coordinates().artifactId,
+                                us.coordinates().artifactId(),
                                 us.displayName(),
                                 us.website(),
                                 us.issues(),

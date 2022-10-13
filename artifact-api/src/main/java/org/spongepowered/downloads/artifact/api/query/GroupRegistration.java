@@ -30,129 +30,27 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.Group;
 
-import java.io.Serial;
-import java.util.Objects;
-
 public final class GroupRegistration {
 
     @JsonDeserialize
-    public static final class RegisterGroupRequest {
+        public record RegisterGroupRequest(
+            @JsonProperty(required = true) String name,
+                                           @JsonProperty(required = true) String groupCoordinates,
+                                           @JsonProperty(required = true) String website
+    ) {
 
-        /**
-         * The name of the group, displayed for reading purposes
-         */
-        @JsonProperty(required = true)
-        public final String name;
-        /**
-         * The maven group coordinates of the group.
-         */
-        @JsonProperty(required = true)
-        public final String groupCoordinates;
-        /**
-         * A website for the group
-         */
-        @JsonProperty(required = true)
-        public final String website;
+            @JsonCreator
+            public RegisterGroupRequest { }
 
-        @JsonCreator
-        public RegisterGroupRequest(
-            final String name,
-            final String groupCoordinates,
-            final String website
-        ) {
-            this.name = name;
-            this.groupCoordinates = groupCoordinates;
-            this.website = website;
         }
-
-        @Override
-        public boolean equals(final Object obj) {
-            if (obj == this) return true;
-            if (obj == null || obj.getClass() != this.getClass()) return false;
-            final var that = (RegisterGroupRequest) obj;
-            return Objects.equals(this.name, that.name) &&
-                Objects.equals(this.groupCoordinates, that.groupCoordinates) &&
-                Objects.equals(this.website, that.website);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(this.name, this.groupCoordinates, this.website);
-        }
-
-        @Override
-        public String toString() {
-            return "RegisterGroupRequest[" +
-                "name=" + this.name + ", " +
-                "groupCoordinates=" + this.groupCoordinates + ", " +
-                "website=" + this.website + ']';
-        }
-    }
 
     public interface Response extends Jsonable {
 
-        final class GroupAlreadyRegistered implements Response {
-            @Serial private static final long serialVersionUID = 0L;
-            private final String groupNameRequested;
-
-            public GroupAlreadyRegistered(final String groupNameRequested) {
-                this.groupNameRequested = groupNameRequested;
-            }
-
-            public String groupNameRequested() {
-                return this.groupNameRequested;
-            }
-
-            @Override
-            public boolean equals(final Object obj) {
-                if (obj == this) return true;
-                if (obj == null || obj.getClass() != this.getClass()) return false;
-                final var that = (GroupAlreadyRegistered) obj;
-                return Objects.equals(this.groupNameRequested, that.groupNameRequested);
-            }
-
-            @Override
-            public int hashCode() {
-                return Objects.hash(this.groupNameRequested);
-            }
-
-            @Override
-            public String toString() {
-                return "GroupAlreadyRegistered[" +
-                    "groupNameRequested=" + this.groupNameRequested + ']';
-            }
+        record GroupAlreadyRegistered(String groupNameRequested) implements Response {
         }
 
-        final class GroupRegistered implements Response {
-            @Serial private static final long serialVersionUID = 0L;
-            private final Group group;
+        record GroupRegistered(Group group) implements Response {
 
-            public GroupRegistered(final Group group) {
-                this.group = group;
-            }
-
-            public Group group() {
-                return this.group;
-            }
-
-            @Override
-            public boolean equals(final Object obj) {
-                if (obj == this) return true;
-                if (obj == null || obj.getClass() != this.getClass()) return false;
-                final var that = (GroupRegistered) obj;
-                return Objects.equals(this.group, that.group);
-            }
-
-            @Override
-            public int hashCode() {
-                return Objects.hash(this.group);
-            }
-
-            @Override
-            public String toString() {
-                return "GroupRegistered[" +
-                    "group=" + this.group + ']';
-            }
         }
     }
 }

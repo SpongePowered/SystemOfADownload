@@ -32,8 +32,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.vavr.collection.List;
 import org.spongepowered.downloads.artifact.api.Group;
 
-import java.util.Objects;
-
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
     @JsonSubTypes.Type(value = GroupsResponse.Available.class, name = "Groups")
@@ -41,35 +39,10 @@ import java.util.Objects;
 public interface GroupsResponse {
 
     @JsonSerialize
-    final class Available implements GroupsResponse {
-
-        @JsonProperty
-        public final List<Group> groups;
-
+    record Available(@JsonProperty List<Group> groups)
+        implements GroupsResponse {
         @JsonCreator
-        public Available(final List<Group> groups) {
-            this.groups = groups;
-        }
-
-
-        @Override
-        public boolean equals(final Object obj) {
-            if (obj == this) return true;
-            if (obj == null || obj.getClass() != this.getClass()) return false;
-            final var that = (Available) obj;
-            return Objects.equals(this.groups, that.groups);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(this.groups);
-        }
-
-        @Override
-        public String toString() {
-            return "Available[" +
-                "group=" + this.groups + ']';
+        public Available {
         }
     }
-
 }
