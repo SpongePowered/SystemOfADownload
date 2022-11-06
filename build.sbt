@@ -116,7 +116,7 @@ lazy val jupiterInterface = "net.aichler" % "jupiter-interface" % "0.9.1" % Test
 
 // Play jackson uses 2.11, but 2.12 is backwards compatible
 lazy val jacksonDataBind = "com.fasterxml.jackson.core" % "jackson-databind" % "2.12.5"
-lazy val jacksonDataTypeJsr310 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.12.5"
+lazy val jacksonDataTypeJsr310 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.14.0"
 lazy val jacksonDataformatXml = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % "2.12.5"
 lazy val jacksonDataformatCbor = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % "2.12.5"
 lazy val jacksonDatatypeJdk8 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % "2.12.5"
