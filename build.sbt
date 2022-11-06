@@ -123,7 +123,7 @@ lazy val jacksonDatatypeJdk8 = "com.fasterxml.jackson.datatype" % "jackson-datat
 lazy val jacksonParameterNames = "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.12.5"
 lazy val jacksonParanamer = "com.fasterxml.jackson.module" % "jackson-module-paranamer" % "2.12.5"
 lazy val jacksonScala = "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.12.5"
-lazy val jacksonGuava = "com.fasterxml.jackson.datatype" % "jackson-datatype-guava" % "2.12.5"
+lazy val jacksonGuava = "com.fasterxml.jackson.datatype" % "jackson-datatype-guava" % "2.14.0"
 lazy val jacksonPcollections = "com.fasterxml.jackson.datatype" % "jackson-datatype-pcollections" % "2.12.5"
 // endregion
 
