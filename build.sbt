@@ -109,22 +109,22 @@ lazy val lagomPac4j = "org.pac4j" %% "lagom-pac4j" % "2.2.1"
 lazy val lagomPac4jLdap = "org.pac4j" % "pac4j-ldap" % "3.7.0"
 
 // Enable Junit5
-lazy val junit = "org.junit.jupiter" % "junit-jupiter-api" % "5.7.2" % Test
+lazy val junit = "org.junit.jupiter" % "junit-jupiter-api" % "5.9.0" % Test
 // sbt-jupiter-interface
-lazy val jupiterInterface = "net.aichler" % "jupiter-interface" % "0.9.1" % Test
+lazy val jupiterInterface = "net.aichler" % "jupiter-interface" % "0.11.1" % Test
 
 
 // Play jackson uses 2.11, but 2.12 is backwards compatible
-lazy val jacksonDataBind = "com.fasterxml.jackson.core" % "jackson-databind" % "2.12.5"
-lazy val jacksonDataTypeJsr310 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.12.5"
-lazy val jacksonDataformatXml = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % "2.12.5"
-lazy val jacksonDataformatCbor = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % "2.12.5"
-lazy val jacksonDatatypeJdk8 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % "2.12.5"
-lazy val jacksonParameterNames = "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.12.5"
-lazy val jacksonParanamer = "com.fasterxml.jackson.module" % "jackson-module-paranamer" % "2.12.5"
-lazy val jacksonScala = "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.12.5"
-lazy val jacksonGuava = "com.fasterxml.jackson.datatype" % "jackson-datatype-guava" % "2.12.5"
-lazy val jacksonPcollections = "com.fasterxml.jackson.datatype" % "jackson-datatype-pcollections" % "2.12.5"
+lazy val jacksonDataBind = "com.fasterxml.jackson.core" % "jackson-databind" % "2.13.4.2"
+lazy val jacksonDataTypeJsr310 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.13.4"
+lazy val jacksonDataformatXml = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % "2.13.4"
+lazy val jacksonDataformatCbor = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % "2.13.4"
+lazy val jacksonDatatypeJdk8 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % "2.13.4"
+lazy val jacksonParameterNames = "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.13.4"
+lazy val jacksonParanamer = "com.fasterxml.jackson.module" % "jackson-module-paranamer" % "2.13.4"
+lazy val jacksonScala = "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.13.4"
+lazy val jacksonGuava = "com.fasterxml.jackson.datatype" % "jackson-datatype-guava" % "2.13.4"
+lazy val jacksonPcollections = "com.fasterxml.jackson.datatype" % "jackson-datatype-pcollections" % "2.13.4"
 // endregion
 
 lazy val akkaStreamTyped = "com.typesafe.akka" %% "akka-stream-typed" % LagomVersion.akka
@@ -133,11 +133,11 @@ lazy val akkaKubernetesDiscovery = "com.lightbend.akka.discovery" %% "akka-disco
 
 lazy val playFilterHelpers = "com.typesafe.play" %% "filters-helpers" % LagomVersion.play
 
-lazy val hibernate = "org.hibernate" % "hibernate-core" % "5.5.4.Final"
-lazy val postgres = "org.postgresql" % "postgresql" % "42.3.5"
-lazy val hibernateTypes = "com.vladmihalcea" % "hibernate-types-55" % "2.14.0"
+lazy val hibernate = "org.hibernate" % "hibernate-core" % "5.5.6"
+lazy val postgres = "org.postgresql" % "postgresql" % "42.5.0"
+lazy val hibernateTypes = "com.vladmihalcea" % "hibernate-types-55" % "2.20.0"
 
-lazy val guice = "com.google.inject" % "guice" % "5.0.1"
+lazy val guice = "com.google.inject" % "guice" % "5.1.0"
 
 lazy val jgit = "org.eclipse.jgit" % "org.eclipse.jgit" % "6.1.0.202203080745-r"
 lazy val jgit_jsch = "org.eclipse.jgit" % "org.eclipse.jgit.ssh.jsch" % "6.1.0.202203080745-r"
