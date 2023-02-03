@@ -121,6 +121,7 @@ module "versions_syncrhonizer" {
     environment = var.environment
 
     app_image = local.soad_app_configs.synchronizer.image.name
+    memory_max = "2Gi"
     app_version = local.soad_app_configs.synchronizer.image.version
     app_name = local.soad_app_configs.synchronizer.service_name
     replica-count = local.soad_app_configs.synchronizer.replicas

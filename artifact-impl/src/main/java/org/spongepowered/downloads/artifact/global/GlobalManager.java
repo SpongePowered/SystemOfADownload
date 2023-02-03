@@ -30,7 +30,6 @@ public final class GlobalManager {
         );
     }
 
-
     public CompletionStage<GroupRegistration.Response> registerGroup(
         GroupRegistration.Response.GroupRegistered registered
     ) {

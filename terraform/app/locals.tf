@@ -11,7 +11,7 @@ locals {
             }
             image = {
                 replicas = 1
-                image_version = "0.2-SNAPSHOT"
+                image_version = "latest"
                 image_name = "ghcr.io/spongepowered/systemofadownload-artifact-impl"
             }
             extra_config = <<-EOF
@@ -33,8 +33,8 @@ locals {
                 service_name = "artifact-query"
             }
             image = {
-                replicas = var.environment == "dev" ? 1 : 1
-                image_version = "0.2-SNAPSHOT"
+                replicas = 1
+                image_version = "latest"
                 image_name = "ghcr.io/spongepowered/systemofadownload-artifact-query-impl"
             }
             extra_config = <<-EOF
@@ -61,9 +61,9 @@ locals {
         }
         "versions" = {
             service_name = "versions-server"
-            replicas = var.environment == "dev" ? 2 : 3
+            replicas = 2
             image = {
-                version = "0.2-SNAPSHOT"
+                version = "latest"
                 name = "ghcr.io/spongepowered/systemofadownload-versions-impl"
             }
             extra_config = <<-EOF
@@ -81,9 +81,9 @@ locals {
         }
         "versions_query" = {
             service_name = "versions-query-server"
-            replicas = var.environment == "dev" ? 1 : 1
+            replicas = 1
             image = {
-                version = "0.2-SNAPSHOT"
+                version = "latest"
                 name = "ghcr.io/spongepowered/systemofadownload-versions-query-impl"
             }
             extra_config = <<-EOF
@@ -93,9 +93,9 @@ locals {
         }
         "synchronizer" = {
             service_name = "version-synchronizer"
-            replicas = var.environment == "dev" ? 1 : 1
+            replicas = 1
             image = {
-                version = "0.2-SNAPSHOT"
+                version = "latest"
                 name = "ghcr.io/spongepowered/systemofadownload-version-synchronizer"
             }
             extra_env = local.default_database_envs

@@ -1,0 +1,6 @@
+applicationType: default
+defaultPackage: org.spongepowered.downloads.artifacts
+testFramework: junit
+sourceLanguage: java
+buildTool: gradle
+features: [annotation-api, app-name, cache-caffeine, data, data-r2dbc, discovery-kubernetes, github-workflow-ci, graalvm, gradle, h2, http-client, java, java-application, junit, junit-params, kafka, logback, micronaut-aot, micronaut-build, netty-server, openapi, r2dbc, readme, security-annotations, security-jwt, security-ldap, serialization-jackson, shade, test-resources, toml, toml-build]

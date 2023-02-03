@@ -1,0 +1,6 @@
+applicationType: default
+defaultPackage: systemofadownload
+testFramework: junit
+sourceLanguage: java
+buildTool: gradle_kotlin
+features: [annotation-api, app-name, data, data-r2dbc, github-workflow-ci, github-workflow-docker-registry, github-workflow-graal-docker-registry, graalvm, gradle, hibernate-reactive-jpa, http-client, jackson-databind, jackson-xml, java, java-application, junit, liquibase, logback, micronaut-build, netty-server, openapi, postgres, r2dbc, reactor, reactor-http-client, readme, security-annotations, security-ldap, serialization-jackson, shade, swagger-ui, test-resources, toml, toml-build]

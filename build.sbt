@@ -298,25 +298,6 @@ def implSoadProjectWithPersistence(name: String, implFor: Project) =
 
 // region Project Definitions
 
-lazy val `artifact-api` = apiSoadProject("artifact-api").settings(
-  //Maven Dependency for Version Parsing
-  libraryDependencies += "org.apache.maven" % "maven-artifact" % "3.8.6"
-)
-lazy val `artifact-impl` = implSoadProjectWithPersistence("artifact-impl", `artifact-api`).dependsOn(
-  //Inter module dependencies
-  `server-auth`,
-  `sonatype`
-).settings(
-  libraryDependencies ++= Seq(jgit, playFilterHelpers)
-)
-
-lazy val `artifact-query-api` = apiSoadProject("artifact-query-api").dependsOn(
-  //Inter module dependencies
-  `artifact-api`
-)
-lazy val `artifact-query-impl` = implSoadProjectWithPersistence("artifact-query-impl", `artifact-query-api`).settings(
-  libraryDependencies += playFilterHelpers
-)
 lazy val `downloads-api` = soadProject("downloads-api").enablePlugins(DockerPlugin)
         .settings(
           libraryDependencies ++= Seq(
@@ -362,122 +343,12 @@ lazy val `downloads-api` = soadProject("downloads-api").enablePlugins(DockerPlug
           )
         )
 
-lazy val `versions-api` = apiSoadProject("versions-api").dependsOn(
-  //Module Dependencies
-  `artifact-api`
-)
-
-lazy val `versions-impl` = implSoadProjectWithPersistence("versions-impl", `versions-api`).dependsOn(
-  //Other SystemOfADownload Common Implementation Dependencies
-  `server-auth`
-).settings(
-  libraryDependencies ++= Seq(
-    jgit,
-    jgit_jsch,
-    playFilterHelpers,
-    hibernateTypes
-  )
-)
-
-lazy val `versions-query-api` = apiSoadProject("versions-query-api").dependsOn(
-  //Inter module dependencies
-  `artifact-api`
-)
-lazy val `versions-query-impl` = implSoadProjectWithPersistence("versions-query-impl", `versions-query-api`).settings(
-  libraryDependencies ++= Seq(
-    hibernateTypes,
-    playFilterHelpers
-  )
-)
-
-lazy val `version-synchronizer` = serverSoadProject("version-synchronizer").dependsOn(
-  //Modules we consume
-  `versions-api`,
-  `server-auth`,
-  `sonatype`,
-  `artifact-api`
-).settings(
-  libraryDependencies ++= Seq(
-    //Lagom Dependencies
-    // We use kafka for all inter-service message forwarding
-    lagomJavadslKafkaBroker,
-    // Use persistence
-    lagomJavadslPersistenceJpa,
-    // Use Akka-Typed Streams
-    akkaStreamTyped,
-    //Database Dependencies
-    hibernate,
-    postgres,
-    //XML Deserialization - to interpret Maven's metadata.xml
-    jacksonDataformatXml,
-    // Jgit
-    jgit,
-  )
-)
-
-lazy val `sonatype` = soadProject("sonatype").settings(
-  libraryDependencies ++= Seq(
-    //Language Features
-    vavr,
-    //Jackson Serialization
-    "com.fasterxml.jackson.core" % "jackson-annotations" % "2.12.5",
-    "com.fasterxml.jackson.core" % "jackson-databind" % "2.12.5",
-    "com.fasterxml.jackson.core" % "jackson-core" % "2.12.5",
-    //Test Dependencies
-    junit,
-    jupiterInterface,
-    jacksonDataformatXml % Test,
-    vavrJackson % Test exclude("com.fasterxml.jackson.core", "jackson-databind")
-  )
-)
-
-lazy val `auth-api` = apiSoadProject("auth-api").settings(
-  //Auth Dependency
-  libraryDependencies ++= Seq(
-    lagomPac4j,
-    pac4jHttp,
-    pac4jJwt
-  )
-)
-lazy val `auth-impl` = serverSoadProject("auth-impl").dependsOn(
-  //The service we're implementing
-  `auth-api`,
-  //Server Authentication Dependency
-  `server-auth`
-).settings(
-  //LDAP dependency
-  libraryDependencies ++= Seq(lagomPac4jLdap, playFilterHelpers)
-)
-
-lazy val `server-auth` = soadProject("server-auth").dependsOn(`auth-api`).settings(
-  libraryDependencies ++= Seq(
-    //Language Features
-    vavr,
-    //Lagom Server Dependency
-    lagomJavadslServer,
-
-    playFilterHelpers
-  )
-)
 
 // endregion
 
 lazy val soadRoot = project.in(file(".")).settings(
   name := "SystemOfADownload"
 ).aggregate(
-  `artifact-api`,
-  `artifact-impl`,
-  `artifact-query-api`,
-  `artifact-query-impl`,
-  `versions-api`,
-  `versions-impl`,
-  `versions-query-api`,
-  `versions-query-impl`,
-  `version-synchronizer`,
-  `sonatype`,
-  `auth-api`,
-  `auth-impl`,
-  `server-auth`,
 )
 
 ThisBuild / lagomCassandraEnabled := false

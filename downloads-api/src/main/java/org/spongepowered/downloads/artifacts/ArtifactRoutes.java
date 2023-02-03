@@ -53,6 +53,11 @@ public final class ArtifactRoutes {
             artifactQueries, ref -> new ArtifactQueries.Command.GetArtifacts(name, ref), askTimeout, scheduler);
     }
 
+    private Route getGroup() {
+        return get(() -> onSuccess(getGroups(), groups ->
+            complete(StatusCodes.OK, groups, Jackson.marshaller())
+        ));
+    }
 
     /**
      * This method creates one route (of possibly many more that will be part of your Web App)
@@ -61,9 +66,7 @@ public final class ArtifactRoutes {
         // v1/groups
         return pathPrefix("groups", () ->
             concat(
-                get(() -> onSuccess(getGroups(), groups ->
-                    complete(StatusCodes.OK, groups, Jackson.marshaller())
-                )),
+                getGroup(),
                 // v1/groups/:groupId/
                 path(PathMatchers.segment(), (String groupId) ->
                     concat(
