@@ -97,7 +97,7 @@ runLiquibase := {
 // region dependency versions
 
 //noinspection SbtDependencyVersionInspection
-ThisBuild / libraryDependencySchemes += "org.scala-lang.modules" %% "scala-java8-compat" % "always"
+ThisBuild / libraryDependencySchemes += "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.2"
 
 lazy val vavr = "io.vavr" % "vavr" % "0.10.4"
 lazy val vavrJackson = "io.vavr" % "vavr-jackson" % "0.10.3"
@@ -109,7 +109,7 @@ lazy val lagomPac4j = "org.pac4j" %% "lagom-pac4j" % "2.2.1"
 lazy val lagomPac4jLdap = "org.pac4j" % "pac4j-ldap" % "3.7.0"
 
 // Enable Junit5
-lazy val junit = "org.junit.jupiter" % "junit-jupiter-api" % "5.9.0" % Test
+lazy val junit = "org.junit.jupiter" % "junit-jupiter-api" % "5.9.3" % Test
 // sbt-jupiter-interface
 lazy val jupiterInterface = "net.aichler" % "jupiter-interface" % "0.11.1" % Test
 
