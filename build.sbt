@@ -129,7 +129,7 @@ lazy val jacksonPcollections = "com.fasterxml.jackson.datatype" % "jackson-datat
 
 lazy val akkaStreamTyped = "com.typesafe.akka" %% "akka-stream-typed" % LagomVersion.akka
 lazy val akkaPersistenceTestkit = "com.typesafe.akka" %% "akka-persistence-testkit" % LagomVersion.akka % Test
-lazy val akkaKubernetesDiscovery = "com.lightbend.akka.discovery" %% "akka-discovery-kubernetes-api" % "1.1.3"
+lazy val akkaKubernetesDiscovery = "com.lightbend.akka.discovery" %% "akka-discovery-kubernetes-api" % "1.4.1"
 
 lazy val playFilterHelpers = "com.typesafe.play" %% "filters-helpers" % LagomVersion.play
 
