@@ -2,9 +2,12 @@
 
 API for accessing information about Sponge downloads
 
-## Reference
-
 Root URL: https://dl-api.spongepowered.org/
+
+* [/v2/groups](#v2groups)
+* [/v2/groups/\<groupCoordinates>/artifacts](#v2groupsgroupcoordinatesartifacts)
+* [/v2/groups/\<groupCoordinate>/artifacts/\<artifactId>](#v2groupsgroupcoordinateartifactsartifactid)
+* [/v2/groups/\<groupCoordinate>/artifacts/\<artifactId>/versions](#v2groupsgroupcoordinateartifactsartifactidversions)
 
 ### /v2/groups
 Lists available groups.
@@ -23,7 +26,7 @@ Example: GET https://dl-api.spongepowered.org/v2/groups
 }
 ```
 
-### /v2/groups/<groupCoordinates>/artifacts
+### /v2/groups/\<groupCoordinates>/artifacts
 List available artifacts for a group.
 
 Example: GET https://dl-api.spongepowered.org/v2/groups/org.spongepowered/artifacts
@@ -37,7 +40,7 @@ Example: GET https://dl-api.spongepowered.org/v2/groups/org.spongepowered/artifa
 }
 ```
 
-### /v2/groups/<groupCoordinate>/artifacts/<artifactId>
+### /v2/groups/\<groupCoordinate>/artifacts/\<artifactId>
 List metadata for an artifact, including available tags.
 
 Example:
@@ -72,7 +75,7 @@ GET https://dl-api.spongepowered.org/v2/groups/org.spongepowered/artifacts/spong
 }
 ```
 
-### /v2/groups/<groupCoordinate>/artifacts/<artifactId>/versions
+### /v2/groups/\<groupCoordinate>/artifacts/\<artifactId>/versions
 List available versions for an artifact. This list can be filtered based on URL parameters.
 
 URL Parameters:
