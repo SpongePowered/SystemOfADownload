@@ -367,7 +367,7 @@ lazy val `sonatype` = soadProject("sonatype").settings(
     //Language Features
     vavr,
     //Jackson Serialization
-    "com.fasterxml.jackson.core" % "jackson-annotations" % "2.12.5",
+    "com.fasterxml.jackson.core" % "jackson-annotations" % "2.15.2",
     "com.fasterxml.jackson.core" % "jackson-databind" % "2.12.5",
     "com.fasterxml.jackson.core" % "jackson-core" % "2.12.5",
     //Test Dependencies
