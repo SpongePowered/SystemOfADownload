@@ -115,7 +115,7 @@ lazy val jupiterInterface = "net.aichler" % "jupiter-interface" % "0.11.1" % Tes
 
 
 // Play jackson uses 2.11, but 2.12 is backwards compatible
-lazy val jacksonDataBind = "com.fasterxml.jackson.core" % "jackson-databind" % "2.14.0"
+lazy val jacksonDataBind = "com.fasterxml.jackson.core" % "jackson-databind" % "2.15.2"
 lazy val jacksonDataTypeJsr310 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.14.0"
 lazy val jacksonDataformatXml = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % "2.14.0"
 lazy val jacksonDataformatCbor = "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % "2.14.0"
@@ -368,7 +368,7 @@ lazy val `sonatype` = soadProject("sonatype").settings(
     vavr,
     //Jackson Serialization
     "com.fasterxml.jackson.core" % "jackson-annotations" % "2.15.2",
-    "com.fasterxml.jackson.core" % "jackson-databind" % "2.12.5",
+    "com.fasterxml.jackson.core" % "jackson-databind" % "2.15.2",
     "com.fasterxml.jackson.core" % "jackson-core" % "2.15.2",
     //Test Dependencies
     junit,
