@@ -32,6 +32,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import io.micronaut.http.HttpResponse;
 import io.vavr.control.Either;
+import org.spongepowered.downloads.akka.AkkaSerializable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.query.ArtifactDetails;
 
@@ -52,7 +53,7 @@ import java.net.URL;
     @JsonSubTypes.Type(value = DetailsCommand.UpdateDisplayName.class,
         name = "display-name")
 })
-public interface DetailsCommand {
+public interface DetailsCommand extends AkkaSerializable {
 
     @JsonDeserialize
     final record RegisterArtifact(ArtifactCoordinates coordinates,

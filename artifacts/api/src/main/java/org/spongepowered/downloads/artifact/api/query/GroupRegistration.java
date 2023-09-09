@@ -32,18 +32,19 @@ import org.spongepowered.downloads.artifact.api.Group;
 public final class GroupRegistration {
 
     @JsonDeserialize
-        public record RegisterGroupRequest(
-            @JsonProperty(required = true) String name,
-                                           @JsonProperty(required = true) String groupCoordinates,
-                                           @JsonProperty(required = true) String website
+    public record RegisterGroupRequest(
+        @JsonProperty(required = true) String name,
+        @JsonProperty(required = true) String groupCoordinates,
+        @JsonProperty(required = true) String website
     ) {
 
-            @JsonCreator
-            public RegisterGroupRequest { }
-
+        @JsonCreator
+        public RegisterGroupRequest {
         }
 
-    public interface Response {
+    }
+
+    public sealed interface Response {
 
         record GroupAlreadyRegistered(String groupNameRequested) implements Response {
         }

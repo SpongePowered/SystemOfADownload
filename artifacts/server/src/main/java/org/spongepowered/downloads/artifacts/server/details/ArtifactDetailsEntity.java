@@ -34,27 +34,23 @@ import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
-import com.lightbend.lagom.javadsl.api.transport.NotFound;
-import com.lightbend.lagom.javadsl.persistence.AkkaTaggerAdapter;
-import io.vavr.control.Either;
+import io.micronaut.http.HttpResponse;
 import org.spongepowered.downloads.artifact.api.query.ArtifactDetails;
-import org.spongepowered.downloads.artifact.details.state.DetailsState;
-import org.spongepowered.downloads.artifact.details.state.EmptyState;
-import org.spongepowered.downloads.artifact.details.state.PopulatedState;
+import org.spongepowered.downloads.artifacts.events.DetailsEvent;
+import org.spongepowered.downloads.artifacts.server.details.state.DetailsState;
+import org.spongepowered.downloads.artifacts.server.details.state.EmptyState;
+import org.spongepowered.downloads.artifacts.server.details.state.PopulatedState;
 
 import java.util.List;
-import java.util.Set;
-import java.util.function.Function;
 
 public class ArtifactDetailsEntity
     extends EventSourcedBehaviorWithEnforcedReplies<DetailsCommand, DetailsEvent, DetailsState> {
-    private static final Either<NotFound, ArtifactDetails.Response> NOT_FOUND = Either.left(
-        new NotFound("group or artifact not found"));
+
+    private static final HttpResponse<ArtifactDetails.Response> NOT_FOUND = HttpResponse.notFound(new ArtifactDetails.Response.NotFound("group or artifact not found"));
     public static EntityTypeKey<DetailsCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(
         DetailsCommand.class, "DetailsEntity");
     private final String artifactId;
     private final ActorContext<DetailsCommand> ctx;
-    private final Function<DetailsEvent, Set<String>> tagger;
 
     private ArtifactDetailsEntity(
         ActorContext<DetailsCommand> ctx,
@@ -64,7 +60,6 @@ public class ArtifactDetailsEntity
         super(persistenceId);
         this.artifactId = entityId;
         this.ctx = ctx;
-        this.tagger = AkkaTaggerAdapter.fromLagom(context, DetailsEvent.TAG);
     }
 
     public static Behavior<DetailsCommand> create(
@@ -140,15 +135,13 @@ public class ArtifactDetailsEntity
                     .persist(new DetailsEvent.ArtifactIssuesUpdated(s.coordinates(), cmd.validUrl().toString()))
                     .thenReply(
                         cmd.replyTo(),
-                        us -> Either.right(
-                            new ArtifactDetails.Response(
-                                us.coordinates().artifactId(),
-                                us.displayName(),
-                                us.website(),
-                                us.issues(),
-                                us.gitRepository()
-                            )
-                        )
+                        us -> HttpResponse.ok(new ArtifactDetails.Response.Ok(
+                            us.coordinates().artifactId(),
+                            us.displayName(),
+                            us.website(),
+                            us.issues(),
+                            us.gitRepository()
+                        ))
                     )
             )
             .onCommand(
@@ -157,15 +150,13 @@ public class ArtifactDetailsEntity
                     .persist(new DetailsEvent.ArtifactIssuesUpdated(s.coordinates(), cmd.website().toString()))
                     .thenReply(
                         cmd.replyTo(),
-                        us -> Either.right(
-                            new ArtifactDetails.Response(
-                                us.coordinates().artifactId(),
-                                us.displayName(),
-                                us.website(),
-                                us.issues(),
-                                us.gitRepository()
-                            )
-                        )
+                        us -> HttpResponse.ok(new ArtifactDetails.Response.Ok(
+                            us.coordinates().artifactId(),
+                            us.displayName(),
+                            us.website(),
+                            us.issues(),
+                            us.gitRepository()
+                        ))
                     )
             )
             .onCommand(
@@ -174,15 +165,13 @@ public class ArtifactDetailsEntity
                     .persist(new DetailsEvent.ArtifactIssuesUpdated(s.coordinates(), cmd.displayName()))
                     .thenReply(
                         cmd.replyTo(),
-                        us -> Either.right(
-                            new ArtifactDetails.Response(
-                                us.coordinates().artifactId(),
-                                us.displayName(),
-                                us.website(),
-                                us.issues(),
-                                us.gitRepository()
-                            )
-                        )
+                        us -> HttpResponse.ok(new ArtifactDetails.Response.Ok(
+                            us.coordinates().artifactId(),
+                            us.displayName(),
+                            us.website(),
+                            us.issues(),
+                            us.gitRepository()
+                        ))
                     )
             )
             .onCommand(
@@ -191,23 +180,17 @@ public class ArtifactDetailsEntity
                     .persist(new DetailsEvent.ArtifactGitRepositoryUpdated(s.coordinates(), cmd.gitRemote()))
                     .thenReply(
                         cmd.replyTo(),
-                        us -> Either.right(
-                            new ArtifactDetails.Response(
-                                us.coordinates().artifactId(),
-                                us.displayName(),
-                                us.website(),
-                                us.issues(),
-                                us.gitRepository()
-                            )
-                        )
+                        us -> HttpResponse.ok(new ArtifactDetails.Response.Ok(
+                            us.coordinates().artifactId(),
+                            us.displayName(),
+                            us.website(),
+                            us.issues(),
+                            us.gitRepository()
+                        ))
                     )
             );
 
         return builder.build();
     }
 
-    @Override
-    public Set<String> tagsFor(final DetailsEvent detailsEvent) {
-        return this.tagger.apply(detailsEvent);
-    }
 }

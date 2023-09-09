@@ -1,0 +1,125 @@
+
+
+<?xml version="1.0" encoding="UTF-8"?>
+
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.22.xsd">
+    <changeSet id="01" author="gabizou">
+        <sql>
+            CREATE SCHEMA IF NOT EXISTS artifacts;
+        </sql>
+        <createTable tableName="artifacts" schemaName="artifact">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true" unique="true"/>
+            </column>
+            <column name="group_id" type="varchar(255)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="grouped_artifact"/>
+            </column>
+            <column name="artifact_id" type="varchar(255)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="grouped_artifact"/>
+            </column>
+            <column name="display_name" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="website" type="text"/>
+            <column name="git_repository" type="text"/>
+            <column name="issues" type="text"/>
+        </createTable>
+        <createTable tableName="artifact_tags" schemaName="artifact">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="artifact_id" type="bigint">
+                <constraints nullable="false"
+                             referencedTableSchemaName="artifact"
+                             referencedColumnNames="id"
+                             referencedTableName="artifacts"
+                             foreignKeyName="artifacts_id_fk"
+                             unique="true"
+                             uniqueConstraintName="artifact_tag_unique_index"/>
+            </column>
+            <column name="tag_name" type="varchar(16)">
+                <constraints nullable="false"
+                             unique="true"
+                             uniqueConstraintName="artifact_tag_unique_index"/>
+            </column>
+            <column name="tag_regex" type="text"/>
+            <column name="use_capture_group" type="int"/>
+        </createTable>
+        <createTable tableName="artifact_versions" schemaName="artifact">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="artifact_id" type="bigint">
+                <constraints nullable="false"
+                             referencedTableName="artifacts"
+                             referencedTableSchemaName="artifacts"
+                             referencedColumnNames="id"
+                             foreignKeyName="artifact_id_fk"
+                             unique="true"
+                             uniqueConstraintName="artifact_version_unique_idx"
+                />
+            </column>
+            <column name="version" type="varchar(255)">
+                <constraints nullable="false"
+                             unique="true"
+                             uniqueConstraintName="artifact_version_unique_idx"/>
+            </column>
+        </createTable>
+        <createTable tableName="artifact_recommendations"
+                     schemaName="artifact">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="artifact_id" type="bigint">
+                <constraints nullable="false"
+                             referencedTableName="artifacts"
+                             referencedTableSchemaName="artifact"
+                             referencedColumnNames="id"
+                             foreignKeyName="artifact_id_fk"
+                />
+            </column>
+            <column name="recommendation_regex"
+                    type="varchar(255)"
+            />
+            <column name="allow_manual_promotion"
+                    type="boolean"
+                    defaultValueBoolean="false"/>
+        </createTable>
+        <createView viewName="versioned_artifacts"
+                    schemaName="artifact"
+        >
+            select distinct a.artifact_id, a.group_id, v.version, v.recommended, v.manual_recommendation
+            from artifact.artifacts a inner join artifact.artifact_versions v on a.id = v.artifact_id
+        </createView>
+        <createView viewName="artifact_versioned_assets" schemaName="artifact"
+                    encoding="UTF-8"
+                    replaceIfExists="true">
+            select
+                a.group_id,
+                a.artifact_id,
+                av.version,
+                va.classifier, va.extension, va.download_url, va.md5, va.sha1
+            from artifact.versioned_assets va
+                     inner join artifact.artifact_versions av on av.id = va.version_id
+                     inner join artifact.artifacts a on a.id = av.artifact_id
+        </createView>
+        <createView viewName="versioned_changelogs"
+                    schemaName="artifact">
+            select distinct a.group_id, a.artifact_id, v.version, v.ordering, v.id as version_id, vc.commit_sha, vc.repo, vc.branch, vc.changelog
+            from artifact.version_changelogs vc
+                     inner join artifact.artifact_versions v on v.id = vc.version_id
+                     inner join artifact.artifacts a on a.id = v.artifact_id
+            order by v.ordering desc
+        </createView>
+        <createView viewName="versioned_artifacts" schemaName="artifact">
+            select distinct a.artifact_id, a.group_id, v.version, v.ordering, v.recommended, v.manual_recommendation
+            from artifact.artifacts a inner join artifact.artifact_versions v on a.id = v.artifact_id
+            order by v.ordering desc
+        </createView>
+    </changeSet>
+</databaseChangeLog>
+

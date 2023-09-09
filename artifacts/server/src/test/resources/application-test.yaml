@@ -1,0 +1,22 @@
+test-resources:
+    containers:
+        postgres:
+            image-name: postgres:14.6
+            username: testuser
+            password: testpassword
+            db-name: testdb
+
+liquibase:
+    enabled: true
+    datasources:
+        default:
+            change-log: 'classpath:db/liquibase-changelog.xml' # (4)
+endpoints:
+    liquibase:
+        enabled: true
+        sensitive: false
+micronaut:
+    environment: test
+    http:
+        client:
+            read-timeout: 5m

@@ -25,20 +25,14 @@
 package org.spongepowered.downloads.artifacts.events;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.spongepowered.downloads.akka.AkkaSerializable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
-import java.io.Serial;
-
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(GroupUpdate.GroupRegistered.class),
-    @JsonSubTypes.Type(GroupUpdate.ArtifactRegistered.class),
-})
-public interface GroupUpdate {
+public sealed interface GroupUpdate extends AkkaSerializable {
 
     String groupId();
 
@@ -56,8 +50,6 @@ public interface GroupUpdate {
     @JsonTypeName("artifact-registered")
     @JsonDeserialize
     final record ArtifactRegistered(ArtifactCoordinates coordinates) implements GroupUpdate {
-
-        @Serial private static final long serialVersionUID = 6319289932327553919L;
 
         @JsonCreator
         public ArtifactRegistered {

@@ -24,10 +24,12 @@
  */
 package org.spongepowered.downloads.artifacts.server.details.state;
 
-import com.lightbend.lagom.serialization.Jsonable;
+import org.spongepowered.downloads.akka.AkkaSerializable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
-public interface DetailsState extends Jsonable {
+public sealed interface DetailsState extends AkkaSerializable
+    permits EmptyState, PopulatedState {
+
     ArtifactCoordinates coordinates();
 
     String displayName();

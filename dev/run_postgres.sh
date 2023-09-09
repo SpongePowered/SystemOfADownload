@@ -17,6 +17,6 @@ if [ ! "$(docker ps -q -f name="${postgres_name}")" ]; then
     	-e POSTGRES_PASSWORD=password \
     	-e POSTGRES_DB=default \
     	-p 5432:5432 \
-    	postgres:13-alpine \
+    	postgres:15-alpine \
     	postgres -N 500
 fi

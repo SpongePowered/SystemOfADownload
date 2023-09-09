@@ -1,12 +1,17 @@
 
 
-val akkaVersion: String by project
-val scalaVersion: String  by project
-val akkaManagementVersion: String  by project
-val akkaProjection: String by project
+plugins {
+    `java-library`
+}
+
+java {
+    sourceCompatibility = JavaVersion.toVersion("20")
+    targetCompatibility = JavaVersion.toVersion("20")
+}
 
 dependencies {
     api(project(":artifacts:api"))
+    api(project(":akka"))
 
 }
 

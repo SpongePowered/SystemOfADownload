@@ -1,0 +1,46 @@
+[versions]
+micronaut = "4.0.5"
+scala = "2.13"
+akka = "2.8.3"
+jackson = "2.15.1"
+maven_artifact = "3.8.5"
+akkaManagementVersion = "1.4.1"
+akkaProjection = "1.4.2"
+akkaR2DBC = "1.1.1"
+vavr = "0.10.4"
+jakartaValidation = "3.0.2"
+
+[libraries]
+vavr = { module = "io.vavr:vavr", version.ref = "vavr"}
+akkaBom = { module = "com.typesafe.akka:akka-bom_2.13", version.ref = "akka" }
+akka-actor = { module = "com.typesafe.akka:akka-actor-typed_2.13" }
+akka-cluster-sharding = { module = "com.typesafe.akka:akka-cluster-sharding-typed_2.13" }
+akka-cluster-typed = { module = "com.typesafe.akka:akka-cluster-typed_2.13" }
+
+akka-testkit = { module = "com.typesafe.akka:akka-actor-testkit-typed_2.13"}
+
+akka-persistence = { module ="com.typesafe.akka:akka-persistence-typed_2.13"}
+akka-projection = { module = "com.lightbend.akka:akka-projection-r2dbc_2.13", version.ref = "akkaProjection"}
+akka-r2dbc = { module = "com.lightbend.akka:akka-persistence-r2dbc_2.13", version.ref = "akkaR2DBC"}
+postgres-r2dbc = { module = "org.postgresql:r2dbc-postgresql"}
+
+akka-discovery = { module = "com.typesafe.akka:akka-discovery_2.13" }
+lightbend_management = { module = "com.lightbend.akka.management:akka-management_2.13", version.ref = "akkaManagementVersion"}
+lightbend_bootstrap = { module = "com.lightbend.akka.management:akka-management-cluster-bootstrap_2.13", version.ref = "akkaManagementVersion"}
+
+jacksonBom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson" }
+jackson-core = { module = "com.fasterxml.jackson.core:jackson-core" }
+jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
+akka-jackson = { module = "com.typesafe.akka:akka-serialization-jackson_2.13"}
+maven = { module = "org.apache.maven:maven-artifact", version.ref = "maven_artifact" }
+
+jakarta-validation = { module = "jakarta.validation:jakarta.validation-api", version.ref = "jakartaValidation"}
+
+
+[bundles]
+serder = ["jackson-core", "jackson-annotations", "jackson-databind"]
+appSerder = ["jackson-databind", "jackson-annotations", "jackson-core", "akka-jackson"]
+actors = ["akka-actor", "akka-cluster-typed", "akka-cluster-sharding"]
+actorsPersistence = ["akka-persistence", "akka-projection", "akka-r2dbc", "postgres-r2dbc"]
+akkaManagement = ["akka-discovery", "lightbend_bootstrap", "lightbend_management"]

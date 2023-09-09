@@ -1,9 +1,15 @@
 
-val jacksonVersion:String by project
-dependencies {
-    api(platform("com.fasterxml.jackson:jackson-bom:${jacksonVersion}"))
-    api("com.fasterxml.jackson:jackson-core")
-    api("com.fasterxml.jackson.core:jackson-databind")
-    api("com.fasterxml.jackson.core:jackson-annotations")
+version = "0.1"
+group = "org.spongepowered.downloads"
 
+plugins {
+    `java-library`
+}
+
+
+dependencies {
+    api(platform(libs.jacksonBom))
+    api(libs.bundles.serder)
+    api(libs.maven)
+    api(libs.vavr)
 }

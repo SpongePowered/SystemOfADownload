@@ -28,16 +28,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.Group;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes({
-    @JsonSubTypes.Type(value = GroupResponse.Missing.class, name = "MissingGroup"),
-    @JsonSubTypes.Type(value = GroupResponse.Available.class, name = "Group")
-})
-public sealed interface GroupResponse extends Jsonable {
+@JsonTypeInfo(use = JsonTypeInfo.Id.NONE)
+public sealed interface GroupResponse {
 
     @JsonSerialize
     record Missing(@JsonProperty String groupId) implements GroupResponse {

@@ -30,6 +30,17 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import java.util.StringJoiner;
 
+/**
+ * Representation of a simplified {@link MavenCoordinates} with representation
+ * of only the {@link #groupId()} and {@link #artifactId()}. In general, this is
+ * to represent an artifact as a whole, rather than any specific version or
+ * variant.
+ *
+ * @param groupId The group id of an artifact, as defined by the Apache Maven documentation.
+ *     See <a href="https://maven.apache.org/pom.html#Maven_Coordinates">Maven Coordinates</a>.
+ * @param artifactId The artifact id of an artifact, as defined by the Apache Maven documentation.
+ *     See <a href="https://maven.apache.org/pom.html#Maven_Coordinates">Maven Coordinates</a>.
+ */
 @JsonDeserialize
 public record ArtifactCoordinates(
     @JsonProperty(required = true) String groupId,
@@ -48,19 +59,4 @@ public record ArtifactCoordinates(
         return this.groupId() + ":" + this.artifactId();
     }
 
-    /**
-     * The group id of an artifact, as defined by the Apache Maven documentation.
-     * See <a href="https://maven.apache.org/pom.html#Maven_Coordinates">Maven Coordinates</a>.
-     */
-    public String groupId() {
-        return groupId;
-    }
-
-    /**
-     * The artifact id of an artifact, as defined by the Apache Maven documentation.
-     * See <a href="https://maven.apache.org/pom.html#Maven_Coordinates">Maven Coordinates</a>.
-     */
-    public String artifactId() {
-        return artifactId;
-    }
 }

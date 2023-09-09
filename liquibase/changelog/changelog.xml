@@ -3,5 +3,5 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
     <include file="/init/db_init.xml" relativeToChangelogFile="true"/>
-    <include file="/lagom/lagom_1_6.xml" relativeToChangelogFile="true"/>
+    <include file="/akka/akka_2_8_2.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>

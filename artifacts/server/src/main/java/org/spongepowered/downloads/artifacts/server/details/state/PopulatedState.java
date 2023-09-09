@@ -26,14 +26,13 @@ package org.spongepowered.downloads.artifacts.server.details.state;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.lightbend.lagom.serialization.CompressedJsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
-import org.spongepowered.downloads.artifact.details.DetailsEvent;
+import org.spongepowered.downloads.artifacts.events.DetailsEvent;
 
 @JsonDeserialize
 public record PopulatedState(ArtifactCoordinates coordinates,
                              String displayName, String website, String gitRepository,
-                             String issues) implements DetailsState, CompressedJsonable {
+                             String issues) implements DetailsState {
 
     @JsonCreator
     public PopulatedState {

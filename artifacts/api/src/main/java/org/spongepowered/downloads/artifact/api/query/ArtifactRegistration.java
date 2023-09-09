@@ -29,7 +29,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.lightbend.lagom.serialization.Jsonable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
 public final class ArtifactRegistration {
@@ -58,7 +57,7 @@ public final class ArtifactRegistration {
         @JsonSubTypes.Type(value = Response.ArtifactAlreadyRegistered.class,
             name = "AlreadyRegistered"),
     })
-    public sealed interface Response extends Jsonable {
+    public sealed interface Response {
 
         @JsonSerialize
         record ArtifactRegistered(@JsonProperty ArtifactCoordinates coordinates) implements Response {

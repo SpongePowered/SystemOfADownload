@@ -26,7 +26,6 @@ package org.spongepowered.downloads.artifact.api.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -86,15 +85,22 @@ public final class ArtifactDetails {
     }
 
     @JsonSerialize
-    public record Response(
-        String name,
-        String displayName,
-        String website,
-        String issues,
-        String gitRepo
-    ) {
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NONE)
+    public sealed interface Response {
 
+        record Ok(
+            String name,
+            String displayName,
+            String website,
+            String issues,
+            String gitRepo
+        )  implements Response{
+
+        }
+
+        record NotFound(String message) implements Response {}
     }
+
 
 
 }
