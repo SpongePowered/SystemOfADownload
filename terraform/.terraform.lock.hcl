@@ -23,20 +23,20 @@ provider "registry.terraform.io/cyrilgdn/postgresql" {
 }
 
 provider "registry.terraform.io/hashicorp/helm" {
-  version     = "2.7.0"
-  constraints = "~> 2.7.0"
+  version     = "2.11.0"
+  constraints = "~> 2.11.0"
   hashes = [
-    "h1:Iy8d1SJLFfrnUjOkUnS/yoAoK2xT1zhiTfL24D7omt0=",
-    "h1:Tz6hTlEGdWG8tLgeTLFplq57503bjKbsVJ/XxXjrpgs=",
-    "h1:VZUEQX1N9sf3oT3GfymlNEaCUVpET4SODks9c+T6TAI=",
-    "h1:WTVURV8QjqRwdhe35CoY/sgwsgVyouqc3Q2AjC1FMbE=",
-    "h1:XbB+73RLtFjjt1ihMjg1xRWfcXlMH+ezspUqGRV3n88=",
-    "h1:YXQgYy5YoqnMgKwlgRmkkUhlSKAX2RMOMujb86ua3jU=",
-    "h1:ZYFBOYptaaNtAPcy9FXMGQYa5qE8v5Yha/B7/2Zpf+U=",
-    "h1:bGD6LA5Z5v7+t3c1Wq9Est0H3V4nb4rHfli2mpqdaLw=",
-    "h1:cQhkO3g5uF9zeOfTzGwAkOIPTSR4Kx76PHjXSVz12SE=",
-    "h1:q6LrmT829K+t6j3nbGOqn/vWCzzcshWN5lFiNGiKDdU=",
-    "h1:quavRe9VlwM06DoCgMckuj+5T48g+lfG75pip+iIbFQ=",
+    "h1:/bxsVBBNaKwLwKapK7mR0ZrE+jhkThD0lfc6rVBD/kU=",
+    "h1:AOp9vXIM4uT1c/PVwsWTPiLVGlO2SSYrfiirV5rjCMQ=",
+    "h1:FGGkgKf12zBjPjrD0ANq7EhywWM00PvYYw7OTdT/Kq4=",
+    "h1:H4+hfjVmw3C6udLoPiAgr5MSg1zPsbT2Zh1Skp2ft2A=",
+    "h1:SJFhIecChiYJlfGwV5RkJ5ZVnLAuQU6PXENbnCS2Ap0=",
+    "h1:V6dij/WCsJnkWySf0JfUbIVn3jL3Dsl6FydnIYWI2bo=",
+    "h1:fBXaroqTJYfzQGrDez0AfdRnXI6BYvijs4doTc2K1KA=",
+    "h1:kECeVFd7xfWJe/tuN+JzWHsMepFzVNFZLg6BJPyFPeQ=",
+    "h1:l+2Ni3UyoFRxyvxRblPQQYck1/iFmZKFy/UcI3ZRtjg=",
+    "h1:m1KbYDhUWeSDhtRbbBcfcknrvx05YkWLCo1VHqyDhSE=",
+    "h1:zxfRtgpWrVZwjkIBuI+7jc52+u1QBA/k7LQZiCiq3Z8=",
   ]
 }
 
