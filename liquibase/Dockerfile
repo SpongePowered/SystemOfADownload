@@ -1,4 +1,4 @@
-FROM liquibase/liquibase:4.10
+FROM liquibase/liquibase:4.25
 
 LABEL MAINTAINER="spongepowered"
 LABEL author="spongepowered"
