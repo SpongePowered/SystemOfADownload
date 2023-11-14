@@ -7,70 +7,86 @@ downloads website.
 
 ## Requirements
 
-- Java 16
+- Java 21 (GraalVM optional to build native images)
 - Docker
-- sbt 1.15
 - terraform (if you want to deploy to a kubernetes cluster)
 
 ## Technologies in use
+### Micronaut 4.1.3
 
-### Framework
+- [User Guide](https://docs.micronaut.io/4.1.3/guide/index.html)
+- [API Reference](https://docs.micronaut.io/4.1.3/api/index.html)
+- [Configuration Reference](https://docs.micronaut.io/4.1.3/guide/configurationreference.html)
+- [Micronaut Guides](https://guides.micronaut.io/index.html)
+---
 
-SystemOfADownload (SOAD) is built on [LagomFramework], an opinionated
-[Event Source] + [CQRS] architecture framework built on [Akka], and as such relies
-on several functional programing paradigms. Lagom as a whole provides enough
-to build out several services with semi-automatic service discovery routing
-and using [Postgres] as the primary storage database for the Event Journal and
-Query side persistence.
+- [Shadow Gradle Plugin](https://plugins.gradle.org/plugin/com.github.johnrengelman.shadow)
+- [Micronaut Gradle Plugin documentation](https://micronaut-projects.github.io/micronaut-gradle-plugin/latest/)
+- [GraalVM Gradle Plugin documentation](https://graalvm.github.io/native-build-tools/latest/gradle-plugin.html)
+#### Feature test-resources documentation
 
-To learn about the topics, please visit
-[Lagom's documentation on concepts](https://www.lagomframework.com/documentation/1.6.x/java/CoreConcepts.html)
-that goes at length about how the system works together.
+- [Micronaut Test Resources documentation](https://micronaut-projects.github.io/micronaut-test-resources/latest/guide/)
 
-### Containerization Out of the Box
 
-SOAD is targeted at being deployed with either sbt in-development or deployed on a
-Kubernetes cluster.
+#### Feature r2dbc documentation
 
-### Services
-Each service is loosely intended on the desired workload/grouped boundaries of knowledge.
+- [Micronaut R2DBC documentation](https://micronaut-projects.github.io/micronaut-r2dbc/latest/guide/)
 
-In a sense, the data
-The first three are what effectively being given as model views to exploring a paired
-[Sonatype Nexus] repository instance for artifacts and presenting/serving them in a
-more user friendlier way by providing git-like changelogs between artifacts. 
+- [https://r2dbc.io](https://r2dbc.io)
 
-#### ArtifactService
 
-The bread and butter of the shebang. Manages/creates/caches artifacts to knowledge by
-[maven coordindates](https://maven.apache.org/pom.html#Maven_Coordinates). Typically,
-an `Artifact` is not actually an artifact, but considered a `Component` with several
-`Asset`s. Here we have exposed the ability to retrieve an artifact (if registered) and
-its known assets along with download url's provided.
+#### Feature github-workflow-graal-docker-registry documentation
 
-#### CommitService
+- [https://docs.github.com/en/free-pro-team@latest/actions](https://docs.github.com/en/free-pro-team@latest/actions)
 
-This is a little more subtle, but effectively, since each artifact may or may not have a
-`Git-Commit` listed in the jar manifest, this service strictly deals with managing registered
-repositories, updating them, and pulling the list of commits diffing between two commits.
 
-#### ChangelogService
+#### Feature security-ldap documentation
 
-Amalgamation of information between the `ArtifactService` and `CommitService`. This is where
-we can store/manage changelogs per artifact regsitered by an entity.
+- [Micronaut Security LDAP documentation](https://micronaut-projects.github.io/micronaut-security/latest/guide/index.html#ldap)
 
-#### SonatypeWebhookService
 
-This is the webhook functionality that performs a [Saga]-like series of jobs or units of
-work. Because the nature of an artifact being uploaded to Sonatype and "the fact that anything
-can and will go wrong", 
+#### Feature discovery-kubernetes documentation
 
-### AuthService
+- [Micronaut Kubernetes Service Discovery documentation](https://micronaut-projects.github.io/micronaut-kubernetes/latest/guide/#service-discovery)
 
-Provides the login end point and generates Json Web Tokens (JWTs) to enable interacting
-with select services. It uses lagom-pac4j's [`SecuredService`] to provide authentication
-and authorization to other endpoints. It is used to provide internal, LDAP and JWT based
-authentication.
+
+#### Feature micronaut-aot documentation
+
+- [Micronaut AOT documentation](https://micronaut-projects.github.io/micronaut-aot/latest/guide/)
+
+
+#### Feature liquibase documentation
+
+- [Micronaut Liquibase Database Migration documentation](https://micronaut-projects.github.io/micronaut-liquibase/latest/guide/index.html)
+
+- [https://www.liquibase.org/](https://www.liquibase.org/)
+
+
+#### Feature cache-caffeine documentation
+
+- [Micronaut Caffeine Cache documentation](https://micronaut-projects.github.io/micronaut-cache/latest/guide/index.html)
+
+- [https://github.com/ben-manes/caffeine](https://github.com/ben-manes/caffeine)
+
+
+#### Feature serialization-jackson documentation
+
+- [Micronaut Serialization Jackson Core documentation](https://micronaut-projects.github.io/micronaut-serialization/latest/guide/)
+
+
+#### Feature data-r2dbc documentation
+
+- [Micronaut Data R2DBC documentation](https://micronaut-projects.github.io/micronaut-data/latest/guide/#dbc)
+
+- [https://r2dbc.io](https://r2dbc.io)
+
+
+#### Feature jdbc-hikari documentation
+
+- [Micronaut Hikari JDBC Connection Pool documentation](https://micronaut-projects.github.io/micronaut-sql/latest/guide/index.html#jdbc)
+
+
+
 
 [LagomFramework]:https://lagomframework.com/
 [Event Source]:https://docs.microsoft.com/en-us/azure/architecture/patterns/event-sourcing

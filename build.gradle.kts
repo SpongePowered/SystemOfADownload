@@ -9,6 +9,7 @@ plugins {
     id("io.micronaut.library") version "4.0.2" apply false
     id("io.micronaut.application") version "4.0.2" apply false
     id("io.micronaut.docker") version "4.0.2" apply false
+    id("io.micronaut.aot") version "4.0.2" apply false
     id("io.micronaut.test-resources") version "4.0.2" apply false
 }
 
@@ -36,15 +37,21 @@ tasks {
     }
 }
 
+
+tasks.wrapper {
+    distributionType = Wrapper.DistributionType.ALL
+}
+
+
 allprojects {
     apply(plugin = "java-library")
 
     java {
-        sourceCompatibility = JavaVersion.VERSION_20
-        targetCompatibility = JavaVersion.VERSION_20
-        if (JavaVersion.current() < JavaVersion.VERSION_20) {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+        if (JavaVersion.current() < JavaVersion.VERSION_21) {
             toolchain {
-                languageVersion.set(JavaLanguageVersion.of(20))
+                languageVersion.set(JavaLanguageVersion.of(21))
             }
         }
     }
