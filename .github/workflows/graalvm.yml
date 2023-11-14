@@ -20,7 +20,7 @@ jobs:
       - name: Install Native Image
         run: gu install native-image
       - name: Docker login
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           registry: ${{ secrets.DOCKER_REGISTRY_URL }}
           username: ${{ secrets.DOCKER_USERNAME }}
