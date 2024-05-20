@@ -14,7 +14,7 @@ jobs:
           key: ${{ runner.os }}-gradle-test-${{ hashFiles('**/*.gradle') }}
           restore-keys: ${{ runner.os }}-gradle-test-
       - name: Setup GraalVM CE
-        uses: DeLaGuardo/setup-graalvm@3.1
+        uses: DeLaGuardo/setup-graalvm@5.0
         with:
           graalvm-version: 22.3.0.java17
       - name: Install Native Image
