@@ -1,12 +1,12 @@
 [versions]
 micronaut = "4.1.3"
 scala = "2.13"
-akka = "2.9.3"
-jackson = "2.17.1"
-maven_artifact = "3.9.5"
-akkaManagementVersion = "1.5.2"
-akkaProjection = "1.5.4"
-akkaR2DBC = "1.2.4"
+akka = "2.9.5"
+jackson = "2.17.2"
+maven_artifact = "3.9.9"
+akkaManagementVersion = "1.5.3"
+akkaProjection = "1.5.5"
+akkaR2DBC = "1.2.5"
 vavr = "0.10.4"
 jakartaValidation = "3.0.2"
 
