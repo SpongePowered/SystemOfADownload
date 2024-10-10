@@ -5,12 +5,12 @@ test-resources:
             username: testuser
             password: testpassword
             db-name: testdb
-
+            port: 7654
 liquibase:
     enabled: true
     datasources:
         default:
-            change-log: 'classpath:db/liquibase-changelog.xml' # (4)
+            change-log: 'classpath:db/test-changelog.xml'
 endpoints:
     liquibase:
         enabled: true

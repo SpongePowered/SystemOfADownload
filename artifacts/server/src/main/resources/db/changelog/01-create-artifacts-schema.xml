@@ -1,5 +1,3 @@
-
-
 <?xml version="1.0" encoding="UTF-8"?>
 
 <databaseChangeLog
@@ -9,7 +7,7 @@
          http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.22.xsd">
     <changeSet id="01" author="gabizou">
         <sql>
-            CREATE SCHEMA IF NOT EXISTS artifacts;
+            CREATE SCHEMA IF NOT EXISTS artifact;
         </sql>
         <createTable tableName="artifacts" schemaName="artifact">
             <column name="id" type="bigint" autoIncrement="true">
@@ -56,7 +54,7 @@
             <column name="artifact_id" type="bigint">
                 <constraints nullable="false"
                              referencedTableName="artifacts"
-                             referencedTableSchemaName="artifacts"
+                             referencedTableSchemaName="artifact"
                              referencedColumnNames="id"
                              foreignKeyName="artifact_id_fk"
                              unique="true"
@@ -68,6 +66,9 @@
                              unique="true"
                              uniqueConstraintName="artifact_version_unique_idx"/>
             </column>
+            <column name="recommended" type="boolean" defaultValueBoolean="false"/>
+            <column name="manual_recommendation" type="boolean" defaultValueBoolean="false"/>
+            <column name="ordering" type="int"/>
         </createTable>
         <createTable tableName="artifact_recommendations"
                      schemaName="artifact">
@@ -89,36 +90,52 @@
                     type="boolean"
                     defaultValueBoolean="false"/>
         </createTable>
-        <createView viewName="versioned_artifacts"
-                    schemaName="artifact"
-        >
+        <createView viewName="versioned_artifacts" schemaName="artifact">
             select distinct a.artifact_id, a.group_id, v.version, v.recommended, v.manual_recommendation
             from artifact.artifacts a inner join artifact.artifact_versions v on a.id = v.artifact_id
         </createView>
-        <createView viewName="artifact_versioned_assets" schemaName="artifact"
-                    encoding="UTF-8"
-                    replaceIfExists="true">
-            select
-                a.group_id,
-                a.artifact_id,
-                av.version,
-                va.classifier, va.extension, va.download_url, va.md5, va.sha1
-            from artifact.versioned_assets va
-                     inner join artifact.artifact_versions av on av.id = va.version_id
-                     inner join artifact.artifacts a on a.id = av.artifact_id
-        </createView>
-        <createView viewName="versioned_changelogs"
-                    schemaName="artifact">
-            select distinct a.group_id, a.artifact_id, v.version, v.ordering, v.id as version_id, vc.commit_sha, vc.repo, vc.branch, vc.changelog
-            from artifact.version_changelogs vc
-                     inner join artifact.artifact_versions v on v.id = vc.version_id
-                     inner join artifact.artifacts a on a.id = v.artifact_id
-            order by v.ordering desc
-        </createView>
-        <createView viewName="versioned_artifacts" schemaName="artifact">
-            select distinct a.artifact_id, a.group_id, v.version, v.ordering, v.recommended, v.manual_recommendation
-            from artifact.artifacts a inner join artifact.artifact_versions v on a.id = v.artifact_id
-            order by v.ordering desc
+        <sql>
+            set search_path to artifact;
+drop materialized view if exists versioned_tags;
+create materialized view versioned_tags as
+            select version.id                                                                                as version_id,
+                   a.id                                                                                      as artifact_internal_id,
+                   a.group_id                                                                                as maven_group_id,
+                   a.artifact_id                                                                             as maven_artifact_id,
+                   version.version                                                                           as maven_version,
+                   version.recommended                                                                       as regex_recommended,
+                   artifact_tag.id                                                                           as tag_id,
+                   artifact_tag.tag_name                                                                     as tag_name,
+                   ((regexp_match(version.version, artifact_tag.tag_regex))[artifact_tag.use_capture_group]) as tag_value
+            from artifact_versions version
+                inner join artifacts a on version.artifact_id = a.id
+                inner join artifact_tags artifact_tag
+                on a.id = artifact_tag.artifact_id
+            ;
+            create unique index on versioned_tags (
+                maven_group_id, maven_artifact_id,
+                maven_version, tag_name
+                );
+        </sql>
+        <createIndex tableName="versioned_tags" indexName="versioned_tag_value_idx" schemaName="artifact">
+            <column name="maven_group_id"/>
+            <column name="maven_artifact_id"/>
+            <column name="tag_name"/>
+            <column name="tag_value"/>
+        </createIndex>
+        <createIndex tableName="versioned_tags" indexName="versioned_tag_recommended_value_idx" schemaName="artifact">
+            <column name="maven_group_id"/>
+            <column name="maven_artifact_id"/>
+            <column name="tag_name"/>
+            <column name="tag_value"/>
+            <column name="regex_recommended"/>
+        </createIndex>
+        <createView viewName="artifact_tag_values" schemaName="artifact">
+            select distinct a.group_id, a.artifact_id, t.tag_name, vt.tag_value
+            from artifact.artifacts a
+                     inner join artifact.artifact_tags t on a.id = t.artifact_id
+                     inner join artifact.versioned_tags vt on vt.tag_name = t.tag_name and vt.maven_group_id = a.group_id and
+                                                             vt.maven_artifact_id = a.artifact_id and vt.tag_value is not null
         </createView>
     </changeSet>
 </databaseChangeLog>

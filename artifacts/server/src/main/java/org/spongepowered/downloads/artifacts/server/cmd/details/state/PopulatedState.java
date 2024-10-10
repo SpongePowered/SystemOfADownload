@@ -22,17 +22,18 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifacts.server.details.state;
+package org.spongepowered.downloads.artifacts.server.cmd.details.state;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.spongepowered.downloads.akka.AkkaSerializable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifacts.events.DetailsEvent;
 
 @JsonDeserialize
 public record PopulatedState(ArtifactCoordinates coordinates,
                              String displayName, String website, String gitRepository,
-                             String issues) implements DetailsState {
+                             String issues) implements DetailsState, AkkaSerializable {
 
     @JsonCreator
     public PopulatedState {

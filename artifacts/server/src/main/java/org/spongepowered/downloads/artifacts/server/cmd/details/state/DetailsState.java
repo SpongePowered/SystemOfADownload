@@ -22,14 +22,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifacts.server.details.state;
+package org.spongepowered.downloads.artifacts.server.cmd.details.state;
 
 import org.spongepowered.downloads.akka.AkkaSerializable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
-public sealed interface DetailsState extends AkkaSerializable
-    permits EmptyState, PopulatedState {
-
+public interface DetailsState extends AkkaSerializable {
     ArtifactCoordinates coordinates();
 
     String displayName();

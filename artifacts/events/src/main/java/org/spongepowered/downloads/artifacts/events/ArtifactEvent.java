@@ -18,7 +18,7 @@ public sealed interface ArtifactEvent extends AkkaSerializable {
 
     @JsonTypeName("registered")
     @JsonDeserialize
-    final record ArtifactRegistered(
+    record ArtifactRegistered(
         ArtifactCoordinates coordinates
     ) implements ArtifactEvent {
 
@@ -29,7 +29,7 @@ public sealed interface ArtifactEvent extends AkkaSerializable {
 
     @JsonTypeName("git-repository")
     @JsonDeserialize
-    final record GitRepositoryAssociated(
+    record GitRepositoryAssociated(
         ArtifactCoordinates coordinates,
         String repository
     ) implements ArtifactEvent {
@@ -41,7 +41,7 @@ public sealed interface ArtifactEvent extends AkkaSerializable {
 
     @JsonTypeName("website")
     @JsonDeserialize
-    final record WebsiteUpdated(
+    record WebsiteUpdated(
         ArtifactCoordinates coordinates,
         String url
     ) implements ArtifactEvent {
@@ -53,7 +53,7 @@ public sealed interface ArtifactEvent extends AkkaSerializable {
 
     @JsonTypeName("issues")
     @JsonDeserialize
-    final record IssuesUpdated(
+    record IssuesUpdated(
         ArtifactCoordinates coordinates,
         String url
     ) implements ArtifactEvent {
@@ -65,7 +65,7 @@ public sealed interface ArtifactEvent extends AkkaSerializable {
 
     @JsonTypeName("displayName")
     @JsonDeserialize
-    final record DisplayNameUpdated(
+    record DisplayNameUpdated(
         ArtifactCoordinates coordinates,
         String displayName
     ) implements ArtifactEvent {

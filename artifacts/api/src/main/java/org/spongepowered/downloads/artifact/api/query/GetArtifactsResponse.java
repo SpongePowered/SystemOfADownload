@@ -40,7 +40,7 @@ import java.util.List;
 public sealed interface GetArtifactsResponse {
 
     @JsonSerialize
-    record GroupMissing(@JsonProperty String groupRequested) implements GetArtifactsResponse {
+    record GroupMissing(@JsonProperty String groupId) implements GetArtifactsResponse {
 
         @JsonCreator
         public GroupMissing {

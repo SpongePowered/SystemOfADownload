@@ -24,65 +24,10 @@
  */
 package org.spongepowered.downloads.artifact.api.query;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
-import java.net.URL;
-
 public final class ArtifactDetails {
-
-    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME,
-        property = "type")
-    @JsonDeserialize
-    public sealed interface Update<T> {
-
-        @JsonTypeName("website")
-        record Website(
-            @JsonProperty(required = true) String website
-        ) implements Update<URL> {
-
-            @JsonCreator
-            public Website {
-            }
-
-        }
-
-        @JsonTypeName("displayName")
-        record DisplayName(
-            @JsonProperty(required = true) String display
-        ) implements Update<String> {
-
-            @JsonCreator
-            public DisplayName {
-            }
-
-        }
-
-        @JsonTypeName("issues")
-        record Issues(
-            @JsonProperty(required = true) String issues
-        ) implements Update<URL> {
-            @JsonCreator
-            public Issues {
-            }
-
-        }
-
-        @JsonTypeName("git-repo")
-        record GitRepository(
-            @JsonProperty(required = true) String gitRepo
-        ) implements Update<URL> {
-
-            @JsonCreator
-            public GitRepository {
-            }
-
-        }
-    }
 
     @JsonSerialize
     @JsonTypeInfo(use = JsonTypeInfo.Id.NONE)
@@ -99,6 +44,8 @@ public final class ArtifactDetails {
         }
 
         record NotFound(String message) implements Response {}
+
+        record Error(String message) implements Response {}
     }
 
 

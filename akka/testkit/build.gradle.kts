@@ -11,4 +11,5 @@ dependencies {
     api("io.micronaut:micronaut-inject")
     api(project(":akka"))
     api(libs.akka.testkit)
+    api(libs.akka.persistence.testkit)
 }

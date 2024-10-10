@@ -1,146 +1,174 @@
-name: Build and Verify
+name: Build Images
 
 on:
-    push:
-        branches: [ master ]
-    pull_request:
-        branches: [ master ]
+  push:
+    branches: [ main, micronaut ]
+  pull_request:
+    branches: [ main, micronaut ]
 
 jobs:
-    test:
-        runs-on: ubuntu-latest
-        strategy:
-            matrix:
-                project: [ 'artifact-impl', 'artifact-query-impl', 'auth-impl', 'version-synchronizer', 'versions-impl', 'versions-query-impl' ]
+  build-non-windows-image:
+    name: 'Build Non-Windows Image'
+    needs: [ build-jar-job ]
+    strategy:
+      matrix:
+        os: [ 'ubuntu-latest', 'macos-latest' ]
+        include:
+          - os: 'ubuntu-latest'
+            label: 'linux'
+          - os: 'macos-latest'
+            label: 'mac'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v3
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '21'
+          distribution: 'graalvm' # See 'Options' for all available distributions
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          native-image-job-reports: 'true'
+          cache: 'gradle'
+      - name: Example step
+        run: |
+          echo "GRAALVM_HOME: $GRAALVM_HOME"
+          echo "JAVA_HOME: $JAVA_HOME"
+          java --version
+          native-image --version
+      - name: 'Publish Native Image'
+        if: success()
+        uses: actions/upload-artifact@v2-preview
+        with:
+          name: 'simple-socket-fn-logger-${{env.VERSION}}-${{matrix.label}}'
+          path: 'simple-socket-fn-logger-${{env.VERSION}}-all'
+      - name: 'Release Native Image Asset'
+        if: success() && contains(github.ref, 'v')
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
         env:
-            JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --add-opens=java.base/java.lang=ALL-UNNAMED
-            JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --add-opens=java.base/java.lang=ALL-UNNAMED
-        steps:
-            -   uses: actions/checkout@v4
-            -   name: Set up SBT
-                uses: actions/setup-java@v4
-                with:
-                    distribution: 'temurin'
-                    java-version: '17'
-            -   name: Build with SBT
-                run: sbt -v ${{matrix.project}}/test
-    publish-maven:
-        needs: test
-        if: ${{ github.event_name == 'push' }}
-        runs-on: ubuntu-latest
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        with:
+          upload_url: ${{env.UPLOAD_URL}}
+          asset_name: 'simple-socket-fn-logger-${{env.VERSION}}-${{matrix.label}}'
+          asset_path: 'simple-socket-fn-logger-${{env.VERSION}}-all'
+          asset_content_type: application/octet-stream
+  publish-image:
+    matrix:
+
+
+    needs: test
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up SBT
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Coursier cache
+        uses: coursier/cache-action@v6
+      - name: Set up sponge repo credentials
+        run: |
+          mkdir ~/.sbt
+          echo "realm=Sonatype Nexus Repository Manager" >> ~/.sbt/sponge_creds
+          echo "host=repo-new.spongepowered.org" >> ~/.sbt/sponge_creds
+          echo "user=${{ secrets.SPONGE_MAVEN_REPO_USER }}" >> ~/.sbt/sponge_creds
+          echo "password=${{ secrets.SPONGE_MAVEN_REPO_PASSWORD }}" >> ~/.sbt/sponge_creds
+          cat ~/.sbt/sponge_creds
+      - name: Publish To Sponge Repos
+        run: |
+          sbt -v publish
+          rm -f ~/.sbt/sponge_creds
         env:
-            JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --illegal-access=permit
-            JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --illegal-access=permit
-        steps:
-            -   uses: actions/checkout@v4
-            -   name: Set up SBT
-                uses: actions/setup-java@v4
-                with:
-                    distribution: 'temurin'
-                    java-version: '17'
-            -   name: Coursier cache
-                uses: coursier/cache-action@v6
-            -   name: Set up sponge repo credentials
-                run: |
-                    mkdir ~/.sbt
-                    echo "realm=Sonatype Nexus Repository Manager" >> ~/.sbt/sponge_creds
-                    echo "host=repo-new.spongepowered.org" >> ~/.sbt/sponge_creds
-                    echo "user=${{ secrets.SPONGE_MAVEN_REPO_USER }}" >> ~/.sbt/sponge_creds
-                    echo "password=${{ secrets.SPONGE_MAVEN_REPO_PASSWORD }}" >> ~/.sbt/sponge_creds
-                    cat ~/.sbt/sponge_creds
-            -   name: Publish To Sponge Repos
-                run: |
-                    sbt -v publish
-                    rm -f ~/.sbt/sponge_creds
-                env:
-                    REPO_NAME: "Sponge Repository"
-                    REPO_CREDENTIAL_FILE: "sponge_creds"
-                    CI_SYSTEM: Github Actions
-                    GITHUB_USERNAME: "${{ github.actor }}"
-                    GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-                    SONATYPE_SNAPSHOT_REPO: "${{ secrets.SPONGE_MAVEN_SNAPSHOT_REPO_URL }}"
-                    SONATYPE_RELEASE_REPO: "${{ secrets.SPONGE_MAVEN_RELEASE_REPO_URL }}"
-            -   name: Set up GitHub Packages credentials
-                run: |
-                    mkdir -p ~/.sbt
-                    rm -f ~/.sbt/.credentials
-                    echo "realm=GitHub Packages" >> ~/.sbt/github_creds
-                    echo "host=maven.pkg.github.com" >> ~/.sbt/github_creds
-                    echo "user=${{ github.actor }}" >> ~/.sbt/github_creds
-                    echo "password=${{ secrets.GITHUB_TOKEN }}" >> ~/.sbt/github_creds
-            -   name: Publish to GitHub Packages
-                run: |
-                    sbt -v publish
-                    rm -f ~/.sbt/github_creds
-                env:
-                    REPO_NAME: "GitHub Packages"
-                    REPO_CREDENTIAL_FILE: "github_creds"
-                    CI_SYSTEM: Github Actions
-                    GITHUB_USERNAME: ${{ github.actor }}
-                    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                    SONATYPE_SNAPSHOT_REPO: "https://maven.pkg.github.com/SpongePowered/SystemOfADownload"
-                    SONATYPE_RELEASE_REPO: "https://maven.pkg.github.com/SpongePowered/SystemOfADownload"
-            -   name: Set up Maven Central credentials
-                run: |
-                    mkdir -p ~/.sbt
-                    rm -f ~/.sbt/.credentials
-                    echo "realm=Maven Central" >> ~/.sbt/sonatype
-                    echo "host=oss.sonatype.org" >> ~/.sbt/sonatype
-                    echo "user=${{ secrets.SPONGE_MAVEN_OSSRH_USER }}" >> ~/.sbt/sonatype
-                    echo "password=${{ secrets.SPONGE_MAVEN_OSSRH_PASSWORD }}" >> ~/.sbt/sonatype
-            -   name: Publish to Maven Central
-                run: |
-                    sbt -v publish
-                    rm -f ~/.sbt/sonatype
-                env:
-                    REPO_NAME: "Maven Central"
-                    REPO_CREDENTIAL_FILE: "sonatype"
-                    CI_SYSTEM: Github Actions
-                    GITHUB_USERNAME: ${{ github.actor }}
-                    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                    SONATYPE_SNAPSHOT_REPO: "https://oss.sonatype.org/content/repositories/snapshots"
-                    SONATYPE_RELEASE_REPO: "https://oss.sonatype.org/service/local/staging/deploy/maven2"
-            -   name: Cleanup before cache
-                shell: bash
-                run: |
-                    rm -rf "$HOME/.ivy2/local" || true
-                    find $HOME/Library/Caches/Coursier/v1        -name "ivydata-*.properties" -delete || true
-                    find $HOME/.ivy2/cache                       -name "ivydata-*.properties" -delete || true
-                    find $HOME/.cache/coursier/v1                -name "ivydata-*.properties" -delete || true
-                    find $HOME/.sbt                              -name "*.lock"               -delete || true
-    publish-docker-image:
-        needs: test
-        if: ${{ github.event_name == 'push' }}
-        runs-on: ubuntu-latest
-        strategy:
-            matrix:
-                project: [ 'artifact-impl', 'artifact-query-impl', 'auth-impl', 'version-synchronizer', 'versions-impl', 'versions-query-impl' ]
+          REPO_NAME: "Sponge Repository"
+          REPO_CREDENTIAL_FILE: "sponge_creds"
+          CI_SYSTEM: Github Actions
+          GITHUB_USERNAME: "${{ github.actor }}"
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          SONATYPE_SNAPSHOT_REPO: "${{ secrets.SPONGE_MAVEN_SNAPSHOT_REPO_URL }}"
+          SONATYPE_RELEASE_REPO: "${{ secrets.SPONGE_MAVEN_RELEASE_REPO_URL }}"
+      - name: Set up GitHub Packages credentials
+        run: |
+          mkdir -p ~/.sbt
+          rm -f ~/.sbt/.credentials
+          echo "realm=GitHub Packages" >> ~/.sbt/github_creds
+          echo "host=maven.pkg.github.com" >> ~/.sbt/github_creds
+          echo "user=${{ github.actor }}" >> ~/.sbt/github_creds
+          echo "password=${{ secrets.GITHUB_TOKEN }}" >> ~/.sbt/github_creds
+      - name: Publish to GitHub Packages
+        run: |
+          sbt -v publish
+          rm -f ~/.sbt/github_creds
         env:
-            JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --illegal-access=permit
-            JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --illegal-access=permit
-        steps:
-            -   uses: actions/checkout@v4
-            -   name: Set up SBT
-                uses: actions/setup-java@v4
-                with:
-                    distribution: 'temurin'
-                    java-version: '17'
-            -   name: Build with SBT
-                run: sbt -v ${{matrix.project}}/Docker/stage
-            -   name: Set up QEMU
-                uses: docker/setup-qemu-action@v3.0.0
-            -   name: Set up Docker Buildx
-                uses: docker/setup-buildx-action@v3.3.0
-            -   name: Login to DockerHub
-                uses: docker/login-action@v3
-                with:
-                    registry: ghcr.io
-                    username: ${{ github.actor }}
-                    password: ${{ secrets.GITHUB_TOKEN }}
-            -   name: Build and push
-                uses: docker/build-push-action@v3
-                with:
-                    context: ./${{ matrix.project }}/target/docker/stage/
-                    platforms: linux/amd64,linux/arm64
-                    push: true
-                    tags: ghcr.io/spongepowered/systemofadownload-${{matrix.project}}:latest,ghcr.io/spongepowered/systemofadownload-${{matrix.project}}:${{ github.sha }},ghcr.io/spongepowered/systemofadownload-${{matrix.project}}:${{ github.ref_name }}
+          REPO_NAME: "GitHub Packages"
+          REPO_CREDENTIAL_FILE: "github_creds"
+          CI_SYSTEM: Github Actions
+          GITHUB_USERNAME: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONATYPE_SNAPSHOT_REPO: "https://maven.pkg.github.com/SpongePowered/SystemOfADownload"
+          SONATYPE_RELEASE_REPO: "https://maven.pkg.github.com/SpongePowered/SystemOfADownload"
+      - name: Set up Maven Central credentials
+        run: |
+          mkdir -p ~/.sbt
+          rm -f ~/.sbt/.credentials
+          echo "realm=Maven Central" >> ~/.sbt/sonatype
+          echo "host=oss.sonatype.org" >> ~/.sbt/sonatype
+          echo "user=${{ secrets.SPONGE_MAVEN_OSSRH_USER }}" >> ~/.sbt/sonatype
+          echo "password=${{ secrets.SPONGE_MAVEN_OSSRH_PASSWORD }}" >> ~/.sbt/sonatype
+      - name: Publish to Maven Central
+        run: |
+          sbt -v publish
+          rm -f ~/.sbt/sonatype
+        env:
+          REPO_NAME: "Maven Central"
+          REPO_CREDENTIAL_FILE: "sonatype"
+          CI_SYSTEM: Github Actions
+          GITHUB_USERNAME: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONATYPE_SNAPSHOT_REPO: "https://oss.sonatype.org/content/repositories/snapshots"
+          SONATYPE_RELEASE_REPO: "https://oss.sonatype.org/service/local/staging/deploy/maven2"
+      - name: Cleanup before cache
+        shell: bash
+        run: |
+          rm -rf "$HOME/.ivy2/local" || true
+          find $HOME/Library/Caches/Coursier/v1        -name "ivydata-*.properties" -delete || true
+          find $HOME/.ivy2/cache                       -name "ivydata-*.properties" -delete || true
+          find $HOME/.cache/coursier/v1                -name "ivydata-*.properties" -delete || true
+          find $HOME/.sbt                              -name "*.lock"               -delete || true
+  publish-docker-image:
+    needs: test
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: [ 'artifact-impl', 'artifact-query-impl', 'auth-impl', 'version-synchronizer', 'versions-impl', 'versions-query-impl' ]
+    env:
+      JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --illegal-access=permit
+      JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8 --illegal-access=permit
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up SBT
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Build with SBT
+        run: sbt -v ${{matrix.project}}/Docker/stage
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2.1.0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2.1.0
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: ./${{ matrix.project }}/target/docker/stage/
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/spongepowered/systemofadownload-${{matrix.project}}:latest,ghcr.io/spongepowered/systemofadownload-${{matrix.project}}:${{ github.sha }},ghcr.io/spongepowered/systemofadownload-${{matrix.project}}:${{ github.ref_name }}

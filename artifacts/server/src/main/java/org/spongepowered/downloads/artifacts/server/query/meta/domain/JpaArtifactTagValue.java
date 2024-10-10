@@ -26,11 +26,16 @@ package org.spongepowered.downloads.artifacts.server.query.meta.domain;
 
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.annotation.MappedProperty;
+import io.micronaut.data.annotation.sql.JoinColumn;
+import io.micronaut.data.annotation.sql.JoinColumns;
+import jakarta.persistence.IdClass;
+import jakarta.persistence.ManyToOne;
 
 import java.io.Serializable;
 import java.util.Objects;
 
-@MappedEntity(value = "versioned_tags", schema = "version")
+@IdClass(JpaArtifactTagValue.Identifier.class)
+@MappedEntity(value = "artifact_tag_values", schema = "artifact")
 public class JpaArtifactTagValue {
 
     /*
@@ -66,6 +71,11 @@ public class JpaArtifactTagValue {
         }
     }
 
+    @ManyToOne(fetch = jakarta.persistence.FetchType.LAZY, targetEntity = JpaArtifact.class)
+    @JoinColumns({
+        @JoinColumn(name = "artifact_id", referencedColumnName = "artifact_id"),
+        @JoinColumn(name = "group_id", referencedColumnName = "group_id")
+    })
     private JpaArtifact artifact;
 
     @MappedProperty(value = "artifact_id")

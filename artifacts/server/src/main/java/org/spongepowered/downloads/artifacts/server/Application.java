@@ -1,7 +1,6 @@
 package org.spongepowered.downloads.artifacts.server;
 
 import akka.actor.typed.ActorSystem;
-import akka.actor.typed.SpawnProtocol;
 import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.runtime.Micronaut;
@@ -21,7 +20,7 @@ public class Application {
     public Application(
         final ActorSystem<?> system,
         final ClusterSharding sharding
-        ) {
+    ) {
         this.system = system;
         this.sharding = sharding;
     }

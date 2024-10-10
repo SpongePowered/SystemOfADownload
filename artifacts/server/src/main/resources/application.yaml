@@ -22,3 +22,11 @@ liquibase:
         default:
             enabled: true
             change-log: 'classpath:db/liquibase-changelog.xml' # (4)
+micronaut:
+  executors:
+    git-resolver:
+      core-pool-size: 2
+      max-pool-size: 10
+      keep-alive-time: 30s
+      queue-size: 1000
+      thread-factory: git-resolver

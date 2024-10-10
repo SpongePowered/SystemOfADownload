@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifacts.server.details;
+package org.spongepowered.downloads.artifacts.server.cmd.details;
 
 import akka.NotUsed;
 import akka.actor.typed.Behavior;
@@ -34,19 +34,21 @@ import akka.persistence.typed.PersistenceId;
 import akka.persistence.typed.javadsl.CommandHandlerWithReply;
 import akka.persistence.typed.javadsl.EventHandler;
 import akka.persistence.typed.javadsl.EventSourcedBehaviorWithEnforcedReplies;
-import io.micronaut.http.HttpResponse;
+import io.vavr.control.Either;
 import org.spongepowered.downloads.artifact.api.query.ArtifactDetails;
 import org.spongepowered.downloads.artifacts.events.DetailsEvent;
-import org.spongepowered.downloads.artifacts.server.details.state.DetailsState;
-import org.spongepowered.downloads.artifacts.server.details.state.EmptyState;
-import org.spongepowered.downloads.artifacts.server.details.state.PopulatedState;
+import org.spongepowered.downloads.artifacts.server.cmd.details.state.DetailsState;
+import org.spongepowered.downloads.artifacts.server.cmd.details.state.EmptyState;
+import org.spongepowered.downloads.artifacts.server.cmd.details.state.PopulatedState;
 
 import java.util.List;
+import java.util.Set;
+import java.util.function.Function;
 
 public class ArtifactDetailsEntity
     extends EventSourcedBehaviorWithEnforcedReplies<DetailsCommand, DetailsEvent, DetailsState> {
-
-    private static final HttpResponse<ArtifactDetails.Response> NOT_FOUND = HttpResponse.notFound(new ArtifactDetails.Response.NotFound("group or artifact not found"));
+    private static final Either<ArtifactDetails.Response.NotFound, ArtifactDetails.Response> NOT_FOUND = Either.left(
+        new ArtifactDetails.Response.NotFound("group or artifact not found"));
     public static EntityTypeKey<DetailsCommand> ENTITY_TYPE_KEY = EntityTypeKey.create(
         DetailsCommand.class, "DetailsEntity");
     private final String artifactId;
@@ -135,13 +137,15 @@ public class ArtifactDetailsEntity
                     .persist(new DetailsEvent.ArtifactIssuesUpdated(s.coordinates(), cmd.validUrl().toString()))
                     .thenReply(
                         cmd.replyTo(),
-                        us -> HttpResponse.ok(new ArtifactDetails.Response.Ok(
-                            us.coordinates().artifactId(),
-                            us.displayName(),
-                            us.website(),
-                            us.issues(),
-                            us.gitRepository()
-                        ))
+                        us -> Either.right(
+                            new ArtifactDetails.Response.Ok(
+                                us.coordinates().artifactId(),
+                                us.displayName(),
+                                us.website(),
+                                us.issues(),
+                                us.gitRepository()
+                            )
+                        )
                     )
             )
             .onCommand(
@@ -150,13 +154,15 @@ public class ArtifactDetailsEntity
                     .persist(new DetailsEvent.ArtifactIssuesUpdated(s.coordinates(), cmd.website().toString()))
                     .thenReply(
                         cmd.replyTo(),
-                        us -> HttpResponse.ok(new ArtifactDetails.Response.Ok(
-                            us.coordinates().artifactId(),
-                            us.displayName(),
-                            us.website(),
-                            us.issues(),
-                            us.gitRepository()
-                        ))
+                        us -> Either.right(
+                            new ArtifactDetails.Response.Ok(
+                                us.coordinates().artifactId(),
+                                us.displayName(),
+                                us.website(),
+                                us.issues(),
+                                us.gitRepository()
+                            )
+                        )
                     )
             )
             .onCommand(
@@ -165,13 +171,15 @@ public class ArtifactDetailsEntity
                     .persist(new DetailsEvent.ArtifactIssuesUpdated(s.coordinates(), cmd.displayName()))
                     .thenReply(
                         cmd.replyTo(),
-                        us -> HttpResponse.ok(new ArtifactDetails.Response.Ok(
-                            us.coordinates().artifactId(),
-                            us.displayName(),
-                            us.website(),
-                            us.issues(),
-                            us.gitRepository()
-                        ))
+                        us -> Either.right(
+                            new ArtifactDetails.Response.Ok(
+                                us.coordinates().artifactId(),
+                                us.displayName(),
+                                us.website(),
+                                us.issues(),
+                                us.gitRepository()
+                            )
+                        )
                     )
             )
             .onCommand(
@@ -180,13 +188,15 @@ public class ArtifactDetailsEntity
                     .persist(new DetailsEvent.ArtifactGitRepositoryUpdated(s.coordinates(), cmd.gitRemote()))
                     .thenReply(
                         cmd.replyTo(),
-                        us -> HttpResponse.ok(new ArtifactDetails.Response.Ok(
-                            us.coordinates().artifactId(),
-                            us.displayName(),
-                            us.website(),
-                            us.issues(),
-                            us.gitRepository()
-                        ))
+                        us -> Either.right(
+                            new ArtifactDetails.Response.Ok(
+                                us.coordinates().artifactId(),
+                                us.displayName(),
+                                us.website(),
+                                us.issues(),
+                                us.gitRepository()
+                            )
+                        )
                     )
             );
 

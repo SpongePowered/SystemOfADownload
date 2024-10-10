@@ -11,17 +11,15 @@ import java.util.List;
 
 @Serdeable
 @MappedEntity
-public class Group {
-
+public record Group(
     @GeneratedValue
     @Id
-    private Long id;
-
+    Long id,
     @MappedProperty(value = "groupId")
-    private String groupId;
-
+    String groupId,
     @Relation(value = Relation.Kind.ONE_TO_MANY,
         mappedBy = "groupId")
-    private List<JpaArtifact> artifacts;
+    List<JpaArtifact> artifacts
+) {
 
 }

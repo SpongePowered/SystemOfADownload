@@ -24,19 +24,30 @@
  */
 package org.spongepowered.downloads.artifacts.worker.readside;
 
+import akka.Done;
 import akka.persistence.query.typed.EventEnvelope;
 import akka.projection.r2dbc.javadsl.R2dbcHandler;
+import akka.projection.r2dbc.javadsl.R2dbcSession;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
+import org.spongepowered.downloads.artifacts.events.DetailsEvent;
+
+import java.util.concurrent.CompletionStage;
 
 
 @Singleton
 public class ArtifactReadside extends R2dbcHandler<EventEnvelope<DetailsEvent>> {
 
-    @Inject
-    public ArtifactReadside(final ReadSide readSide) {
-        readSide.register(DetailsWriter.class);
+    public ArtifactReadside() {
+    }
+
+    @Override
+    public CompletionStage<Done> process(
+        final R2dbcSession session, final EventEnvelope<DetailsEvent> detailsEventEventEnvelope
+    ) throws Exception, Exception {
+
+        return null;
     }
 
     static final class DetailsWriter extends ReadSideProcessor<DetailsEvent> {

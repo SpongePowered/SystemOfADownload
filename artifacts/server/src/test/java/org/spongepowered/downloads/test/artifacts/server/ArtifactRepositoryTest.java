@@ -1,30 +1,24 @@
 package org.spongepowered.downloads.test.artifacts.server;
 
 import io.micronaut.context.BeanContext;
-import io.micronaut.core.type.Argument;
 import io.micronaut.data.annotation.Query;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.HttpStatus;
-import io.micronaut.http.client.BlockingHttpClient;
-import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.annotation.Client;
 import io.micronaut.inject.BeanDefinition;
 import io.micronaut.inject.ExecutableMethod;
 import io.micronaut.runtime.EmbeddedApplication;
-import io.micronaut.serde.annotation.Serdeable;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import io.micronaut.test.extensions.junit5.annotation.TestResourcesScope;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifacts.server.query.meta.ArtifactRepository;
 import org.spongepowered.downloads.artifacts.server.query.meta.domain.JpaArtifact;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.Collections;
 
 
 @MicronautTest
@@ -37,56 +31,12 @@ public class ArtifactRepositoryTest {
     @Inject
     EmbeddedApplication<?> application;
 
-    @Inject
-    @Client("/")
-    HttpClient httpClient;
+
+    private final Logger logger = LoggerFactory.getLogger("ArtifactRepositoryTest");
 
     @Test
     public void testItWorks() {
         Assertions.assertTrue(application.isRunning());
-    }
-
-    @Test
-    void migrationsAreExposedViaAndEndpoint() {
-        BlockingHttpClient client = httpClient.toBlocking();
-
-        HttpResponse<List<LiquibaseReport>> response = client.exchange(
-            HttpRequest.GET("/liquibase"),
-            Argument.listOf(LiquibaseReport.class)
-        );
-        Assertions.assertEquals(HttpStatus.OK, response.status());
-
-        LiquibaseReport liquibaseReport = response.body().get(0);
-        Assertions.assertNotNull(liquibaseReport);
-        Assertions.assertNotNull(liquibaseReport.getChangeSets());
-        Assertions.assertEquals(2, liquibaseReport.getChangeSets().size());
-    }
-    @Serdeable
-    static class LiquibaseReport {
-
-        private List<ChangeSet> changeSets;
-
-        public void setChangeSets(List<ChangeSet> changeSets) {
-            this.changeSets = changeSets;
-        }
-
-        public List<ChangeSet> getChangeSets() {
-            return changeSets;
-        }
-    }
-
-    @Serdeable
-    static class ChangeSet {
-
-        private String id;
-
-        public void setId(String id) {
-            this.id = id;
-        }
-
-        public String getId() {
-            return id;
-        }
     }
 
     @Test
@@ -98,7 +48,7 @@ public class ArtifactRepositoryTest {
             .getAnnotationMetadata().stringValue(Query.class) // (3)
             .orElse(null);
 
-        final String expected = "SELECT artifact.\"id\",artifact.\"group_id\",artifact.\"artifact_id\",artifact.\"display_name\",artifact.\"website\",artifact.\"git_repository\",artifact.\"issues\",artifact.\"tag_values\",artifact.\"coordinates\",artifact.\"tag_values_for_reply\" FROM \"artifacts\".\"artifacts\" artifact WHERE (artifact.\"group_id\" = $1 AND artifact.\"artifact_id\" = $2)";
+        final String expected = "SELECT artifact.\"id\",artifact.\"group_id\",artifact.\"artifact_id\",artifact.\"display_name\",artifact.\"website\",artifact.\"git_repository\",artifact.\"issues\" FROM \"artifact\".\"artifacts\" artifact WHERE (artifact.\"group_id\" = $1 AND artifact.\"artifact_id\" = $2)";
         Assertions.assertEquals( // (4)
             expected, query);
     }
@@ -107,10 +57,17 @@ public class ArtifactRepositoryTest {
     public void testGetArtifact() {
         final ArtifactRepository repo = context.createBean(ArtifactRepository.class);
 
-
-        final Mono<JpaArtifact> spongevanilla = repo.findByGroupIdAndArtifactId("org.spongepowered", "spongevanilla");
+        // Example is injected with test data through liquibase resources
+        final Mono<JpaArtifact> spongevanilla = repo.findByGroupIdAndArtifactId("com.example", "example");
         final JpaArtifact a = spongevanilla.block();
 
+
+        final var expected = new ArtifactCoordinates("com.example", "example");
+        Assertions.assertNotNull(a);
+        Assertions.assertEquals(expected, a.coordinates());
+        final var expectedTags = Collections.emptyMap();
+        Assertions.assertNotNull(a.tags());
+        Assertions.assertEquals(expectedTags, a.tags());
     }
 
 

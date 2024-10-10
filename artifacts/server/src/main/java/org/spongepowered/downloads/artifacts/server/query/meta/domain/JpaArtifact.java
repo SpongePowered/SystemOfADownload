@@ -27,101 +27,72 @@ package org.spongepowered.downloads.artifacts.server.query.meta.domain;
 
 import io.micronaut.data.annotation.GeneratedValue;
 import io.micronaut.data.annotation.Id;
-import io.micronaut.data.annotation.Join;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.annotation.MappedProperty;
-import io.micronaut.data.annotation.Relation;
-import io.vavr.Tuple;
-import io.vavr.Tuple2;
-import io.vavr.collection.Map;
-import io.vavr.collection.SortedSet;
-import io.vavr.collection.TreeMap;
-import io.vavr.collection.TreeSet;
+import io.micronaut.data.annotation.Transient;
+import io.micronaut.data.annotation.sql.JoinColumn;
+import io.micronaut.data.annotation.sql.JoinColumns;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.OneToMany;
 import jakarta.validation.constraints.NotEmpty;
-import org.apache.maven.artifact.versioning.ComparableVersion;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
-import java.util.Comparator;
+import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 
-@MappedEntity(value = "artifacts", schema = "artifacts", alias = "artifact")
-public class JpaArtifact {
+@MappedEntity(value = "artifacts", schema = "artifact", alias = "artifact")
+public record JpaArtifact(
 
     @GeneratedValue
     @Id
-    private int id;
-
-    public int getId() {
-        return id;
-    }
-
+    int id,
     @MappedProperty(value = "group_id")
-    private String groupId;
-
+    String groupId,
     @NotEmpty
     @MappedProperty(value = "artifact_id")
-    private String artifactId;
-
+    String artifactId,
     @MappedProperty(value = "display_name")
-    private String displayName;
-
+    String displayName,
     @MappedProperty(value = "website")
-    private String website;
-
+    String website,
     @MappedProperty(value = "git_repository")
-    private String gitRepo;
-
+    String gitRepo,
     @MappedProperty(value = "issues")
-    private String issues;
+    String issues,
 
-    private Set<JpaArtifactTagValue> tagValues;
+    @OneToMany(fetch = FetchType.EAGER, targetEntity = JpaArtifactTagValue.class)
+    @JoinColumns({
+        @JoinColumn(name = "artifact_id",
+            referencedColumnName = "artifact_id"),
+        @JoinColumn(name = "group_id",
+            referencedColumnName = "group_id")
+    })
+    Set<JpaArtifactTagValue> tagValues
+) {
 
-    public String getGroupId() {
-        return groupId;
-    }
-
-    public String getArtifactId() {
-        return artifactId;
-    }
-
-    public String getDisplayName() {
-        return displayName;
-    }
-
-    public String getWebsite() {
-        return website;
-    }
-
-    public String getGitRepo() {
-        return gitRepo;
-    }
-
-    public String getIssues() {
-        return issues;
-    }
-
-    public Set<JpaArtifactTagValue> getTagValues() {
-        return tagValues;
-    }
-
-    public ArtifactCoordinates getCoordinates() {
+    @Transient
+    public ArtifactCoordinates coordinates() {
         return new ArtifactCoordinates(this.groupId, this.artifactId);
     }
 
-    public Map<String, SortedSet<String>> getTagValuesForReply() {
-        final var tagValues = this.getTagValues();
-        final var tagTuples = tagValues.stream()
-            .map(value -> Tuple.of(value.getTagName(), value.getTagValue()))
-            .toList();
-
-        var versionedTags = TreeMap.<String, SortedSet<String>>empty();
-        final var comparator = Comparator.comparing(ComparableVersion::new).reversed();
-
-        for (final Tuple2<String, String> tagged : tagTuples) {
-            versionedTags = versionedTags.put(tagged._1, TreeSet.of(comparator, tagged._2), SortedSet::addAll);
-        }
-        return versionedTags;
+    @Transient
+    public Map<String, SortedSet<String>> tags() {
+        return this.tagValues.stream()
+            .collect(
+                Collectors.groupingBy(
+                    JpaArtifactTagValue::getTagName,
+                    Collectors.mapping(
+                        JpaArtifactTagValue::getTagValue,
+                        Collectors.toCollection(TreeSet::new)
+                    )
+                )
+            );
     }
+
+
 
 }

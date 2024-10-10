@@ -25,7 +25,6 @@
 package org.spongepowered.downloads.artifacts.events;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -34,6 +33,8 @@ import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 public interface DetailsEvent extends AkkaSerializable {
+
+    ArtifactCoordinates coordinates();
 
     @JsonDeserialize
     @JsonTypeName("registered")

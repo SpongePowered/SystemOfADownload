@@ -22,47 +22,26 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package org.spongepowered.downloads.artifacts.server.details.state;
+package org.spongepowered.downloads.artifact.api.registration;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
-@JsonDeserialize
-public final class EmptyState implements DetailsState {
-    private static final ArtifactCoordinates empty = new ArtifactCoordinates("", "");
+public final class ArtifactRegistration {
 
-    @JsonCreator
-    public EmptyState() {
+    @JsonSerialize
+    public record RegisterArtifact(
+        @JsonProperty(required = true) String artifactId,
+        @JsonProperty(required = true) String displayName
+    ) {
+
+        @JsonCreator
+        public RegisterArtifact {}
     }
 
-    @Override
-    public ArtifactCoordinates coordinates() {
-        return empty;
-    }
-
-    @Override
-    public String displayName() {
-        return "";
-    }
-
-    @Override
-    public String website() {
-        return "";
-    }
-
-    @Override
-    public String gitRepository() {
-        return "";
-    }
-
-    @Override
-    public String issues() {
-        return "";
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return true;
-    }
 }
