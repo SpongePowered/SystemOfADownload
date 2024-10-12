@@ -1,8 +1,5 @@
 package org.spongepowered.downloads.artifacts.server.query.transport;
 
-import akka.actor.typed.ActorSystem;
-import akka.actor.typed.SpawnProtocol;
-import akka.cluster.sharding.typed.javadsl.ClusterSharding;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MediaType;
@@ -21,20 +18,13 @@ import reactor.core.publisher.Mono;
 @Requires("query")
 public class ArtifactQueryController {
 
-    private final ClusterSharding sharding;
-    private final ActorSystem<SpawnProtocol.Command> system;
     private final ArtifactRepository artifactsRepo;
 
 
     @Inject
     public ArtifactQueryController(
-        final ClusterSharding sharding,
-        final ActorSystem<SpawnProtocol.Command> system,
         final ArtifactRepository artifactsRepo
     ) {
-
-        this.sharding = sharding;
-        this.system = system;
         this.artifactsRepo = artifactsRepo;
     }
 

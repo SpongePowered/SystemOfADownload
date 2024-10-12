@@ -1,55 +1,86 @@
 [versions]
 micronaut = "4.2.3"
-scala = "2.13"
-akka = "2.9.6"
 jackson = "2.17.2"
 maven_artifact = "3.9.9"
-akkaManagementVersion = "1.5.3"
-akkaProjection = "1.5.5"
-akkaR2DBC = "1.2.5"
-vavr = "0.10.4"
 jakartaValidation = "3.0.2"
 jgit = "6.8.0.202311291450-r"
-akkaDiagnostics = "2.1.0"
 
 [libraries]
-vavr = { module = "io.vavr:vavr", version.ref = "vavr"}
-akkaBom = { module = "com.typesafe.akka:akka-bom_2.13", version.ref = "akka" }
-akka-actor = { module = "com.typesafe.akka:akka-actor-typed_2.13" }
-akka-cluster-sharding = { module = "com.typesafe.akka:akka-cluster-sharding-typed_2.13" }
-akka-cluster-typed = { module = "com.typesafe.akka:akka-cluster-typed_2.13" }
-
-akka-testkit = { module = "com.typesafe.akka:akka-actor-testkit-typed_2.13"}
-akka-persistence-testkit = { module = "com.typesafe.akka:akka-persistence-testkit_2.13" }
-
-akka-persistence-core = { module ="com.typesafe.akka:akka-persistence-typed_2.13"}
-akka-projection = { module = "com.lightbend.akka:akka-projection-r2dbc_2.13", version.ref = "akkaProjection"}
-akka-r2dbc = { module = "com.lightbend.akka:akka-persistence-r2dbc_2.13", version.ref = "akkaR2DBC"}
 postgres-r2dbc = { module = "org.postgresql:r2dbc-postgresql"}
 
-akka-discovery = { module = "com.typesafe.akka:akka-discovery_2.13" }
-lightbend_management = { module = "com.lightbend.akka.management:akka-management_2.13", version.ref = "akkaManagementVersion"}
-lightbend_bootstrap = { module = "com.lightbend.akka.management:akka-management-cluster-bootstrap_2.13", version.ref = "akkaManagementVersion"}
+# configuration
+snakeyaml = { module = "org.yaml:snakeyaml" }
 
-akka-diagnostics = { module = "com.lightbend.akka:akka-diagnostics_2.13", version.ref = "akkaDiagnostics"}
+# dependency injection
+micronaut-inject = { module = "io.micronaut:micronaut-inject-java" }
 
+# http
+
+micronaut-http-jdk-client = { module = "io.micronaut:micronaut-http-client-jdk" }
+micronaut-management = { module = "io.micronaut:micronaut-management" }
+
+# serder
 jacksonBom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson" }
 jackson-core = { module = "com.fasterxml.jackson.core:jackson-core" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
-akka-jackson = { module = "com.typesafe.akka:akka-serialization-jackson_2.13"}
-maven = { module = "org.apache.maven:maven-artifact", version.ref = "maven_artifact" }
+micronaut-jackson-databind = { module = "io.micronaut:micronaut-jackson-databind" }
+micronaut-serde-processor = { module = "io.micronaut.serde:micronaut-serde-processor" }
+micronaut-serde-api = { module = "io.micronaut.serde:micronaut-serde-api" }
 
+maven = { module = "org.apache.maven:maven-artifact", version.ref = "maven_artifact" }
+## Database groups
+micronaut-data-r2dbc = { module = "io.micronaut.data:micronaut-data-r2dbc" }
+vertx-postgres = { module = "io.vertx:vertx-pg-client" }
+postgres-driver = { module = "org.postgresql:postgresql" }
+jakarta-persistence = { module = "jakarta.persistence:jakarta.persistence-api" }
+## enable liquibase migrations
+micronaut-sql-hikari = { module = "io.micronaut.sql:micronaut-jdbc-hikari" }
+liquibase = { module = "io.micronaut.liquibase:micronaut-liquibase"}
+## micronaut database annotation processors
+micronaut-data-processor = { module = "io.micronaut.data:micronaut-data-processor" }
+
+
+## Validation
 jakarta-validation = { module = "jakarta.validation:jakarta.validation-api", version.ref = "jakartaValidation"}
+micronaut-validation = { module = "io.micronaut.validation:micronaut-validation" }
+micronaut-http-validation = { module = "io.micronaut:micronaut-http-validation" }
+micronaut-jakarta-validation = { module = "io.micronaut.validation:micronaut-validation-processor"}
+
 jgit-core = { module = "org.eclipse.jgit:org.eclipse.jgit", version.ref = "jgit" }
 jgit-ssh = {module = "org.eclipse.jgit:org.eclipse.jgit.ssh.jsch", version.ref = "jgit" }
 
+# Kafka
+micronaut-kafka = { module = "io.micronaut.kafka:micronaut-kafka" }
+
+# Testing
+
+micronaut-test-resources = { module = "io.micronaut.testresources:micronaut-test-resources-extensions-junit-platform"}
+micronaut-test-junit5 = { module = "io.micronaut.test:micronaut-test-junit5" }
+junit-api = { module = "org.junit.jupiter:junit-jupiter-api" }
+junit-engine = { module = "org.junit.jupiter:junit-jupiter-engine" }
+testcontainers-r2dbc = { module = "org.testcontainers:r2dbc" }
+testcontainers-postgres = { module = "org.testcontainers:postgresql" }
+
 
 [bundles]
-serder = ["jackson-core", "jackson-annotations", "jackson-databind"]
-appSerder = ["jackson-databind", "jackson-annotations", "jackson-core", "akka-jackson"]
-actors = ["akka-actor", "akka-cluster-typed", "akka-cluster-sharding"]
-actorsPersistence = ["akka-persistence-core", "akka-projection", "akka-r2dbc", "postgres-r2dbc"]
-akkaManagement = ["akka-discovery", "lightbend_bootstrap", "lightbend_management"]
+serder = ["jackson-core", "jackson-annotations", "jackson-databind", "micronaut-jackson-databind"]
+serder-processor = ["micronaut-serde-processor"]
+
+appSerder = ["jackson-databind", "jackson-annotations", "jackson-core", "micronaut-serde-api"]
 git = ["jgit-core", "jgit-ssh"]
+postgres-runtime = ["postgres-driver", "postgres-r2dbc"]
+postgres-r2dbc = ["micronaut-data-r2dbc", "vertx-postgres", "micronaut-sql-hikari", "jakarta-persistence", "liquibase"]
+postgres-annotations = ["micronaut-data-processor"]
+postgres-test = ["testcontainers-r2dbc", "testcontainers-postgres"]
+junit = ["junit-api", "micronaut-test-junit5"]
+micronaut-testresources = ["micronaut-test-resources"]
+micronaut-testresources-services = ["postgres-driver"]
+micronaut-runtime = ["snakeyaml"]
+micronaut-http = ["micronaut-http-jdk-client", "micronaut-management"]
+junit-runtime = ["junit-engine"]
+
+validation = ["jakarta-validation", "micronaut-validation"]
+validation-processors = ["micronaut-http-validation", "micronaut-jakarta-validation", "micronaut-inject"]
+
 

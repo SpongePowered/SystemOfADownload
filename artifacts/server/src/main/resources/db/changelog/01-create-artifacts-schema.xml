@@ -9,12 +9,28 @@
         <sql>
             CREATE SCHEMA IF NOT EXISTS artifact;
         </sql>
+        <!-- create groups table -->
+        <createTable tableName="groups" schemaName="artifact">
+            <column name="id" type="bigint" autoIncrement="true">
+                <constraints primaryKey="true"/>
+            </column>
+            <column name="group_id" type="varchar(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="name" type="varchar(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="website" type="text"/>
+        </createTable>
         <createTable tableName="artifacts" schemaName="artifact">
             <column name="id" type="bigint" autoIncrement="true">
                 <constraints primaryKey="true" unique="true"/>
             </column>
-            <column name="group_id" type="varchar(255)">
-                <constraints nullable="false" unique="true" uniqueConstraintName="grouped_artifact"/>
+            <column name="group_id" type="bigint">
+                <constraints nullable="false" unique="true" uniqueConstraintName="grouped_artifact"
+                             referencedTableName="groups" referencedTableSchemaName="artifact"
+                             referencedColumnNames="id"
+                             foreignKeyName="fk_group_id"/>
             </column>
             <column name="artifact_id" type="varchar(255)">
                 <constraints nullable="false" unique="true" uniqueConstraintName="grouped_artifact"/>
@@ -90,25 +106,32 @@
                     type="boolean"
                     defaultValueBoolean="false"/>
         </createTable>
+
+
         <createView viewName="versioned_artifacts" schemaName="artifact">
             select distinct a.artifact_id, a.group_id, v.version, v.recommended, v.manual_recommendation
-            from artifact.artifacts a inner join artifact.artifact_versions v on a.id = v.artifact_id
+            from artifact.artifacts a
+                     inner join artifact.artifact_versions v on a.id = v.artifact_id
         </createView>
         <sql>
-            set search_path to artifact;
-drop materialized view if exists versioned_tags;
-create materialized view versioned_tags as
-            select version.id                                                                                as version_id,
-                   a.id                                                                                      as artifact_internal_id,
-                   a.group_id                                                                                as maven_group_id,
-                   a.artifact_id                                                                             as maven_artifact_id,
-                   version.version                                                                           as maven_version,
-                   version.recommended                                                                       as regex_recommended,
-                   artifact_tag.id                                                                           as tag_id,
-                   artifact_tag.tag_name                                                                     as tag_name,
+            set
+            search_path to artifact;
+drop
+            materialized view if exists versioned_tags;
+create
+            materialized view versioned_tags as
+            select version.id            as version_id,
+                   a.id                  as artifact_internal_id,
+                   a.group_id            as maven_group_id,
+                   a.artifact_id         as maven_artifact_id,
+                   version.version       as maven_version,
+                   version.recommended   as regex_recommended,
+                   artifact_tag.id       as tag_id,
+                   artifact_tag.tag_name as tag_name,
                    ((regexp_match(version.version, artifact_tag.tag_regex))[artifact_tag.use_capture_group]) as tag_value
             from artifact_versions version
-                inner join artifacts a on version.artifact_id = a.id
+                inner join artifacts a
+            on version.artifact_id = a.id
                 inner join artifact_tags artifact_tag
                 on a.id = artifact_tag.artifact_id
             ;
@@ -134,8 +157,9 @@ create materialized view versioned_tags as
             select distinct a.group_id, a.artifact_id, t.tag_name, vt.tag_value
             from artifact.artifacts a
                      inner join artifact.artifact_tags t on a.id = t.artifact_id
-                     inner join artifact.versioned_tags vt on vt.tag_name = t.tag_name and vt.maven_group_id = a.group_id and
-                                                             vt.maven_artifact_id = a.artifact_id and vt.tag_value is not null
+                     inner join artifact.versioned_tags vt
+                                on vt.tag_name = t.tag_name and vt.maven_group_id = a.group_id and
+                                   vt.maven_artifact_id = a.artifact_id and vt.tag_value is not null
         </createView>
     </changeSet>
 </databaseChangeLog>

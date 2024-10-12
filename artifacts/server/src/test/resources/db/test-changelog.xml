@@ -4,7 +4,6 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
          http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
-    <include file="akka/akka_2_8_2.xml" relativeToChangelogFile="true"/>
     <include file="changelog/01-create-artifacts-schema.xml" relativeToChangelogFile="true"/>
     <!-- After the mainline application changelogs are applied, we can populate tables for data -->
     <include file="changelog/1001-test-insert-artifacts.xml" relativeToChangelogFile="true"/>

@@ -7,7 +7,7 @@ plugins {
 
 dependencies {
     api(project(":artifacts:api"))
-    api(project(":akka"))
+    api(project(":events"))
 
 }
 

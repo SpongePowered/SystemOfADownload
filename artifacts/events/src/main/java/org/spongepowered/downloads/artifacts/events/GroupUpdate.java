@@ -28,11 +28,19 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import org.spongepowered.downloads.akka.AkkaSerializable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
+import org.spongepowered.downloads.events.EventMarker;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-public sealed interface GroupUpdate extends AkkaSerializable {
+public sealed interface GroupUpdate extends EventMarker {
+
+    default String partitionKey() {
+        return this.groupId();
+    }
+
+    default String topic() {
+        return "ArtifactsGroupUpserted";
+    }
 
     String groupId();
 

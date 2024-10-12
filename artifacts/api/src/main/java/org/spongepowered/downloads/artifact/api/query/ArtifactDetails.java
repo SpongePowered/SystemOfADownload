@@ -43,6 +43,8 @@ public final class ArtifactDetails {
 
         }
 
+        record ValidRepo(String url) implements Response {}
+
         record NotFound(String message) implements Response {}
 
         record Error(String message) implements Response {}

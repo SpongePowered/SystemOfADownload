@@ -24,16 +24,11 @@
  */
 package org.spongepowered.downloads.artifacts.server.cmd.details;
 
-import akka.NotUsed;
-import akka.actor.typed.ActorRef;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import io.vavr.control.Either;
-import org.spongepowered.downloads.akka.AkkaSerializable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
-import org.spongepowered.downloads.artifact.api.query.ArtifactDetails;
 
 import java.net.URL;
 
@@ -52,11 +47,11 @@ import java.net.URL;
     @JsonSubTypes.Type(value = DetailsCommand.UpdateDisplayName.class,
         name = "display-name")
 })
-public sealed interface DetailsCommand extends AkkaSerializable {
+public sealed interface DetailsCommand {
 
     @JsonDeserialize
     record RegisterArtifact(ArtifactCoordinates coordinates,
-                            String displayName, ActorRef<NotUsed> replyTo)
+                            String displayName)
         implements DetailsCommand {
 
         @JsonCreator
@@ -67,8 +62,7 @@ public sealed interface DetailsCommand extends AkkaSerializable {
     @JsonDeserialize
     record UpdateWebsite(
         ArtifactCoordinates coordinates,
-        URL website,
-        ActorRef<Either<ArtifactDetails.Response.NotFound, ArtifactDetails.Response>> replyTo
+        URL website
     ) implements DetailsCommand {
 
         @JsonCreator
@@ -79,8 +73,7 @@ public sealed interface DetailsCommand extends AkkaSerializable {
     @JsonDeserialize
     record UpdateDisplayName(
         ArtifactCoordinates coordinates,
-        String displayName,
-        ActorRef<Either<ArtifactDetails.Response.NotFound, ArtifactDetails.Response>> replyTo
+        String displayName
     ) implements DetailsCommand {
 
         @JsonCreator
@@ -91,8 +84,7 @@ public sealed interface DetailsCommand extends AkkaSerializable {
     @JsonDeserialize
     record UpdateGitRepository(
         ArtifactCoordinates coordinates,
-        String gitRemote,
-        ActorRef<Either<ArtifactDetails.Response.NotFound, ArtifactDetails.Response>> replyTo
+        String gitRemote
     ) implements DetailsCommand {
 
         @JsonCreator
@@ -103,8 +95,7 @@ public sealed interface DetailsCommand extends AkkaSerializable {
     @JsonDeserialize
     record UpdateIssues(
         ArtifactCoordinates coords,
-        URL validUrl,
-        ActorRef<Either<ArtifactDetails.Response.NotFound, ArtifactDetails.Response>> replyTo
+        URL validUrl
     ) implements DetailsCommand {
 
         @JsonCreator

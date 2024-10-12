@@ -24,47 +24,26 @@
  */
 package org.spongepowered.downloads.artifacts.server.cmd.group;
 
-import akka.actor.typed.ActorRef;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import org.spongepowered.downloads.akka.AkkaSerializable;
-import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
-import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
-import org.spongepowered.downloads.artifact.api.query.GroupResponse;
-import org.spongepowered.downloads.artifact.api.registration.Response;
+public sealed interface GroupCommand {
 
-
-@JsonSerialize
-public sealed interface GroupCommand extends AkkaSerializable {
-
-    record GetGroup(
-        String groupId,
-        ActorRef<GroupResponse> replyTo
-    ) implements GroupCommand {
-
-    }
-
-    @JsonSerialize
-    record GetArtifacts(
-        String groupId,
-        ActorRef<GetArtifactsResponse> replyTo
-    ) implements GroupCommand {
-    }
-
-    @JsonSerialize
     record RegisterArtifact(
         String artifact,
-        ActorRef<Response> replyTo
+        String name
     ) implements GroupCommand {
-
     }
 
     record RegisterGroup(
         String mavenCoordinates,
         String name,
-        String website,
-        ActorRef<GroupRegistration.Response> replyTo
+        String website
     ) implements GroupCommand {
+    }
 
+    record UpdateGroup(
+        String groupId,
+        String name,
+        String website
+    ) implements GroupCommand {
     }
 
 }

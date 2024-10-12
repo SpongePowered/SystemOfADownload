@@ -24,7 +24,6 @@ micronaut {
 dependencies {
     implementation(project(":artifacts:api"))
     implementation(project(":artifacts:events"))
-    implementation(libs.vavr)
 
     // Jackson
     annotationProcessor("io.micronaut.serde:micronaut-serde-processor")
@@ -51,14 +50,6 @@ dependencies {
     runtimeOnly("ch.qos.logback:logback-classic")
     runtimeOnly("org.postgresql:postgresql")
     implementation("io.vertx:vertx-pg-client")
-//    implementation("jakarta.annotation:jakarta.annotation-api")
-    implementation(platform(libs.akkaBom))
-    implementation(libs.bundles.actors)
-    implementation(libs.bundles.akkaManagement)
-    implementation(libs.bundles.actorsPersistence)
 
     runtimeOnly("ch.qos.logback:logback-classic")
-//    compileOnly("org.graalvm.nativeimage:svm")
-
-//    implementation("io.micronaut:micronaut-validation")
 }

@@ -1,28 +1,7 @@
-datasources:
-    default:
 
-        db-type: postgresql
-        dialect: POSTGRES
-        driver: postgresql
-        options:
-            currentSchema: artifact
-        pool:
-            max-size: 10
-            max-idle-time: 30m
-        driver-class-name: org.postgresql.Driver
-r2dbc:
-    datasources:
-        default:
-            db-type: postgresql
-            dialect: POSTGRES
-
-liquibase:
-    enabled: true
-    datasources:
-        default:
-            enabled: true
-            change-log: 'classpath:db/liquibase-changelog.xml' # (4)
 micronaut:
+  data:
+    enabled: true
   executors:
     git-resolver:
       core-pool-size: 2

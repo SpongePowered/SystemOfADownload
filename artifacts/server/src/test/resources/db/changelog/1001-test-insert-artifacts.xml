@@ -6,10 +6,12 @@
          http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.22.xsd">
     <changeSet id="1001-test-insert-example-artifact" author="gabizou">
         <sql>
-            SET SEARCH_PATH TO artifact;
-            INSERT INTO artifacts (group_id, artifact_id, display_name, website, git_repository, issues) VALUES
-            ('com.example', 'example', 'Example', 'https://www.example.com', 'https://example.com/',
-             'https://example.com');
+            SET
+            SEARCH_PATH TO artifact;
+            INSERT INTO groups (group_id, name, website)
+            VALUES ('com.example', 'Example', 'https://www.example.com');
+            INSERT INTO artifacts (group_id, artifact_id, display_name, website, git_repository, issues)
+            VALUES (1, 'example', 'Example', 'https://www.example.com', 'https://example.com/', 'https://example.com');
         </sql>
     </changeSet>
 </databaseChangeLog>

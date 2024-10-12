@@ -1,0 +1,28 @@
+liquibase:
+  enabled: true
+  datasources:
+    default:
+      enabled: true
+      change-log: 'classpath:db/liquibase-changelog.xml' # (4)
+      default-schema: public
+datasources:
+  default:
+    driver-class-name: org.postgresql.Driver
+    db-type: postgres
+r2dbc:
+  datasources:
+    default:
+      db-type: postgresql
+      dialect: POSTGRES
+jpa:
+  default:
+    properties:
+      hibernate:
+        hbm2ddl:
+          auto: none
+        connection:
+          db-type: postgres
+    reactive: true
+micronaut:
+  data:
+    enabled: true

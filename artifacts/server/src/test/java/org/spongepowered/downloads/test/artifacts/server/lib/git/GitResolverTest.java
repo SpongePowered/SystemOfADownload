@@ -6,11 +6,11 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.spongepowered.downloads.artifact.api.query.ArtifactDetails;
 import org.spongepowered.downloads.artifacts.server.lib.git.GitResolver;
 
-@MicronautTest
+@MicronautTest(startApplication = false)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@TestResourcesScope("testcontainers")
 public class GitResolverTest {
 
     @Inject GitResolver resolver;
@@ -19,23 +19,20 @@ public class GitResolverTest {
     void testResolveInvalidURL() {
         final var either = resolver.validateRepository("not://a/valid/url");
         final var join = either.join();
-        Assertions.assertTrue(join.isLeft());
-        Assertions.assertFalse(join.isRight());
+        Assertions.assertInstanceOf(ArtifactDetails.Response.Error.class, join);
     }
 
     @Test
     void testResolveValidURL() {
         final var either = resolver.validateRepository("https://github.com/SpongePowered/SpongeAPI.git");
         final var join = either.join();
-        Assertions.assertTrue(join.isRight());
-        Assertions.assertFalse(join.isLeft());
+        Assertions.assertInstanceOf(ArtifactDetails.Response.ValidRepo.class, join);
     }
 
     @Test
     void testResolveUnsupportedTransport() {
         final var either = resolver.validateRepository("git://github.com/SpongePowered/SpongeAPI.git");
         final var join = either.join();
-        Assertions.assertTrue(join.isLeft());
-        Assertions.assertFalse(join.isRight());
+        Assertions.assertInstanceOf(ArtifactDetails.Response.Error.class, join);
     }
 }

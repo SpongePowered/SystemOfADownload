@@ -1,7 +1,5 @@
 package org.spongepowered.downloads.artifacts.server.lib.git;
 
-import io.vavr.control.Either;
-import io.vavr.control.Try;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -20,33 +18,36 @@ public class GitResolver {
     @Named("git-resolver")
     private ExecutorService executorService;
 
-    public CompletableFuture<Either<ArtifactDetails.Response, String>> validateRepository(
+    public CompletableFuture<ArtifactDetails.Response> validateRepository(
         final String repoURL
     ) {
-        final var gitLs = CompletableFuture.supplyAsync(() -> Try.of(() -> Git.lsRemoteRepository()
-                .setRemote(repoURL)
-                .setTags(false)
-                .setHeads(false)
-                .setTimeout(60)
-                .call())
-            .toEither()
-            .mapLeft(t -> switch (t) {
-                case InvalidRemoteException _ -> this.invalidRemote(repoURL);
+        return CompletableFuture.supplyAsync(
+                () -> {
+                    try {
+                        final var refs = Git.lsRemoteRepository()
+                            .setRemote(repoURL)
+                            .setTags(false)
+                            .setHeads(false)
+                            .setTimeout(20)
+                            .call();
+                        if (refs.isEmpty()) {
+                            return this.noReferences(repoURL);
+                        }
+                        return new ArtifactDetails.Response.ValidRepo(repoURL);
+                    } catch (GitAPIException e) {
+                        throw new RuntimeException(e);
+                    }
+                }, this.executorService
+            )
+            .exceptionally(t -> switch (t) {
+                case InvalidRemoteException ignore -> this.invalidRemote(repoURL);
                 case GitAPIException e -> this.genericRemoteProblem(e);
                 default -> this.badRequest(repoURL, t);
-            }), this.executorService);
-        final var validatedReferences = gitLs.thenApply(e -> e.map(refs -> !refs.isEmpty())
-            .flatMap(valid -> {
-                if (!valid) {
-                    return Either.left(this.noReferences(repoURL));
-                }
-                return Either.right(repoURL);
-            }));
-        return validatedReferences.toCompletableFuture();
+            });
     }
 
     private ArtifactDetails.Response noReferences(String repoUrl) {
-        return  new ArtifactDetails.Response.Error(String.format("Invalid remote: %s. No references found", repoUrl));
+        return new ArtifactDetails.Response.Error(String.format("Invalid remote: %s. No references found", repoUrl));
     }
 
     private ArtifactDetails.Response badRequest(String repoURL, Throwable t) {

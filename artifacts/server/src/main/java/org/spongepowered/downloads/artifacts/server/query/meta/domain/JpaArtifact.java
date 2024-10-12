@@ -74,6 +74,10 @@ public record JpaArtifact(
     Set<JpaArtifactTagValue> tagValues
 ) {
 
+    public JpaArtifact(String groupId, String name) {
+        this(0, groupId, name, "", "", "", "", Set.of());
+    }
+
     @Transient
     public ArtifactCoordinates coordinates() {
         return new ArtifactCoordinates(this.groupId, this.artifactId);

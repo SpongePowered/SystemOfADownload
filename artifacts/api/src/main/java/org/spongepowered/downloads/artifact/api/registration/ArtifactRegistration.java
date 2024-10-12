@@ -25,19 +25,24 @@
 package org.spongepowered.downloads.artifact.api.registration;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
+import io.micronaut.core.annotation.Introspected;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 public final class ArtifactRegistration {
 
+    @Introspected
     @JsonSerialize
     public record RegisterArtifact(
-        @JsonProperty(required = true) String artifactId,
-        @JsonProperty(required = true) String displayName
+        @Pattern(regexp = "^[a-zA-Z][a-zA-Z0-9._-]+$", message = "Invalid artifact ID")
+        @JsonProperty(required = true)
+        String artifactId,
+        @NotBlank
+        @Pattern(regexp = "^[a-zA-Z][a-zA-Z0-9._-]+$", message = "Invalid display name")
+        @JsonProperty(required = true)
+        String displayName
     ) {
 
         @JsonCreator

@@ -27,15 +27,29 @@ package org.spongepowered.downloads.artifact.api.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import io.micronaut.core.annotation.Introspected;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import org.spongepowered.downloads.artifact.api.Group;
+import org.spongepowered.downloads.artifact.api.mutation.Update;
 
 public final class GroupRegistration {
 
+    @Introspected
     @JsonDeserialize
     public record RegisterGroupRequest(
-        @JsonProperty(required = true) String name,
-        @JsonProperty(required = true) String groupCoordinates,
-        @JsonProperty(required = true) String website
+        @NotBlank
+        @Size(min = 1, max = 255)
+        @JsonProperty(required = true)
+        String name,
+        @NotBlank
+        @Pattern(regexp = "^[a-zA-Z][a-zA-Z0-9._-]+$", message = "Invalid group coordinates")
+        @JsonProperty(required = true)
+        String groupCoordinates,
+        @Pattern(regexp = Update.URL_REGEX, message = "Invalid URL format")
+        @JsonProperty(required = true)
+        String website
     ) {
 
         @JsonCreator

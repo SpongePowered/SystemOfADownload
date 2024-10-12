@@ -28,7 +28,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import org.apache.maven.artifact.versioning.ComparableVersion;
 
 import java.util.Objects;
 import java.util.StringJoiner;

@@ -24,10 +24,9 @@
  */
 package org.spongepowered.downloads.artifacts.server.cmd.details.state;
 
-import org.spongepowered.downloads.akka.AkkaSerializable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
-public interface DetailsState extends AkkaSerializable {
+public interface DetailsState {
     ArtifactCoordinates coordinates();
 
     String displayName();

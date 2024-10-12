@@ -11,32 +11,12 @@ plugins {
     id("io.micronaut.docker") version "4.4.0" apply false
     id("io.micronaut.aot") version "4.4.0" apply false
     id("io.micronaut.test-resources") version "4.4.0" apply false
+    id("org.gradlex.extra-java-module-info") version "1.9" apply false
 }
 
 repositories {
     mavenCentral()
 }
-
-tasks {
-    register("runLiquibase", Exec::class) {
-        executable("docker")
-        args(
-                "run",
-                "--rm",
-                "--mount", "type=bind,source=${project.projectDir.absolutePath}/liquibase/changelog,target=/liquibase/changelog,readonly",
-                "--network=host",
-                "liquibase/liquibase:4.23-alpine",
-                "--logLevel=info",
-                "--url=jdbc:postgresql://localhost:5432/default",
-                "--defaultsFile=/liquibase/changelog/liquibase.properties",
-                "--changeLogFile=changelog.xml",
-                "--classpath=/liquibase/changelog",
-                "--username=admin",
-                "--password=password",
-                "update")
-    }
-}
-
 
 tasks.wrapper {
     distributionType = Wrapper.DistributionType.ALL
@@ -57,12 +37,12 @@ allprojects {
     }
 
     tasks {
-        withType<JavaCompile> {
-            options.compilerArgs.add("--enable-preview")
-        }
-        withType<Test> {
-            jvmArgs("--enable-preview")
-        }
+//        withType<JavaCompile> {
+//            options.compilerArgs.add("--enable-preview")
+//        }
+//        withType<Test> {
+//            jvmArgs("--enable-preview")
+//        }
     }
 
 }

@@ -26,14 +26,13 @@ package org.spongepowered.downloads.artifacts.server.cmd.details.state;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import org.spongepowered.downloads.akka.AkkaSerializable;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifacts.events.DetailsEvent;
 
 @JsonDeserialize
 public record PopulatedState(ArtifactCoordinates coordinates,
                              String displayName, String website, String gitRepository,
-                             String issues) implements DetailsState, AkkaSerializable {
+                             String issues) implements DetailsState {
 
     @JsonCreator
     public PopulatedState {

@@ -24,90 +24,81 @@
  */
 package org.spongepowered.downloads.artifacts.worker.readside;
 
-import akka.Done;
-import akka.persistence.query.typed.EventEnvelope;
-import akka.projection.r2dbc.javadsl.R2dbcHandler;
-import akka.projection.r2dbc.javadsl.R2dbcSession;
-import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
-import org.spongepowered.downloads.artifacts.events.DetailsEvent;
-
-import java.util.concurrent.CompletionStage;
 
 
 @Singleton
-public class ArtifactReadside extends R2dbcHandler<EventEnvelope<DetailsEvent>> {
+public class ArtifactReadside {
 
     public ArtifactReadside() {
     }
-
-    @Override
-    public CompletionStage<Done> process(
-        final R2dbcSession session, final EventEnvelope<DetailsEvent> detailsEventEventEnvelope
-    ) throws Exception, Exception {
-
-        return null;
-    }
-
-    static final class DetailsWriter extends ReadSideProcessor<DetailsEvent> {
-
-        private final JpaReadSide readSide;
-
-        @Inject
-        DetailsWriter(final JpaReadSide readSide) {
-            this.readSide = readSide;
-        }
-
-        @Override
-        public ReadSideHandler<DetailsEvent> buildHandler() {
-            return this.readSide.<DetailsEvent>builder("artifact-details-builder")
-                .setEventHandler(DetailsEvent.ArtifactRegistered.class, (em, event) -> {
-                    findOrRegisterArtifact(em, event.coordinates());
-                })
-                .setEventHandler(DetailsEvent.ArtifactDetailsUpdated.class, (em, event) -> {
-                    final var artifact = findOrRegisterArtifact(em, event.coordinates());
-                    artifact.setDisplayName(event.displayName());
-                })
-                .setEventHandler(DetailsEvent.ArtifactWebsiteUpdated.class, (em, event) -> {
-                    final var artifact = findOrRegisterArtifact(em, event.coordinates());
-                    artifact.setWebsite(event.url());
-                })
-                .setEventHandler(DetailsEvent.ArtifactIssuesUpdated.class, (em, event) -> {
-                    final var artifact = findOrRegisterArtifact(em, event.coordinates());
-                    artifact.setIssues(event.url());
-                })
-                .setEventHandler(DetailsEvent.ArtifactGitRepositoryUpdated.class, (em, event) -> {
-                    final var artifact = findOrRegisterArtifact(em, event.coordinates());
-                    artifact.setGitRepo(event.gitRepo());
-                })
-                .build();
-        }
-
-        private JpaArtifact findOrRegisterArtifact(
-            final EntityManager em, final ArtifactCoordinates coordinates
-        ) {
-            final var artifactQuery = em.createNamedQuery(
-                "Artifact.findById",
-                JpaArtifact.class
-            );
-            return artifactQuery.setParameter("groupId", coordinates.groupId())
-                .setParameter("artifactId", coordinates.artifactId())
-                .setMaxResults(1)
-                .getResultStream()
-                .findFirst()
-                .orElseGet(() -> {
-                    final var jpaArtifact = new JpaArtifact();
-                    jpaArtifact.setGroupId(coordinates.groupId());
-                    jpaArtifact.setArtifactId(coordinates.artifactId());
-                    em.persist(jpaArtifact);
-                    return jpaArtifact;
-                });
-        }
-
-        @Override
-        public PSequence<AggregateEventTag<DetailsEvent>> aggregateTags() {
-            return DetailsEvent.TAG.allTags();
-        }
-    }
+//
+//    @Override
+//    public CompletionStage<Done> process(
+//        final R2dbcSession session, final EventEnvelope<DetailsEvent> detailsEventEventEnvelope
+//    ) throws Exception, Exception {
+//
+//        return null;
+//    }
+//
+//    static final class DetailsWriter extends ReadSideProcessor<DetailsEvent> {
+//
+//        private final JpaReadSide readSide;
+//
+//        @Inject
+//        DetailsWriter(final JpaReadSide readSide) {
+//            this.readSide = readSide;
+//        }
+//
+//        @Override
+//        public ReadSideHandler<DetailsEvent> buildHandler() {
+//            return this.readSide.<DetailsEvent>builder("artifact-details-builder")
+//                .setEventHandler(DetailsEvent.ArtifactRegistered.class, (em, event) -> {
+//                    findOrRegisterArtifact(em, event.coordinates());
+//                })
+//                .setEventHandler(DetailsEvent.ArtifactDetailsUpdated.class, (em, event) -> {
+//                    final var artifact = findOrRegisterArtifact(em, event.coordinates());
+//                    artifact.setDisplayName(event.displayName());
+//                })
+//                .setEventHandler(DetailsEvent.ArtifactWebsiteUpdated.class, (em, event) -> {
+//                    final var artifact = findOrRegisterArtifact(em, event.coordinates());
+//                    artifact.setWebsite(event.url());
+//                })
+//                .setEventHandler(DetailsEvent.ArtifactIssuesUpdated.class, (em, event) -> {
+//                    final var artifact = findOrRegisterArtifact(em, event.coordinates());
+//                    artifact.setIssues(event.url());
+//                })
+//                .setEventHandler(DetailsEvent.ArtifactGitRepositoryUpdated.class, (em, event) -> {
+//                    final var artifact = findOrRegisterArtifact(em, event.coordinates());
+//                    artifact.setGitRepo(event.gitRepo());
+//                })
+//                .build();
+//        }
+//
+//        private JpaArtifact findOrRegisterArtifact(
+//            final EntityManager em, final ArtifactCoordinates coordinates
+//        ) {
+//            final var artifactQuery = em.createNamedQuery(
+//                "Artifact.findById",
+//                JpaArtifact.class
+//            );
+//            return artifactQuery.setParameter("groupId", coordinates.groupId())
+//                .setParameter("artifactId", coordinates.artifactId())
+//                .setMaxResults(1)
+//                .getResultStream()
+//                .findFirst()
+//                .orElseGet(() -> {
+//                    final var jpaArtifact = new JpaArtifact();
+//                    jpaArtifact.setGroupId(coordinates.groupId());
+//                    jpaArtifact.setArtifactId(coordinates.artifactId());
+//                    em.persist(jpaArtifact);
+//                    return jpaArtifact;
+//                });
+//        }
+//
+//        @Override
+//        public PSequence<AggregateEventTag<DetailsEvent>> aggregateTags() {
+//            return DetailsEvent.TAG.allTags();
+//        }
+//    }
 }
