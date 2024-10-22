@@ -11,7 +11,7 @@ terraform {
         }
         postgresql = {
             source = "cyrilgdn/postgresql"
-            version = "1.21.0"
+            version = "1.24.0"
         }
         tls = {
             source = "hashicorp/tls"
