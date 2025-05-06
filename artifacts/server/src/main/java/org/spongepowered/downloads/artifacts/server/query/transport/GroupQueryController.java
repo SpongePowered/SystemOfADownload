@@ -39,7 +39,7 @@ public class GroupQueryController {
     @Inject
     private GroupQueryService groupQueryService;
 
-    @Get("/")
+    @Get
     public HttpResponse<GroupsResponse> getGroups() {
         return HttpResponse.ok(groupQueryService.getGroups());
     }

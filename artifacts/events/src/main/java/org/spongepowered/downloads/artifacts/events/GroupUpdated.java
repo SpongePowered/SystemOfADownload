@@ -31,8 +31,22 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.events.EventMarker;
 
+import java.util.List;
+
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-public sealed interface GroupUpdate extends EventMarker {
+public sealed interface GroupUpdated extends EventMarker {
+
+    static GroupRegistered registered(String groupId, String name, String website) {
+        return new GroupRegistered(groupId, name, website);
+    }
+
+    static ArtifactRegistered registeredArtifact(ArtifactCoordinates coordinates) {
+        return new ArtifactRegistered(coordinates);
+    }
+
+    static GroupUpdateEvent updated(String groupId, String displayName, String website) {
+        return new GroupUpdateEvent(groupId, displayName, website);
+    }
 
     default String partitionKey() {
         return this.groupId();
@@ -46,8 +60,7 @@ public sealed interface GroupUpdate extends EventMarker {
 
     @JsonTypeName("group-registered")
     @JsonDeserialize
-    record GroupRegistered(String groupId, String name, String website)
-        implements GroupUpdate {
+    record GroupRegistered(String groupId, String name, String website) implements GroupUpdated {
 
         @JsonCreator
         public GroupRegistered {
@@ -57,7 +70,7 @@ public sealed interface GroupUpdate extends EventMarker {
 
     @JsonTypeName("artifact-registered")
     @JsonDeserialize
-    record ArtifactRegistered(ArtifactCoordinates coordinates) implements GroupUpdate {
+    record ArtifactRegistered(ArtifactCoordinates coordinates) implements GroupUpdated {
 
         @JsonCreator
         public ArtifactRegistered {
@@ -69,5 +82,15 @@ public sealed interface GroupUpdate extends EventMarker {
             return this.coordinates.groupId();
         }
     }
+
+    @JsonTypeName("group-updated")
+    @JsonDeserialize
+    record GroupUpdateEvent(String groupId, String displayName, String website) implements GroupUpdated {
+    }
+
+    record GroupRepositoryAdded(String groupId, List<String> repositories) implements GroupUpdated {
+
+    }
+
 
 }

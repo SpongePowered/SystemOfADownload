@@ -34,6 +34,7 @@ import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
+import org.spongepowered.downloads.artifact.api.mutation.GroupUpdate;
 import org.spongepowered.downloads.artifact.api.mutation.Update;
 import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
@@ -55,7 +56,7 @@ public class GroupCommandController {
 
     @Patch("/{groupId}")
     @Transactional
-    public HttpResponse<GroupResponse> updateGroup(@NotEmpty final String groupId, @Body @Valid Update groupUpdateDTO) {
+    public HttpResponse<GroupResponse> updateGroup(@NotEmpty final String groupId, @Body @Valid GroupUpdate groupUpdateDTO) {
         return groupService.updateGroup(groupId, groupUpdateDTO);
     }
 

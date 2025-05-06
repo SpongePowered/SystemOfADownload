@@ -24,17 +24,54 @@
  */
 package org.spongepowered.downloads.artifacts.server.query.group;
 
+import io.micronaut.transaction.annotation.ReadOnly;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import org.spongepowered.downloads.artifact.api.Group;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
 import org.spongepowered.downloads.artifact.api.query.GroupsResponse;
+import org.spongepowered.downloads.artifacts.server.cmd.group.GroupRepository;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+@Singleton
 public class GroupQueryService {
 
+    @Inject
+    private GroupRepository groupRepository;
+
+    @ReadOnly
     public GroupsResponse getGroups() {
-        return null;
+        List<Group> groups = StreamSupport.stream(groupRepository.findAll().spliterator(), false)
+            .map(this::mapToApiGroup)
+            .collect(Collectors.toList());
+
+        return new GroupsResponse.Available(groups);
     }
 
+    @ReadOnly
     public GroupResponse getGroupDetails(String groupId) {
-        return null;
+        Optional<org.spongepowered.downloads.artifacts.server.cmd.group.domain.Group> groupOptional = 
+            groupRepository.findByGroupId(groupId);
+
+        if (groupOptional.isEmpty()) {
+            return new GroupResponse.Missing(groupId);
+        }
+
+        org.spongepowered.downloads.artifacts.server.cmd.group.domain.Group domainGroup = groupOptional.get();
+        Group apiGroup = mapToApiGroup(domainGroup);
+
+        return new GroupResponse.Available(apiGroup);
+    }
+
+    private Group mapToApiGroup(org.spongepowered.downloads.artifacts.server.cmd.group.domain.Group domainGroup) {
+        return new Group(
+            domainGroup.getGroupId(),
+            domainGroup.getName(),
+            domainGroup.getWebsite()
+        );
     }
 }

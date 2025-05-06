@@ -1,4 +1,5 @@
 module org.spongepowered.downloads.artifacts.server {
+    requires io.micronaut.context;
     requires io.micronaut.core;
     requires io.micronaut.data.micronaut_data_r2dbc;
     requires io.micronaut.http;

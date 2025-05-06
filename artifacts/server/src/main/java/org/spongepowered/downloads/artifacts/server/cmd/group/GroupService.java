@@ -31,17 +31,15 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import jakarta.validation.Valid;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
-import org.spongepowered.downloads.artifact.api.mutation.Update;
+import org.spongepowered.downloads.artifact.api.mutation.GroupUpdate;
 import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.artifact.api.query.GroupResponse;
 import org.spongepowered.downloads.artifact.api.registration.Response;
 import org.spongepowered.downloads.artifacts.events.ArtifactEvent;
-import org.spongepowered.downloads.artifacts.events.GroupUpdate;
+import org.spongepowered.downloads.artifacts.events.GroupUpdated;
 import org.spongepowered.downloads.artifacts.server.cmd.group.domain.Artifact;
 import org.spongepowered.downloads.artifacts.server.cmd.group.domain.Group;
-import org.spongepowered.downloads.events.outbox.OutboxEvent;
 import org.spongepowered.downloads.events.outbox.OutboxRepository;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Optional;
@@ -74,7 +72,7 @@ public class GroupService {
         groupRepository.save(group);
 
         this.outboxRepository
-            .saveAll(List.of(new GroupUpdate.GroupRegistered(rg.mavenCoordinates(), rg.name(), rg.website())))
+            .saveAll(List.of(GroupUpdated.registered(rg.mavenCoordinates(), rg.name(), rg.website())))
             .block();
         final var groupDTO = new org.spongepowered.downloads.artifact.api.Group(
             group.getGroupId(), group.getName(), group.getWebsite());
@@ -101,10 +99,9 @@ public class GroupService {
         artifact.setGroup(group);
         artifactRepository.save(artifact);
 
-
         this.outboxRepository.saveAll(
             List.of(
-                new GroupUpdate.ArtifactRegistered(artifact.coordinates()),
+                GroupUpdated.registeredArtifact(artifact.coordinates()),
                 new ArtifactEvent.ArtifactRegistered(artifact.coordinates())
             )).block();
 
@@ -112,8 +109,34 @@ public class GroupService {
         return HttpResponse.ok(new Response.ArtifactRegistered(artifact.coordinates()));
     }
 
-    public HttpResponse<GroupResponse> updateGroup(String groupId, @Valid Update groupUpdateDTO) {
+    @Transactional
+    public HttpResponse<GroupResponse> updateGroup(String groupId, @Valid GroupUpdate update) {
+        final var groupOptional = groupRepository.findByGroupId(groupId);
+        if (groupOptional.isEmpty()) {
+            return HttpResponse.notFound(new GroupResponse.Missing(groupId));
+        }
+        final var group = groupOptional.get();
+        return switch (update) {
+            case GroupUpdate.DisplayName dn -> {
+                group.setName(dn.display());
+                groupRepository.save(group);
 
-        return null;
+                yield HttpResponse.created(
+                    new GroupResponse.Available(new org.spongepowered.downloads.artifact.api.Group(
+                        group.getGroupId(), group.getName(), group.getWebsite()
+                    )));
+            }
+            case GroupUpdate.Website website -> {
+                group.setWebsite(website.website());
+                groupRepository.save(group);
+                this.outboxRepository.saveAll(List.of(
+                    GroupUpdated.updated(group.getGroupId(), group.getName(), group.getWebsite())
+                )).block();
+                yield HttpResponse.created(
+                    new GroupResponse.Available(new org.spongepowered.downloads.artifact.api.Group(
+                        group.getGroupId(), group.getName(), group.getWebsite()
+                    )));
+            }
+        };
     }
 }

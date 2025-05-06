@@ -44,7 +44,6 @@ public class ArtifactQueryController {
 
     private final ArtifactRepository artifactsRepo;
 
-
     @Inject
     public ArtifactQueryController(
         final ArtifactRepository artifactsRepo
@@ -52,7 +51,7 @@ public class ArtifactQueryController {
         this.artifactsRepo = artifactsRepo;
     }
 
-    @Get(value = "/", produces = MediaType.APPLICATION_JSON)
+    @Get(produces = MediaType.APPLICATION_JSON)
     @Status(HttpStatus.OK)
     public Mono<GetArtifactsResponse> getArtifacts(
         final @PathVariable String groupID
@@ -70,7 +69,8 @@ public class ArtifactQueryController {
      * @param artifactId The artifact ID of the artifact
      * @return The details of the artifact
      */
-    @Get(value = "/{artifactId}",
+    @Get(
+        value = "/{artifactId}",
         produces = MediaType.APPLICATION_JSON
     )
     @Status(HttpStatus.OK)
