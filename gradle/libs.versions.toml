@@ -1,7 +1,7 @@
 [versions]
 micronaut = "4.2.3"
 jackson = "2.17.2"
-maven_artifact = "3.9.9"
+maven_artifact = "3.9.10"
 jakartaValidation = "3.0.2"
 jakartaPersistence = "2.2.3"
 jgit = "6.8.0.202311291450-r"
@@ -16,7 +16,7 @@ snakeyaml = { module = "org.yaml:snakeyaml" }
 micronaut-inject = { module = "io.micronaut:micronaut-inject-java" }
 
 # logging
-jansi = { module = "org.fusesource.jansi:jansi", version = "2.4.0" }
+jansi = { module = "org.fusesource.jansi:jansi", version = "2.4.2" }
 
 # http
 
