@@ -6,11 +6,11 @@ group = "systemofadownload"
 plugins {
     `java-library`
     id("com.github.johnrengelman.shadow") version "8.1.1" apply false
-    id("io.micronaut.library") version "4.4.0" apply false
-    id("io.micronaut.application") version "4.4.0" apply false
-    id("io.micronaut.docker") version "4.4.0" apply false
-    id("io.micronaut.aot") version "4.4.0" apply false
-    id("io.micronaut.test-resources") version "4.4.0" apply false
+    id("io.micronaut.library") version "4.5.4" apply false
+    id("io.micronaut.application") version "4.5.4" apply false
+    id("io.micronaut.docker") version "4.5.4" apply false
+    id("io.micronaut.aot") version "4.5.4" apply false
+    id("io.micronaut.test-resources") version "4.5.4" apply false
     id("net.kyori.indra.licenser.spotless") version "3.1.3"
 }
 
