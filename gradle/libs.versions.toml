@@ -3,7 +3,7 @@ micronaut = "4.2.3"
 jackson = "2.19.0"
 maven_artifact = "3.9.10"
 jakartaValidation = "3.1.1"
-jakartaPersistence = "2.2.3"
+jakartaPersistence = "3.2.0"
 jgit = "6.10.1.202505221210-r"
 
 [libraries]
