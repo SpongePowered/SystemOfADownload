@@ -1,10 +1,10 @@
 [versions]
 micronaut = "4.9.0"
-jackson = "2.19.0"
+jackson = "2.19.1"
 maven_artifact = "3.9.10"
 jakartaValidation = "3.1.1"
-jakartaPersistence = "2.2.3"
-jgit = "6.10.1.202505221210-r"
+jakartaPersistence = "3.2.0"
+jgit = "7.3.0.202506031305-r"
 
 [libraries]
 postgres-jdbc = { module = "org.postgresql:postgresql"}

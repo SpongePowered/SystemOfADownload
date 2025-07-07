@@ -1,23 +1,14 @@
-name: Verify License Headers
+name: Spotless Check
 
 on:
-    push:
-        branches: [ master ]
-    pull_request:
-        branches: [ master ]
+  push:
+    branches: "**"
+    tags-ignore: ["**"]
+  pull_request:
 
 jobs:
-    license-check:
-        runs-on: ubuntu-latest
-        env:
-            JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
-            JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
-        steps:
-            -   uses: actions/checkout@v4
-            -   name: Set up SBT
-                uses: actions/setup-java@v4
-                with:
-                    distribution: 'temurin'
-                    java-version: '17'
-            -   name: Build with SBT
-                run: sbt -v headerCheck
+  call-check:
+    uses: SpongePowered/.github/.github/workflows/shared-check-spotless.yaml@master
+    with:
+      runtime_version: 24
+    secrets: inherit

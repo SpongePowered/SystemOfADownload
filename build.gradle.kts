@@ -46,11 +46,11 @@ allprojects {
     }
 
     java {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
-        if (JavaVersion.current() < JavaVersion.VERSION_21) {
+        sourceCompatibility = JavaVersion.VERSION_24
+        targetCompatibility = JavaVersion.VERSION_24
+        if (JavaVersion.current() < JavaVersion.VERSION_24) {
             toolchain {
-                languageVersion.set(JavaLanguageVersion.of(21))
+                languageVersion.set(JavaLanguageVersion.of(24))
             }
         }
     }

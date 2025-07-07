@@ -33,6 +33,10 @@ tasks {
     test {
         useJUnitPlatform()
     }
+
+    dockerBuildNative {
+        images = listOf("${System.getenv("DOCKER_IMAGE") ?: project.name}:${project.version}")
+    }
 }
 tasks.withType<StartTestResourcesService>().configureEach {
     useClassDataSharing.set(false)
@@ -40,6 +44,9 @@ tasks.withType<StartTestResourcesService>().configureEach {
 
 graalvmNative.toolchainDetection.set(false)
 
+tasks.named<io.micronaut.gradle.docker.NativeImageDockerfile>("dockerfileNative") {
+    jdkVersion = "24"
+}
 dependencies {
     implementation(project(":artifacts:api"))
     implementation(project(":artifacts:events"))
