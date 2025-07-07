@@ -34,15 +34,15 @@ import io.micronaut.serde.annotation.Serdeable;
 import java.util.List;
 
 @Serdeable
-@MappedEntity
+@MappedEntity("groups")
 public record Group(
     @GeneratedValue
     @Id
     Long id,
-    @MappedProperty(value = "groupId")
+    @MappedProperty(value = "group_id")
     String groupId,
     @Relation(value = Relation.Kind.ONE_TO_MANY,
-        mappedBy = "groupId")
+        mappedBy = "group_id")
     List<JpaArtifact> artifacts
 ) {
 

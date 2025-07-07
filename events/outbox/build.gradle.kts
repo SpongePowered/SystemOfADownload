@@ -1,7 +1,7 @@
 import io.micronaut.testresources.buildtools.KnownModules
 
 plugins {
-    id("com.github.johnrengelman.shadow")
+    id("com.gradleup.shadow")
     id("io.micronaut.library")
     id("io.micronaut.test-resources")
     id("io.micronaut.aot")
@@ -32,7 +32,7 @@ dependencies {
 
     // databases
     runtimeOnly(libs.bundles.postgres.runtime)
-    implementation(libs.bundles.postgres.r2dbc)
+    implementation(libs.bundles.postgres.jdbc)
     annotationProcessor(libs.bundles.postgres.annotations)
 
     // Serder

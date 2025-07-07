@@ -1,9 +1,9 @@
 module org.spongepowered.downloads.artifacts.server {
-    requires io.micronaut.context;
-    requires io.micronaut.core;
-    requires io.micronaut.data.micronaut_data_r2dbc;
-    requires io.micronaut.http;
-    requires io.micronaut.inject;
+    requires io.micronaut.micronaut_context;
+    requires io.micronaut.micronaut_core;
+    requires io.micronaut.data.micronaut_data_jdbc;
+    requires io.micronaut.micronaut_http;
+    requires io.micronaut.micronaut_inject;
     requires io.micronaut.serde.micronaut_serde_api;
     requires jakarta.persistence;
     requires jakarta.validation;
@@ -15,5 +15,5 @@ module org.spongepowered.downloads.artifacts.server {
     requires jakarta.inject;
     requires com.fasterxml.jackson.databind;
     requires io.micronaut.data.micronaut_data_model;
-    requires reactor.core;
+    requires jakarta.annotation;
 }

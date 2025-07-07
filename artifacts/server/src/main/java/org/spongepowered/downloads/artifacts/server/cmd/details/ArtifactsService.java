@@ -68,7 +68,7 @@ public class ArtifactsService {
             return new ArtifactDetails.Response.NotModified();
         }
         this.artifactRepository.update(resp.updatedObject());
-        this.outboxRepository.saveAll(resp.events()).block();
+        this.outboxRepository.saveAll(resp.events());
         return new ArtifactDetails.Response.Ok(
             artifact.name(),
             artifact.description(),

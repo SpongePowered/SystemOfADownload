@@ -26,7 +26,9 @@ package org.spongepowered.downloads.artifacts.server.cmd.group;
 
 import io.micronaut.core.annotation.Introspected;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import org.spongepowered.downloads.artifact.api.mutation.Update;
 
 public sealed interface GroupCommand {
 
@@ -38,10 +40,13 @@ public sealed interface GroupCommand {
 
     @Introspected
     record RegisterGroup(
+        @Pattern(regexp = "(^[a-zA-Z][a-zA-Z0-9.]+)$", message = "Invalid group id")
         String mavenCoordinates,
         @NotBlank
         @Size(max = 256)
         String name,
+        @Pattern(regexp = Update.URL_REGEX,
+            message = "Invalid URL format")
         String website
     ) implements GroupCommand {
     }

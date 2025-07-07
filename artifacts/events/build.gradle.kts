@@ -1,7 +1,7 @@
 
 
 plugins {
-    id("com.github.johnrengelman.shadow")
+    id("com.gradleup.shadow")
     id("io.micronaut.library")
     id("io.micronaut.test-resources")
     id("io.micronaut.aot")

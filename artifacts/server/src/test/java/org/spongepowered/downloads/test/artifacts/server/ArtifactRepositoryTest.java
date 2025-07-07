@@ -40,9 +40,9 @@ import org.slf4j.LoggerFactory;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifacts.server.query.meta.ArtifactRepository;
 import org.spongepowered.downloads.artifacts.server.query.meta.domain.JpaArtifact;
-import reactor.core.publisher.Mono;
 
 import java.util.Collections;
+import java.util.Optional;
 
 
 @MicronautTest
@@ -72,7 +72,18 @@ public class ArtifactRepositoryTest {
             .getAnnotationMetadata().stringValue(Query.class) // (3)
             .orElse(null);
 
-        final String expected = "SELECT artifact.\"id\",artifact.\"group_id\",artifact.\"artifact_id\",artifact.\"display_name\",artifact.\"website\",artifact.\"git_repository\",artifact.\"issues\" FROM \"artifact\".\"artifacts\" artifact WHERE (artifact.\"group_id\" = $1 AND artifact.\"artifact_id\" = $2)";
+        final String expected =
+            """
+            SELECT artifact."id",
+            artifact."group_id",
+            artifact."group_internal_id",
+            artifact."artifact_id",
+            artifact."display_name",
+            artifact."website",
+            artifact."git_repository",
+            artifact."issues" FROM "artifact"."grouped_artifacts" artifact WHERE (artifact."group_id" = ? AND artifact."artifact_id" = ?)
+            """.replace("\n", "")
+                .replace("            ", "");
         Assertions.assertEquals( // (4)
             expected, query);
     }
@@ -82,8 +93,8 @@ public class ArtifactRepositoryTest {
         final ArtifactRepository repo = context.createBean(ArtifactRepository.class);
 
         // Example is injected with test data through liquibase resources
-        final Mono<JpaArtifact> spongevanilla = repo.findByGroupIdAndArtifactId("com.example", "example");
-        final JpaArtifact a = spongevanilla.block();
+        final Optional<JpaArtifact> spongevanilla = repo.findByGroupIdAndArtifactId("com.example", "example");
+        final JpaArtifact a = spongevanilla.orElse(null);
 
 
         final var expected = new ArtifactCoordinates("com.example", "example");
@@ -93,7 +104,6 @@ public class ArtifactRepositoryTest {
         Assertions.assertNotNull(a.tags());
         Assertions.assertEquals(expectedTags, a.tags());
     }
-
 
 
 }

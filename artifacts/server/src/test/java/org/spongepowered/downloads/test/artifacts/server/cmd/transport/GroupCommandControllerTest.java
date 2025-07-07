@@ -25,8 +25,8 @@
 package org.spongepowered.downloads.test.artifacts.server.cmd.transport;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.HttpClient;
@@ -35,8 +35,9 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
+import org.spongepowered.downloads.artifact.api.Group;
+import org.spongepowered.downloads.artifact.api.query.GroupRegistration;
 import org.spongepowered.downloads.artifacts.server.cmd.group.GroupCommand;
-import reactor.core.publisher.Mono;
 
 @MicronautTest()
 public class GroupCommandControllerTest {
@@ -61,52 +62,55 @@ public class GroupCommandControllerTest {
         ));
 
         assertEquals(200, response.getStatus().getCode());
-        assertNotNull(response.getBody());
+        final var body = response.getBody(GroupRegistration.Response.GroupRegistered.class);
+        assertTrue(body.isPresent());
+        assertEquals(new GroupRegistration.Response.GroupRegistered(
+            new Group(
+                "org.example.valid", "ValidGroup", "https://example.com/valid"
+            )
+        ), body.get());
     }
 
     @Test
     void registerGroupWithInvalidGroupId() {
         final var client = httpClient.toBlocking();
-        assertThrows(HttpClientResponseException.class, () -> {
-           client.exchange(HttpRequest.POST(
-                "/groups",
-                new GroupCommand.RegisterGroup(
-                    "invalid group id",
-                    "InvalidGroup",
-                    "https://example.com/invalid"
-                )
-            ));
-        });
+        assertThrows(HttpClientResponseException.class, () -> client.exchange(HttpRequest.POST(
+             "/groups",
+             new GroupCommand.RegisterGroup(
+                 "invalid group id",
+                 "InvalidGroup",
+                 "https://example.com/invalid"
+             )
+         ))
+        );
     }
 
     @Test
     void registerGroupWithEmptyName() {
         final var client = httpClient.toBlocking();
-        assertThrows(HttpClientResponseException.class, () -> {
-           client.exchange(HttpRequest.POST(
-                "/groups",
-                new GroupCommand.RegisterGroup(
-                    "org.example.empty",
-                    "",
-                    "https://example.com/empty"
-                )
-            ));
-        });
+        assertThrows(HttpClientResponseException.class, () -> client.exchange(HttpRequest.POST(
+             "/groups",
+             new GroupCommand.RegisterGroup(
+                 "org.example.empty",
+                 "",
+                 "https://example.com/empty"
+             )
+         ))
+        );
     }
 
     @Test
     void registerGroupWithInvalidUrl() {
         final var client = httpClient.toBlocking();
-        assertThrows(HttpClientResponseException.class, () -> {
-            client.exchange(HttpRequest.POST(
-                "/groups",
-                new GroupCommand.RegisterGroup(
-                    "org.example.invalid",
-                    "InvalidUrlGroup",
-                    "not-a-valid-url"
-                )
-            ));
-        });
+        assertThrows(HttpClientResponseException.class, () -> client.exchange(HttpRequest.POST(
+            "/groups",
+            new GroupCommand.RegisterGroup(
+                "org.example.invalid",
+                "InvalidUrlGroup",
+                "not-a-valid-url"
+            )
+        ))
+        );
     }
 
     @Test
@@ -118,10 +122,8 @@ public class GroupCommandControllerTest {
             "https://example.com/duplicate"
         );
 
-        Mono.from(httpClient.exchange(HttpRequest.POST("/groups", group))).block();
+        client.exchange(HttpRequest.POST("/groups", group));
 
-        assertThrows(HttpClientResponseException.class, () -> {
-            client.exchange(HttpRequest.POST("/groups", group));
-        });
+        assertThrows(HttpClientResponseException.class, () -> client.exchange(HttpRequest.POST("/groups", group)));
     }
 }

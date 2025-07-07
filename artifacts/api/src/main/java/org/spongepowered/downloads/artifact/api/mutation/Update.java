@@ -47,7 +47,7 @@ public sealed interface Update {
     String URL_REGEX = "^(https?):\\/\\/(www\\.)?([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,6}(:[0-9]{1,5})?(/[a-zA-Z0-9-._~:/?#/@!$&'()*+,;=%]*)?$";
     // And this is yet a different git url validation regex, only to verify
     // since we need to be able to query git repositories.
-    String GIT_URL_PATTERN = "^(https://|git://|git@)([a-zA-Z0-9.-]+)[:/]([a-zA-Z0-9._-]+)/([a-zA-Z0-9._-]+)(\\.git)$";
+    String GIT_URL_PATTERN = "^(https://|git://|git@)([a-zA-Z0-9.-]+)[:/]([a-zA-Z0-9._-]+)/([a-zA-Z0-9_-]+)(\\.git)?$";
 
     @JsonTypeName("website")
     @Introspected

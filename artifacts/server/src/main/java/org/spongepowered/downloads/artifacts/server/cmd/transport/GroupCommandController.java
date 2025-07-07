@@ -50,7 +50,7 @@ public class GroupCommandController {
 
     @Post
     @Transactional
-    public HttpResponse<GroupRegistration.Response> registerGroup(@Body GroupCommand.RegisterGroup groupDTO) {
+    public HttpResponse<GroupRegistration.Response> registerGroup(@Body GroupCommand.@Valid RegisterGroup groupDTO) {
         return groupService.registerGroup(groupDTO);
     }
 

@@ -25,29 +25,38 @@
 package org.spongepowered.downloads.artifacts.server.cmd.group.domain;
 
 import io.micronaut.data.annotation.AutoPopulated;
-import io.micronaut.data.annotation.GeneratedValue;
-import io.micronaut.data.annotation.Id;
-import io.micronaut.data.annotation.MappedEntity;
-import io.micronaut.data.annotation.Relation;
 import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 
 import java.util.List;
 import java.util.Objects;
 
-@MappedEntity(value = "groups", schema = "artifact")
+@Entity(name = "groups")
+@Table(name = "groups", schema = "artifact")
 public final class Group {
     @Id
-    @GeneratedValue(GeneratedValue.Type.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(nullable = false,
+        insertable = false)
     @AutoPopulated
     private Long id;
     @Column(unique = true, nullable = false, name = "group_id")
     private String groupId;
+
     @Column(nullable = false)
     private String name;
 
+    @Column(nullable = true)
     private String website;
-    @Relation(value = Relation.Kind.ONE_TO_MANY,
-        mappedBy = "group")
+
+    @OneToMany
+    @JoinColumn(name = "group_id")
     private List<Artifact> artifacts;
 
     public Long getId() {

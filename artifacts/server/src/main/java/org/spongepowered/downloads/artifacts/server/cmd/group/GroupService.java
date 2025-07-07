@@ -72,8 +72,7 @@ public class GroupService {
         groupRepository.save(group);
 
         this.outboxRepository
-            .saveAll(List.of(GroupUpdated.registered(rg.mavenCoordinates(), rg.name(), rg.website())))
-            .block();
+            .saveAll(List.of(GroupUpdated.registered(rg.mavenCoordinates(), rg.name(), rg.website())));
         final var groupDTO = new org.spongepowered.downloads.artifact.api.Group(
             group.getGroupId(), group.getName(), group.getWebsite());
 
@@ -103,7 +102,7 @@ public class GroupService {
             List.of(
                 GroupUpdated.registeredArtifact(artifact.coordinates()),
                 new ArtifactEvent.ArtifactRegistered(artifact.coordinates())
-            )).block();
+            ));
 
 
         return HttpResponse.ok(new Response.ArtifactRegistered(artifact.coordinates()));
@@ -131,7 +130,7 @@ public class GroupService {
                 groupRepository.save(group);
                 this.outboxRepository.saveAll(List.of(
                     GroupUpdated.updated(group.getGroupId(), group.getName(), group.getWebsite())
-                )).block();
+                ));
                 yield HttpResponse.created(
                     new GroupResponse.Available(new org.spongepowered.downloads.artifact.api.Group(
                         group.getGroupId(), group.getName(), group.getWebsite()

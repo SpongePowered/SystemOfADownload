@@ -34,7 +34,6 @@ import io.micronaut.data.annotation.sql.JoinColumn;
 import io.micronaut.data.annotation.sql.JoinColumns;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.OneToMany;
-import jakarta.validation.constraints.NotEmpty;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
 import java.util.Map;
@@ -44,15 +43,15 @@ import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 
-@MappedEntity(value = "artifacts", schema = "artifact", alias = "artifact")
+@MappedEntity(value = "grouped_artifacts", schema = "artifact", alias = "artifact")
 public record JpaArtifact(
-
     @GeneratedValue
     @Id
     int id,
     @MappedProperty(value = "group_id")
     String groupId,
-    @NotEmpty
+    @MappedProperty(value = "group_internal_id")
+    int groupInternalId,
     @MappedProperty(value = "artifact_id")
     String artifactId,
     @MappedProperty(value = "display_name")
@@ -74,8 +73,8 @@ public record JpaArtifact(
     Set<JpaArtifactTagValue> tagValues
 ) {
 
-    public JpaArtifact(String groupId, String name) {
-        this(0, groupId, name, "", "", "", "", Set.of());
+    public JpaArtifact(String group, String name) {
+        this(0, group,0, name, "", "", "", "", Set.of());
     }
 
     @Transient

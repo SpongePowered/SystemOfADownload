@@ -36,7 +36,6 @@ import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactDetailsResponse;
 import org.spongepowered.downloads.artifact.api.query.GetArtifactsResponse;
 import org.spongepowered.downloads.artifacts.server.query.meta.ArtifactRepository;
-import reactor.core.publisher.Mono;
 
 @Controller("/groups/{groupID}/artifacts")
 @Requires("query")
@@ -53,19 +52,21 @@ public class ArtifactQueryController {
 
     @Get(produces = MediaType.APPLICATION_JSON)
     @Status(HttpStatus.OK)
-    public Mono<GetArtifactsResponse> getArtifacts(
+    public GetArtifactsResponse getArtifacts(
         final @PathVariable String groupID
     ) {
-        return this.artifactsRepo.findArtifactIdByGroupId(groupID)
-            .collectList()
-            .<GetArtifactsResponse>map(GetArtifactsResponse.ArtifactsAvailable::new)
-            .onErrorReturn(new GetArtifactsResponse.GroupMissing(groupID));
+        final var artifacts = this.artifactsRepo.findArtifactIdByGroupId(groupID)
+            .toList();
+        if (artifacts.isEmpty()) {
+            return new GetArtifactsResponse.GroupMissing(groupID);
+        }
+        return new GetArtifactsResponse.ArtifactsAvailable(artifacts);
     }
 
     /**
      * Get the details of an artifact.
      *
-     * @param groupID    The group ID of the artifact
+     * @param groupID The group ID of the artifact
      * @param artifactId The artifact ID of the artifact
      * @return The details of the artifact
      */
@@ -74,7 +75,7 @@ public class ArtifactQueryController {
         produces = MediaType.APPLICATION_JSON
     )
     @Status(HttpStatus.OK)
-    public Mono<GetArtifactDetailsResponse> getArtifact(
+    public GetArtifactDetailsResponse getArtifact(
         final @PathVariable String groupID,
         final @PathVariable String artifactId
     ) {
@@ -87,6 +88,7 @@ public class ArtifactQueryController {
                 a.issues(),
                 a.tags()
             ))
-            .onErrorReturn(new GetArtifactDetailsResponse.MissingArtifact(new ArtifactCoordinates(groupID, artifactId)));
+            .orElseGet(
+                () -> new GetArtifactDetailsResponse.MissingArtifact(new ArtifactCoordinates(groupID, artifactId)));
     }
 }

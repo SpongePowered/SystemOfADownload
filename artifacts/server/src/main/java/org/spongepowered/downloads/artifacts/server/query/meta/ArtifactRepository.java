@@ -25,19 +25,21 @@
 package org.spongepowered.downloads.artifacts.server.query.meta;
 
 import io.micronaut.core.annotation.NonNull;
+import io.micronaut.data.jdbc.annotation.JdbcRepository;
 import io.micronaut.data.model.query.builder.sql.Dialect;
-import io.micronaut.data.r2dbc.annotation.R2dbcRepository;
-import io.micronaut.data.repository.reactive.ReactiveStreamsCrudRepository;
+import io.micronaut.data.repository.CrudRepository;
+import jakarta.annotation.Nonnull;
 import org.spongepowered.downloads.artifacts.server.query.meta.domain.JpaArtifact;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
-@R2dbcRepository(dialect = Dialect.POSTGRES)
-public interface ArtifactRepository extends ReactiveStreamsCrudRepository<JpaArtifact, Integer> {
+import java.util.Optional;
+import java.util.stream.Stream;
 
-    @NonNull
-    Flux<String> findArtifactIdByGroupId(@NonNull String groupId);
+@JdbcRepository(dialect = Dialect.POSTGRES)
+public interface ArtifactRepository extends CrudRepository<JpaArtifact, Integer> {
 
     @NonNull
-    Mono<JpaArtifact> findByGroupIdAndArtifactId(String groupId, String artifactId);
+    Stream<String> findArtifactIdByGroupId(@Nonnull String groupId);
+
+    @NonNull
+    Optional<JpaArtifact> findByGroupIdAndArtifactId(String groupId, String artifactId);
 }

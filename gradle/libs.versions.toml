@@ -1,5 +1,5 @@
 [versions]
-micronaut = "4.2.3"
+micronaut = "4.9.0"
 jackson = "2.19.0"
 maven_artifact = "3.9.10"
 jakartaValidation = "3.1.1"
@@ -7,7 +7,7 @@ jakartaPersistence = "2.2.3"
 jgit = "6.10.1.202505221210-r"
 
 [libraries]
-postgres-r2dbc = { module = "org.postgresql:r2dbc-postgresql"}
+postgres-jdbc = { module = "org.postgresql:postgresql"}
 
 # configuration
 snakeyaml = { module = "org.yaml:snakeyaml" }
@@ -35,7 +35,7 @@ micronaut-serde-api = { module = "io.micronaut.serde:micronaut-serde-api" }
 
 maven = { module = "org.apache.maven:maven-artifact", version.ref = "maven_artifact" }
 ## Database groups
-micronaut-data-r2dbc = { module = "io.micronaut.data:micronaut-data-r2dbc" }
+micronaut-data-jdbc = { module = "io.micronaut.data:micronaut-data-jdbc" }
 vertx-postgres = { module = "io.vertx:vertx-pg-client" }
 postgres-driver = { module = "org.postgresql:postgresql" }
 jakarta-persistence = { module = "jakarta.persistence:jakarta.persistence-api", version.ref = "jakartaPersistence" }
@@ -64,7 +64,7 @@ micronaut-test-resources = { module = "io.micronaut.testresources:micronaut-test
 micronaut-test-junit5 = { module = "io.micronaut.test:micronaut-test-junit5" }
 junit-api = { module = "org.junit.jupiter:junit-jupiter-api" }
 junit-engine = { module = "org.junit.jupiter:junit-jupiter-engine" }
-testcontainers-r2dbc = { module = "org.testcontainers:r2dbc" }
+testcontainers-jdbc = { module = "org.testcontainers:jdbc" }
 testcontainers-postgres = { module = "org.testcontainers:postgresql" }
 
 
@@ -74,10 +74,10 @@ serder-processor = ["micronaut-serde-processor"]
 
 appSerder = ["jackson-databind", "jackson-annotations", "jackson-core", "micronaut-serde-api"]
 git = ["jgit-core", "jgit-ssh"]
-postgres-runtime = ["postgres-driver", "postgres-r2dbc"]
-postgres-r2dbc = ["micronaut-data-r2dbc", "vertx-postgres", "micronaut-sql-hikari", "jakarta-persistence", "liquibase"]
+postgres-runtime = ["postgres-driver", "postgres-jdbc"]
+postgres-jdbc = ["micronaut-data-jdbc", "vertx-postgres", "micronaut-sql-hikari", "jakarta-persistence", "liquibase"]
 postgres-annotations = ["micronaut-data-processor"]
-postgres-test = ["testcontainers-r2dbc", "testcontainers-postgres"]
+postgres-test = ["testcontainers-jdbc", "testcontainers-postgres"]
 junit = ["junit-api", "micronaut-test-junit5"]
 micronaut-testresources = ["micronaut-test-resources"]
 micronaut-testresources-services = ["postgres-driver"]

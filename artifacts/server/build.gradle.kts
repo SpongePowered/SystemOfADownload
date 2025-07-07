@@ -5,7 +5,7 @@ plugins {
     id("io.micronaut.application")
     id("io.micronaut.test-resources")
     id("io.micronaut.aot")
-    id("com.github.johnrengelman.shadow")
+    id("com.gradleup.shadow")
 }
 
 
@@ -20,7 +20,7 @@ micronaut {
     testResources {
         enabled.set(true)
         sharedServer.set(true)
-        additionalModules.addAll(KnownModules.R2DBC_POSTGRESQL)
+        additionalModules.addAll(KnownModules.JDBC_POSTGRESQL)
     }
 }
 
@@ -49,9 +49,16 @@ dependencies {
     annotationProcessor(libs.bundles.validation.processors)
     annotationProcessor(libs.bundles.serder.processor)
 
+
+    implementation("io.micronaut.validation:micronaut-validation")
+
+
+
     implementation(libs.bundles.serder)
     // Micronaut - HTTP
     implementation(libs.bundles.micronaut.http)
+    // Validation
+    implementation(libs.bundles.validation)
 
     // Git
     implementation(libs.bundles.git)
@@ -62,9 +69,9 @@ dependencies {
     implementation(libs.bundles.appSerder)
 
     // databases
-    implementation(libs.bundles.postgres.r2dbc)
+    implementation(libs.bundles.postgres.jdbc)
     // Liquibase required jdbc driver
-    runtimeOnly(libs.postgres.r2dbc)
+    runtimeOnly(libs.postgres.jdbc)
 
 
 

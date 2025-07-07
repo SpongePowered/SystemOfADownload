@@ -34,6 +34,7 @@ import io.micronaut.http.annotation.Post;
 import io.micronaut.transaction.TransactionDefinition;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 import org.spongepowered.downloads.artifact.api.mutation.Update;
@@ -71,7 +72,7 @@ public class ArtifactCommandController {
     @Transactional(isolation = TransactionDefinition.Isolation.REPEATABLE_READ)
     public HttpResponse<Response> registerArtifact(
         @PathVariable @NotNull final String groupID,
-        @Body @NotNull final ArtifactRegistration.RegisterArtifact registration
+        @Body @NotNull @Valid final ArtifactRegistration.RegisterArtifact registration
     ) {
         return this.groupService.registerArtifact(groupID, new GroupCommand.RegisterArtifact(
             registration.artifactId(),

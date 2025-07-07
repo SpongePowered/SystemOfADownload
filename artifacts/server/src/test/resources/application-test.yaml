@@ -11,6 +11,12 @@ liquibase:
     datasources:
         default:
             change-log: 'classpath:db/test-changelog.xml'
+datasources:
+  default:
+    username: testuser
+    password: testpassword
+    url: 'jdbc:tc:postgresql:15:///postgres'
+    driver-class-name: 'org.testcontainers.jdbc.ContainerDatabaseDriver'
 endpoints:
     liquibase:
         enabled: true

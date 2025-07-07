@@ -26,17 +26,20 @@ package org.spongepowered.downloads.artifacts.server.cmd.group.domain;
 
 import io.micronaut.data.annotation.AutoPopulated;
 import io.micronaut.data.annotation.GeneratedValue;
-import io.micronaut.data.annotation.Id;
-import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.annotation.Relation;
 import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import org.spongepowered.downloads.artifact.api.ArtifactCoordinates;
 
 import java.util.List;
 import java.util.Objects;
 
-@MappedEntity(value = "artifacts", schema = "artifact")
+@Entity(name = "artifact")
+@Table(name = "artifacts", schema = "artifact")
 public class Artifact {
     @Id
     @GeneratedValue(GeneratedValue.Type.AUTO)
@@ -46,8 +49,8 @@ public class Artifact {
     @Column(nullable = false)
     private String artifactId;
 
-    @Relation(value = Relation.Kind.MANY_TO_ONE)
-    @Column(nullable = false, name = "group_id")
+    @ManyToOne(optional = false,
+        targetEntity = Group.class)
     private Group group;
 
     @Column(nullable = false, name = "displayName")

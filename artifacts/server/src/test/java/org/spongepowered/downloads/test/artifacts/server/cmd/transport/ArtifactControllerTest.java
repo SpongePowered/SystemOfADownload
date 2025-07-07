@@ -74,7 +74,7 @@ public class ArtifactControllerTest {
             "com.example", new ArtifactRegistration.RegisterArtifact("example", "Example"));
 
         assertNotNull(response);
-        assertEquals(response.status(), HttpStatus.NOT_FOUND);
+        assertEquals(HttpStatus.BAD_REQUEST, response.status());
     }
 
 }

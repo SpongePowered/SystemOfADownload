@@ -1,7 +1,7 @@
 import org.gradle.kotlin.dsl.version
 
 plugins {
-    id("com.github.johnrengelman.shadow")
+    id("com.gradleup.shadow")
     id("io.micronaut.minimal.application")
     id("io.micronaut.docker")
     id("io.micronaut.test-resources")

@@ -28,8 +28,6 @@ import io.micronaut.scheduling.annotation.Scheduled;
 import io.micronaut.transaction.annotation.Transactional;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 @Singleton
 public class OutboxService {
@@ -40,12 +38,11 @@ public class OutboxService {
     // This is scheduled every 5 seconds
     @Scheduled(cron = "0/5 * * * * ?")
     @Transactional
-    public Mono<Void> publishOutboxEvents() {
-        return Flux.from(this.repository.findAll())
-            .flatMap(oe ->
-                this.publisher.sendReactive(oe.topic(), oe.partitionKey(), oe.payload())
-                    .then(Mono.from(this.repository.deleteById(oe.id())))
-            ).then();
+    public void publishOutboxEvents() {
+        for (var event : this.repository.findAll()) {
+            this.publisher.publish(event.topic(), event.partitionKey(), event.payload());
+            this.repository.delete(event);
+        }
     }
 
 }

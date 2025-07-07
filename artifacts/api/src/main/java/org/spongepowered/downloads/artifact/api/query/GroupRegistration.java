@@ -27,6 +27,7 @@ package org.spongepowered.downloads.artifact.api.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import io.micronaut.core.annotation.Introspected;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -60,9 +61,11 @@ public final class GroupRegistration {
 
     public sealed interface Response {
 
+        @JsonSerialize
         record GroupAlreadyRegistered(String groupNameRequested) implements Response {
         }
 
+        @JsonSerialize
         record GroupRegistered(Group group) implements Response {
 
         }
