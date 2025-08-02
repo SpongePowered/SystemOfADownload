@@ -1,4 +1,4 @@
-FROM node:21-alpine as builder
+FROM node:22-alpine as builder
 
 COPY systemofadownload.yaml ./
 RUN npm install -g redoc-cli && redoc-cli bundle -o index.html systemofadownload.yaml
