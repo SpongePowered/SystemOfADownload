@@ -4,7 +4,7 @@ jackson = "2.19.1"
 maven_artifact = "3.9.10"
 jakartaValidation = "3.1.1"
 jakartaPersistence = "3.2.0"
-jgit = "7.3.0.202506031305-r"
+jgit = "7.5.0.202512021534-r"
 
 [libraries]
 postgres-jdbc = { module = "org.postgresql:postgresql"}
