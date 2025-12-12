@@ -7,92 +7,70 @@ downloads website.
 
 ## Requirements
 
-- Java 21 (GraalVM optional to build native images)
-- Docker
-- terraform (if you want to deploy to a kubernetes cluster)
+Using [Mise](https://mise.jdx.dev/), the `mise.toml` file defines tool requirements, notably
+Go 1.25 as a minimum.
 
-## Technologies in use
-### Micronaut 4.1.3
+### Deployment
 
-- [User Guide](https://docs.micronaut.io/4.1.3/guide/index.html)
-- [API Reference](https://docs.micronaut.io/4.1.3/api/index.html)
-- [Configuration Reference](https://docs.micronaut.io/4.1.3/guide/configurationreference.html)
-- [Micronaut Guides](https://guides.micronaut.io/index.html)
----
-
-- [Shadow Gradle Plugin](https://plugins.gradle.org/plugin/com.github.johnrengelman.shadow)
-- [Micronaut Gradle Plugin documentation](https://micronaut-projects.github.io/micronaut-gradle-plugin/latest/)
-- [GraalVM Gradle Plugin documentation](https://graalvm.github.io/native-build-tools/latest/gradle-plugin.html)
-#### Feature test-resources documentation
-
-- [Micronaut Test Resources documentation](https://micronaut-projects.github.io/micronaut-test-resources/latest/guide/)
+Being a webapp, there's two distinct binaries that run:
+- `server` - the web api server
+- `worker` - the background worker that does the indexing and maintenance
 
 
-#### Feature r2dbc documentation
+## Project layout (DDD + TDD-friendly)
 
-- [Micronaut R2DBC documentation](https://micronaut-projects.github.io/micronaut-r2dbc/latest/guide/)
+This repo uses a lightweight Domain-Driven Design structure with pure domain types, an application layer, and adapters for delivery (HTTP) and background workers.
 
-- [https://r2dbc.io](https://r2dbc.io)
+Directory overview:
 
+- `internal/domain` — Pure domain entities and logic (no framework deps)
+- `internal/app` — Application services/use cases orchestrating domain logic
+- `internal/httpapi` — HTTP adapter and routing for the server binary
+- `internal/worker` — Background worker orchestration
+- `cmd/server` — Entrypoint for the HTTP API server
+- `cmd/worker` — Entrypoint for the background worker
 
-#### Feature github-workflow-graal-docker-registry documentation
+Testing: standard library `testing` and `net/http/httptest` are used, no external test deps.
 
-- [https://docs.github.com/en/free-pro-team@latest/actions](https://docs.github.com/en/free-pro-team@latest/actions)
+Run tests:
 
+```
+go test ./...
+```
 
-#### Feature security-ldap documentation
+Build binaries:
 
-- [Micronaut Security LDAP documentation](https://micronaut-projects.github.io/micronaut-security/latest/guide/index.html#ldap)
+```
+go build -o bin/server ./cmd/server
+go build -o bin/worker ./cmd/worker
+```
 
+Run locally:
 
-#### Feature discovery-kubernetes documentation
+```
+./bin/server   # serves HTTP on :8080
+./bin/worker   # runs background loop
+```
 
-- [Micronaut Kubernetes Service Discovery documentation](https://micronaut-projects.github.io/micronaut-kubernetes/latest/guide/#service-discovery)
+HTTP API quickstart:
 
+- Health check: `GET http://localhost:8080/healthz` → 200 OK
+- Metadata generation (example):
 
-#### Feature micronaut-aot documentation
+```
+curl -sS -X POST http://localhost:8080/v1/metadata \
+  -H 'Content-Type: application/json' \
+  -d '{"group_id":"org.example","artifact_id":"demo","version":"1.0.0","tags":["Latest","  stable  "]}'
+```
 
-- [Micronaut AOT documentation](https://micronaut-projects.github.io/micronaut-aot/latest/guide/)
+Response:
 
-
-#### Feature liquibase documentation
-
-- [Micronaut Liquibase Database Migration documentation](https://micronaut-projects.github.io/micronaut-liquibase/latest/guide/index.html)
-
-- [https://www.liquibase.org/](https://www.liquibase.org/)
-
-
-#### Feature cache-caffeine documentation
-
-- [Micronaut Caffeine Cache documentation](https://micronaut-projects.github.io/micronaut-cache/latest/guide/index.html)
-
-- [https://github.com/ben-manes/caffeine](https://github.com/ben-manes/caffeine)
-
-
-#### Feature serialization-jackson documentation
-
-- [Micronaut Serialization Jackson Core documentation](https://micronaut-projects.github.io/micronaut-serialization/latest/guide/)
-
-
-#### Feature data-r2dbc documentation
-
-- [Micronaut Data R2DBC documentation](https://micronaut-projects.github.io/micronaut-data/latest/guide/#dbc)
-
-- [https://r2dbc.io](https://r2dbc.io)
-
-
-#### Feature jdbc-hikari documentation
-
-- [Micronaut Hikari JDBC Connection Pool documentation](https://micronaut-projects.github.io/micronaut-sql/latest/guide/index.html#jdbc)
-
+```
+{
+  "coordinates": "org.example:demo:1.0.0",
+  "tags": ["latest","stable"],
+  "is_stable": true
+}
+```
 
 
-
-[LagomFramework]:https://lagomframework.com/
-[Event Source]:https://docs.microsoft.com/en-us/azure/architecture/patterns/event-sourcing
-[CQRS]:https://docs.microsoft.com/en-us/azure/architecture/patterns/cqrs
-[Play]:https://www.playframework.com
-[Cassandra]:https://cassandra.apache.org
-[Sonatype Nexus]:https://www.sonatype.com/nexus/repository-pro
-[Saga]:https://docs.microsoft.com/en-us/azure/architecture/reference-architectures/saga/saga
-[`SecuredService`]:https://github.com/pac4j/lagom-pac4j/blob/master/shared/src/main/java/org/pac4j/lagom/javadsl/SecuredService.java

@@ -1,0 +1,402 @@
+openapi: 3.0.0
+servers:
+  # Added by API Auto Mocking Plugin
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/SpongePowered/Downloads/1.0.0
+  - description: SpongePowered Production Downloads API
+    url: https://dl-api.spongepowered.org/v2
+info:
+  version: "1.0.0"
+  title: downloads-api
+  description: The API for Downloads Indexing
+paths:
+  /groups:
+    get:
+      tags:
+        - Groups
+      description: returns all registered groups with the service
+      operationId: getGroups
+      responses:
+        '200':
+          description: All groups
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Groups'
+  '/groups/{groupID}':
+    get:
+      tags:
+        - Groups
+      operationId: getGroup
+      parameters:
+        - $ref: '#/components/parameters/GroupID'
+      responses:
+        '200':
+          description: response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+  /groups/{groupID}/artifacts:
+    get:
+      tags:
+        - Artifacts
+      operationId: getArtifacts
+      parameters:
+        - $ref: '#/components/parameters/GroupID'
+      responses:
+        '200':
+          description: Artifacts indexed for the group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GroupArtifacts'
+  '/groups/{groupID}/artifacts/{artifactID}':
+    get:
+      tags:
+        - Artifacts
+      operationId: getArtifact
+      parameters:
+        - $ref: '#/components/parameters/GroupID'
+        - $ref: '#/components/parameters/ArtifactID'
+      responses:
+        '200':
+          description: Artifact details indexed and maintained, such as repository, version tags, issues, website, etc.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Artifact'
+  '/groups/{groupID}/artifacts/{artifactID}/versions':
+    get:
+      tags:
+        - Artifacts
+        - Versions
+      operationId: getVersions
+      parameters:
+        - $ref: '#/components/parameters/GroupID'
+        - $ref: '#/components/parameters/ArtifactID'
+        - name: recommended
+          required: false
+          in: query
+          schema:
+            type: boolean
+        - name: limit
+          required: false
+          in: query
+          schema:
+            type: integer
+            maximum: 25
+            minimum: 1
+        - name: offset
+          required: false
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+        - name: tags
+          required: false
+          in: query
+          schema:
+            type: string
+            description: |
+              A colon tag value pair separated by commas to filter 
+              versions of a desired set of tags. An example can be
+              'minecraft:1.12,api:7.4'
+          example: "minecraft:1.12.2,api:7.4"
+      responses:
+        '200':
+          description: The versions available
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  artifacts:
+                    type: object
+                    example:
+                      "1.16.5-36.2.5-8.1.0-RC1331":
+                        tagValues:
+                          minecraft: "1.16.5"
+                          forge: "36.2.5"
+                          api: "8.1"
+                    additionalProperties:
+                      type: object
+                      additionalProperties:
+                        type: object
+                        properties:
+                          tagValues:
+                            type: object
+                            additionalProperties:
+                              type: string
+                          recommended:
+                            type: boolean
+  '/groups/{groupID}/artifacts/{artifactID}/versions/{versionID}':
+    get:
+      tags:
+        - Versions
+      operationId: getVersionInfo
+      parameters:
+        - name: groupID
+          in: path
+          example: org.spongepowered
+          schema:
+            type: string
+          description: The maven style group coordinates
+          required: true
+        - name: artifactID
+          in: path
+          schema:
+            type: string
+          example: spongeforge
+          description: The maven style artifact id
+          required: true
+        - name: versionID
+          in: path
+          required: true
+          example: "1.16.5-36.2.5-8.1.0-RC1331"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The versions available
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  coordinates:
+                    type: object
+                    properties:
+                      groupId:
+                        type: string
+                        example: "org.spongepowered"
+                      artifactId:
+                        type: string
+                        example: "spongeforge"
+                      version:
+                        type: string
+                        example: "1.16.5-36.2.5-8.1.0-RC1331"
+                  commit:
+                    type: object
+                    properties:
+                      commits:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            commit:
+                              $ref: '#/components/schemas/Commit'
+                            submoduleCommits:
+                              type: array
+                              items:
+                                $ref: '#/components/schemas/Commit'
+
+                  assets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Asset'
+                  tags:
+                    type: object
+                    additionalProperties:
+                      type: string
+                    example:
+                      minecraft: "1.16.5"
+                      forge: "36.2.5"
+                      api: "8.1"
+                  recommended:
+                    type: boolean
+                    description: |
+                      Whether the artifact is considered a "standard release" version or if it is still in development.
+                    example: false
+components:
+  schemas:
+    Group:
+      required:
+        - groupCoordinates
+        - name
+      type: object
+      properties:
+        groupCoordinates:
+          type: string
+          description: Maven style group coordinates
+        name:
+          type: string
+          description: The name of the group
+        website:
+          type: string
+          description: The website url
+    Groups:
+      type: object
+      required:
+        - groups
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/Group'
+    GroupDetails:
+      type: object
+      required:
+        - type
+        - group
+      properties:
+        type:
+          type: string
+          example: Group
+        group:
+          type: object
+          example:
+            groupCoordinates: "org.spongepowered"
+            name: "SpongePowered"
+            website: "https://spongepowered.org/"
+          properties:
+            groupCoordinates:
+              type: string
+              description: The maven style group coordinates
+            name:
+              type: string
+              description: The name of the group
+            website:
+              type: string
+              description: the website URL of the group
+    GroupArtifacts:
+      type: object
+      required:
+        - type
+        - artifactIds
+      properties:
+        type:
+          type: string
+          example: Artifacts
+        artifactIds:
+          type: array
+          items:
+            type: string
+          example:
+            - spongevanilla
+            - spongeforge
+          description: The artifact id's indexed for the group
+    Commit:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Add missing call to BlockEntityArchetypeVolume"
+        body:
+          type: string
+          example: |
+            Add missing call to BlockEntityArchetypeVolume
+
+        sha:
+          type: string
+          example: "10dfa6bb1248839347c845b5d7e3444885bbad49"
+        author:
+          type: object
+          properties:
+            name:
+              type: string
+            email:
+              type: string
+        link:
+          type: string
+          format: URL
+          example: "https://github.com/SpongePowered/Sponge/commit/10dfa6bb1248839347c845b5d7e3444885bbad49"
+        commitDate:
+          type: string
+          format: date
+          example: "2023-05-20T16:37:42Z"
+    Asset:
+      type: object
+      properties:
+        classifier:
+          type: string
+          example: ""
+          description: |
+            The classifier of the jar asset. Usually can be
+            understood as the "variant" of the asset. Some
+            variants are specific to an operating sytem, while
+            others are variants of the executable available. In
+            the case of Sponge's main assets, the empty string
+            classifier is the "download and run" asset desired.
+        downloadUrl:
+          type: string
+          format: URL
+          example: "https://repo.spongepowered.org/repository/maven-releases/org/spongepowered/spongeforge/1.16.5-36.2.5-8.1.0-RC1331/spongeforge-1.16.5-36.2.5-8.1.0-RC1331.jar"
+          description: The direct download URL
+        md5:
+          type: string
+          example: "74a08ef0f838bd7a4a60af59a9812cb2"
+        sha1:
+          type: string
+          example: "fb521aabc333533ea329ed2fd826025310766133"
+        extension:
+          type: string
+          example: "jar"
+          description: The file extension of the asset.
+    Artifact:
+      type: object
+      required:
+        - type
+        - coordinates
+        - tags
+      properties:
+        type:
+          type: string
+          example: latest
+        coordinates:
+          type: object
+          required:
+            - groupId
+            - artifactId
+          properties:
+            groupId:
+              type: string
+              example: org.spongepowered
+            artifactId:
+              type: string
+              example: spongeforge
+        displayName:
+          type: string
+          example: SpongeForge
+          description: The name of the artifact in the desired format to be displayed on the web or referenced in communication
+        website:
+          type: string
+        gitRepository:
+          type: string
+          format: URL
+        issues:
+          type: string
+          format: URL
+        tags:
+          type: object
+          example:
+            api:
+              - "8.1"
+              - "8.0"
+              - "7.4"
+              - "7.3"
+              - "7.2"
+              - "7.1"
+            minecraft:
+              - "1.16.5"
+              - "1.12.2"
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+  parameters:
+    GroupID:
+      name: groupID
+      in: path
+      schema:
+        type: string
+      description: The maven style group coordinates
+      required: true
+    ArtifactID:
+      name: artifactID
+      in: path
+      schema:
+        type: string
+      description: The maven style artifact id
+      required: true
