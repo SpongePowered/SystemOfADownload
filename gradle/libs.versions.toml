@@ -1,7 +1,7 @@
 [versions]
 micronaut = "4.9.0"
 jackson = "2.19.1"
-maven_artifact = "3.9.10"
+maven_artifact = "3.9.12"
 jakartaValidation = "3.1.1"
 jakartaPersistence = "3.2.0"
 jgit = "7.3.0.202506031305-r"
