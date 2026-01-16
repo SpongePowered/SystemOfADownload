@@ -5,13 +5,13 @@ group = "systemofadownload"
 
 plugins {
     `java-library`
-    id("com.gradleup.shadow") version "8.3.7" apply false
+    id("com.gradleup.shadow") version "9.3.1" apply false
     id("io.micronaut.library") version "4.5.4" apply false
     id("io.micronaut.application") version "4.5.4" apply false
     id("io.micronaut.docker") version "4.5.4" apply false
     id("io.micronaut.aot") version "4.5.4" apply false
     id("io.micronaut.test-resources") version "4.5.4" apply false
-    id("net.kyori.indra.licenser.spotless") version "3.1.3"
+    id("net.kyori.indra.licenser.spotless") version "4.0.0"
 }
 
 repositories {
