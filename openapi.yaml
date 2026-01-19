@@ -23,6 +23,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Groups'
+    post:
+      tags:
+        - Groups
+      description: registers a new group
+      operationId: registerGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Group'
+      responses:
+        '201':
+          description: Group registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
   '/groups/{groupID}':
     get:
       tags:

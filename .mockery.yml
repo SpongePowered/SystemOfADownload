@@ -1,0 +1,18 @@
+all: false
+dir: '{{.InterfaceDir}}'
+filename: mocks_test.go
+force-file-write: true
+formatter: goimports
+generate: true
+include-auto-generated: true
+log-level: info
+structname: '{{.Mock}}{{.InterfaceName}}'
+pkgname: '{{.SrcPackageName}}'
+template: testify
+packages:
+  github.com/spongepowered/systemofadownload/internal/db:
+    config:
+      dir: '{{.InterfaceDir}}/mocks'
+      filename: db_mocks.go
+    interfaces:
+      Querier: {}
