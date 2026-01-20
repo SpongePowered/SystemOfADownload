@@ -9,8 +9,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/spongepowered/systemofadownload/internal/app"
 	"github.com/spongepowered/systemofadownload/internal/db"
+	dbmocks "github.com/spongepowered/systemofadownload/internal/db/mocks"
 	"github.com/spongepowered/systemofadownload/internal/domain"
-	"github.com/spongepowered/systemofadownload/internal/repository"
+	
 	repositorymocks "github.com/spongepowered/systemofadownload/internal/repository/mocks"
 	"github.com/stretchr/testify/mock"
 )
@@ -172,16 +173,16 @@ func TestService_RegisterGroup(t *testing.T) {
 			input: &domain.Group{GroupID: "g1", Name: "Group", Website: strPtr("https://g1")},
 			mockSetup: func(m *repositorymocks.MockRepository) {
 				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
-					func(ctx context.Context, fn func(repository.Repository) error) error {
+					func(ctx context.Context, fn func(db.Querier) error) error {
 						// Create a new mock for the transaction
-						txRepo := repositorymocks.NewMockRepository(t)
-						txRepo.EXPECT().GroupExistsByMavenID(mock.Anything, "g1").Return(false, nil)
-						txRepo.EXPECT().CreateGroup(mock.Anything, db.CreateGroupParams{
+						txQuerier := dbmocks.NewMockQuerier(t)
+						txQuerier.EXPECT().GroupExistsByMavenID(mock.Anything, "g1").Return(false, nil)
+						txQuerier.EXPECT().CreateGroup(mock.Anything, db.CreateGroupParams{
 							MavenID: "g1",
 							Name:    "Group",
 							Website: strPtr("https://g1"),
 						}).Return(db.Group{}, nil)
-						return fn(txRepo)
+						return fn(txQuerier)
 					},
 				)
 			},
@@ -191,10 +192,10 @@ func TestService_RegisterGroup(t *testing.T) {
 			input: &domain.Group{GroupID: "existing.group", Name: "Existing Group"},
 			mockSetup: func(m *repositorymocks.MockRepository) {
 				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
-					func(ctx context.Context, fn func(repository.Repository) error) error {
-						txRepo := repositorymocks.NewMockRepository(t)
-						txRepo.EXPECT().GroupExistsByMavenID(mock.Anything, "existing.group").Return(true, nil)
-						return fn(txRepo)
+					func(ctx context.Context, fn func(db.Querier) error) error {
+						txQuerier := dbmocks.NewMockQuerier(t)
+						txQuerier.EXPECT().GroupExistsByMavenID(mock.Anything, "existing.group").Return(true, nil)
+						return fn(txQuerier)
 					},
 				)
 			},
@@ -205,10 +206,10 @@ func TestService_RegisterGroup(t *testing.T) {
 			input: &domain.Group{GroupID: "EXISTING.GROUP", Name: "Existing Group"},
 			mockSetup: func(m *repositorymocks.MockRepository) {
 				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
-					func(ctx context.Context, fn func(repository.Repository) error) error {
-						txRepo := repositorymocks.NewMockRepository(t)
-						txRepo.EXPECT().GroupExistsByMavenID(mock.Anything, "EXISTING.GROUP").Return(true, nil)
-						return fn(txRepo)
+					func(ctx context.Context, fn func(db.Querier) error) error {
+						txQuerier := dbmocks.NewMockQuerier(t)
+						txQuerier.EXPECT().GroupExistsByMavenID(mock.Anything, "EXISTING.GROUP").Return(true, nil)
+						return fn(txQuerier)
 					},
 				)
 			},
@@ -219,10 +220,10 @@ func TestService_RegisterGroup(t *testing.T) {
 			input: &domain.Group{GroupID: "g3", Name: "Group 3"},
 			mockSetup: func(m *repositorymocks.MockRepository) {
 				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
-					func(ctx context.Context, fn func(repository.Repository) error) error {
-						txRepo := repositorymocks.NewMockRepository(t)
-						txRepo.EXPECT().GroupExistsByMavenID(mock.Anything, "g3").Return(false, errors.New("db check failed"))
-						return fn(txRepo)
+					func(ctx context.Context, fn func(db.Querier) error) error {
+						txQuerier := dbmocks.NewMockQuerier(t)
+						txQuerier.EXPECT().GroupExistsByMavenID(mock.Anything, "g3").Return(false, errors.New("db check failed"))
+						return fn(txQuerier)
 					},
 				)
 			},
@@ -233,15 +234,15 @@ func TestService_RegisterGroup(t *testing.T) {
 			input: &domain.Group{GroupID: "g2", Name: "Group 2"},
 			mockSetup: func(m *repositorymocks.MockRepository) {
 				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
-					func(ctx context.Context, fn func(repository.Repository) error) error {
-						txRepo := repositorymocks.NewMockRepository(t)
-						txRepo.EXPECT().GroupExistsByMavenID(mock.Anything, "g2").Return(false, nil)
-						txRepo.EXPECT().CreateGroup(mock.Anything, db.CreateGroupParams{
+					func(ctx context.Context, fn func(db.Querier) error) error {
+						txQuerier := dbmocks.NewMockQuerier(t)
+						txQuerier.EXPECT().GroupExistsByMavenID(mock.Anything, "g2").Return(false, nil)
+						txQuerier.EXPECT().CreateGroup(mock.Anything, db.CreateGroupParams{
 							MavenID: "g2",
 							Name:    "Group 2",
 							Website: nil,
 						}).Return(db.Group{}, errors.New("insert failed"))
-						return fn(txRepo)
+						return fn(txQuerier)
 					},
 				)
 			},

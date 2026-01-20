@@ -8,7 +8,6 @@ import (
 	"github.com/spongepowered/systemofadownload/api"
 	"github.com/spongepowered/systemofadownload/internal/app"
 	"github.com/spongepowered/systemofadownload/internal/db"
-	"github.com/spongepowered/systemofadownload/internal/repository"
 )
 
 type mockQuerier struct {
@@ -16,8 +15,8 @@ type mockQuerier struct {
 	groups map[string]db.Group
 }
 
-func (m *mockQuerier) WithTx(ctx context.Context, fn func(repository.Repository) error) error {
-	// For testing, just call the function with the same repository
+func (m *mockQuerier) WithTx(ctx context.Context, fn func(db.Querier) error) error {
+	// For testing, just call the function with the same querier
 	return fn(m)
 }
 
