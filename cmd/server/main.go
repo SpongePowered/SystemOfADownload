@@ -11,7 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spongepowered/systemofadownload/api"
 	"github.com/spongepowered/systemofadownload/internal/app"
-	"github.com/spongepowered/systemofadownload/internal/db"
 	"github.com/spongepowered/systemofadownload/internal/httpapi"
 	"go.uber.org/fx"
 )
@@ -100,8 +99,8 @@ func main() {
 		fx.Provide(
 			NewConfig,
 			NewDBPool,
-			func(pool *pgxpool.Pool) db.Querier {
-				return db.New(pool)
+			func(pool *pgxpool.Pool) app.Repository {
+				return app.NewRepository(pool)
 			},
 			app.NewService,
 			httpapi.NewHandler,

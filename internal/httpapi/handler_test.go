@@ -15,6 +15,11 @@ type mockQuerier struct {
 	groups map[string]db.Group
 }
 
+func (m *mockQuerier) WithTx(ctx context.Context, fn func(app.Repository) error) error {
+	// For testing, just call the function with the same repository
+	return fn(m)
+}
+
 func (m *mockQuerier) GetGroup(ctx context.Context, mavenID string) (db.Group, error) {
 	g, ok := m.groups[mavenID]
 	if !ok {
