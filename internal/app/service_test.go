@@ -174,6 +174,7 @@ func TestService_RegisterGroup(t *testing.T) {
 					func(ctx context.Context, fn func(app.Repository) error) error {
 						// Create a new mock for the transaction
 						txRepo := appmocks.NewMockRepository(t)
+						txRepo.EXPECT().GroupExistsByMavenID(mock.Anything, "g1").Return(false, nil)
 						txRepo.EXPECT().CreateGroup(mock.Anything, db.CreateGroupParams{
 							MavenID: "g1",
 							Name:    "Group",
@@ -185,22 +186,46 @@ func TestService_RegisterGroup(t *testing.T) {
 			},
 		},
 		{
-			name:  "ok - group already exists (idempotent)",
+			name:  "group already exists - same case",
 			input: &domain.Group{GroupID: "existing.group", Name: "Existing Group"},
 			mockSetup: func(m *appmocks.MockRepository) {
 				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, fn func(app.Repository) error) error {
-						// CreateGroup with ON CONFLICT should not error, just update
 						txRepo := appmocks.NewMockRepository(t)
-						txRepo.EXPECT().CreateGroup(mock.Anything, db.CreateGroupParams{
-							MavenID: "existing.group",
-							Name:    "Existing Group",
-							Website: nil,
-						}).Return(db.Group{}, nil)
+						txRepo.EXPECT().GroupExistsByMavenID(mock.Anything, "existing.group").Return(true, nil)
 						return fn(txRepo)
 					},
 				)
 			},
+			wantErr: app.ErrGroupAlreadyExists,
+		},
+		{
+			name:  "group already exists - different case",
+			input: &domain.Group{GroupID: "EXISTING.GROUP", Name: "Existing Group"},
+			mockSetup: func(m *appmocks.MockRepository) {
+				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, fn func(app.Repository) error) error {
+						txRepo := appmocks.NewMockRepository(t)
+						txRepo.EXPECT().GroupExistsByMavenID(mock.Anything, "EXISTING.GROUP").Return(true, nil)
+						return fn(txRepo)
+					},
+				)
+			},
+			wantErr: app.ErrGroupAlreadyExists,
+		},
+		{
+			name:  "error checking existence",
+			input: &domain.Group{GroupID: "g3", Name: "Group 3"},
+			mockSetup: func(m *appmocks.MockRepository) {
+				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, fn func(app.Repository) error) error {
+						txRepo := appmocks.NewMockRepository(t)
+						txRepo.EXPECT().GroupExistsByMavenID(mock.Anything, "g3").Return(false, errors.New("db check failed"))
+						return fn(txRepo)
+					},
+				)
+			},
+			wantErr: errors.New("failed to check if group exists: db check failed"),
 		},
 		{
 			name:  "db error on create",
@@ -209,6 +234,7 @@ func TestService_RegisterGroup(t *testing.T) {
 				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, fn func(app.Repository) error) error {
 						txRepo := appmocks.NewMockRepository(t)
+						txRepo.EXPECT().GroupExistsByMavenID(mock.Anything, "g2").Return(false, nil)
 						txRepo.EXPECT().CreateGroup(mock.Anything, db.CreateGroupParams{
 							MavenID: "g2",
 							Name:    "Group 2",
@@ -239,7 +265,12 @@ func TestService_RegisterGroup(t *testing.T) {
 				if err == nil {
 					t.Fatalf("expected error %v, got nil", tt.wantErr)
 				}
-				if err.Error() != tt.wantErr.Error() {
+				// Use errors.Is for sentinel errors, otherwise compare messages
+				if errors.Is(tt.wantErr, app.ErrGroupAlreadyExists) {
+					if !errors.Is(err, app.ErrGroupAlreadyExists) {
+						t.Fatalf("expected error %v, got %v", tt.wantErr, err)
+					}
+				} else if err.Error() != tt.wantErr.Error() {
 					t.Fatalf("expected error %v, got %v", tt.wantErr, err)
 				}
 				return

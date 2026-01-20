@@ -20,6 +20,11 @@ func (m *mockQuerier) WithTx(ctx context.Context, fn func(app.Repository) error)
 	return fn(m)
 }
 
+func (m *mockQuerier) GroupExistsByMavenID(ctx context.Context, mavenID string) (bool, error) {
+	_, ok := m.groups[mavenID]
+	return ok, nil
+}
+
 func (m *mockQuerier) GetGroup(ctx context.Context, mavenID string) (db.Group, error) {
 	g, ok := m.groups[mavenID]
 	if !ok {

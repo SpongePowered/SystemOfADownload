@@ -3,10 +3,15 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/spongepowered/systemofadownload/internal/db"
 	"github.com/spongepowered/systemofadownload/internal/domain"
+)
+
+var (
+	ErrGroupAlreadyExists = errors.New("group already exists")
 )
 
 type Service struct {
@@ -51,11 +56,18 @@ func (s *Service) ListGroups(ctx context.Context) ([]*domain.Group, error) {
 }
 
 func (s *Service) RegisterGroup(ctx context.Context, group *domain.Group) error {
-	// Use a transaction to ensure idempotency.
-	// The CreateGroup query uses ON CONFLICT to handle duplicate inserts,
-	// making this operation idempotent at the database level.
+	// Use a transaction to ensure atomicity of the check-then-insert operation.
 	return s.repo.WithTx(ctx, func(repo Repository) error {
-		_, err := repo.CreateGroup(ctx, db.CreateGroupParams{
+		// Check if group already exists (case insensitive)
+		exists, err := repo.GroupExistsByMavenID(ctx, group.GroupID)
+		if err != nil {
+			return fmt.Errorf("failed to check if group exists: %w", err)
+		}
+		if exists {
+			return ErrGroupAlreadyExists
+		}
+
+		_, err = repo.CreateGroup(ctx, db.CreateGroupParams{
 			MavenID: group.GroupID,
 			Name:    group.Name,
 			Website: group.Website,
