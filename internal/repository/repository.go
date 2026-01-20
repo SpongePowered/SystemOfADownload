@@ -7,14 +7,42 @@ import (
 	"github.com/spongepowered/systemofadownload/internal/db"
 )
 
+// Reads are safe outside a transaction.
+type Reads interface {
+	GetArtifactByGroupAndId(ctx context.Context, arg db.GetArtifactByGroupAndIdParams) (db.Artifact, error)
+	GetArtifactVersion(ctx context.Context, arg db.GetArtifactVersionParams) (db.ArtifactVersion, error)
+	GetGroup(ctx context.Context, mavenID string) (db.Group, error)
+	GroupExistsByMavenID(ctx context.Context, lower string) (bool, error)
+	ListArtifactVersionAssets(ctx context.Context, artifactVersionID int64) ([]db.ArtifactVersionedAsset, error)
+	ListArtifactVersionTags(ctx context.Context, artifactVersionID int64) ([]db.ArtifactVersionedTag, error)
+	ListArtifactVersions(ctx context.Context, arg db.ListArtifactVersionsParams) ([]db.ArtifactVersion, error)
+	ListArtifactsByGroup(ctx context.Context, groupID string) ([]db.Artifact, error)
+	ListGroups(ctx context.Context) ([]db.Group, error)
+}
+
+// Writes must happen in a transaction.
+type Writes interface {
+	CreateArtifact(ctx context.Context, arg db.CreateArtifactParams) (db.Artifact, error)
+	CreateArtifactVersion(ctx context.Context, arg db.CreateArtifactVersionParams) (db.ArtifactVersion, error)
+	CreateArtifactVersionAsset(ctx context.Context, arg db.CreateArtifactVersionAssetParams) (db.ArtifactVersionedAsset, error)
+	CreateArtifactVersionTag(ctx context.Context, arg db.CreateArtifactVersionTagParams) (db.ArtifactVersionedTag, error)
+	CreateGroup(ctx context.Context, arg db.CreateGroupParams) (db.Group, error)
+	UpdateArtifactVersionOrder(ctx context.Context, arg db.UpdateArtifactVersionOrderParams) error
+}
+
+// Tx provides both read and write operations within a transaction.
+type Tx interface {
+	Reads
+	Writes
+}
+
 // Repository provides database operations with transaction support.
-// It wraps db.Querier and adds the ability to execute operations within a transaction.
 type Repository interface {
-	db.Querier
+	Reads
 	// WithTx executes the given function within a transaction.
 	// If fn returns an error, the transaction is rolled back.
 	// If fn returns nil, the transaction is committed.
-	WithTx(ctx context.Context, fn func(db.Querier) error) error
+	WithTx(ctx context.Context, fn func(Tx) error) error
 }
 
 // postgresRepository implements Repository using pgxpool.
@@ -32,7 +60,7 @@ func NewRepository(pool *pgxpool.Pool) Repository {
 }
 
 // WithTx executes fn within a transaction.
-func (r *postgresRepository) WithTx(ctx context.Context, fn func(db.Querier) error) error {
+func (r *postgresRepository) WithTx(ctx context.Context, fn func(Tx) error) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -48,27 +76,7 @@ func (r *postgresRepository) WithTx(ctx context.Context, fn func(db.Querier) err
 	return tx.Commit(ctx)
 }
 
-// Delegate all Querier methods to the underlying querier
-func (r *postgresRepository) CreateArtifact(ctx context.Context, arg db.CreateArtifactParams) (db.Artifact, error) {
-	return r.q.CreateArtifact(ctx, arg)
-}
-
-func (r *postgresRepository) CreateArtifactVersion(ctx context.Context, arg db.CreateArtifactVersionParams) (db.ArtifactVersion, error) {
-	return r.q.CreateArtifactVersion(ctx, arg)
-}
-
-func (r *postgresRepository) CreateArtifactVersionAsset(ctx context.Context, arg db.CreateArtifactVersionAssetParams) (db.ArtifactVersionedAsset, error) {
-	return r.q.CreateArtifactVersionAsset(ctx, arg)
-}
-
-func (r *postgresRepository) CreateArtifactVersionTag(ctx context.Context, arg db.CreateArtifactVersionTagParams) (db.ArtifactVersionedTag, error) {
-	return r.q.CreateArtifactVersionTag(ctx, arg)
-}
-
-func (r *postgresRepository) CreateGroup(ctx context.Context, arg db.CreateGroupParams) (db.Group, error) {
-	return r.q.CreateGroup(ctx, arg)
-}
-
+// Delegate all Reads methods to the underlying querier
 func (r *postgresRepository) GetArtifactByGroupAndId(ctx context.Context, arg db.GetArtifactByGroupAndIdParams) (db.Artifact, error) {
 	return r.q.GetArtifactByGroupAndId(ctx, arg)
 }
@@ -103,9 +111,5 @@ func (r *postgresRepository) ListArtifactsByGroup(ctx context.Context, groupID s
 
 func (r *postgresRepository) ListGroups(ctx context.Context) ([]db.Group, error) {
 	return r.q.ListGroups(ctx)
-}
-
-func (r *postgresRepository) UpdateArtifactVersionOrder(ctx context.Context, arg db.UpdateArtifactVersionOrderParams) error {
-	return r.q.UpdateArtifactVersionOrder(ctx, arg)
 }
 

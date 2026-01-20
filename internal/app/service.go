@@ -58,9 +58,9 @@ func (s *Service) ListGroups(ctx context.Context) ([]*domain.Group, error) {
 
 func (s *Service) RegisterGroup(ctx context.Context, group *domain.Group) error {
 	// Use a transaction to ensure atomicity of the check-then-insert operation.
-	return s.repo.WithTx(ctx, func(q db.Querier) error {
+	return s.repo.WithTx(ctx, func(tx repository.Tx) error {
 		// Check if group already exists (case insensitive)
-		exists, err := q.GroupExistsByMavenID(ctx, group.GroupID)
+		exists, err := tx.GroupExistsByMavenID(ctx, group.GroupID)
 		if err != nil {
 			return fmt.Errorf("failed to check if group exists: %w", err)
 		}
@@ -68,7 +68,7 @@ func (s *Service) RegisterGroup(ctx context.Context, group *domain.Group) error 
 			return ErrGroupAlreadyExists
 		}
 
-		_, err = q.CreateGroup(ctx, db.CreateGroupParams{
+		_, err = tx.CreateGroup(ctx, db.CreateGroupParams{
 			MavenID: group.GroupID,
 			Name:    group.Name,
 			Website: group.Website,

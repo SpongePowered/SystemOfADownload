@@ -8,6 +8,9 @@ packages:
       filename: 'repository_mocks.go'
     interfaces:
       Repository:
+      Reads:
+      Writes:
+      Tx:
   github.com/spongepowered/systemofadownload/internal/db:
     config:
       dir: '{{.InterfaceDir}}/mocks'
