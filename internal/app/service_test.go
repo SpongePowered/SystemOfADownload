@@ -22,14 +22,14 @@ func TestService_GetGroup(t *testing.T) {
 	tests := []struct {
 		name      string
 		groupID   string
-		mockSetup func(m *repositorymocks.MockRepository)
+		mockSetup func(t *testing.T, m *repositorymocks.MockRepository)
 		want      *domain.Group
 		wantErr   error
 	}{
 		{
 			name:    "found",
 			groupID: "com.example",
-			mockSetup: func(m *repositorymocks.MockRepository) {
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
 				m.EXPECT().GetGroup(mock.Anything, "com.example").Return(db.Group{
 					MavenID: "com.example",
 					Name:    "Example",
@@ -45,7 +45,7 @@ func TestService_GetGroup(t *testing.T) {
 		{
 			name:    "not found",
 			groupID: "missing",
-			mockSetup: func(m *repositorymocks.MockRepository) {
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
 				m.EXPECT().GetGroup(mock.Anything, "missing").Return(db.Group{}, pgx.ErrNoRows)
 			},
 			want: nil,
@@ -53,7 +53,7 @@ func TestService_GetGroup(t *testing.T) {
 		{
 			name:    "db error",
 			groupID: "boom",
-			mockSetup: func(m *repositorymocks.MockRepository) {
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
 				m.EXPECT().GetGroup(mock.Anything, "boom").Return(db.Group{}, errors.New("db failure"))
 			},
 			wantErr: errors.New("db failure"),
@@ -67,7 +67,7 @@ func TestService_GetGroup(t *testing.T) {
 
 			mockRepo := repositorymocks.NewMockRepository(t)
 			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo)
+				tt.mockSetup(t, mockRepo)
 			}
 
 			svc := app.NewService(mockRepo)
@@ -99,13 +99,13 @@ func TestService_ListGroups(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		mockSetup func(m *repositorymocks.MockRepository)
+		mockSetup func(t *testing.T, m *repositorymocks.MockRepository)
 		want      []*domain.Group
 		wantErr   error
 	}{
 		{
 			name: "ok",
-			mockSetup: func(m *repositorymocks.MockRepository) {
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
 				m.EXPECT().ListGroups(mock.Anything).Return([]db.Group{
 					{MavenID: "g1", Name: "Group 1"},
 					{MavenID: "g2", Name: "Group 2", Website: strPtr("https://g2.example")},
@@ -118,7 +118,7 @@ func TestService_ListGroups(t *testing.T) {
 		},
 		{
 			name: "db error",
-			mockSetup: func(m *repositorymocks.MockRepository) {
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
 				m.EXPECT().ListGroups(mock.Anything).Return(nil, errors.New("boom"))
 			},
 			wantErr: errors.New("boom"),
@@ -132,7 +132,7 @@ func TestService_ListGroups(t *testing.T) {
 
 			mockRepo := repositorymocks.NewMockRepository(t)
 			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo)
+				tt.mockSetup(t, mockRepo)
 			}
 
 			svc := app.NewService(mockRepo)
@@ -165,13 +165,13 @@ func TestService_RegisterGroup(t *testing.T) {
 	tests := []struct {
 		name      string
 		input     *domain.Group
-		mockSetup func(m *repositorymocks.MockRepository)
+		mockSetup func(t *testing.T, m *repositorymocks.MockRepository)
 		wantErr   error
 	}{
 		{
 			name:  "ok - new group",
 			input: &domain.Group{GroupID: "g1", Name: "Group", Website: strPtr("https://g1")},
-			mockSetup: func(m *repositorymocks.MockRepository) {
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
 				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, fn func(db.Querier) error) error {
 						// Create a new mock for the transaction
@@ -190,7 +190,7 @@ func TestService_RegisterGroup(t *testing.T) {
 		{
 			name:  "group already exists - same case",
 			input: &domain.Group{GroupID: "existing.group", Name: "Existing Group"},
-			mockSetup: func(m *repositorymocks.MockRepository) {
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
 				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, fn func(db.Querier) error) error {
 						txQuerier := dbmocks.NewMockQuerier(t)
@@ -204,7 +204,7 @@ func TestService_RegisterGroup(t *testing.T) {
 		{
 			name:  "group already exists - different case",
 			input: &domain.Group{GroupID: "EXISTING.GROUP", Name: "Existing Group"},
-			mockSetup: func(m *repositorymocks.MockRepository) {
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
 				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, fn func(db.Querier) error) error {
 						txQuerier := dbmocks.NewMockQuerier(t)
@@ -218,7 +218,7 @@ func TestService_RegisterGroup(t *testing.T) {
 		{
 			name:  "error checking existence",
 			input: &domain.Group{GroupID: "g3", Name: "Group 3"},
-			mockSetup: func(m *repositorymocks.MockRepository) {
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
 				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, fn func(db.Querier) error) error {
 						txQuerier := dbmocks.NewMockQuerier(t)
@@ -232,7 +232,7 @@ func TestService_RegisterGroup(t *testing.T) {
 		{
 			name:  "db error on create",
 			input: &domain.Group{GroupID: "g2", Name: "Group 2"},
-			mockSetup: func(m *repositorymocks.MockRepository) {
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
 				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, fn func(db.Querier) error) error {
 						txQuerier := dbmocks.NewMockQuerier(t)
@@ -257,7 +257,7 @@ func TestService_RegisterGroup(t *testing.T) {
 
 			mockRepo := repositorymocks.NewMockRepository(t)
 			if tt.mockSetup != nil {
-				tt.mockSetup(mockRepo)
+				tt.mockSetup(t, mockRepo)
 			}
 
 			svc := app.NewService(mockRepo)
