@@ -2,13 +2,13 @@
 // github.com/vektra/mockery
 // template: testify
 
-package app
+package repository
 
 import (
 	"context"
 
-	"github.com/spongepowered/systemofadownload/internal/app"
 	"github.com/spongepowered/systemofadownload/internal/db"
+	"github.com/spongepowered/systemofadownload/internal/repository"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -1025,7 +1025,7 @@ func (_c *MockRepository_UpdateArtifactVersionOrder_Call) RunAndReturn(run func(
 }
 
 // WithTx provides a mock function for the type MockRepository
-func (_mock *MockRepository) WithTx(ctx context.Context, fn func(app.Repository) error) error {
+func (_mock *MockRepository) WithTx(ctx context.Context, fn func(repository.Repository) error) error {
 	ret := _mock.Called(ctx, fn)
 
 	if len(ret) == 0 {
@@ -1033,7 +1033,7 @@ func (_mock *MockRepository) WithTx(ctx context.Context, fn func(app.Repository)
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, func(app.Repository) error) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, func(repository.Repository) error) error); ok {
 		r0 = returnFunc(ctx, fn)
 	} else {
 		r0 = ret.Error(0)
@@ -1048,20 +1048,20 @@ type MockRepository_WithTx_Call struct {
 
 // WithTx is a helper method to define mock.On call
 //   - ctx context.Context
-//   - fn func(app.Repository) error
+//   - fn func(repository.Repository) error
 func (_e *MockRepository_Expecter) WithTx(ctx interface{}, fn interface{}) *MockRepository_WithTx_Call {
 	return &MockRepository_WithTx_Call{Call: _e.mock.On("WithTx", ctx, fn)}
 }
 
-func (_c *MockRepository_WithTx_Call) Run(run func(ctx context.Context, fn func(app.Repository) error)) *MockRepository_WithTx_Call {
+func (_c *MockRepository_WithTx_Call) Run(run func(ctx context.Context, fn func(repository.Repository) error)) *MockRepository_WithTx_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 func(app.Repository) error
+		var arg1 func(repository.Repository) error
 		if args[1] != nil {
-			arg1 = args[1].(func(app.Repository) error)
+			arg1 = args[1].(func(repository.Repository) error)
 		}
 		run(
 			arg0,
@@ -1076,7 +1076,7 @@ func (_c *MockRepository_WithTx_Call) Return(err error) *MockRepository_WithTx_C
 	return _c
 }
 
-func (_c *MockRepository_WithTx_Call) RunAndReturn(run func(ctx context.Context, fn func(app.Repository) error) error) *MockRepository_WithTx_Call {
+func (_c *MockRepository_WithTx_Call) RunAndReturn(run func(ctx context.Context, fn func(repository.Repository) error) error) *MockRepository_WithTx_Call {
 	_c.Call.Return(run)
 	return _c
 }

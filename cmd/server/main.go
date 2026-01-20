@@ -12,6 +12,7 @@ import (
 	"github.com/spongepowered/systemofadownload/api"
 	"github.com/spongepowered/systemofadownload/internal/app"
 	"github.com/spongepowered/systemofadownload/internal/httpapi"
+	"github.com/spongepowered/systemofadownload/internal/repository"
 	"go.uber.org/fx"
 )
 
@@ -99,8 +100,8 @@ func main() {
 		fx.Provide(
 			NewConfig,
 			NewDBPool,
-			func(pool *pgxpool.Pool) app.Repository {
-				return app.NewRepository(pool)
+			func(pool *pgxpool.Pool) repository.Repository {
+				return repository.NewRepository(pool)
 			},
 			app.NewService,
 			httpapi.NewHandler,

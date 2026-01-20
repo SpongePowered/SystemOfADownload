@@ -2,10 +2,10 @@ template: testify
 template-data:
   unroll-variadic: true
 packages:
-  github.com/spongepowered/systemofadownload/internal/app:
+  github.com/spongepowered/systemofadownload/internal/repository:
     config:
       dir: '{{.InterfaceDir}}/mocks'
-      filename: 'app_mocks.go'
+      filename: 'repository_mocks.go'
     interfaces:
       Repository:
   github.com/spongepowered/systemofadownload/internal/db:

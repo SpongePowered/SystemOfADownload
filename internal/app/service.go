@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/spongepowered/systemofadownload/internal/db"
 	"github.com/spongepowered/systemofadownload/internal/domain"
+	"github.com/spongepowered/systemofadownload/internal/repository"
 )
 
 var (
@@ -15,10 +16,10 @@ var (
 )
 
 type Service struct {
-	repo Repository
+	repo repository.Repository
 }
 
-func NewService(repo Repository) *Service {
+func NewService(repo repository.Repository) *Service {
 	return &Service{repo: repo}
 }
 
@@ -57,7 +58,7 @@ func (s *Service) ListGroups(ctx context.Context) ([]*domain.Group, error) {
 
 func (s *Service) RegisterGroup(ctx context.Context, group *domain.Group) error {
 	// Use a transaction to ensure atomicity of the check-then-insert operation.
-	return s.repo.WithTx(ctx, func(repo Repository) error {
+	return s.repo.WithTx(ctx, func(repo repository.Repository) error {
 		// Check if group already exists (case insensitive)
 		exists, err := repo.GroupExistsByMavenID(ctx, group.GroupID)
 		if err != nil {
