@@ -1,8 +1,10 @@
 package app_test
+
 import (
 	"context"
 	"errors"
 	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/jackc/pgx/v5"
 	"github.com/spongepowered/systemofadownload/internal/app"
@@ -12,8 +14,10 @@ import (
 	repositorymocks "github.com/spongepowered/systemofadownload/internal/repository/mocks"
 	"github.com/stretchr/testify/mock"
 )
+
 func TestService_GetGroup(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name      string
 		groupID   string
@@ -54,16 +58,20 @@ func TestService_GetGroup(t *testing.T) {
 			wantErr: errors.New("db failure"),
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			mockRepo := repositorymocks.NewMockRepository(t)
 			if tt.mockSetup != nil {
 				tt.mockSetup(t, mockRepo)
 			}
+
 			svc := app.NewService(mockRepo)
 			got, err := svc.GetGroup(context.Background(), tt.groupID)
+
 			if tt.wantErr != nil {
 				if err == nil {
 					t.Fatalf("expected error %v, got nil", tt.wantErr)
@@ -73,17 +81,21 @@ func TestService_GetGroup(t *testing.T) {
 				}
 				return
 			}
+
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
+
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Fatalf("group diff (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
+
 func TestService_ListGroups(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name      string
 		mockSetup func(t *testing.T, m *repositorymocks.MockRepository)
@@ -111,16 +123,20 @@ func TestService_ListGroups(t *testing.T) {
 			wantErr: errors.New("boom"),
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			mockRepo := repositorymocks.NewMockRepository(t)
 			if tt.mockSetup != nil {
 				tt.mockSetup(t, mockRepo)
 			}
+
 			svc := app.NewService(mockRepo)
 			got, err := svc.ListGroups(context.Background())
+
 			if tt.wantErr != nil {
 				if err == nil {
 					t.Fatalf("expected error %v, got nil", tt.wantErr)
@@ -130,17 +146,21 @@ func TestService_ListGroups(t *testing.T) {
 				}
 				return
 			}
+
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
+
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Fatalf("groups diff (-want +got):\n%s", diff)
 			}
 		})
 	}
 }
+
 func TestService_RegisterGroup(t *testing.T) {
 	t.Parallel()
+
 	tests := []struct {
 		name      string
 		input     *domain.Group
@@ -228,16 +248,20 @@ func TestService_RegisterGroup(t *testing.T) {
 			wantErr: errors.New("insert failed"),
 		},
 	}
+
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			mockRepo := repositorymocks.NewMockRepository(t)
 			if tt.mockSetup != nil {
 				tt.mockSetup(t, mockRepo)
 			}
+
 			svc := app.NewService(mockRepo)
 			err := svc.RegisterGroup(context.Background(), tt.input)
+
 			if tt.wantErr != nil {
 				if err == nil {
 					t.Fatalf("expected error %v, got nil", tt.wantErr)
@@ -252,12 +276,14 @@ func TestService_RegisterGroup(t *testing.T) {
 				}
 				return
 			}
+
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 		})
 	}
 }
+
 func strPtr(s string) *string {
 	return &s
 }
