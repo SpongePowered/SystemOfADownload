@@ -8,11 +8,22 @@ import (
 	"github.com/spongepowered/systemofadownload/api"
 	"github.com/spongepowered/systemofadownload/internal/app"
 	"github.com/spongepowered/systemofadownload/internal/db"
+	"github.com/spongepowered/systemofadownload/internal/repository"
 )
 
 type mockQuerier struct {
 	db.Querier
 	groups map[string]db.Group
+}
+
+func (m *mockQuerier) WithTx(ctx context.Context, fn func(repository.Tx) error) error {
+	// For testing, just call the function with the same querier
+	return fn(m)
+}
+
+func (m *mockQuerier) GroupExistsByMavenID(ctx context.Context, mavenID string) (bool, error) {
+	_, ok := m.groups[mavenID]
+	return ok, nil
 }
 
 func (m *mockQuerier) GetGroup(ctx context.Context, mavenID string) (db.Group, error) {

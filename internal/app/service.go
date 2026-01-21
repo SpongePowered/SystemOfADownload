@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/spongepowered/systemofadownload/internal/db"
 	"github.com/spongepowered/systemofadownload/internal/domain"
+	"github.com/spongepowered/systemofadownload/internal/repository"
 )
 
 var (
@@ -15,15 +16,15 @@ var (
 )
 
 type Service struct {
-	q db.Querier
+	repo repository.Repository
 }
 
-func NewService(q db.Querier) *Service {
-	return &Service{q: q}
+func NewService(repo repository.Repository) *Service {
+	return &Service{repo: repo}
 }
 
 func (s *Service) GetGroup(ctx context.Context, groupID string) (*domain.Group, error) {
-	g, err := s.q.GetGroup(ctx, groupID)
+	g, err := s.repo.GetGroup(ctx, groupID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -39,7 +40,7 @@ func (s *Service) GetGroup(ctx context.Context, groupID string) (*domain.Group, 
 }
 
 func (s *Service) ListGroups(ctx context.Context) ([]*domain.Group, error) {
-	groups, err := s.q.ListGroups(ctx)
+	groups, err := s.repo.ListGroups(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -56,19 +57,22 @@ func (s *Service) ListGroups(ctx context.Context) ([]*domain.Group, error) {
 }
 
 func (s *Service) RegisterGroup(ctx context.Context, group *domain.Group) error {
-	// Check if group already exists (case insensitive)
-	exists, err := s.q.GroupExistsByMavenID(ctx, group.GroupID)
-	if err != nil {
-		return fmt.Errorf("failed to check if group exists: %w", err)
-	}
-	if exists {
-		return ErrGroupAlreadyExists
-	}
+	// Use a transaction to ensure atomicity of the check-then-insert operation.
+	return s.repo.WithTx(ctx, func(tx repository.Tx) error {
+		// Check if group already exists (case insensitive)
+		exists, err := tx.GroupExistsByMavenID(ctx, group.GroupID)
+		if err != nil {
+			return fmt.Errorf("failed to check if group exists: %w", err)
+		}
+		if exists {
+			return ErrGroupAlreadyExists
+		}
 
-	_, err = s.q.CreateGroup(ctx, db.CreateGroupParams{
-		MavenID: group.GroupID,
-		Name:    group.Name,
-		Website: group.Website,
+		_, err = tx.CreateGroup(ctx, db.CreateGroupParams{
+			MavenID: group.GroupID,
+			Name:    group.Name,
+			Website: group.Website,
+		})
+		return err
 	})
-	return err
 }

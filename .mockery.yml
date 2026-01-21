@@ -1,18 +1,20 @@
-all: false
-dir: '{{.InterfaceDir}}'
-filename: mocks_test.go
-force-file-write: true
-formatter: goimports
-generate: true
-include-auto-generated: true
-log-level: info
-structname: '{{.Mock}}{{.InterfaceName}}'
-pkgname: '{{.SrcPackageName}}'
 template: testify
+template-data:
+  unroll-variadic: true
 packages:
+  github.com/spongepowered/systemofadownload/internal/repository:
+    config:
+      dir: '{{.InterfaceDir}}/mocks'
+      filename: 'repository_mocks.go'
+    interfaces:
+      Repository:
+      Reads:
+      Writes:
+      Tx:
   github.com/spongepowered/systemofadownload/internal/db:
     config:
       dir: '{{.InterfaceDir}}/mocks'
-      filename: db_mocks.go
+      filename: 'db_mocks.go'
+      include-auto-generated: true
     interfaces:
-      Querier: {}
+      Querier:
