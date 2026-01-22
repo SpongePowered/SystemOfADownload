@@ -5,3 +5,12 @@ type Group struct {
 	Name    string
 	Website *string
 }
+
+type Artifact struct {
+	GroupID          string
+	ArtifactID       string
+	DisplayName      string
+	Website          *string
+	GitRepositories  []string
+	Issues           *string
+}

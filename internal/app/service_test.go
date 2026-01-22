@@ -284,6 +284,246 @@ func TestService_RegisterGroup(t *testing.T) {
 	}
 }
 
+func TestService_RegisterArtifact(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		input     *domain.Artifact
+		mockSetup func(t *testing.T, m *repositorymocks.MockRepository)
+		wantErr   error
+	}{
+		{
+			name: "ok - new artifact",
+			input: &domain.Artifact{
+				GroupID:         "org.example",
+				ArtifactID:      "myartifact",
+				DisplayName:     "My Artifact",
+				GitRepositories: []string{"https://github.com/example/myartifact"},
+				Website:         strPtr("https://example.org"),
+				Issues:          strPtr("https://github.com/example/myartifact/issues"),
+			},
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
+				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, fn func(repository.Tx) error) error {
+						txMock := repositorymocks.NewMockTx(t)
+						// Group exists
+						txMock.EXPECT().GetGroup(mock.Anything, "org.example").Return(db.Group{
+							MavenID: "org.example",
+							Name:    "Example",
+						}, nil)
+						// Artifact doesn't exist
+						txMock.EXPECT().GetArtifactByGroupAndId(mock.Anything, db.GetArtifactByGroupAndIdParams{
+							GroupID:    "org.example",
+							ArtifactID: "myartifact",
+						}).Return(db.Artifact{}, pgx.ErrNoRows)
+						// Create artifact
+						txMock.EXPECT().CreateArtifact(mock.Anything, mock.MatchedBy(func(params db.CreateArtifactParams) bool {
+							return params.GroupID == "org.example" &&
+								params.ArtifactID == "myartifact" &&
+								params.Name == "My Artifact" &&
+								params.Website != nil && *params.Website == "https://example.org"
+						})).Return(db.Artifact{}, nil)
+						return fn(txMock)
+					},
+				)
+			},
+		},
+		{
+			name: "ok - artifact with multiple git repositories",
+			input: &domain.Artifact{
+				GroupID:    "org.example",
+				ArtifactID: "multirepo",
+				DisplayName: "Multi Repo Artifact",
+				GitRepositories: []string{
+					"https://github.com/example/repo1",
+					"https://github.com/example/repo2",
+				},
+			},
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
+				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, fn func(repository.Tx) error) error {
+						txMock := repositorymocks.NewMockTx(t)
+						txMock.EXPECT().GetGroup(mock.Anything, "org.example").Return(db.Group{
+							MavenID: "org.example",
+							Name:    "Example",
+						}, nil)
+						txMock.EXPECT().GetArtifactByGroupAndId(mock.Anything, db.GetArtifactByGroupAndIdParams{
+							GroupID:    "org.example",
+							ArtifactID: "multirepo",
+						}).Return(db.Artifact{}, pgx.ErrNoRows)
+						txMock.EXPECT().CreateArtifact(mock.Anything, mock.MatchedBy(func(params db.CreateArtifactParams) bool {
+							return params.GroupID == "org.example" &&
+								params.ArtifactID == "multirepo" &&
+								params.Name == "Multi Repo Artifact"
+						})).Return(db.Artifact{}, nil)
+						return fn(txMock)
+					},
+				)
+			},
+		},
+		{
+			name: "group not found",
+			input: &domain.Artifact{
+				GroupID:         "org.nonexistent",
+				ArtifactID:      "artifact",
+				DisplayName:     "Artifact",
+				GitRepositories: []string{"https://github.com/example/artifact"},
+			},
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
+				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, fn func(repository.Tx) error) error {
+						txMock := repositorymocks.NewMockTx(t)
+						txMock.EXPECT().GetGroup(mock.Anything, "org.nonexistent").Return(db.Group{}, pgx.ErrNoRows)
+						return fn(txMock)
+					},
+				)
+			},
+			wantErr: app.ErrGroupNotFound,
+		},
+		{
+			name: "artifact already exists",
+			input: &domain.Artifact{
+				GroupID:         "org.example",
+				ArtifactID:      "existing",
+				DisplayName:     "Existing Artifact",
+				GitRepositories: []string{"https://github.com/example/existing"},
+			},
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
+				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, fn func(repository.Tx) error) error {
+						txMock := repositorymocks.NewMockTx(t)
+						txMock.EXPECT().GetGroup(mock.Anything, "org.example").Return(db.Group{
+							MavenID: "org.example",
+							Name:    "Example",
+						}, nil)
+						txMock.EXPECT().GetArtifactByGroupAndId(mock.Anything, db.GetArtifactByGroupAndIdParams{
+							GroupID:    "org.example",
+							ArtifactID: "existing",
+						}).Return(db.Artifact{
+							ID:         123,
+							GroupID:    "org.example",
+							ArtifactID: "existing",
+						}, nil)
+						return fn(txMock)
+					},
+				)
+			},
+			wantErr: app.ErrArtifactAlreadyExists,
+		},
+		{
+			name: "error checking if group exists",
+			input: &domain.Artifact{
+				GroupID:         "org.example",
+				ArtifactID:      "artifact",
+				DisplayName:     "Artifact",
+				GitRepositories: []string{"https://github.com/example/artifact"},
+			},
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
+				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, fn func(repository.Tx) error) error {
+						txMock := repositorymocks.NewMockTx(t)
+						txMock.EXPECT().GetGroup(mock.Anything, "org.example").Return(db.Group{}, errors.New("db connection failed"))
+						return fn(txMock)
+					},
+				)
+			},
+			wantErr: errors.New("failed to check if group exists: db connection failed"),
+		},
+		{
+			name: "error checking if artifact exists",
+			input: &domain.Artifact{
+				GroupID:         "org.example",
+				ArtifactID:      "artifact",
+				DisplayName:     "Artifact",
+				GitRepositories: []string{"https://github.com/example/artifact"},
+			},
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
+				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, fn func(repository.Tx) error) error {
+						txMock := repositorymocks.NewMockTx(t)
+						txMock.EXPECT().GetGroup(mock.Anything, "org.example").Return(db.Group{
+							MavenID: "org.example",
+							Name:    "Example",
+						}, nil)
+						txMock.EXPECT().GetArtifactByGroupAndId(mock.Anything, db.GetArtifactByGroupAndIdParams{
+							GroupID:    "org.example",
+							ArtifactID: "artifact",
+						}).Return(db.Artifact{}, errors.New("db query failed"))
+						return fn(txMock)
+					},
+				)
+			},
+			wantErr: errors.New("failed to check if artifact exists: db query failed"),
+		},
+		{
+			name: "error creating artifact",
+			input: &domain.Artifact{
+				GroupID:         "org.example",
+				ArtifactID:      "artifact",
+				DisplayName:     "Artifact",
+				GitRepositories: []string{"https://github.com/example/artifact"},
+			},
+			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
+				m.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, fn func(repository.Tx) error) error {
+						txMock := repositorymocks.NewMockTx(t)
+						txMock.EXPECT().GetGroup(mock.Anything, "org.example").Return(db.Group{
+							MavenID: "org.example",
+							Name:    "Example",
+						}, nil)
+						txMock.EXPECT().GetArtifactByGroupAndId(mock.Anything, db.GetArtifactByGroupAndIdParams{
+							GroupID:    "org.example",
+							ArtifactID: "artifact",
+						}).Return(db.Artifact{}, pgx.ErrNoRows)
+						txMock.EXPECT().CreateArtifact(mock.Anything, mock.Anything).Return(db.Artifact{}, errors.New("insert failed"))
+						return fn(txMock)
+					},
+				)
+			},
+			wantErr: errors.New("insert failed"),
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			mockRepo := repositorymocks.NewMockRepository(t)
+			if tt.mockSetup != nil {
+				tt.mockSetup(t, mockRepo)
+			}
+
+			svc := app.NewService(mockRepo)
+			err := svc.RegisterArtifact(context.Background(), tt.input)
+
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("expected error %v, got nil", tt.wantErr)
+				}
+				// Use errors.Is for sentinel errors, otherwise compare messages
+				if errors.Is(tt.wantErr, app.ErrGroupNotFound) {
+					if !errors.Is(err, app.ErrGroupNotFound) {
+						t.Fatalf("expected error %v, got %v", tt.wantErr, err)
+					}
+				} else if errors.Is(tt.wantErr, app.ErrArtifactAlreadyExists) {
+					if !errors.Is(err, app.ErrArtifactAlreadyExists) {
+						t.Fatalf("expected error %v, got %v", tt.wantErr, err)
+					}
+				} else if err.Error() != tt.wantErr.Error() {
+					t.Fatalf("expected error %v, got %v", tt.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
 func strPtr(s string) *string {
 	return &s
 }

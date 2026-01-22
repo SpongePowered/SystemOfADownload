@@ -426,3 +426,8 @@ terraform.rc
 
 #sbt
 .bsp
+
+# Go binaries
+server
+worker
+bin/
