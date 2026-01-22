@@ -73,4 +73,38 @@ Response:
 }
 ```
 
+## Development
+
+### Contributing
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) for automated releases.
+Please format your commit messages accordingly:
+
+```
+feat: add new feature
+fix: correct bug
+docs: update documentation
+```
+
+See [docs/RELEASES.md](./docs/RELEASES.md) for complete release process documentation.
+
+### Setting up the development environment
+
+1. Install [Mise](https://mise.jdx.dev/)
+2. Run `mise install` to install all required tools
+3. See [docs/TOOLS.md](./docs/TOOLS.md) and [docs/AGENTS.md](./docs/AGENTS.md) for detailed development guidelines
+
+### Code generation
+
+Generate API, database, and mock code:
+
+```bash
+go generate ./...
+```
+
+## Releases
+
+Releases are automatically created using release-please when conventional commits are merged to main.
+See [docs/RELEASES.md](./docs/RELEASES.md) for details.
+
 
