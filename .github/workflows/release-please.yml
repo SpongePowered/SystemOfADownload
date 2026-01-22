@@ -1,0 +1,100 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4.4.0
+        id: release
+        with:
+          # Using Go strategy for conventional commits and version management
+          release-type: go
+          # Package name (defaults to repository name if not set)
+          package-name: systemofadownload
+
+  build-and-upload:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build binaries
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          VERSION=${{ needs.release-please.outputs.tag_name }}
+          
+          # Build server
+          go build -o dist/server-${GOOS}-${GOARCH}${{ matrix.goos == 'windows' && '.exe' || '' }} \
+            -ldflags "-s -w -X main.Version=${VERSION}" \
+            ./cmd/server
+          
+          # Build worker
+          go build -o dist/worker-${GOOS}-${GOARCH}${{ matrix.goos == 'windows' && '.exe' || '' }} \
+            -ldflags "-s -w -X main.Version=${VERSION}" \
+            ./cmd/worker
+          
+          # Create archives
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            cd dist
+            zip ../systemofadownload-${VERSION}-${GOOS}-${GOARCH}.zip \
+              server-${GOOS}-${GOARCH}.exe \
+              worker-${GOOS}-${GOARCH}.exe
+            cd ..
+          else
+            tar -czf systemofadownload-${VERSION}-${GOOS}-${GOARCH}.tar.gz \
+              -C dist \
+              server-${GOOS}-${GOARCH} \
+              worker-${GOOS}-${GOARCH}
+          fi
+
+      - name: Upload release artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${{ needs.release-please.outputs.tag_name }}
+          GOOS=${{ matrix.goos }}
+          GOARCH=${{ matrix.goarch }}
+          
+          if [ "$GOOS" = "windows" ]; then
+            ARCHIVE="systemofadownload-${VERSION}-${GOOS}-${GOARCH}.zip"
+          else
+            ARCHIVE="systemofadownload-${VERSION}-${GOOS}-${GOARCH}.tar.gz"
+          fi
+          
+          gh release upload ${VERSION} ${ARCHIVE} --clobber
