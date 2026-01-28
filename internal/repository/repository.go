@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spongepowered/systemofadownload/internal/db"
@@ -60,20 +61,38 @@ func NewRepository(pool *pgxpool.Pool) Repository {
 }
 
 // WithTx executes fn within a transaction.
-func (r *postgresRepository) WithTx(ctx context.Context, fn func(Tx) error) error {
+func (r *postgresRepository) WithTx(ctx context.Context, fn func(Tx) error) (err error) {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("begin transaction: %w", err)
 	}
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			rollbackErr := tx.Rollback(ctx)
+			if recoveredErr, ok := recovered.(error); ok {
+				err = fmt.Errorf("panic in transaction: %w", recoveredErr)
+			} else {
+				err = fmt.Errorf("panic in transaction: %v", recovered)
+			}
+			if rollbackErr != nil {
+				err = fmt.Errorf("%w (rollback failed: %v)", err, rollbackErr)
+			}
+		}
+	}()
 
 	txQuerier := db.New(tx)
 
 	if err := fn(txQuerier); err != nil {
-		_ = tx.Rollback(ctx)
-		return err
+		if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
+			return fmt.Errorf("transaction failed: %w (rollback failed: %v)", err, rollbackErr)
+		}
+		return fmt.Errorf("transaction failed: %w", err)
 	}
 
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit transaction: %w", err)
+	}
+	return nil
 }
 
 // Delegate all Reads methods to the underlying querier
@@ -112,4 +131,3 @@ func (r *postgresRepository) ListArtifactsByGroup(ctx context.Context, groupID s
 func (r *postgresRepository) ListGroups(ctx context.Context) ([]db.Group, error) {
 	return r.q.ListGroups(ctx)
 }
-
