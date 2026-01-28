@@ -629,6 +629,22 @@ func (response RegisterArtifact201JSONResponse) VisitRegisterArtifactResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
+type RegisterArtifact404Response struct {
+}
+
+func (response RegisterArtifact404Response) VisitRegisterArtifactResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type RegisterArtifact409Response struct {
+}
+
+func (response RegisterArtifact409Response) VisitRegisterArtifactResponse(w http.ResponseWriter) error {
+	w.WriteHeader(409)
+	return nil
+}
+
 type GetArtifactRequestObject struct {
 	GroupID    GroupID    `json:"groupID"`
 	ArtifactID ArtifactID `json:"artifactID"`

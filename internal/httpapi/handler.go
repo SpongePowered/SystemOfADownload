@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/spongepowered/systemofadownload/api"
@@ -99,6 +100,13 @@ func (h *Handler) RegisterArtifact(ctx context.Context, request api.RegisterArti
 
 	err := h.service.RegisterArtifact(ctx, artifact)
 	if err != nil {
+		// Return appropriate HTTP error types based on error type
+		if errors.Is(err, app.ErrGroupNotFound) {
+			return NewGroupNotFoundError(), nil
+		}
+		if errors.Is(err, app.ErrArtifactAlreadyExists) {
+			return NewArtifactAlreadyExistsError(), nil
+		}
 		return nil, err
 	}
 

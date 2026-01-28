@@ -89,6 +89,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Artifact'
+        '404':
+          description: Group not found
+        '409':
+          description: Artifact already exists in the group
   '/groups/{groupID}/artifacts/{artifactID}':
     get:
       tags:

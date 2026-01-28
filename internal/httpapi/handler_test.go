@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -167,7 +166,7 @@ func TestHandler(t *testing.T) {
 		t.Errorf("Expected 201 response, got %T", artResp)
 	}
 
-	// Test RegisterArtifact with non-existent group (should return error)
+	// Test RegisterArtifact with non-existent group (should return 404)
 	regArtReqBadGroup := api.RegisterArtifactRequestObject{
 		GroupID: "org.nonexistent",
 		Body: &api.RegisterArtifactJSONRequestBody{
@@ -176,11 +175,25 @@ func TestHandler(t *testing.T) {
 			GitRepository: []string{"https://github.com/test/test"},
 		},
 	}
-	_, err = handler.RegisterArtifact(ctx, regArtReqBadGroup)
-	if err == nil {
-		t.Errorf("Expected error when registering artifact for non-existent group")
+	resp404, err := handler.RegisterArtifact(ctx, regArtReqBadGroup)
+	if err != nil {
+		t.Fatalf("RegisterArtifact failed: %v", err)
 	}
-	if !errors.Is(err, app.ErrGroupNotFound) {
-		t.Errorf("Expected ErrGroupNotFound, got %v", err)
+	if httpErr, ok := resp404.(*GroupNotFoundError); !ok {
+		t.Errorf("Expected GroupNotFoundError (404 response) for non-existent group, got %T", resp404)
+	} else if httpErr.StatusCode != 404 {
+		t.Errorf("Expected status code 404, got %d", httpErr.StatusCode)
+	}
+
+	// Test RegisterArtifact with duplicate artifact (should return 409)
+	// The artifact "spongeforge" was already created earlier in the test, so try to create it again
+	resp409, err := handler.RegisterArtifact(ctx, regArtReq)
+	if err != nil {
+		t.Fatalf("RegisterArtifact failed: %v", err)
+	}
+	if httpErr, ok := resp409.(*ArtifactAlreadyExistsError); !ok {
+		t.Errorf("Expected ArtifactAlreadyExistsError (409 response) for duplicate artifact, got %T", resp409)
+	} else if httpErr.StatusCode != 409 {
+		t.Errorf("Expected status code 409, got %d", httpErr.StatusCode)
 	}
 }
