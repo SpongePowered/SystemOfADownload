@@ -196,4 +196,21 @@ func TestHandler(t *testing.T) {
 	} else if httpErr.StatusCode != 409 {
 		t.Errorf("Expected status code 409, got %d", httpErr.StatusCode)
 	}
+
+	// Test RegisterArtifact with missing body (should return 400)
+	regArtReqMissingBody := api.RegisterArtifactRequestObject{
+		GroupID: "org.spongepowered",
+		Body:    nil, // Missing body
+	}
+	resp400, err := handler.RegisterArtifact(ctx, regArtReqMissingBody)
+	if err != nil {
+		t.Fatalf("RegisterArtifact failed: %v", err)
+	}
+	if httpErr, ok := resp400.(*BadRequestError); !ok {
+		t.Errorf("Expected BadRequestError (400 response) for missing body, got %T", resp400)
+	} else if httpErr.StatusCode != 400 {
+		t.Errorf("Expected status code 400, got %d", httpErr.StatusCode)
+	} else if httpErr.Message != "request body is required" {
+		t.Errorf("Expected error message 'request body is required', got '%s'", httpErr.Message)
+	}
 }

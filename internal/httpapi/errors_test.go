@@ -9,6 +9,29 @@ import (
 )
 
 func TestHTTPErrors(t *testing.T) {
+	t.Run("BadRequestError implements error interface", func(t *testing.T) {
+		err := NewBadRequestError("test message")
+		if err.Error() != "test message" {
+			t.Errorf("Expected error message 'test message', got '%s'", err.Error())
+		}
+	})
+
+	t.Run("BadRequestError implements RegisterArtifactResponseObject", func(t *testing.T) {
+		var _ api.RegisterArtifactResponseObject = NewBadRequestError("test")
+	})
+
+	t.Run("BadRequestError returns 400 status code", func(t *testing.T) {
+		err := NewBadRequestError("invalid request")
+		w := httptest.NewRecorder()
+		visitErr := err.VisitRegisterArtifactResponse(w)
+		if visitErr != nil {
+			t.Errorf("Expected no error from VisitRegisterArtifactResponse, got %v", visitErr)
+		}
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status code %d, got %d", http.StatusBadRequest, w.Code)
+		}
+	})
+
 	t.Run("GroupNotFoundError implements error interface", func(t *testing.T) {
 		err := NewGroupNotFoundError()
 		if err.Error() != "group not found" {

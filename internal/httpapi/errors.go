@@ -17,6 +17,31 @@ func (e HTTPError) Error() string {
 	return e.Message
 }
 
+// BadRequestError is an HTTP 400 error for invalid or missing request data
+type BadRequestError struct {
+	HTTPError
+}
+
+// NewBadRequestError creates a new BadRequestError
+func NewBadRequestError(message string) *BadRequestError {
+	return &BadRequestError{
+		HTTPError: HTTPError{
+			StatusCode: http.StatusBadRequest,
+			Message:    message,
+		},
+	}
+}
+
+// VisitRegisterArtifactResponse implements the RegisterArtifactResponseObject interface
+func (e *BadRequestError) VisitRegisterArtifactResponse(w http.ResponseWriter) error {
+	w.WriteHeader(e.StatusCode)
+	return nil
+}
+
+// Ensure BadRequestError implements both error and RegisterArtifactResponseObject
+var _ error = (*BadRequestError)(nil)
+var _ api.RegisterArtifactResponseObject = (*BadRequestError)(nil)
+
 // GroupNotFoundError is an HTTP 404 error for when a group is not found
 type GroupNotFoundError struct {
 	HTTPError

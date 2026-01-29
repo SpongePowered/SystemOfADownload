@@ -629,6 +629,14 @@ func (response RegisterArtifact201JSONResponse) VisitRegisterArtifactResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
+type RegisterArtifact400Response struct {
+}
+
+func (response RegisterArtifact400Response) VisitRegisterArtifactResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
 type RegisterArtifact404Response struct {
 }
 

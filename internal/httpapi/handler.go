@@ -3,7 +3,6 @@ package httpapi
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/spongepowered/systemofadownload/api"
 	"github.com/spongepowered/systemofadownload/internal/app"
@@ -86,7 +85,7 @@ func (h *Handler) GetArtifacts(ctx context.Context, request api.GetArtifactsRequ
 
 func (h *Handler) RegisterArtifact(ctx context.Context, request api.RegisterArtifactRequestObject) (api.RegisterArtifactResponseObject, error) {
 	if request.Body == nil {
-		return nil, fmt.Errorf("request body is required")
+		return NewBadRequestError("request body is required"), nil
 	}
 
 	artifact := &domain.Artifact{

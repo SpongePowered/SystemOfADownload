@@ -89,6 +89,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Artifact'
+        '400':
+          description: Bad request - invalid or missing request body
         '404':
           description: Group not found
         '409':
