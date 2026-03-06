@@ -1,5 +1,5 @@
 [tools]
-go = "1.25"
+go = "1.26.1"
 "go:github.com/golang-migrate/migrate/v4/cmd/migrate" = { version = "latest", tags = "postgres" }
 golangci-lint = "2"
 mockery = "latest"
