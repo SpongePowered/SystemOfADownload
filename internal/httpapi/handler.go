@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 
 	"github.com/spongepowered/systemofadownload/api"
 	"github.com/spongepowered/systemofadownload/internal/app"
@@ -80,6 +81,51 @@ func (h *Handler) GetGroup(ctx context.Context, request api.GetGroupRequestObjec
 
 func (h *Handler) GetArtifacts(ctx context.Context, request api.GetArtifactsRequestObject) (api.GetArtifactsResponseObject, error) {
 	return nil, nil
+}
+
+func (h *Handler) RegisterArtifact(ctx context.Context, request api.RegisterArtifactRequestObject) (api.RegisterArtifactResponseObject, error) {
+	if request.Body == nil {
+		return NewBadRequestError("request body is required"), nil
+	}
+
+	artifact := &domain.Artifact{
+		GroupID:         request.GroupID,
+		ArtifactID:      request.Body.ArtifactId,
+		DisplayName:     request.Body.DisplayName,
+		GitRepositories: request.Body.GitRepository,
+		Website:         request.Body.Website,
+		Issues:          request.Body.Issues,
+	}
+
+	err := h.service.RegisterArtifact(ctx, artifact)
+	if err != nil {
+		// Return appropriate HTTP error types based on error type
+		if errors.Is(err, app.ErrGroupNotFound) {
+			return NewGroupNotFoundError(), nil
+		}
+		if errors.Is(err, app.ErrArtifactAlreadyExists) {
+			return NewArtifactAlreadyExistsError(), nil
+		}
+		return nil, err
+	}
+
+	response := api.RegisterArtifact201JSONResponse{
+		Type: "latest",
+		Coordinates: struct {
+			ArtifactId string `json:"artifactId"`
+			GroupId    string `json:"groupId"`
+		}{
+			ArtifactId: request.Body.ArtifactId,
+			GroupId:    request.GroupID,
+		},
+		DisplayName:   &request.Body.DisplayName,
+		GitRepository: &request.Body.GitRepository,
+		Website:       request.Body.Website,
+		Issues:        request.Body.Issues,
+		Tags:          map[string][]string{},
+	}
+
+	return response, nil
 }
 
 func (h *Handler) GetArtifact(ctx context.Context, request api.GetArtifactRequestObject) (api.GetArtifactResponseObject, error) {

@@ -13,7 +13,8 @@ import (
 
 type mockQuerier struct {
 	db.Querier
-	groups map[string]db.Group
+	groups    map[string]db.Group
+	artifacts map[string]db.Artifact // key: "groupID:artifactID"
 }
 
 func (m *mockQuerier) WithTx(ctx context.Context, fn func(repository.Tx) error) error {
@@ -52,8 +53,34 @@ func (m *mockQuerier) CreateGroup(ctx context.Context, arg db.CreateGroupParams)
 	return g, nil
 }
 
+func (m *mockQuerier) GetArtifactByGroupAndId(ctx context.Context, arg db.GetArtifactByGroupAndIdParams) (db.Artifact, error) {
+	key := arg.GroupID + ":" + arg.ArtifactID
+	a, ok := m.artifacts[key]
+	if !ok {
+		return db.Artifact{}, pgx.ErrNoRows
+	}
+	return a, nil
+}
+
+func (m *mockQuerier) CreateArtifact(ctx context.Context, arg db.CreateArtifactParams) (db.Artifact, error) {
+	key := arg.GroupID + ":" + arg.ArtifactID
+	a := db.Artifact{
+		ID:              int64(len(m.artifacts) + 1),
+		GroupID:         arg.GroupID,
+		ArtifactID:      arg.ArtifactID,
+		Name:            arg.Name,
+		Website:         arg.Website,
+		GitRepositories: arg.GitRepositories,
+	}
+	m.artifacts[key] = a
+	return a, nil
+}
+
 func TestHandler(t *testing.T) {
-	q := &mockQuerier{groups: make(map[string]db.Group)}
+	q := &mockQuerier{
+		groups:    make(map[string]db.Group),
+		artifacts: make(map[string]db.Artifact),
+	}
 	service := app.NewService(q)
 	handler := NewHandler(service)
 
@@ -102,5 +129,88 @@ func TestHandler(t *testing.T) {
 		}
 	} else {
 		t.Errorf("Expected 200 response, got %T", listResp)
+	}
+
+	// Test RegisterArtifact
+	website := "https://spongepowered.org/"
+	issues := "https://github.com/SpongePowered/Sponge/issues"
+	regArtReq := api.RegisterArtifactRequestObject{
+		GroupID: "org.spongepowered",
+		Body: &api.RegisterArtifactJSONRequestBody{
+			ArtifactId:    "spongeforge",
+			DisplayName:   "SpongeForge",
+			GitRepository: []string{"https://github.com/SpongePowered/Sponge"},
+			Website:       &website,
+			Issues:        &issues,
+		},
+	}
+	artResp, err := handler.RegisterArtifact(ctx, regArtReq)
+	if err != nil {
+		t.Fatalf("RegisterArtifact failed: %v", err)
+	}
+
+	if r, ok := artResp.(api.RegisterArtifact201JSONResponse); ok {
+		if r.Coordinates.ArtifactId != "spongeforge" {
+			t.Errorf("Expected spongeforge, got %s", r.Coordinates.ArtifactId)
+		}
+		if r.Coordinates.GroupId != "org.spongepowered" {
+			t.Errorf("Expected org.spongepowered, got %s", r.Coordinates.GroupId)
+		}
+		if r.DisplayName == nil || *r.DisplayName != "SpongeForge" {
+			t.Errorf("Expected SpongeForge display name")
+		}
+		if r.GitRepository == nil || len(*r.GitRepository) != 1 || (*r.GitRepository)[0] != "https://github.com/SpongePowered/Sponge" {
+			t.Errorf("Expected git repository URL array")
+		}
+	} else {
+		t.Errorf("Expected 201 response, got %T", artResp)
+	}
+
+	// Test RegisterArtifact with non-existent group (should return 404)
+	regArtReqBadGroup := api.RegisterArtifactRequestObject{
+		GroupID: "org.nonexistent",
+		Body: &api.RegisterArtifactJSONRequestBody{
+			ArtifactId:    "testartifact",
+			DisplayName:   "Test Artifact",
+			GitRepository: []string{"https://github.com/test/test"},
+		},
+	}
+	resp404, err := handler.RegisterArtifact(ctx, regArtReqBadGroup)
+	if err != nil {
+		t.Fatalf("RegisterArtifact failed: %v", err)
+	}
+	if httpErr, ok := resp404.(*GroupNotFoundError); !ok {
+		t.Errorf("Expected GroupNotFoundError (404 response) for non-existent group, got %T", resp404)
+	} else if httpErr.StatusCode != 404 {
+		t.Errorf("Expected status code 404, got %d", httpErr.StatusCode)
+	}
+
+	// Test RegisterArtifact with duplicate artifact (should return 409)
+	// The artifact "spongeforge" was already created earlier in the test, so try to create it again
+	resp409, err := handler.RegisterArtifact(ctx, regArtReq)
+	if err != nil {
+		t.Fatalf("RegisterArtifact failed: %v", err)
+	}
+	if httpErr, ok := resp409.(*ArtifactAlreadyExistsError); !ok {
+		t.Errorf("Expected ArtifactAlreadyExistsError (409 response) for duplicate artifact, got %T", resp409)
+	} else if httpErr.StatusCode != 409 {
+		t.Errorf("Expected status code 409, got %d", httpErr.StatusCode)
+	}
+
+	// Test RegisterArtifact with missing body (should return 400)
+	regArtReqMissingBody := api.RegisterArtifactRequestObject{
+		GroupID: "org.spongepowered",
+		Body:    nil, // Missing body
+	}
+	resp400, err := handler.RegisterArtifact(ctx, regArtReqMissingBody)
+	if err != nil {
+		t.Fatalf("RegisterArtifact failed: %v", err)
+	}
+	if httpErr, ok := resp400.(*BadRequestError); !ok {
+		t.Errorf("Expected BadRequestError (400 response) for missing body, got %T", resp400)
+	} else if httpErr.StatusCode != 400 {
+		t.Errorf("Expected status code 400, got %d", httpErr.StatusCode)
+	} else if httpErr.Message != "request body is required" {
+		t.Errorf("Expected error message 'request body is required', got '%s'", httpErr.Message)
 	}
 }

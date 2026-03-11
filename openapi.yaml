@@ -69,6 +69,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GroupArtifacts'
+    post:
+      tags:
+        - Artifacts
+      description: registers a new artifact under a group
+      operationId: registerArtifact
+      parameters:
+        - $ref: '#/components/parameters/GroupID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArtifactRegistration'
+      responses:
+        '201':
+          description: Artifact registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Artifact'
+        '400':
+          description: Bad request - invalid or missing request body
+        '404':
+          description: Group not found
+        '409':
+          description: Artifact already exists in the group
   '/groups/{groupID}/artifacts/{artifactID}':
     get:
       tags:
@@ -380,8 +406,10 @@ components:
         website:
           type: string
         gitRepository:
-          type: string
-          format: URL
+          type: array
+          items:
+            type: string
+            format: URL
         issues:
           type: string
           format: URL
@@ -402,6 +430,39 @@ components:
             type: array
             items:
               type: string
+    ArtifactRegistration:
+      type: object
+      required:
+        - artifactId
+        - displayName
+        - gitRepository
+      properties:
+        artifactId:
+          type: string
+          example: spongeforge
+          description: The maven style artifact id
+        displayName:
+          type: string
+          example: SpongeForge
+          description: The name of the artifact in the desired format to be displayed on the web or referenced in communication
+        gitRepository:
+          type: array
+          items:
+            type: string
+            format: URL
+          example: 
+            - "https://github.com/SpongePowered/Sponge"
+          description: An array of git repository URLs
+        website:
+          type: string
+          format: URL
+          example: "https://spongepowered.org/"
+          description: The website URL (optional)
+        issues:
+          type: string
+          format: URL
+          example: "https://github.com/SpongePowered/Sponge/issues"
+          description: The issues/tracker URL (optional)
 
   parameters:
     GroupID:
