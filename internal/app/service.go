@@ -80,6 +80,19 @@ func (s *Service) RegisterGroup(ctx context.Context, group *domain.Group) error 
 	})
 }
 
+func (s *Service) ListArtifacts(ctx context.Context, groupID string) ([]string, error) {
+	artifacts, err := s.repo.ListArtifactsByGroup(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+
+	var artifactIDs []string
+	for _, a := range artifacts {
+		artifactIDs = append(artifactIDs, a.ArtifactID)
+	}
+	return artifactIDs, nil
+}
+
 func (s *Service) RegisterArtifact(ctx context.Context, artifact *domain.Artifact) error {
 	// Use a transaction to ensure atomicity
 	return s.repo.WithTx(ctx, func(tx repository.Tx) error {

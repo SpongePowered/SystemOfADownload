@@ -80,7 +80,19 @@ func (h *Handler) GetGroup(ctx context.Context, request api.GetGroupRequestObjec
 // as they are not requested yet.
 
 func (h *Handler) GetArtifacts(ctx context.Context, request api.GetArtifactsRequestObject) (api.GetArtifactsResponseObject, error) {
-	return nil, nil
+	artifactIDs, err := h.service.ListArtifacts(ctx, request.GroupID)
+	if err != nil {
+		return nil, err
+	}
+
+	if artifactIDs == nil {
+		artifactIDs = []string{}
+	}
+
+	return api.GetArtifacts200JSONResponse{
+		Type:        "group",
+		ArtifactIds: artifactIDs,
+	}, nil
 }
 
 func (h *Handler) RegisterArtifact(ctx context.Context, request api.RegisterArtifactRequestObject) (api.RegisterArtifactResponseObject, error) {
