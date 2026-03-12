@@ -3,18 +3,29 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
+
+	"go.temporal.io/sdk/client"
 
 	"github.com/spongepowered/systemofadownload/api"
 	"github.com/spongepowered/systemofadownload/internal/app"
 	"github.com/spongepowered/systemofadownload/internal/domain"
+	"github.com/spongepowered/systemofadownload/internal/workflow"
 )
 
-type Handler struct {
-	service *app.Service
+// WorkflowStarter is a narrow interface for starting Temporal workflows.
+type WorkflowStarter interface {
+	ExecuteWorkflow(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error)
 }
 
-func NewHandler(service *app.Service) *Handler {
-	return &Handler{service: service}
+type Handler struct {
+	service   *app.Service
+	workflows WorkflowStarter
+}
+
+func NewHandler(service *app.Service, workflows WorkflowStarter) *Handler {
+	return &Handler{service: service, workflows: workflows}
 }
 
 func (h *Handler) GetGroups(ctx context.Context, _ api.GetGroupsRequestObject) (api.GetGroupsResponseObject, error) {
@@ -119,6 +130,21 @@ func (h *Handler) RegisterArtifact(ctx context.Context, request api.RegisterArti
 			return NewArtifactAlreadyExistsError(), nil
 		}
 		return nil, err
+	}
+
+	// Fire-and-forget: trigger version sync workflow
+	if h.workflows != nil {
+		workflowID := fmt.Sprintf("version-sync-%s-%s", request.GroupID, request.Body.ArtifactId)
+		_, err := h.workflows.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
+			ID:        workflowID,
+			TaskQueue: workflow.VersionSyncTaskQueue,
+		}, workflow.VersionSyncWorkflow, workflow.VersionSyncInput{
+			GroupID:    request.GroupID,
+			ArtifactID: request.Body.ArtifactId,
+		})
+		if err != nil {
+			log.Printf("failed to start version sync workflow for %s:%s: %v", request.GroupID, request.Body.ArtifactId, err)
+		}
 	}
 
 	response := api.RegisterArtifact201JSONResponse{

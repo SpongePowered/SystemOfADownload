@@ -14,3 +14,10 @@ type Artifact struct {
 	GitRepositories []string
 	Issues          *string
 }
+
+// VersionInfo represents version metadata fetched from a Maven repository.
+type VersionInfo struct {
+	GroupID    string
+	ArtifactID string
+	Version    string
+}

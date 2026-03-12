@@ -9,16 +9,19 @@ import (
 	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.temporal.io/sdk/client"
+	"go.uber.org/fx"
+
 	"github.com/spongepowered/systemofadownload/api"
 	"github.com/spongepowered/systemofadownload/internal/app"
 	"github.com/spongepowered/systemofadownload/internal/httpapi"
 	"github.com/spongepowered/systemofadownload/internal/repository"
-	"go.uber.org/fx"
 )
 
 type Config struct {
-	Port        string
-	DatabaseURL string
+	Port             string
+	DatabaseURL      string
+	TemporalHostPort string
 }
 
 func NewConfig() *Config {
@@ -32,10 +35,33 @@ func NewConfig() *Config {
 		dbURL = "postgres://postgres:password@localhost:5432/postgres?sslmode=disable"
 	}
 
-	return &Config{
-		Port:        port,
-		DatabaseURL: dbURL,
+	temporalHost := os.Getenv("TEMPORAL_HOST_PORT")
+	if temporalHost == "" {
+		temporalHost = "localhost:7233"
 	}
+
+	return &Config{
+		Port:             port,
+		DatabaseURL:      dbURL,
+		TemporalHostPort: temporalHost,
+	}
+}
+
+func NewTemporalClient(lc fx.Lifecycle, cfg *Config) (client.Client, error) {
+	c, err := client.Dial(client.Options{
+		HostPort: cfg.TemporalHostPort,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("creating temporal client: %w", err)
+	}
+
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			c.Close()
+			return nil
+		},
+	})
+	return c, nil
 }
 
 func NewDBPool(lc fx.Lifecycle, cfg *Config) (*pgxpool.Pool, error) {
@@ -100,8 +126,12 @@ func main() {
 		fx.Provide(
 			NewConfig,
 			NewDBPool,
+			NewTemporalClient,
 			func(pool *pgxpool.Pool) repository.Repository {
 				return repository.NewRepository(pool)
+			},
+			func(c client.Client) httpapi.WorkflowStarter {
+				return c
 			},
 			app.NewService,
 			httpapi.NewHandler,

@@ -11,6 +11,18 @@ packages:
       Reads:
       Writes:
       Tx:
+  github.com/spongepowered/systemofadownload/internal/sonatype:
+    config:
+      dir: '{{.InterfaceDir}}/mocks'
+      filename: 'sonatype_mocks.go'
+    interfaces:
+      Client:
+  github.com/spongepowered/systemofadownload/internal/httpapi:
+    config:
+      dir: '{{.InterfaceDir}}/mocks'
+      filename: 'httpapi_mocks.go'
+    interfaces:
+      WorkflowStarter:
   github.com/spongepowered/systemofadownload/internal/db:
     config:
       dir: '{{.InterfaceDir}}/mocks'

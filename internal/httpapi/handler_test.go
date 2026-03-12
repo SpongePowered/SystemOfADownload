@@ -82,7 +82,7 @@ func TestHandler(t *testing.T) {
 		artifacts: make(map[string]db.Artifact),
 	}
 	service := app.NewService(q)
-	handler := NewHandler(service)
+	handler := NewHandler(service, nil)
 
 	ctx := context.Background()
 

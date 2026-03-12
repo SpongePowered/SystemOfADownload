@@ -104,7 +104,7 @@ func setupTestServer(t *testing.T) *httptest.Server {
 
 	repo := repository.NewRepository(pool)
 	service := app.NewService(repo)
-	handler := httpapi.NewHandler(service)
+	handler := httpapi.NewHandler(service, nil)
 	apiHandler := api.NewStrictHandler(handler, nil)
 	mux := http.NewServeMux()
 	httpHandler := api.HandlerFromMux(apiHandler, mux)
