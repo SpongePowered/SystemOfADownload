@@ -6,6 +6,7 @@ This folder contains comprehensive documentation for the SystemOfADownload proje
 
 - **[AGENTS.md](./AGENTS.md)** - Guidelines for AI agents and developers working on this codebase
 - **[TOOLS.md](./TOOLS.md)** - Tool setup and management using Mise
+- **[WORKFLOWS.md](./WORKFLOWS.md)** - Temporal workflow architecture, version schemas, and batching patterns
 - **[RELEASES.md](./RELEASES.md)** - Release process and version management with release-please
 - **[ACTIONS.md](./ACTIONS.md)** - GitHub Actions pinning and security
 
@@ -15,7 +16,8 @@ This folder contains comprehensive documentation for the SystemOfADownload proje
 
 1. Start with [TOOLS.md](./TOOLS.md) to set up your environment
 2. Review [AGENTS.md](./AGENTS.md) for development standards
-3. Check [RELEASES.md](./RELEASES.md) for commit message guidelines
+3. Read [WORKFLOWS.md](./WORKFLOWS.md) to understand the Temporal pipeline
+4. Check [RELEASES.md](./RELEASES.md) for commit message guidelines
 
 ### For Release Management
 

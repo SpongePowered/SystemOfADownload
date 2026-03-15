@@ -10,13 +10,14 @@ import (
 )
 
 const createArtifact = `-- name: CreateArtifact :one
-INSERT INTO artifacts (group_id, artifact_id, name, website, git_repositories)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO artifacts (group_id, artifact_id, name, website, git_repositories, version_schema)
+VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (group_id, artifact_id) DO UPDATE SET
     name = EXCLUDED.name,
     website = EXCLUDED.website,
-    git_repositories = EXCLUDED.git_repositories
-RETURNING id, group_id, artifact_id, name, website, git_repositories
+    git_repositories = EXCLUDED.git_repositories,
+    version_schema = EXCLUDED.version_schema
+RETURNING id, group_id, artifact_id, name, website, git_repositories, version_schema
 `
 
 type CreateArtifactParams struct {
@@ -25,6 +26,7 @@ type CreateArtifactParams struct {
 	Name            string
 	Website         *string
 	GitRepositories []byte
+	VersionSchema   []byte
 }
 
 func (q *Queries) CreateArtifact(ctx context.Context, arg CreateArtifactParams) (Artifact, error) {
@@ -34,6 +36,7 @@ func (q *Queries) CreateArtifact(ctx context.Context, arg CreateArtifactParams) 
 		arg.Name,
 		arg.Website,
 		arg.GitRepositories,
+		arg.VersionSchema,
 	)
 	var i Artifact
 	err := row.Scan(
@@ -43,6 +46,7 @@ func (q *Queries) CreateArtifact(ctx context.Context, arg CreateArtifactParams) 
 		&i.Name,
 		&i.Website,
 		&i.GitRepositories,
+		&i.VersionSchema,
 	)
 	return i, err
 }
@@ -155,8 +159,18 @@ func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (Group
 	return i, err
 }
 
+const deleteArtifactVersionTags = `-- name: DeleteArtifactVersionTags :exec
+DELETE FROM artifact_versioned_tags
+WHERE artifact_version_id = $1
+`
+
+func (q *Queries) DeleteArtifactVersionTags(ctx context.Context, artifactVersionID int64) error {
+	_, err := q.db.Exec(ctx, deleteArtifactVersionTags, artifactVersionID)
+	return err
+}
+
 const getArtifactByGroupAndId = `-- name: GetArtifactByGroupAndId :one
-SELECT id, group_id, artifact_id, name, website, git_repositories FROM artifacts
+SELECT id, group_id, artifact_id, name, website, git_repositories, version_schema FROM artifacts
 WHERE group_id = $1 AND artifact_id = $2
 `
 
@@ -175,6 +189,7 @@ func (q *Queries) GetArtifactByGroupAndId(ctx context.Context, arg GetArtifactBy
 		&i.Name,
 		&i.Website,
 		&i.GitRepositories,
+		&i.VersionSchema,
 	)
 	return i, err
 }
@@ -203,6 +218,23 @@ func (q *Queries) GetArtifactVersion(ctx context.Context, arg GetArtifactVersion
 		&i.CommitBody,
 	)
 	return i, err
+}
+
+const getArtifactVersionSchema = `-- name: GetArtifactVersionSchema :one
+SELECT version_schema FROM artifacts
+WHERE group_id = $1 AND artifact_id = $2
+`
+
+type GetArtifactVersionSchemaParams struct {
+	GroupID    string
+	ArtifactID string
+}
+
+func (q *Queries) GetArtifactVersionSchema(ctx context.Context, arg GetArtifactVersionSchemaParams) ([]byte, error) {
+	row := q.db.QueryRow(ctx, getArtifactVersionSchema, arg.GroupID, arg.ArtifactID)
+	var version_schema []byte
+	err := row.Scan(&version_schema)
+	return version_schema, err
 }
 
 const getGroup = `-- name: GetGroup :one
@@ -358,7 +390,7 @@ func (q *Queries) ListArtifactVersions(ctx context.Context, arg ListArtifactVers
 }
 
 const listArtifactsByGroup = `-- name: ListArtifactsByGroup :many
-SELECT id, group_id, artifact_id, name, website, git_repositories FROM artifacts
+SELECT id, group_id, artifact_id, name, website, git_repositories, version_schema FROM artifacts
 WHERE group_id = $1
 `
 
@@ -378,6 +410,7 @@ func (q *Queries) ListArtifactsByGroup(ctx context.Context, groupID string) ([]A
 			&i.Name,
 			&i.Website,
 			&i.GitRepositories,
+			&i.VersionSchema,
 		); err != nil {
 			return nil, err
 		}

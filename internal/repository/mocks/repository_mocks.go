@@ -171,6 +171,74 @@ func (_c *MockReads_GetArtifactVersion_Call) RunAndReturn(run func(ctx context.C
 	return _c
 }
 
+// GetArtifactVersionSchema provides a mock function for the type MockReads
+func (_mock *MockReads) GetArtifactVersionSchema(ctx context.Context, arg db.GetArtifactVersionSchemaParams) ([]byte, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetArtifactVersionSchema")
+	}
+
+	var r0 []byte
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.GetArtifactVersionSchemaParams) ([]byte, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.GetArtifactVersionSchemaParams) []byte); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.GetArtifactVersionSchemaParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockReads_GetArtifactVersionSchema_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetArtifactVersionSchema'
+type MockReads_GetArtifactVersionSchema_Call struct {
+	*mock.Call
+}
+
+// GetArtifactVersionSchema is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.GetArtifactVersionSchemaParams
+func (_e *MockReads_Expecter) GetArtifactVersionSchema(ctx interface{}, arg interface{}) *MockReads_GetArtifactVersionSchema_Call {
+	return &MockReads_GetArtifactVersionSchema_Call{Call: _e.mock.On("GetArtifactVersionSchema", ctx, arg)}
+}
+
+func (_c *MockReads_GetArtifactVersionSchema_Call) Run(run func(ctx context.Context, arg db.GetArtifactVersionSchemaParams)) *MockReads_GetArtifactVersionSchema_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.GetArtifactVersionSchemaParams
+		if args[1] != nil {
+			arg1 = args[1].(db.GetArtifactVersionSchemaParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockReads_GetArtifactVersionSchema_Call) Return(bytes []byte, err error) *MockReads_GetArtifactVersionSchema_Call {
+	_c.Call.Return(bytes, err)
+	return _c
+}
+
+func (_c *MockReads_GetArtifactVersionSchema_Call) RunAndReturn(run func(ctx context.Context, arg db.GetArtifactVersionSchemaParams) ([]byte, error)) *MockReads_GetArtifactVersionSchema_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetGroup provides a mock function for the type MockReads
 func (_mock *MockReads) GetGroup(ctx context.Context, mavenID string) (db.Group, error) {
 	ret := _mock.Called(ctx, mavenID)
@@ -1062,6 +1130,63 @@ func (_c *MockWrites_CreateGroup_Call) RunAndReturn(run func(ctx context.Context
 	return _c
 }
 
+// DeleteArtifactVersionTags provides a mock function for the type MockWrites
+func (_mock *MockWrites) DeleteArtifactVersionTags(ctx context.Context, artifactVersionID int64) error {
+	ret := _mock.Called(ctx, artifactVersionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteArtifactVersionTags")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = returnFunc(ctx, artifactVersionID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockWrites_DeleteArtifactVersionTags_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteArtifactVersionTags'
+type MockWrites_DeleteArtifactVersionTags_Call struct {
+	*mock.Call
+}
+
+// DeleteArtifactVersionTags is a helper method to define mock.On call
+//   - ctx context.Context
+//   - artifactVersionID int64
+func (_e *MockWrites_Expecter) DeleteArtifactVersionTags(ctx interface{}, artifactVersionID interface{}) *MockWrites_DeleteArtifactVersionTags_Call {
+	return &MockWrites_DeleteArtifactVersionTags_Call{Call: _e.mock.On("DeleteArtifactVersionTags", ctx, artifactVersionID)}
+}
+
+func (_c *MockWrites_DeleteArtifactVersionTags_Call) Run(run func(ctx context.Context, artifactVersionID int64)) *MockWrites_DeleteArtifactVersionTags_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockWrites_DeleteArtifactVersionTags_Call) Return(err error) *MockWrites_DeleteArtifactVersionTags_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockWrites_DeleteArtifactVersionTags_Call) RunAndReturn(run func(ctx context.Context, artifactVersionID int64) error) *MockWrites_DeleteArtifactVersionTags_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateArtifactVersionCommitBody provides a mock function for the type MockWrites
 func (_mock *MockWrites) UpdateArtifactVersionCommitBody(ctx context.Context, arg db.UpdateArtifactVersionCommitBodyParams) error {
 	ret := _mock.Called(ctx, arg)
@@ -1533,6 +1658,63 @@ func (_c *MockTx_CreateGroup_Call) RunAndReturn(run func(ctx context.Context, ar
 	return _c
 }
 
+// DeleteArtifactVersionTags provides a mock function for the type MockTx
+func (_mock *MockTx) DeleteArtifactVersionTags(ctx context.Context, artifactVersionID int64) error {
+	ret := _mock.Called(ctx, artifactVersionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteArtifactVersionTags")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = returnFunc(ctx, artifactVersionID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTx_DeleteArtifactVersionTags_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteArtifactVersionTags'
+type MockTx_DeleteArtifactVersionTags_Call struct {
+	*mock.Call
+}
+
+// DeleteArtifactVersionTags is a helper method to define mock.On call
+//   - ctx context.Context
+//   - artifactVersionID int64
+func (_e *MockTx_Expecter) DeleteArtifactVersionTags(ctx interface{}, artifactVersionID interface{}) *MockTx_DeleteArtifactVersionTags_Call {
+	return &MockTx_DeleteArtifactVersionTags_Call{Call: _e.mock.On("DeleteArtifactVersionTags", ctx, artifactVersionID)}
+}
+
+func (_c *MockTx_DeleteArtifactVersionTags_Call) Run(run func(ctx context.Context, artifactVersionID int64)) *MockTx_DeleteArtifactVersionTags_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_DeleteArtifactVersionTags_Call) Return(err error) *MockTx_DeleteArtifactVersionTags_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTx_DeleteArtifactVersionTags_Call) RunAndReturn(run func(ctx context.Context, artifactVersionID int64) error) *MockTx_DeleteArtifactVersionTags_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetArtifactByGroupAndId provides a mock function for the type MockTx
 func (_mock *MockTx) GetArtifactByGroupAndId(ctx context.Context, arg db.GetArtifactByGroupAndIdParams) (db.Artifact, error) {
 	ret := _mock.Called(ctx, arg)
@@ -1661,6 +1843,74 @@ func (_c *MockTx_GetArtifactVersion_Call) Return(artifactVersion db.ArtifactVers
 }
 
 func (_c *MockTx_GetArtifactVersion_Call) RunAndReturn(run func(ctx context.Context, arg db.GetArtifactVersionParams) (db.ArtifactVersion, error)) *MockTx_GetArtifactVersion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetArtifactVersionSchema provides a mock function for the type MockTx
+func (_mock *MockTx) GetArtifactVersionSchema(ctx context.Context, arg db.GetArtifactVersionSchemaParams) ([]byte, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetArtifactVersionSchema")
+	}
+
+	var r0 []byte
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.GetArtifactVersionSchemaParams) ([]byte, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.GetArtifactVersionSchemaParams) []byte); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.GetArtifactVersionSchemaParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTx_GetArtifactVersionSchema_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetArtifactVersionSchema'
+type MockTx_GetArtifactVersionSchema_Call struct {
+	*mock.Call
+}
+
+// GetArtifactVersionSchema is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.GetArtifactVersionSchemaParams
+func (_e *MockTx_Expecter) GetArtifactVersionSchema(ctx interface{}, arg interface{}) *MockTx_GetArtifactVersionSchema_Call {
+	return &MockTx_GetArtifactVersionSchema_Call{Call: _e.mock.On("GetArtifactVersionSchema", ctx, arg)}
+}
+
+func (_c *MockTx_GetArtifactVersionSchema_Call) Run(run func(ctx context.Context, arg db.GetArtifactVersionSchemaParams)) *MockTx_GetArtifactVersionSchema_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.GetArtifactVersionSchemaParams
+		if args[1] != nil {
+			arg1 = args[1].(db.GetArtifactVersionSchemaParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_GetArtifactVersionSchema_Call) Return(bytes []byte, err error) *MockTx_GetArtifactVersionSchema_Call {
+	_c.Call.Return(bytes, err)
+	return _c
+}
+
+func (_c *MockTx_GetArtifactVersionSchema_Call) RunAndReturn(run func(ctx context.Context, arg db.GetArtifactVersionSchemaParams) ([]byte, error)) *MockTx_GetArtifactVersionSchema_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2468,6 +2718,74 @@ func (_c *MockRepository_GetArtifactVersion_Call) Return(artifactVersion db.Arti
 }
 
 func (_c *MockRepository_GetArtifactVersion_Call) RunAndReturn(run func(ctx context.Context, arg db.GetArtifactVersionParams) (db.ArtifactVersion, error)) *MockRepository_GetArtifactVersion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetArtifactVersionSchema provides a mock function for the type MockRepository
+func (_mock *MockRepository) GetArtifactVersionSchema(ctx context.Context, arg db.GetArtifactVersionSchemaParams) ([]byte, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetArtifactVersionSchema")
+	}
+
+	var r0 []byte
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.GetArtifactVersionSchemaParams) ([]byte, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.GetArtifactVersionSchemaParams) []byte); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.GetArtifactVersionSchemaParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_GetArtifactVersionSchema_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetArtifactVersionSchema'
+type MockRepository_GetArtifactVersionSchema_Call struct {
+	*mock.Call
+}
+
+// GetArtifactVersionSchema is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.GetArtifactVersionSchemaParams
+func (_e *MockRepository_Expecter) GetArtifactVersionSchema(ctx interface{}, arg interface{}) *MockRepository_GetArtifactVersionSchema_Call {
+	return &MockRepository_GetArtifactVersionSchema_Call{Call: _e.mock.On("GetArtifactVersionSchema", ctx, arg)}
+}
+
+func (_c *MockRepository_GetArtifactVersionSchema_Call) Run(run func(ctx context.Context, arg db.GetArtifactVersionSchemaParams)) *MockRepository_GetArtifactVersionSchema_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.GetArtifactVersionSchemaParams
+		if args[1] != nil {
+			arg1 = args[1].(db.GetArtifactVersionSchemaParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_GetArtifactVersionSchema_Call) Return(bytes []byte, err error) *MockRepository_GetArtifactVersionSchema_Call {
+	_c.Call.Return(bytes, err)
+	return _c
+}
+
+func (_c *MockRepository_GetArtifactVersionSchema_Call) RunAndReturn(run func(ctx context.Context, arg db.GetArtifactVersionSchemaParams) ([]byte, error)) *MockRepository_GetArtifactVersionSchema_Call {
 	_c.Call.Return(run)
 	return _c
 }

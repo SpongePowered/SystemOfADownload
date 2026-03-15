@@ -12,6 +12,7 @@ import (
 type Reads interface {
 	GetArtifactByGroupAndId(ctx context.Context, arg db.GetArtifactByGroupAndIdParams) (db.Artifact, error)
 	GetArtifactVersion(ctx context.Context, arg db.GetArtifactVersionParams) (db.ArtifactVersion, error)
+	GetArtifactVersionSchema(ctx context.Context, arg db.GetArtifactVersionSchemaParams) ([]byte, error)
 	GetGroup(ctx context.Context, mavenID string) (db.Group, error)
 	GroupExistsByMavenID(ctx context.Context, lower string) (bool, error)
 	ListArtifactVersionAssets(ctx context.Context, artifactVersionID int64) ([]db.ArtifactVersionedAsset, error)
@@ -29,6 +30,7 @@ type Writes interface {
 	CreateArtifactVersionAsset(ctx context.Context, arg db.CreateArtifactVersionAssetParams) (db.ArtifactVersionedAsset, error)
 	CreateArtifactVersionTag(ctx context.Context, arg db.CreateArtifactVersionTagParams) (db.ArtifactVersionedTag, error)
 	CreateGroup(ctx context.Context, arg db.CreateGroupParams) (db.Group, error)
+	DeleteArtifactVersionTags(ctx context.Context, artifactVersionID int64) error
 	UpdateArtifactVersionCommitBody(ctx context.Context, arg db.UpdateArtifactVersionCommitBodyParams) error
 	UpdateArtifactVersionOrder(ctx context.Context, arg db.UpdateArtifactVersionOrderParams) error
 }
@@ -104,6 +106,10 @@ func (r *postgresRepository) GetArtifactByGroupAndId(ctx context.Context, arg db
 
 func (r *postgresRepository) GetArtifactVersion(ctx context.Context, arg db.GetArtifactVersionParams) (db.ArtifactVersion, error) {
 	return r.q.GetArtifactVersion(ctx, arg)
+}
+
+func (r *postgresRepository) GetArtifactVersionSchema(ctx context.Context, arg db.GetArtifactVersionSchemaParams) ([]byte, error) {
+	return r.q.GetArtifactVersionSchema(ctx, arg)
 }
 
 func (r *postgresRepository) GetGroup(ctx context.Context, mavenID string) (db.Group, error) {

@@ -16,6 +16,10 @@ WHERE group_id = $1;
 SELECT * FROM artifacts
 WHERE group_id = $1 AND artifact_id = $2;
 
+-- name: GetArtifactVersionSchema :one
+SELECT version_schema FROM artifacts
+WHERE group_id = $1 AND artifact_id = $2;
+
 -- name: ListArtifactVersions :many
 SELECT av.*
 FROM artifact_versions av
@@ -51,12 +55,13 @@ ON CONFLICT (maven_id) DO UPDATE SET
 RETURNING *;
 
 -- name: CreateArtifact :one
-INSERT INTO artifacts (group_id, artifact_id, name, website, git_repositories)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO artifacts (group_id, artifact_id, name, website, git_repositories, version_schema)
+VALUES ($1, $2, $3, $4, $5, $6)
 ON CONFLICT (group_id, artifact_id) DO UPDATE SET
     name = EXCLUDED.name,
     website = EXCLUDED.website,
-    git_repositories = EXCLUDED.git_repositories
+    git_repositories = EXCLUDED.git_repositories,
+    version_schema = EXCLUDED.version_schema
 RETURNING *;
 
 -- name: CreateArtifactVersion :one
@@ -90,3 +95,7 @@ VALUES ($1, $2, $3)
 ON CONFLICT (artifact_version_id, tag_key) DO UPDATE SET
     tag_value = EXCLUDED.tag_value
 RETURNING *;
+
+-- name: DeleteArtifactVersionTags :exec
+DELETE FROM artifact_versioned_tags
+WHERE artifact_version_id = $1;

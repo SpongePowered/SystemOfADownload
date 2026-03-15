@@ -13,7 +13,6 @@ import (
 // VersionBatchIndexInput is the input for the VersionBatchIndexWorkflow.
 type VersionBatchIndexInput struct {
 	Versions       []domain.VersionInfo
-	TagRules       []domain.ArtifactTag
 	WindowSize     int
 	Offset         int
 	Progress       int
@@ -96,7 +95,6 @@ func (s *versionBatchState) execute(ctx workflow.Context) (int, error) {
 			GroupID:    v.GroupID,
 			ArtifactID: v.ArtifactID,
 			Version:    v.Version,
-			TagRules:   s.input.TagRules,
 		})
 
 		s.childrenStarted = append(s.childrenStarted, child)
@@ -121,7 +119,6 @@ func (s *versionBatchState) continueOrComplete(ctx workflow.Context) (int, error
 
 		return 0, workflow.NewContinueAsNewError(ctx, VersionBatchIndexWorkflow, VersionBatchIndexInput{
 			Versions:       s.input.Versions,
-			TagRules:       s.input.TagRules,
 			WindowSize:     s.input.WindowSize,
 			Offset:         s.offset,
 			Progress:       s.progress,

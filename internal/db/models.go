@@ -11,6 +11,7 @@ type Artifact struct {
 	Name            string
 	Website         *string
 	GitRepositories []byte
+	VersionSchema   []byte
 }
 
 type ArtifactVersion struct {

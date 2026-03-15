@@ -20,7 +20,6 @@ const (
 type VersionSyncInput struct {
 	GroupID    string
 	ArtifactID string
-	TagRules   []domain.ArtifactTag
 }
 
 // VersionSyncOutput is the result of the VersionSyncWorkflow.
@@ -30,8 +29,9 @@ type VersionSyncOutput struct {
 }
 
 // VersionSyncWorkflow orchestrates fetching artifact versions from a Sonatype Nexus
-// repository, persisting any that are not already in the database, and launching
-// a batch index workflow to process the new versions.
+// repository, persisting any that are not already in the database, launching a batch
+// index workflow to process assets and commits, and then computing version ordering
+// with schema-driven tag extraction.
 func VersionSyncWorkflow(ctx workflow.Context, input VersionSyncInput) (*VersionSyncOutput, error) {
 	activityOptions := workflow.ActivityOptions{
 		StartToCloseTimeout: 30 * time.Second,
@@ -69,7 +69,7 @@ func VersionSyncWorkflow(ctx workflow.Context, input VersionSyncInput) (*Version
 		return nil, fmt.Errorf("storing new versions: %w", err)
 	}
 
-	// Launch batch indexing for newly stored versions
+	// Launch batch indexing for newly stored versions (assets + commits).
 	if len(storeResult.NewVersions) > 0 {
 		childOpts := workflow.ChildWorkflowOptions{
 			WorkflowID: fmt.Sprintf("version-batch-index-%s-%s", input.GroupID, input.ArtifactID),
@@ -79,12 +79,27 @@ func VersionSyncWorkflow(ctx workflow.Context, input VersionSyncInput) (*Version
 		var batchResult int
 		err = workflow.ExecuteChildWorkflow(childCtx, VersionBatchIndexWorkflow, VersionBatchIndexInput{
 			Versions:   storeResult.NewVersions,
-			TagRules:   input.TagRules,
 			WindowSize: versionBatchDefaultWindowSize,
 		}).Get(ctx, &batchResult)
 		if err != nil {
 			return nil, fmt.Errorf("batch indexing versions: %w", err)
 		}
+	}
+
+	// Compute version ordering and extract schema-driven tags.
+	// This runs for ALL versions (not just new ones) since sort_order is relative.
+	orderingOpts := workflow.ChildWorkflowOptions{
+		WorkflowID: fmt.Sprintf("version-ordering-%s-%s", input.GroupID, input.ArtifactID),
+	}
+	orderingCtx := workflow.WithChildOptions(ctx, orderingOpts)
+
+	var orderingResult VersionOrderingOutput
+	err = workflow.ExecuteChildWorkflow(orderingCtx, VersionOrderingWorkflow, VersionOrderingInput{
+		GroupID:    input.GroupID,
+		ArtifactID: input.ArtifactID,
+	}).Get(ctx, &orderingResult)
+	if err != nil {
+		return nil, fmt.Errorf("ordering versions: %w", err)
 	}
 
 	return &VersionSyncOutput{

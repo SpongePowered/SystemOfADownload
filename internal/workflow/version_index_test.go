@@ -28,9 +28,6 @@ func TestVersionIndexWorkflow(t *testing.T) {
 			name: "full indexing pipeline with commit extraction",
 			input: workflow.VersionIndexInput{
 				GroupID: "org.spongepowered", ArtifactID: "spongeapi", Version: "8.0.0",
-				TagRules: []domain.ArtifactTag{
-					{Name: "platform", Regex: "universal", Test: "universal", MarkAsRecommended: true},
-				},
 			},
 			mockSetup: func(env *testsuite.TestWorkflowEnvironment) {
 				env.OnActivity(indexActivities.FetchVersionAssets, mock.Anything, mock.Anything).
@@ -42,9 +39,6 @@ func TestVersionIndexWorkflow(t *testing.T) {
 
 				env.OnActivity(indexActivities.StoreVersionAssets, mock.Anything, mock.Anything).
 					Return(&activity.StoreVersionAssetsOutput{StoredCount: 1}, nil)
-
-				env.OnActivity(indexActivities.BuildAndStoreTags, mock.Anything, mock.Anything).
-					Return(&activity.BuildAndStoreTagsOutput{TagsCreated: 1, Recommended: true}, nil)
 
 				env.OnActivity(indexActivities.InspectJarsForCommits, mock.Anything, mock.Anything).
 					Return(&activity.InspectJarsForCommitsOutput{
@@ -58,8 +52,6 @@ func TestVersionIndexWorkflow(t *testing.T) {
 			},
 			want: &workflow.VersionIndexOutput{
 				AssetsStored: 1,
-				TagsCreated:  1,
-				Recommended:  true,
 				CommitFound:  true,
 			},
 		},
@@ -145,12 +137,6 @@ func TestVersionIndexWorkflow(t *testing.T) {
 
 			if result.AssetsStored != tt.want.AssetsStored {
 				t.Errorf("AssetsStored: want %d, got %d", tt.want.AssetsStored, result.AssetsStored)
-			}
-			if result.TagsCreated != tt.want.TagsCreated {
-				t.Errorf("TagsCreated: want %d, got %d", tt.want.TagsCreated, result.TagsCreated)
-			}
-			if result.Recommended != tt.want.Recommended {
-				t.Errorf("Recommended: want %v, got %v", tt.want.Recommended, result.Recommended)
 			}
 			if result.CommitFound != tt.want.CommitFound {
 				t.Errorf("CommitFound: want %v, got %v", tt.want.CommitFound, result.CommitFound)

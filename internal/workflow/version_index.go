@@ -8,7 +8,6 @@ import (
 	"go.temporal.io/sdk/workflow"
 
 	"github.com/spongepowered/systemofadownload/internal/activity"
-	"github.com/spongepowered/systemofadownload/internal/domain"
 )
 
 // VersionIndexInput is the input for the VersionIndexWorkflow.
@@ -16,19 +15,17 @@ type VersionIndexInput struct {
 	GroupID    string
 	ArtifactID string
 	Version    string
-	TagRules   []domain.ArtifactTag
 }
 
 // VersionIndexOutput is the result of the VersionIndexWorkflow.
 type VersionIndexOutput struct {
 	AssetsStored int
-	TagsCreated  int
-	Recommended  bool
 	CommitFound  bool
 }
 
 // VersionIndexWorkflow processes a single artifact version: fetches assets from
-// Sonatype, stores them, applies tag rules, and extracts commit info from jars.
+// Sonatype, stores them, and extracts commit info from jars.
+// Tags are handled separately by VersionOrderingWorkflow using schema-driven extraction.
 func VersionIndexWorkflow(ctx workflow.Context, input VersionIndexInput) (*VersionIndexOutput, error) {
 	activityOpts := workflow.ActivityOptions{
 		StartToCloseTimeout: 30 * time.Second,
@@ -70,22 +67,7 @@ func VersionIndexWorkflow(ctx workflow.Context, input VersionIndexInput) (*Versi
 		return nil, fmt.Errorf("storing version assets: %w", err)
 	}
 
-	// Step 3: Build and store tags
-	var tagResult activity.BuildAndStoreTagsOutput
-	if len(input.TagRules) > 0 {
-		err = workflow.ExecuteActivity(ctx, indexActivities.BuildAndStoreTags, activity.BuildAndStoreTagsInput{
-			GroupID:    input.GroupID,
-			ArtifactID: input.ArtifactID,
-			Version:    input.Version,
-			Assets:     fetchResult.Assets,
-			TagRules:   input.TagRules,
-		}).Get(ctx, &tagResult)
-		if err != nil {
-			return nil, fmt.Errorf("building and storing tags: %w", err)
-		}
-	}
-
-	// Step 4: Identify jar candidates for commit extraction
+	// Step 3: Identify jar candidates for commit extraction
 	var inspectResult activity.InspectJarsForCommitsOutput
 	err = workflow.ExecuteActivity(ctx, indexActivities.InspectJarsForCommits, activity.InspectJarsForCommitsInput{
 		Assets: fetchResult.Assets,
@@ -96,11 +78,9 @@ func VersionIndexWorkflow(ctx workflow.Context, input VersionIndexInput) (*Versi
 
 	output := &VersionIndexOutput{
 		AssetsStored: storeResult.StoredCount,
-		TagsCreated:  tagResult.TagsCreated,
-		Recommended:  tagResult.Recommended,
 	}
 
-	// Step 5: Launch ExtractCommitBatch if jar candidates found
+	// Step 4: Launch ExtractCommitBatch if jar candidates found
 	if len(inspectResult.Candidates) > 0 {
 		childOpts := workflow.ChildWorkflowOptions{
 			WorkflowID: fmt.Sprintf("%s/extract-commits", workflow.GetInfo(ctx).WorkflowExecution.ID),

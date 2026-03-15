@@ -30,10 +30,12 @@ type ParsedVersion struct {
 	// Weekly is non-nil for Minecraft weekly snapshots (e.g., "25w45a").
 	Weekly *WeeklySnapshot
 
-	// For composite versions (e.g., "1.21.10-17.0.1-RC2547", "25w41a-18.0.0-RC2382"):
-	IsComposite bool
-	Minecraft   *ParsedVersion // parsed minecraft sub-version
-	APIVersion  []int          // parsed API version (e.g., [17, 0, 1])
+	// For composite versions parsed by ParseVersionWithSchema:
+	IsComposite  bool            // true when a schema variant matched
+	Minecraft    *ParsedVersion  // parsed minecraft sub-version
+	VariantName  string          // which schema variant matched (empty if no schema)
+	VariantOrder int             // index of the matched variant; lower = newer format
+	Segments     []ParsedSegment // schema-parsed segments (nil if no schema)
 
 	// ManifestOrder is the position from an external version manifest.
 	// Higher values = newer. Zero means unset.
@@ -59,80 +61,10 @@ func (pv ParsedVersion) MinecraftVersionString() string {
 
 var (
 	weeklySnapshotRe  = regexp.MustCompile(`^(\d+)w(\d+)([a-z])$`)
-	rcSuffixRe        = regexp.MustCompile(`(?i)-RC(\d+)$`)
-	dottedVersionRe   = regexp.MustCompile(`^\d+\.\d+(\.\d+)*$`)
 	stdQualifierRe    = regexp.MustCompile(`(?i)^([\d.]+)-(pre|rc)[-.]?(\d+)$`)
 	snapshotDashNumRe = regexp.MustCompile(`(?i)^([\d.]+)-snapshot-(\d+)$`)
 	pureVersionRe     = regexp.MustCompile(`^[\d.]+$`)
 )
-
-// ParseVersion parses a version string into a ParsedVersion for comparison.
-//
-// Composite detection works right-to-left: strip optional -RC{N} suffix,
-// then find the rightmost dash-separated segment that looks like a dotted
-// version number (X.Y or X.Y.Z). If found and it's not the first segment,
-// the version is composite: everything before it is the Minecraft version
-// (parsed recursively), and the dotted segment is the API version.
-//
-// Supported formats:
-//   - Weekly snapshot: "25w45a"
-//   - Composite RC: "1.21.10-17.0.1-RC2547", "25w41a-18.0.0-RC2382",
-//     "26.1-snapshot-2-18.0.0-RC2531"
-//   - Composite release: "1.21.10-17.0.0"
-//   - Snapshot-N: "26.1-snapshot-6"
-//   - Standard qualifier: "1.21.10-pre1", "1.17-rc1"
-//   - Pure version: "1.21.10"
-func ParseVersion(raw string) ParsedVersion {
-	// First try composite detection (handles the most complex cases).
-	if pv, ok := tryParseComposite(raw); ok {
-		return pv
-	}
-
-	// Non-composite parsing.
-	return parseSimpleVersion(raw)
-}
-
-// tryParseComposite attempts to parse a composite version string like
-// "1.21.10-17.0.1-RC2547" or "25w41a-18.0.0-RC2382" or
-// "26.1-snapshot-2-18.0.0-RC2531".
-func tryParseComposite(raw string) (ParsedVersion, bool) {
-	pv := ParsedVersion{Raw: raw, IsComposite: true, Qualifier: QualifierRelease}
-
-	remaining := raw
-
-	// Step 1: Strip -RC{N} suffix if present.
-	if m := rcSuffixRe.FindStringSubmatchIndex(remaining); m != nil {
-		rcNumStr := remaining[m[2]:m[3]]
-		pv.Qualifier = QualifierRC
-		pv.QualifierNum, _ = strconv.Atoi(rcNumStr)
-		remaining = remaining[:m[0]]
-	}
-
-	// Step 2: Split by '-' and find the rightmost dotted-version segment.
-	segments := strings.Split(remaining, "-")
-	apiIdx := -1
-	for i := len(segments) - 1; i >= 0; i-- {
-		if dottedVersionRe.MatchString(segments[i]) {
-			apiIdx = i
-			break
-		}
-	}
-
-	// Must have a dotted API version that isn't the first segment
-	// (there must be something left for the Minecraft version).
-	if apiIdx <= 0 {
-		return ParsedVersion{}, false
-	}
-
-	pv.APIVersion = parseDottedInts(segments[apiIdx])
-	mcRaw := strings.Join(segments[:apiIdx], "-")
-
-	// Step 3: Parse the Minecraft sub-version recursively.
-	mc := parseSimpleVersion(mcRaw)
-	pv.Minecraft = &mc
-
-	return pv, true
-}
 
 // parseSimpleVersion parses a non-composite version string.
 func parseSimpleVersion(raw string) ParsedVersion {
@@ -196,13 +128,26 @@ func CompareVersions(a, b ParsedVersion) int {
 		return -1
 	}
 
-	// Both composite: compare minecraft, then API, then qualifier.
-	if a.IsComposite && b.IsComposite {
-		if c := CompareVersions(*a.Minecraft, *b.Minecraft); c != 0 {
-			return c
+	// Both have schema segments: compare segment-by-segment, then qualifier/build.
+	if len(a.Segments) > 0 && len(b.Segments) > 0 {
+		minLen := len(a.Segments)
+		if len(b.Segments) < minLen {
+			minLen = len(b.Segments)
 		}
-		if c := compareIntSlices(a.APIVersion, b.APIVersion); c != 0 {
-			return c
+		for i := 0; i < minLen; i++ {
+			sa, sb := a.Segments[i], b.Segments[i]
+			if sa.Rule.ParseAs != sb.Rule.ParseAs {
+				// Cross-variant comparison: segments have incompatible types.
+				// Fall through to variant order tiebreaker below.
+				break
+			}
+			if c := compareSegments(sa, sb); c != 0 {
+				return c
+			}
+		}
+		// Different variants within the same schema: lower index = newer format.
+		if a.VariantOrder != b.VariantOrder {
+			return -cmp.Compare(a.VariantOrder, b.VariantOrder)
 		}
 		if c := cmp.Compare(int(a.Qualifier), int(b.Qualifier)); c != 0 {
 			return c
@@ -210,22 +155,7 @@ func CompareVersions(a, b ParsedVersion) int {
 		return cmp.Compare(a.QualifierNum, b.QualifierNum)
 	}
 
-	// One composite, one not: compare the minecraft sub-component
-	// against the non-composite version.
-	if a.IsComposite {
-		if c := CompareVersions(*a.Minecraft, b); c != 0 {
-			return c
-		}
-		return 1 // composite is "more specific", sorts after
-	}
-	if b.IsComposite {
-		if c := CompareVersions(a, *b.Minecraft); c != 0 {
-			return c
-		}
-		return -1
-	}
-
-	// Both non-composite below.
+	// Both non-composite below (simple versions or schema fallback).
 
 	// Weekly snapshots without manifest: compare by year/week/build.
 	if a.Weekly != nil && b.Weekly != nil {

@@ -25,7 +25,7 @@ func TestVersionSyncWorkflow(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name: "fetches and stores new versions",
+			name: "fetches, stores, indexes, and orders versions",
 			input: workflow.VersionSyncInput{
 				GroupID:    "org.spongepowered",
 				ArtifactID: "spongeapi",
@@ -64,6 +64,9 @@ func TestVersionSyncWorkflow(t *testing.T) {
 
 				env.OnWorkflow(workflow.VersionBatchIndexWorkflow, mock.Anything, mock.Anything).
 					Return(1, nil)
+
+				env.OnWorkflow(workflow.VersionOrderingWorkflow, mock.Anything, mock.Anything).
+					Return(&workflow.VersionOrderingOutput{VersionsOrdered: 2}, nil)
 			},
 			wantCount: 1,
 		},
@@ -121,6 +124,31 @@ func TestVersionSyncWorkflow(t *testing.T) {
 				).Return(&activity.FetchVersionsOutput{
 					Versions: []domain.VersionInfo{},
 				}, nil)
+			},
+			wantCount: 0,
+		},
+		{
+			name: "no new versions still triggers ordering",
+			input: workflow.VersionSyncInput{
+				GroupID:    "org.spongepowered",
+				ArtifactID: "spongeapi",
+			},
+			mockSetup: func(env *testsuite.TestWorkflowEnvironment) {
+				env.OnActivity(activities.FetchVersions, mock.Anything, mock.Anything).
+					Return(&activity.FetchVersionsOutput{
+						Versions: []domain.VersionInfo{
+							{GroupID: "org.spongepowered", ArtifactID: "spongeapi", Version: "8.0.0"},
+						},
+					}, nil)
+
+				env.OnActivity(activities.StoreNewVersions, mock.Anything, mock.Anything).
+					Return(&activity.StoreNewVersionsOutput{
+						NewVersions: nil, // all versions already stored
+					}, nil)
+
+				// No batch indexing since no new versions, but ordering still runs.
+				env.OnWorkflow(workflow.VersionOrderingWorkflow, mock.Anything, mock.Anything).
+					Return(&workflow.VersionOrderingOutput{VersionsOrdered: 1}, nil)
 			},
 			wantCount: 0,
 		},

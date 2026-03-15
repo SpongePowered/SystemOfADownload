@@ -105,10 +105,35 @@ This project follows Domain-Driven Design (DDD) principles:
 - `internal/app`: Application services orchestrating domain logic
 - `internal/httpapi`: HTTP handlers and routing
 - `internal/repository`: Data access layer
+- `internal/activity`: Temporal activity implementations
+- `internal/workflow`: Temporal workflow definitions
 - `cmd/server`: HTTP API server entrypoint
-- `cmd/worker`: Background worker entrypoint
+- `cmd/worker`: Temporal worker entrypoint
 
 When adding new features, respect these boundaries and keep dependencies flowing inward (toward domain).
+
+## Documentation Requirements
+
+### Workflow Documentation
+
+When modifying any Temporal workflow or activity, you **must** update [WORKFLOWS.md](./WORKFLOWS.md) to reflect the changes. This includes:
+
+- Adding or removing workflows or activities
+- Changing workflow inputs, outputs, or step sequences
+- Modifying the call graph (new child workflows, removed steps)
+- Changing retry policies or timeout configuration
+- Altering batching patterns or concurrency settings
+
+The workflow documentation is the primary reference for understanding how the system's background processing works. Keeping it accurate prevents confusion for developers and operators.
+
+### When to Update Documentation
+
+| Change | Docs to update |
+|--------|---------------|
+| New/modified workflow or activity | [WORKFLOWS.md](./WORKFLOWS.md) |
+| New/modified OpenAPI endpoint | `openapi.yaml` (source of truth) |
+| New/modified SQL query | `db/query.sql` (source of truth) |
+| Tool version or setup changes | [TOOLS.md](./TOOLS.md) |
 
 ## Commit Message Guidelines
 
@@ -159,5 +184,6 @@ See [RELEASES.md](./RELEASES.md) for complete release process documentation.
 2. Make changes to source files
 3. `go generate .` → Regenerate code
 4. `go test ./...` → Run tests
-5. Commit changes with conventional commit message (including generated code)
-6. Push to main → Release-please will create/update release PR automatically
+5. Update documentation if workflows, activities, or APIs changed
+6. Commit changes with conventional commit message (including generated code)
+7. Push to main → Release-please will create/update release PR automatically
