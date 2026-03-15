@@ -9,4 +9,5 @@ import (
 // Client defines the interface for fetching artifact version data from a Sonatype Nexus repository.
 type Client interface {
 	FetchVersions(ctx context.Context, groupID, artifactID string) ([]domain.VersionInfo, error)
+	SearchAssets(ctx context.Context, groupID, artifactID, version string) ([]domain.AssetInfo, error)
 }

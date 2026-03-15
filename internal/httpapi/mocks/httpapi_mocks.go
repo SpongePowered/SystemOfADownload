@@ -57,7 +57,9 @@ func (_mock *MockWorkflowStarter) ExecuteWorkflow(ctx context.Context, options c
 	if returnFunc, ok := ret.Get(0).(func(context.Context, client.StartWorkflowOptions, interface{}, ...interface{}) client.WorkflowRun); ok {
 		r0 = returnFunc(ctx, options, workflow, args...)
 	} else {
-		r0 = ret.Get(0).(client.WorkflowRun)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(client.WorkflowRun)
+		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, client.StartWorkflowOptions, interface{}, ...interface{}) error); ok {
 		r1 = returnFunc(ctx, options, workflow, args...)

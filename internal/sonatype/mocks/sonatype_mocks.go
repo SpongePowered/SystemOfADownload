@@ -111,3 +111,83 @@ func (_c *MockClient_FetchVersions_Call) RunAndReturn(run func(ctx context.Conte
 	_c.Call.Return(run)
 	return _c
 }
+
+// SearchAssets provides a mock function for the type MockClient
+func (_mock *MockClient) SearchAssets(ctx context.Context, groupID string, artifactID string, version string) ([]domain.AssetInfo, error) {
+	ret := _mock.Called(ctx, groupID, artifactID, version)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SearchAssets")
+	}
+
+	var r0 []domain.AssetInfo
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) ([]domain.AssetInfo, error)); ok {
+		return returnFunc(ctx, groupID, artifactID, version)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) []domain.AssetInfo); ok {
+		r0 = returnFunc(ctx, groupID, artifactID, version)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]domain.AssetInfo)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = returnFunc(ctx, groupID, artifactID, version)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockClient_SearchAssets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SearchAssets'
+type MockClient_SearchAssets_Call struct {
+	*mock.Call
+}
+
+// SearchAssets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - groupID string
+//   - artifactID string
+//   - version string
+func (_e *MockClient_Expecter) SearchAssets(ctx interface{}, groupID interface{}, artifactID interface{}, version interface{}) *MockClient_SearchAssets_Call {
+	return &MockClient_SearchAssets_Call{Call: _e.mock.On("SearchAssets", ctx, groupID, artifactID, version)}
+}
+
+func (_c *MockClient_SearchAssets_Call) Run(run func(ctx context.Context, groupID string, artifactID string, version string)) *MockClient_SearchAssets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockClient_SearchAssets_Call) Return(assetInfos []domain.AssetInfo, err error) *MockClient_SearchAssets_Call {
+	_c.Call.Return(assetInfos, err)
+	return _c
+}
+
+func (_c *MockClient_SearchAssets_Call) RunAndReturn(run func(ctx context.Context, groupID string, artifactID string, version string) ([]domain.AssetInfo, error)) *MockClient_SearchAssets_Call {
+	_c.Call.Return(run)
+	return _c
+}

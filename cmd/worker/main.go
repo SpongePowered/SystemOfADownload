@@ -3,13 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.temporal.io/sdk/client"
 	"go.temporal.io/sdk/worker"
 	"go.uber.org/fx"
 
 	"github.com/spongepowered/systemofadownload/internal/activity"
+	"github.com/spongepowered/systemofadownload/internal/repository"
 	"github.com/spongepowered/systemofadownload/internal/sonatype"
 	wf "github.com/spongepowered/systemofadownload/internal/workflow"
 )
@@ -19,6 +22,7 @@ type Config struct {
 	TemporalNamespace string
 	SonatypeBaseURL   string
 	SonatypeRepoName  string
+	DatabaseURL       string
 }
 
 func NewConfig() *Config {
@@ -38,11 +42,16 @@ func NewConfig() *Config {
 	if repoName == "" {
 		repoName = "maven-releases"
 	}
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		databaseURL = "postgres://localhost:5432/systemofadownload?sslmode=disable"
+	}
 	return &Config{
 		TemporalHostPort:  hostPort,
 		TemporalNamespace: namespace,
 		SonatypeBaseURL:   sonatypeURL,
 		SonatypeRepoName:  repoName,
+		DatabaseURL:       databaseURL,
 	}
 }
 
@@ -64,11 +73,39 @@ func NewTemporalClient(lc fx.Lifecycle, cfg *Config) (client.Client, error) {
 	return c, nil
 }
 
-func NewTemporalWorker(lc fx.Lifecycle, c client.Client, activities *activity.VersionSyncActivities) worker.Worker {
+func NewDatabasePool(lc fx.Lifecycle, cfg *Config) (*pgxpool.Pool, error) {
+	pool, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("creating database pool: %w", err)
+	}
+
+	lc.Append(fx.Hook{
+		OnStop: func(ctx context.Context) error {
+			pool.Close()
+			return nil
+		},
+	})
+	return pool, nil
+}
+
+func NewTemporalWorker(
+	lc fx.Lifecycle,
+	c client.Client,
+	syncActivities *activity.VersionSyncActivities,
+	indexActivities *activity.VersionIndexActivities,
+	orderingActivities *activity.VersionOrderingActivities,
+) worker.Worker {
 	w := worker.New(c, wf.VersionSyncTaskQueue, worker.Options{})
 
 	w.RegisterWorkflow(wf.VersionSyncWorkflow)
-	w.RegisterActivity(activities)
+	w.RegisterWorkflow(wf.VersionBatchIndexWorkflow)
+	w.RegisterWorkflow(wf.VersionIndexWorkflow)
+	w.RegisterWorkflow(wf.ExtractCommitBatchWorkflow)
+	w.RegisterWorkflow(wf.ExtractCommitWorkflow)
+	w.RegisterWorkflow(wf.VersionOrderingWorkflow)
+	w.RegisterActivity(syncActivities)
+	w.RegisterActivity(indexActivities)
+	w.RegisterActivity(orderingActivities)
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
@@ -90,11 +127,28 @@ func main() {
 		fx.Provide(
 			NewConfig,
 			NewTemporalClient,
+			NewDatabasePool,
+			func(pool *pgxpool.Pool) repository.Repository {
+				return repository.NewRepository(pool)
+			},
 			func(cfg *Config) sonatype.Client {
 				return sonatype.NewHTTPClient(cfg.SonatypeBaseURL, cfg.SonatypeRepoName)
 			},
-			func(sc sonatype.Client) *activity.VersionSyncActivities {
-				return &activity.VersionSyncActivities{SonatypeClient: sc}
+			func(sc sonatype.Client, repo repository.Repository) *activity.VersionSyncActivities {
+				return &activity.VersionSyncActivities{SonatypeClient: sc, Repo: repo}
+			},
+			func(sc sonatype.Client, repo repository.Repository) *activity.VersionIndexActivities {
+				return &activity.VersionIndexActivities{
+					SonatypeClient: sc,
+					Repo:           repo,
+					HTTPClient:     http.DefaultClient,
+				}
+			},
+			func(repo repository.Repository) *activity.VersionOrderingActivities {
+				return &activity.VersionOrderingActivities{
+					Repo:       repo,
+					HTTPClient: http.DefaultClient,
+				}
 			},
 			NewTemporalWorker,
 		),
