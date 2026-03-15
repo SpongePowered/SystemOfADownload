@@ -17,6 +17,7 @@ type Reads interface {
 	ListArtifactVersionAssets(ctx context.Context, artifactVersionID int64) ([]db.ArtifactVersionedAsset, error)
 	ListArtifactVersionTags(ctx context.Context, artifactVersionID int64) ([]db.ArtifactVersionedTag, error)
 	ListArtifactVersions(ctx context.Context, arg db.ListArtifactVersionsParams) ([]db.ArtifactVersion, error)
+	ListArtifactVersionStringsByArtifactID(ctx context.Context, arg db.ListArtifactVersionStringsByArtifactIDParams) ([]string, error)
 	ListArtifactsByGroup(ctx context.Context, groupID string) ([]db.Artifact, error)
 	ListGroups(ctx context.Context) ([]db.Group, error)
 }
@@ -28,6 +29,7 @@ type Writes interface {
 	CreateArtifactVersionAsset(ctx context.Context, arg db.CreateArtifactVersionAssetParams) (db.ArtifactVersionedAsset, error)
 	CreateArtifactVersionTag(ctx context.Context, arg db.CreateArtifactVersionTagParams) (db.ArtifactVersionedTag, error)
 	CreateGroup(ctx context.Context, arg db.CreateGroupParams) (db.Group, error)
+	UpdateArtifactVersionCommitBody(ctx context.Context, arg db.UpdateArtifactVersionCommitBodyParams) error
 	UpdateArtifactVersionOrder(ctx context.Context, arg db.UpdateArtifactVersionOrderParams) error
 }
 
@@ -122,6 +124,10 @@ func (r *postgresRepository) ListArtifactVersionTags(ctx context.Context, artifa
 
 func (r *postgresRepository) ListArtifactVersions(ctx context.Context, arg db.ListArtifactVersionsParams) ([]db.ArtifactVersion, error) {
 	return r.q.ListArtifactVersions(ctx, arg)
+}
+
+func (r *postgresRepository) ListArtifactVersionStringsByArtifactID(ctx context.Context, arg db.ListArtifactVersionStringsByArtifactIDParams) ([]string, error) {
+	return r.q.ListArtifactVersionStringsByArtifactID(ctx, arg)
 }
 
 func (r *postgresRepository) ListArtifactsByGroup(ctx context.Context, groupID string) ([]db.Artifact, error) {

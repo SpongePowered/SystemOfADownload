@@ -72,6 +72,18 @@ INSERT INTO artifact_versioned_assets (artifact_version_id, classifier, sha256, 
 VALUES ($1, $2, $3, $4)
 RETURNING *;
 
+-- name: ListArtifactVersionStringsByArtifactID :many
+SELECT av.version
+FROM artifact_versions av
+WHERE av.artifact_id = $1
+ORDER BY av.version
+LIMIT $2 OFFSET $3;
+
+-- name: UpdateArtifactVersionCommitBody :exec
+UPDATE artifact_versions
+SET commit_body = $2
+WHERE id = $1;
+
 -- name: CreateArtifactVersionTag :one
 INSERT INTO artifact_versioned_tags (artifact_version_id, tag_key, tag_value)
 VALUES ($1, $2, $3)

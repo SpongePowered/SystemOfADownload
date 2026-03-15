@@ -259,6 +259,40 @@ func (q *Queries) ListArtifactVersionAssets(ctx context.Context, artifactVersion
 	return items, nil
 }
 
+const listArtifactVersionStringsByArtifactID = `-- name: ListArtifactVersionStringsByArtifactID :many
+SELECT av.version
+FROM artifact_versions av
+WHERE av.artifact_id = $1
+ORDER BY av.version
+LIMIT $2 OFFSET $3
+`
+
+type ListArtifactVersionStringsByArtifactIDParams struct {
+	ArtifactID int64
+	Limit      int32
+	Offset     int32
+}
+
+func (q *Queries) ListArtifactVersionStringsByArtifactID(ctx context.Context, arg ListArtifactVersionStringsByArtifactIDParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listArtifactVersionStringsByArtifactID, arg.ArtifactID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var version string
+		if err := rows.Scan(&version); err != nil {
+			return nil, err
+		}
+		items = append(items, version)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listArtifactVersionTags = `-- name: ListArtifactVersionTags :many
 SELECT artifact_version_id, tag_key, tag_value FROM artifact_versioned_tags
 WHERE artifact_version_id = $1
@@ -377,6 +411,22 @@ func (q *Queries) ListGroups(ctx context.Context) ([]Group, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateArtifactVersionCommitBody = `-- name: UpdateArtifactVersionCommitBody :exec
+UPDATE artifact_versions
+SET commit_body = $2
+WHERE id = $1
+`
+
+type UpdateArtifactVersionCommitBodyParams struct {
+	ID         int64
+	CommitBody []byte
+}
+
+func (q *Queries) UpdateArtifactVersionCommitBody(ctx context.Context, arg UpdateArtifactVersionCommitBodyParams) error {
+	_, err := q.db.Exec(ctx, updateArtifactVersionCommitBody, arg.ID, arg.CommitBody)
+	return err
 }
 
 const updateArtifactVersionOrder = `-- name: UpdateArtifactVersionOrder :exec

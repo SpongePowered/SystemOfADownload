@@ -19,10 +19,12 @@ type Querier interface {
 	GetGroup(ctx context.Context, mavenID string) (Group, error)
 	GroupExistsByMavenID(ctx context.Context, lower string) (bool, error)
 	ListArtifactVersionAssets(ctx context.Context, artifactVersionID int64) ([]ArtifactVersionedAsset, error)
+	ListArtifactVersionStringsByArtifactID(ctx context.Context, arg ListArtifactVersionStringsByArtifactIDParams) ([]string, error)
 	ListArtifactVersionTags(ctx context.Context, artifactVersionID int64) ([]ArtifactVersionedTag, error)
 	ListArtifactVersions(ctx context.Context, arg ListArtifactVersionsParams) ([]ArtifactVersion, error)
 	ListArtifactsByGroup(ctx context.Context, groupID string) ([]Artifact, error)
 	ListGroups(ctx context.Context) ([]Group, error)
+	UpdateArtifactVersionCommitBody(ctx context.Context, arg UpdateArtifactVersionCommitBodyParams) error
 	UpdateArtifactVersionOrder(ctx context.Context, arg UpdateArtifactVersionOrderParams) error
 }
 

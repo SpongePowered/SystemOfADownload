@@ -371,6 +371,74 @@ func (_c *MockReads_ListArtifactVersionAssets_Call) RunAndReturn(run func(ctx co
 	return _c
 }
 
+// ListArtifactVersionStringsByArtifactID provides a mock function for the type MockReads
+func (_mock *MockReads) ListArtifactVersionStringsByArtifactID(ctx context.Context, arg db.ListArtifactVersionStringsByArtifactIDParams) ([]string, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListArtifactVersionStringsByArtifactID")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListArtifactVersionStringsByArtifactIDParams) ([]string, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListArtifactVersionStringsByArtifactIDParams) []string); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.ListArtifactVersionStringsByArtifactIDParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockReads_ListArtifactVersionStringsByArtifactID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListArtifactVersionStringsByArtifactID'
+type MockReads_ListArtifactVersionStringsByArtifactID_Call struct {
+	*mock.Call
+}
+
+// ListArtifactVersionStringsByArtifactID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.ListArtifactVersionStringsByArtifactIDParams
+func (_e *MockReads_Expecter) ListArtifactVersionStringsByArtifactID(ctx interface{}, arg interface{}) *MockReads_ListArtifactVersionStringsByArtifactID_Call {
+	return &MockReads_ListArtifactVersionStringsByArtifactID_Call{Call: _e.mock.On("ListArtifactVersionStringsByArtifactID", ctx, arg)}
+}
+
+func (_c *MockReads_ListArtifactVersionStringsByArtifactID_Call) Run(run func(ctx context.Context, arg db.ListArtifactVersionStringsByArtifactIDParams)) *MockReads_ListArtifactVersionStringsByArtifactID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.ListArtifactVersionStringsByArtifactIDParams
+		if args[1] != nil {
+			arg1 = args[1].(db.ListArtifactVersionStringsByArtifactIDParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockReads_ListArtifactVersionStringsByArtifactID_Call) Return(strings []string, err error) *MockReads_ListArtifactVersionStringsByArtifactID_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockReads_ListArtifactVersionStringsByArtifactID_Call) RunAndReturn(run func(ctx context.Context, arg db.ListArtifactVersionStringsByArtifactIDParams) ([]string, error)) *MockReads_ListArtifactVersionStringsByArtifactID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListArtifactVersionTags provides a mock function for the type MockReads
 func (_mock *MockReads) ListArtifactVersionTags(ctx context.Context, artifactVersionID int64) ([]db.ArtifactVersionedTag, error) {
 	ret := _mock.Called(ctx, artifactVersionID)
@@ -990,6 +1058,63 @@ func (_c *MockWrites_CreateGroup_Call) Return(group db.Group, err error) *MockWr
 }
 
 func (_c *MockWrites_CreateGroup_Call) RunAndReturn(run func(ctx context.Context, arg db.CreateGroupParams) (db.Group, error)) *MockWrites_CreateGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateArtifactVersionCommitBody provides a mock function for the type MockWrites
+func (_mock *MockWrites) UpdateArtifactVersionCommitBody(ctx context.Context, arg db.UpdateArtifactVersionCommitBodyParams) error {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateArtifactVersionCommitBody")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpdateArtifactVersionCommitBodyParams) error); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockWrites_UpdateArtifactVersionCommitBody_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateArtifactVersionCommitBody'
+type MockWrites_UpdateArtifactVersionCommitBody_Call struct {
+	*mock.Call
+}
+
+// UpdateArtifactVersionCommitBody is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.UpdateArtifactVersionCommitBodyParams
+func (_e *MockWrites_Expecter) UpdateArtifactVersionCommitBody(ctx interface{}, arg interface{}) *MockWrites_UpdateArtifactVersionCommitBody_Call {
+	return &MockWrites_UpdateArtifactVersionCommitBody_Call{Call: _e.mock.On("UpdateArtifactVersionCommitBody", ctx, arg)}
+}
+
+func (_c *MockWrites_UpdateArtifactVersionCommitBody_Call) Run(run func(ctx context.Context, arg db.UpdateArtifactVersionCommitBodyParams)) *MockWrites_UpdateArtifactVersionCommitBody_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.UpdateArtifactVersionCommitBodyParams
+		if args[1] != nil {
+			arg1 = args[1].(db.UpdateArtifactVersionCommitBodyParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockWrites_UpdateArtifactVersionCommitBody_Call) Return(err error) *MockWrites_UpdateArtifactVersionCommitBody_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockWrites_UpdateArtifactVersionCommitBody_Call) RunAndReturn(run func(ctx context.Context, arg db.UpdateArtifactVersionCommitBodyParams) error) *MockWrites_UpdateArtifactVersionCommitBody_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1740,6 +1865,74 @@ func (_c *MockTx_ListArtifactVersionAssets_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
+// ListArtifactVersionStringsByArtifactID provides a mock function for the type MockTx
+func (_mock *MockTx) ListArtifactVersionStringsByArtifactID(ctx context.Context, arg db.ListArtifactVersionStringsByArtifactIDParams) ([]string, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListArtifactVersionStringsByArtifactID")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListArtifactVersionStringsByArtifactIDParams) ([]string, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListArtifactVersionStringsByArtifactIDParams) []string); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.ListArtifactVersionStringsByArtifactIDParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTx_ListArtifactVersionStringsByArtifactID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListArtifactVersionStringsByArtifactID'
+type MockTx_ListArtifactVersionStringsByArtifactID_Call struct {
+	*mock.Call
+}
+
+// ListArtifactVersionStringsByArtifactID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.ListArtifactVersionStringsByArtifactIDParams
+func (_e *MockTx_Expecter) ListArtifactVersionStringsByArtifactID(ctx interface{}, arg interface{}) *MockTx_ListArtifactVersionStringsByArtifactID_Call {
+	return &MockTx_ListArtifactVersionStringsByArtifactID_Call{Call: _e.mock.On("ListArtifactVersionStringsByArtifactID", ctx, arg)}
+}
+
+func (_c *MockTx_ListArtifactVersionStringsByArtifactID_Call) Run(run func(ctx context.Context, arg db.ListArtifactVersionStringsByArtifactIDParams)) *MockTx_ListArtifactVersionStringsByArtifactID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.ListArtifactVersionStringsByArtifactIDParams
+		if args[1] != nil {
+			arg1 = args[1].(db.ListArtifactVersionStringsByArtifactIDParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_ListArtifactVersionStringsByArtifactID_Call) Return(strings []string, err error) *MockTx_ListArtifactVersionStringsByArtifactID_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockTx_ListArtifactVersionStringsByArtifactID_Call) RunAndReturn(run func(ctx context.Context, arg db.ListArtifactVersionStringsByArtifactIDParams) ([]string, error)) *MockTx_ListArtifactVersionStringsByArtifactID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListArtifactVersionTags provides a mock function for the type MockTx
 func (_mock *MockTx) ListArtifactVersionTags(ctx context.Context, artifactVersionID int64) ([]db.ArtifactVersionedTag, error) {
 	ret := _mock.Called(ctx, artifactVersionID)
@@ -2002,6 +2195,63 @@ func (_c *MockTx_ListGroups_Call) Return(groups []db.Group, err error) *MockTx_L
 }
 
 func (_c *MockTx_ListGroups_Call) RunAndReturn(run func(ctx context.Context) ([]db.Group, error)) *MockTx_ListGroups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateArtifactVersionCommitBody provides a mock function for the type MockTx
+func (_mock *MockTx) UpdateArtifactVersionCommitBody(ctx context.Context, arg db.UpdateArtifactVersionCommitBodyParams) error {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateArtifactVersionCommitBody")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpdateArtifactVersionCommitBodyParams) error); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTx_UpdateArtifactVersionCommitBody_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateArtifactVersionCommitBody'
+type MockTx_UpdateArtifactVersionCommitBody_Call struct {
+	*mock.Call
+}
+
+// UpdateArtifactVersionCommitBody is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.UpdateArtifactVersionCommitBodyParams
+func (_e *MockTx_Expecter) UpdateArtifactVersionCommitBody(ctx interface{}, arg interface{}) *MockTx_UpdateArtifactVersionCommitBody_Call {
+	return &MockTx_UpdateArtifactVersionCommitBody_Call{Call: _e.mock.On("UpdateArtifactVersionCommitBody", ctx, arg)}
+}
+
+func (_c *MockTx_UpdateArtifactVersionCommitBody_Call) Run(run func(ctx context.Context, arg db.UpdateArtifactVersionCommitBodyParams)) *MockTx_UpdateArtifactVersionCommitBody_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.UpdateArtifactVersionCommitBodyParams
+		if args[1] != nil {
+			arg1 = args[1].(db.UpdateArtifactVersionCommitBodyParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_UpdateArtifactVersionCommitBody_Call) Return(err error) *MockTx_UpdateArtifactVersionCommitBody_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTx_UpdateArtifactVersionCommitBody_Call) RunAndReturn(run func(ctx context.Context, arg db.UpdateArtifactVersionCommitBodyParams) error) *MockTx_UpdateArtifactVersionCommitBody_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2418,6 +2668,74 @@ func (_c *MockRepository_ListArtifactVersionAssets_Call) Return(artifactVersione
 }
 
 func (_c *MockRepository_ListArtifactVersionAssets_Call) RunAndReturn(run func(ctx context.Context, artifactVersionID int64) ([]db.ArtifactVersionedAsset, error)) *MockRepository_ListArtifactVersionAssets_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListArtifactVersionStringsByArtifactID provides a mock function for the type MockRepository
+func (_mock *MockRepository) ListArtifactVersionStringsByArtifactID(ctx context.Context, arg db.ListArtifactVersionStringsByArtifactIDParams) ([]string, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListArtifactVersionStringsByArtifactID")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListArtifactVersionStringsByArtifactIDParams) ([]string, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListArtifactVersionStringsByArtifactIDParams) []string); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.ListArtifactVersionStringsByArtifactIDParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_ListArtifactVersionStringsByArtifactID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListArtifactVersionStringsByArtifactID'
+type MockRepository_ListArtifactVersionStringsByArtifactID_Call struct {
+	*mock.Call
+}
+
+// ListArtifactVersionStringsByArtifactID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.ListArtifactVersionStringsByArtifactIDParams
+func (_e *MockRepository_Expecter) ListArtifactVersionStringsByArtifactID(ctx interface{}, arg interface{}) *MockRepository_ListArtifactVersionStringsByArtifactID_Call {
+	return &MockRepository_ListArtifactVersionStringsByArtifactID_Call{Call: _e.mock.On("ListArtifactVersionStringsByArtifactID", ctx, arg)}
+}
+
+func (_c *MockRepository_ListArtifactVersionStringsByArtifactID_Call) Run(run func(ctx context.Context, arg db.ListArtifactVersionStringsByArtifactIDParams)) *MockRepository_ListArtifactVersionStringsByArtifactID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.ListArtifactVersionStringsByArtifactIDParams
+		if args[1] != nil {
+			arg1 = args[1].(db.ListArtifactVersionStringsByArtifactIDParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_ListArtifactVersionStringsByArtifactID_Call) Return(strings []string, err error) *MockRepository_ListArtifactVersionStringsByArtifactID_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockRepository_ListArtifactVersionStringsByArtifactID_Call) RunAndReturn(run func(ctx context.Context, arg db.ListArtifactVersionStringsByArtifactIDParams) ([]string, error)) *MockRepository_ListArtifactVersionStringsByArtifactID_Call {
 	_c.Call.Return(run)
 	return _c
 }
