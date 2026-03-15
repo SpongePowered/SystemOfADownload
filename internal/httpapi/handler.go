@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"go.temporal.io/sdk/client"
 
@@ -139,7 +139,10 @@ func (h *Handler) RegisterArtifact(ctx context.Context, request api.RegisterArti
 			ArtifactID: request.Body.ArtifactId,
 		})
 		if err != nil {
-			log.Printf("failed to start version sync workflow for %s:%s: %v", request.GroupID, request.Body.ArtifactId, err)
+			slog.ErrorContext(ctx, "failed to start version sync workflow",
+				"groupID", request.GroupID,
+				"artifactID", request.Body.ArtifactId,
+				"error", err)
 		}
 	}
 

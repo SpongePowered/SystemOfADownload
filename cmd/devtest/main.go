@@ -17,7 +17,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -245,13 +245,14 @@ func main() {
 	defer cancel()
 
 	if err := run(ctx); err != nil {
-		log.Fatal(err)
+		slog.Error("fatal error", "error", err)
+		os.Exit(1)
 	}
 }
 
 func run(ctx context.Context) error {
 	// --- Start PostgreSQL ---
-	log.Println("Starting PostgreSQL container...")
+	slog.InfoContext(ctx, "starting PostgreSQL container")
 	pgContainer, err := postgres.Run(ctx,
 		"postgres:16-alpine",
 		postgres.WithDatabase("devtest"),
@@ -282,12 +283,12 @@ func run(ctx context.Context) error {
 	if _, err := pool.Exec(ctx, pgSchema); err != nil {
 		return fmt.Errorf("applying schema: %w", err)
 	}
-	log.Println("PostgreSQL ready.")
+	slog.InfoContext(ctx, "PostgreSQL ready")
 
 	repo := repository.NewRepository(pool)
 
 	// --- Seed data ---
-	log.Println("Seeding group...")
+	slog.InfoContext(ctx, "seeding group")
 	if err := repo.WithTx(ctx, func(tx repository.Tx) error {
 		_, err := tx.CreateGroup(ctx, db.CreateGroupParams{
 			MavenID: groupID,
@@ -305,7 +306,7 @@ func run(ctx context.Context) error {
 	}
 
 	// --- Connect to Temporal ---
-	log.Println("Connecting to Temporal...")
+	slog.InfoContext(ctx, "connecting to Temporal", "addr", temporalAddr)
 	c, err := client.Dial(client.Options{HostPort: temporalAddr})
 	if err != nil {
 		return fmt.Errorf("dialing temporal: %w", err)
@@ -324,12 +325,13 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("starting worker: %w", err)
 	}
 	defer w.Stop()
-	log.Println("Worker registered and started.")
+	slog.InfoContext(ctx, "worker registered and started", "taskQueue", taskQueue)
 
 	// --- Execute workflows ---
 	for _, ac := range artifacts {
 		wfID := fmt.Sprintf("devtest-ordering-%s", ac.ArtifactID)
-		log.Printf("Starting VersionOrderingWorkflow for %s (workflow ID: %s)...", ac.ArtifactID, wfID)
+		slog.InfoContext(ctx, "starting VersionOrderingWorkflow",
+			"artifactID", ac.ArtifactID, "workflowID", wfID)
 
 		run, err := c.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
 			ID:        wfID,
@@ -346,39 +348,43 @@ func run(ctx context.Context) error {
 		if err := run.Get(ctx, &result); err != nil {
 			return fmt.Errorf("workflow %s failed: %w", ac.ArtifactID, err)
 		}
-		log.Printf("  %s: ordered %d versions", ac.ArtifactID, result.VersionsOrdered)
+		slog.InfoContext(ctx, "workflow completed",
+			"artifactID", ac.ArtifactID, "versionsOrdered", result.VersionsOrdered)
 	}
 
 	// --- Verify: print sample tags per artifact ---
-	log.Println("")
+	fmt.Println()
 	for _, ac := range artifacts {
 		if err := printSampleTags(ctx, repo, ac.ArtifactID); err != nil {
-			log.Printf("WARNING: failed to print sample tags for %s: %v", ac.ArtifactID, err)
+			slog.WarnContext(ctx, "failed to print sample tags",
+				"artifactID", ac.ArtifactID, "error", err)
 		}
 	}
 
 	// --- Verify: GetArtifact service call ---
-	log.Println("")
+	fmt.Println()
 	svc := app.NewService(repo)
 	for _, ac := range artifacts {
 		artifact, tags, err := svc.GetArtifact(ctx, groupID, ac.ArtifactID)
 		if err != nil {
-			log.Printf("WARNING: GetArtifact failed for %s: %v", ac.ArtifactID, err)
+			slog.WarnContext(ctx, "GetArtifact failed", "artifactID", ac.ArtifactID, "error", err)
 			continue
 		}
-		log.Printf("[%s] GetArtifact: %s (%s)", ac.ArtifactID, artifact.DisplayName, artifact.ArtifactID)
+		slog.InfoContext(ctx, "verified GetArtifact",
+			"artifactID", ac.ArtifactID,
+			"displayName", artifact.DisplayName)
 		for key, values := range tags {
 			if len(values) > 5 {
-				log.Printf("  tag %q: %d distinct values (first 5: %v)", key, len(values), values[:5])
+				fmt.Printf("  tag %q: %d distinct values (first 5: %v)\n", key, len(values), values[:5])
 			} else {
-				log.Printf("  tag %q: %v", key, values)
+				fmt.Printf("  tag %q: %v\n", key, values)
 			}
 		}
 	}
 
-	log.Println("")
-	log.Println("All workflows completed. Inspect event history at http://localhost:8233")
-	log.Println("Press Ctrl+C to shut down.")
+	fmt.Println()
+	slog.InfoContext(ctx, "all workflows completed — inspect event history at http://localhost:8233")
+	slog.InfoContext(ctx, "press Ctrl+C to shut down")
 
 	// Keep alive so the user can inspect.
 	<-ctx.Done()
@@ -391,7 +397,8 @@ func seedArtifact(ctx context.Context, repo repository.Repository, ac artifactCo
 	if err != nil {
 		return fmt.Errorf("fetching versions: %w", err)
 	}
-	log.Printf("Fetched %d versions for %s from Sonatype.", len(versions), ac.ArtifactID)
+	slog.InfoContext(ctx, "fetched versions from Sonatype",
+		"artifactID", ac.ArtifactID, "count", len(versions))
 
 	// Marshal schema.
 	var schemaJSON []byte
@@ -449,7 +456,7 @@ func seedArtifact(ctx context.Context, repo repository.Repository, ac artifactCo
 			return fmt.Errorf("seeding versions batch %d-%d: %w", i, end, err)
 		}
 	}
-	log.Printf("Seeded %d versions for %s.", len(versions), ac.ArtifactID)
+	slog.InfoContext(ctx, "seeded versions", "artifactID", ac.ArtifactID, "count", len(versions))
 	return nil
 }
 
@@ -499,14 +506,14 @@ func printSampleTags(ctx context.Context, repo repository.Repository, artifactID
 		return err
 	}
 	if len(versions) == 0 {
-		log.Printf("[%s] No versions found.", artifactID)
+		slog.InfoContext(ctx, "no versions found", "artifactID", artifactID)
 		return nil
 	}
 
 	// Pick a few samples: newest 3, oldest 3, and 3 from the middle.
 	samples := pickSamples(versions, 3)
 
-	log.Printf("[%s] Sample version tags (%d total versions):", artifactID, len(versions))
+	fmt.Printf("[%s] Sample version tags (%d total versions):\n", artifactID, len(versions))
 	for _, v := range samples {
 		tags, err := repo.ListArtifactVersionTags(ctx, v.ID)
 		if err != nil {
@@ -516,7 +523,7 @@ func printSampleTags(ctx context.Context, repo repository.Repository, artifactID
 		for _, t := range tags {
 			tagMap[t.TagKey] = t.TagValue
 		}
-		log.Printf("  sort=%04d  %-45s  tags=%v", v.SortOrder, v.Version, tagMap)
+		fmt.Printf("  sort=%04d  %-45s  tags=%v\n", v.SortOrder, v.Version, tagMap)
 	}
 
 	// Also count how many versions have no tags (unmatched by schema).
@@ -528,13 +535,13 @@ func printSampleTags(ctx context.Context, repo repository.Repository, artifactID
 		}
 	}
 	if untagged > 0 {
-		log.Printf("  [%s] WARNING: %d/%d versions have no tags (unmatched by schema)", artifactID, untagged, len(versions))
-		// Print a few untagged examples.
+		slog.WarnContext(ctx, "versions unmatched by schema",
+			"artifactID", artifactID, "untagged", untagged, "total", len(versions))
 		count := 0
 		for _, v := range versions {
 			tags, _ := repo.ListArtifactVersionTags(ctx, v.ID)
 			if len(tags) == 0 {
-				log.Printf("    untagged: %s", v.Version)
+				fmt.Printf("    untagged: %s\n", v.Version)
 				count++
 				if count >= 5 {
 					break

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -65,8 +65,6 @@ func NewTemporalClient(lc fx.Lifecycle, cfg *Config) (client.Client, error) {
 }
 
 func NewDBPool(lc fx.Lifecycle, cfg *Config) (*pgxpool.Pool, error) {
-	// We use context.Background() here because the pool should live for the duration of the app.
-	// fx.Lifecycle will handle closing it.
 	pool, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
 	if err != nil {
 		return nil, err
@@ -90,18 +88,17 @@ func NewHTTPServer(lc fx.Lifecycle, cfg *Config, handler http.Handler, s fx.Shut
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			fmt.Printf("Starting server on :%s\n", cfg.Port)
+			slog.InfoContext(ctx, "starting HTTP server", "addr", ":"+cfg.Port)
 			go func() {
 				if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-					log.Printf("Server failed: %v\n", err)
+					slog.Error("server failed", "error", err)
 					_ = s.Shutdown()
 				}
 			}()
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			log.Println("Shutting down server...")
-			// The ctx passed to OnStop has the timeout defined by fx (default 15s)
+			slog.InfoContext(ctx, "shutting down HTTP server")
 			return srv.Shutdown(ctx)
 		},
 	})
