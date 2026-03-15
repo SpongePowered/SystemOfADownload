@@ -428,6 +428,6 @@ terraform.rc
 .bsp
 
 # Go binaries
-server
-worker
+./server
+./worker
 bin/
