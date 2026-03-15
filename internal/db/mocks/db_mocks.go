@@ -1097,6 +1097,74 @@ func (_c *MockQuerier_ListArtifactsByGroup_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
+// ListDistinctTagsByArtifact provides a mock function for the type MockQuerier
+func (_mock *MockQuerier) ListDistinctTagsByArtifact(ctx context.Context, arg db.ListDistinctTagsByArtifactParams) ([]db.ListDistinctTagsByArtifactRow, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListDistinctTagsByArtifact")
+	}
+
+	var r0 []db.ListDistinctTagsByArtifactRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListDistinctTagsByArtifactParams) ([]db.ListDistinctTagsByArtifactRow, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListDistinctTagsByArtifactParams) []db.ListDistinctTagsByArtifactRow); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]db.ListDistinctTagsByArtifactRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.ListDistinctTagsByArtifactParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockQuerier_ListDistinctTagsByArtifact_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListDistinctTagsByArtifact'
+type MockQuerier_ListDistinctTagsByArtifact_Call struct {
+	*mock.Call
+}
+
+// ListDistinctTagsByArtifact is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.ListDistinctTagsByArtifactParams
+func (_e *MockQuerier_Expecter) ListDistinctTagsByArtifact(ctx interface{}, arg interface{}) *MockQuerier_ListDistinctTagsByArtifact_Call {
+	return &MockQuerier_ListDistinctTagsByArtifact_Call{Call: _e.mock.On("ListDistinctTagsByArtifact", ctx, arg)}
+}
+
+func (_c *MockQuerier_ListDistinctTagsByArtifact_Call) Run(run func(ctx context.Context, arg db.ListDistinctTagsByArtifactParams)) *MockQuerier_ListDistinctTagsByArtifact_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.ListDistinctTagsByArtifactParams
+		if args[1] != nil {
+			arg1 = args[1].(db.ListDistinctTagsByArtifactParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockQuerier_ListDistinctTagsByArtifact_Call) Return(listDistinctTagsByArtifactRows []db.ListDistinctTagsByArtifactRow, err error) *MockQuerier_ListDistinctTagsByArtifact_Call {
+	_c.Call.Return(listDistinctTagsByArtifactRows, err)
+	return _c
+}
+
+func (_c *MockQuerier_ListDistinctTagsByArtifact_Call) RunAndReturn(run func(ctx context.Context, arg db.ListDistinctTagsByArtifactParams) ([]db.ListDistinctTagsByArtifactRow, error)) *MockQuerier_ListDistinctTagsByArtifact_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListGroups provides a mock function for the type MockQuerier
 func (_mock *MockQuerier) ListGroups(ctx context.Context) ([]db.Group, error) {
 	ret := _mock.Called(ctx)

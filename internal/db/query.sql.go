@@ -10,14 +10,15 @@ import (
 )
 
 const createArtifact = `-- name: CreateArtifact :one
-INSERT INTO artifacts (group_id, artifact_id, name, website, git_repositories, version_schema)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO artifacts (group_id, artifact_id, name, website, issues, git_repositories, version_schema)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (group_id, artifact_id) DO UPDATE SET
     name = EXCLUDED.name,
     website = EXCLUDED.website,
+    issues = EXCLUDED.issues,
     git_repositories = EXCLUDED.git_repositories,
     version_schema = EXCLUDED.version_schema
-RETURNING id, group_id, artifact_id, name, website, git_repositories, version_schema
+RETURNING id, group_id, artifact_id, name, website, issues, git_repositories, version_schema
 `
 
 type CreateArtifactParams struct {
@@ -25,6 +26,7 @@ type CreateArtifactParams struct {
 	ArtifactID      string
 	Name            string
 	Website         *string
+	Issues          *string
 	GitRepositories []byte
 	VersionSchema   []byte
 }
@@ -35,6 +37,7 @@ func (q *Queries) CreateArtifact(ctx context.Context, arg CreateArtifactParams) 
 		arg.ArtifactID,
 		arg.Name,
 		arg.Website,
+		arg.Issues,
 		arg.GitRepositories,
 		arg.VersionSchema,
 	)
@@ -45,6 +48,7 @@ func (q *Queries) CreateArtifact(ctx context.Context, arg CreateArtifactParams) 
 		&i.ArtifactID,
 		&i.Name,
 		&i.Website,
+		&i.Issues,
 		&i.GitRepositories,
 		&i.VersionSchema,
 	)
@@ -170,7 +174,7 @@ func (q *Queries) DeleteArtifactVersionTags(ctx context.Context, artifactVersion
 }
 
 const getArtifactByGroupAndId = `-- name: GetArtifactByGroupAndId :one
-SELECT id, group_id, artifact_id, name, website, git_repositories, version_schema FROM artifacts
+SELECT id, group_id, artifact_id, name, website, issues, git_repositories, version_schema FROM artifacts
 WHERE group_id = $1 AND artifact_id = $2
 `
 
@@ -188,6 +192,7 @@ func (q *Queries) GetArtifactByGroupAndId(ctx context.Context, arg GetArtifactBy
 		&i.ArtifactID,
 		&i.Name,
 		&i.Website,
+		&i.Issues,
 		&i.GitRepositories,
 		&i.VersionSchema,
 	)
@@ -390,7 +395,7 @@ func (q *Queries) ListArtifactVersions(ctx context.Context, arg ListArtifactVers
 }
 
 const listArtifactsByGroup = `-- name: ListArtifactsByGroup :many
-SELECT id, group_id, artifact_id, name, website, git_repositories, version_schema FROM artifacts
+SELECT id, group_id, artifact_id, name, website, issues, git_repositories, version_schema FROM artifacts
 WHERE group_id = $1
 `
 
@@ -409,9 +414,49 @@ func (q *Queries) ListArtifactsByGroup(ctx context.Context, groupID string) ([]A
 			&i.ArtifactID,
 			&i.Name,
 			&i.Website,
+			&i.Issues,
 			&i.GitRepositories,
 			&i.VersionSchema,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDistinctTagsByArtifact = `-- name: ListDistinctTagsByArtifact :many
+SELECT DISTINCT t.tag_key, t.tag_value
+FROM artifact_versioned_tags t
+JOIN artifact_versions av ON t.artifact_version_id = av.id
+JOIN artifacts a ON av.artifact_id = a.id
+WHERE a.group_id = $1 AND a.artifact_id = $2
+ORDER BY t.tag_key, t.tag_value
+`
+
+type ListDistinctTagsByArtifactParams struct {
+	GroupID    string
+	ArtifactID string
+}
+
+type ListDistinctTagsByArtifactRow struct {
+	TagKey   string
+	TagValue string
+}
+
+func (q *Queries) ListDistinctTagsByArtifact(ctx context.Context, arg ListDistinctTagsByArtifactParams) ([]ListDistinctTagsByArtifactRow, error) {
+	rows, err := q.db.Query(ctx, listDistinctTagsByArtifact, arg.GroupID, arg.ArtifactID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListDistinctTagsByArtifactRow
+	for rows.Next() {
+		var i ListDistinctTagsByArtifactRow
+		if err := rows.Scan(&i.TagKey, &i.TagValue); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -20,6 +20,7 @@ type Reads interface {
 	ListArtifactVersions(ctx context.Context, arg db.ListArtifactVersionsParams) ([]db.ArtifactVersion, error)
 	ListArtifactVersionStringsByArtifactID(ctx context.Context, arg db.ListArtifactVersionStringsByArtifactIDParams) ([]string, error)
 	ListArtifactsByGroup(ctx context.Context, groupID string) ([]db.Artifact, error)
+	ListDistinctTagsByArtifact(ctx context.Context, arg db.ListDistinctTagsByArtifactParams) ([]db.ListDistinctTagsByArtifactRow, error)
 	ListGroups(ctx context.Context) ([]db.Group, error)
 }
 
@@ -138,6 +139,10 @@ func (r *postgresRepository) ListArtifactVersionStringsByArtifactID(ctx context.
 
 func (r *postgresRepository) ListArtifactsByGroup(ctx context.Context, groupID string) ([]db.Artifact, error) {
 	return r.q.ListArtifactsByGroup(ctx, groupID)
+}
+
+func (r *postgresRepository) ListDistinctTagsByArtifact(ctx context.Context, arg db.ListDistinctTagsByArtifactParams) ([]db.ListDistinctTagsByArtifactRow, error) {
+	return r.q.ListDistinctTagsByArtifact(ctx, arg)
 }
 
 func (r *postgresRepository) ListGroups(ctx context.Context) ([]db.Group, error) {

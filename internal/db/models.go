@@ -10,6 +10,7 @@ type Artifact struct {
 	ArtifactID      string
 	Name            string
 	Website         *string
+	Issues          *string
 	GitRepositories []byte
 	VersionSchema   []byte
 }

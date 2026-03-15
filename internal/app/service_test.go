@@ -47,7 +47,7 @@ func TestService_GetGroup(t *testing.T) {
 			mockSetup: func(t *testing.T, m *repositorymocks.MockRepository) {
 				m.EXPECT().GetGroup(mock.Anything, "missing").Return(db.Group{}, pgx.ErrNoRows)
 			},
-			want: nil,
+			wantErr: app.ErrGroupNotFound,
 		},
 		{
 			name:    "db error",

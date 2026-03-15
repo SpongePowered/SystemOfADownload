@@ -55,11 +55,12 @@ ON CONFLICT (maven_id) DO UPDATE SET
 RETURNING *;
 
 -- name: CreateArtifact :one
-INSERT INTO artifacts (group_id, artifact_id, name, website, git_repositories, version_schema)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO artifacts (group_id, artifact_id, name, website, issues, git_repositories, version_schema)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (group_id, artifact_id) DO UPDATE SET
     name = EXCLUDED.name,
     website = EXCLUDED.website,
+    issues = EXCLUDED.issues,
     git_repositories = EXCLUDED.git_repositories,
     version_schema = EXCLUDED.version_schema
 RETURNING *;
@@ -99,3 +100,11 @@ RETURNING *;
 -- name: DeleteArtifactVersionTags :exec
 DELETE FROM artifact_versioned_tags
 WHERE artifact_version_id = $1;
+
+-- name: ListDistinctTagsByArtifact :many
+SELECT DISTINCT t.tag_key, t.tag_value
+FROM artifact_versioned_tags t
+JOIN artifact_versions av ON t.artifact_version_id = av.id
+JOIN artifacts a ON av.artifact_id = a.id
+WHERE a.group_id = $1 AND a.artifact_id = $2
+ORDER BY t.tag_key, t.tag_value;

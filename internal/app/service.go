@@ -16,6 +16,7 @@ var (
 	ErrGroupAlreadyExists    = errors.New("group already exists")
 	ErrGroupNotFound         = errors.New("group not found")
 	ErrArtifactAlreadyExists = errors.New("artifact already exists")
+	ErrArtifactNotFound      = errors.New("artifact not found")
 )
 
 type Service struct {
@@ -30,7 +31,7 @@ func (s *Service) GetGroup(ctx context.Context, groupID string) (*domain.Group, 
 	g, err := s.repo.GetGroup(ctx, groupID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
+			return nil, ErrGroupNotFound
 		}
 		return nil, err
 	}
@@ -60,9 +61,7 @@ func (s *Service) ListGroups(ctx context.Context) ([]*domain.Group, error) {
 }
 
 func (s *Service) RegisterGroup(ctx context.Context, group *domain.Group) error {
-	// Use a transaction to ensure atomicity of the check-then-insert operation.
 	return s.repo.WithTx(ctx, func(tx repository.Tx) error {
-		// Check if group already exists (case insensitive)
 		exists, err := tx.GroupExistsByMavenID(ctx, group.GroupID)
 		if err != nil {
 			return fmt.Errorf("failed to check if group exists: %w", err)
@@ -93,10 +92,53 @@ func (s *Service) ListArtifacts(ctx context.Context, groupID string) ([]string, 
 	return artifactIDs, nil
 }
 
+func (s *Service) GetArtifact(ctx context.Context, groupID, artifactID string) (*domain.Artifact, map[string][]string, error) {
+	a, err := s.repo.GetArtifactByGroupAndId(ctx, db.GetArtifactByGroupAndIdParams{
+		GroupID:    groupID,
+		ArtifactID: artifactID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil, ErrArtifactNotFound
+		}
+		return nil, nil, err
+	}
+
+	var gitRepos []string
+	if err := json.Unmarshal(a.GitRepositories, &gitRepos); err != nil {
+		return nil, nil, fmt.Errorf("unmarshaling git repositories: %w", err)
+	}
+	if gitRepos == nil {
+		gitRepos = []string{}
+	}
+
+	artifact := &domain.Artifact{
+		GroupID:         a.GroupID,
+		ArtifactID:      a.ArtifactID,
+		DisplayName:     a.Name,
+		Website:         a.Website,
+		Issues:          a.Issues,
+		GitRepositories: gitRepos,
+	}
+
+	tagRows, err := s.repo.ListDistinctTagsByArtifact(ctx, db.ListDistinctTagsByArtifactParams{
+		GroupID:    groupID,
+		ArtifactID: artifactID,
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("listing tags: %w", err)
+	}
+
+	tags := make(map[string][]string)
+	for _, row := range tagRows {
+		tags[row.TagKey] = append(tags[row.TagKey], row.TagValue)
+	}
+
+	return artifact, tags, nil
+}
+
 func (s *Service) RegisterArtifact(ctx context.Context, artifact *domain.Artifact) error {
-	// Use a transaction to ensure atomicity
 	return s.repo.WithTx(ctx, func(tx repository.Tx) error {
-		// Check if the group exists
 		_, err := tx.GetGroup(ctx, artifact.GroupID)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
@@ -105,32 +147,28 @@ func (s *Service) RegisterArtifact(ctx context.Context, artifact *domain.Artifac
 			return fmt.Errorf("failed to check if group exists: %w", err)
 		}
 
-		// Check if artifact already exists
 		_, err = tx.GetArtifactByGroupAndId(ctx, db.GetArtifactByGroupAndIdParams{
 			GroupID:    artifact.GroupID,
 			ArtifactID: artifact.ArtifactID,
 		})
 		if err == nil {
-			// Artifact exists
 			return ErrArtifactAlreadyExists
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("failed to check if artifact exists: %w", err)
 		}
 
-		// Create git repositories JSON array
-		gitRepos := artifact.GitRepositories
-		gitReposJSON, err := json.Marshal(gitRepos)
+		gitReposJSON, err := json.Marshal(artifact.GitRepositories)
 		if err != nil {
 			return fmt.Errorf("failed to marshal git repositories: %w", err)
 		}
 
-		// Create the artifact
 		_, err = tx.CreateArtifact(ctx, db.CreateArtifactParams{
 			GroupID:         artifact.GroupID,
 			ArtifactID:      artifact.ArtifactID,
 			Name:            artifact.DisplayName,
 			Website:         artifact.Website,
+			Issues:          artifact.Issues,
 			GitRepositories: gitReposJSON,
 		})
 		return err

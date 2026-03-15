@@ -245,7 +245,74 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 		}
 	})
 
-	// Step 8: List all groups
+	// Step 8: Get the artifact
+	t.Run("get artifact", func(t *testing.T) {
+		resp, err := client.Get(baseURL + "/groups/org.spongepowered/artifacts/spongevanilla")
+		if err != nil {
+			t.Fatalf("failed to get artifact: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected status 200, got %d", resp.StatusCode)
+		}
+
+		var got api.Artifact
+		if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
+
+		if got.Type != "latest" {
+			t.Errorf("expected type %q, got %q", "latest", got.Type)
+		}
+		if got.Coordinates.GroupId != "org.spongepowered" {
+			t.Errorf("expected groupId %q, got %q", "org.spongepowered", got.Coordinates.GroupId)
+		}
+		if got.Coordinates.ArtifactId != "spongevanilla" {
+			t.Errorf("expected artifactId %q, got %q", "spongevanilla", got.Coordinates.ArtifactId)
+		}
+		if got.DisplayName == nil || *got.DisplayName != "SpongeVanilla" {
+			t.Errorf("expected displayName %q, got %v", "SpongeVanilla", got.DisplayName)
+		}
+		artifactWebsite := "https://github.com/SpongePowered/Sponge"
+		if got.Website == nil || *got.Website != artifactWebsite {
+			t.Errorf("expected website %q, got %v", artifactWebsite, got.Website)
+		}
+		if got.GitRepository == nil || len(*got.GitRepository) != 1 {
+			t.Errorf("expected 1 git repository, got %v", got.GitRepository)
+		}
+		if got.Tags == nil {
+			t.Error("expected tags map, got nil")
+		}
+	})
+
+	// Step 9: Get non-existent artifact returns 404
+	t.Run("get artifact not found returns 404", func(t *testing.T) {
+		resp, err := client.Get(baseURL + "/groups/org.spongepowered/artifacts/nonexistent")
+		if err != nil {
+			t.Fatalf("failed to get artifact: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("expected status 404, got %d", resp.StatusCode)
+		}
+	})
+
+	// Step 10: Get non-existent group returns 404
+	t.Run("get group not found returns 404", func(t *testing.T) {
+		resp, err := client.Get(baseURL + "/groups/com.nonexistent")
+		if err != nil {
+			t.Fatalf("failed to get group: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("expected status 404, got %d", resp.StatusCode)
+		}
+	})
+
+	// Step 11: List all groups
 	t.Run("list groups includes registered group", func(t *testing.T) {
 		resp, err := client.Get(baseURL + "/groups")
 		if err != nil {

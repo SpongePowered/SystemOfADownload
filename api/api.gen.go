@@ -594,6 +594,14 @@ func (response GetGroup200JSONResponse) VisitGetGroupResponse(w http.ResponseWri
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetGroup404Response struct {
+}
+
+func (response GetGroup404Response) VisitGetGroupResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
 type GetArtifactsRequestObject struct {
 	GroupID GroupID `json:"groupID"`
 }
@@ -669,6 +677,14 @@ func (response GetArtifact200JSONResponse) VisitGetArtifactResponse(w http.Respo
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
+}
+
+type GetArtifact404Response struct {
+}
+
+func (response GetArtifact404Response) VisitGetArtifactResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
 }
 
 type GetVersionsRequestObject struct {

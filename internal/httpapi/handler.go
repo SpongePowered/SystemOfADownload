@@ -70,14 +70,10 @@ func (h *Handler) RegisterGroup(ctx context.Context, request api.RegisterGroupRe
 func (h *Handler) GetGroup(ctx context.Context, request api.GetGroupRequestObject) (api.GetGroupResponseObject, error) {
 	g, err := h.service.GetGroup(ctx, request.GroupID)
 	if err != nil {
+		if errors.Is(err, app.ErrGroupNotFound) {
+			return api.GetGroup404Response{}, nil
+		}
 		return nil, err
-	}
-
-	if g == nil {
-		// The API doesn't seem to define a 404 for GetGroup in openapi.yaml,
-		// but returning a zero value might be wrong.
-		// Let's check openapi.yaml again.
-		return nil, nil // TODO: handle 404 if needed
 	}
 
 	return api.GetGroup200JSONResponse{
@@ -167,7 +163,29 @@ func (h *Handler) RegisterArtifact(ctx context.Context, request api.RegisterArti
 }
 
 func (h *Handler) GetArtifact(ctx context.Context, request api.GetArtifactRequestObject) (api.GetArtifactResponseObject, error) {
-	return nil, nil
+	artifact, tags, err := h.service.GetArtifact(ctx, request.GroupID, request.ArtifactID)
+	if err != nil {
+		if errors.Is(err, app.ErrArtifactNotFound) {
+			return api.GetArtifact404Response{}, nil
+		}
+		return nil, err
+	}
+
+	return api.GetArtifact200JSONResponse{
+		Type: "latest",
+		Coordinates: struct {
+			ArtifactId string `json:"artifactId"`
+			GroupId    string `json:"groupId"`
+		}{
+			ArtifactId: artifact.ArtifactID,
+			GroupId:    artifact.GroupID,
+		},
+		DisplayName:   &artifact.DisplayName,
+		GitRepository: &artifact.GitRepositories,
+		Website:       artifact.Website,
+		Issues:        artifact.Issues,
+		Tags:          tags,
+	}, nil
 }
 
 func (h *Handler) GetVersions(ctx context.Context, request api.GetVersionsRequestObject) (api.GetVersionsResponseObject, error) {

@@ -32,6 +32,7 @@ import (
 	"go.temporal.io/sdk/worker"
 
 	"github.com/spongepowered/systemofadownload/internal/activity"
+	"github.com/spongepowered/systemofadownload/internal/app"
 	"github.com/spongepowered/systemofadownload/internal/db"
 	"github.com/spongepowered/systemofadownload/internal/domain"
 	"github.com/spongepowered/systemofadownload/internal/repository"
@@ -353,6 +354,25 @@ func run(ctx context.Context) error {
 	for _, ac := range artifacts {
 		if err := printSampleTags(ctx, repo, ac.ArtifactID); err != nil {
 			log.Printf("WARNING: failed to print sample tags for %s: %v", ac.ArtifactID, err)
+		}
+	}
+
+	// --- Verify: GetArtifact service call ---
+	log.Println("")
+	svc := app.NewService(repo)
+	for _, ac := range artifacts {
+		artifact, tags, err := svc.GetArtifact(ctx, groupID, ac.ArtifactID)
+		if err != nil {
+			log.Printf("WARNING: GetArtifact failed for %s: %v", ac.ArtifactID, err)
+			continue
+		}
+		log.Printf("[%s] GetArtifact: %s (%s)", ac.ArtifactID, artifact.DisplayName, artifact.ArtifactID)
+		for key, values := range tags {
+			if len(values) > 5 {
+				log.Printf("  tag %q: %d distinct values (first 5: %v)", key, len(values), values[:5])
+			} else {
+				log.Printf("  tag %q: %v", key, values)
+			}
 		}
 	}
 

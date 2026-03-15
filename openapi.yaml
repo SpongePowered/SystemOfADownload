@@ -55,6 +55,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Group'
+        '404':
+          description: Group not found
   /groups/{groupID}/artifacts:
     get:
       tags:
@@ -110,6 +112,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Artifact'
+        '404':
+          description: Artifact not found
   '/groups/{groupID}/artifacts/{artifactID}/versions':
     get:
       tags:

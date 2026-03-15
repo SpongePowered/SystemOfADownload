@@ -25,6 +25,7 @@ type Querier interface {
 	ListArtifactVersionTags(ctx context.Context, artifactVersionID int64) ([]ArtifactVersionedTag, error)
 	ListArtifactVersions(ctx context.Context, arg ListArtifactVersionsParams) ([]ArtifactVersion, error)
 	ListArtifactsByGroup(ctx context.Context, groupID string) ([]Artifact, error)
+	ListDistinctTagsByArtifact(ctx context.Context, arg ListDistinctTagsByArtifactParams) ([]ListDistinctTagsByArtifactRow, error)
 	ListGroups(ctx context.Context) ([]Group, error)
 	UpdateArtifactVersionCommitBody(ctx context.Context, arg UpdateArtifactVersionCommitBodyParams) error
 	UpdateArtifactVersionOrder(ctx context.Context, arg UpdateArtifactVersionOrderParams) error

@@ -10,6 +10,7 @@ CREATE TABLE artifacts (
     artifact_id TEXT NOT NULL,
     name TEXT NOT NULL,
     website TEXT,
+    issues TEXT,
     git_repositories JSONB NOT NULL DEFAULT '[]',
     version_schema JSONB,
     UNIQUE(group_id, artifact_id)
