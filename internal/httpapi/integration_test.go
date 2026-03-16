@@ -312,7 +312,59 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 		}
 	})
 
-	// Step 11: List all groups
+	// Step 11: GetVersions returns 404 for artifact with no versions table existence check
+	t.Run("get versions for non-existent artifact returns 404", func(t *testing.T) {
+		resp, err := client.Get(baseURL + "/groups/org.spongepowered/artifacts/nonexistent/versions")
+		if err != nil {
+			t.Fatalf("failed to get versions: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("expected status 404, got %d", resp.StatusCode)
+		}
+	})
+
+	// Step 12: GetVersions returns empty for artifact with no versions
+	t.Run("get versions for artifact with no versions", func(t *testing.T) {
+		resp, err := client.Get(baseURL + "/groups/org.spongepowered/artifacts/spongevanilla/versions")
+		if err != nil {
+			t.Fatalf("failed to get versions: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected status 200, got %d", resp.StatusCode)
+		}
+	})
+
+	// Step 13: GetVersions returns 400 for invalid limit
+	t.Run("get versions with invalid limit returns 400", func(t *testing.T) {
+		resp, err := client.Get(baseURL + "/groups/org.spongepowered/artifacts/spongevanilla/versions?limit=50")
+		if err != nil {
+			t.Fatalf("failed to get versions: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("expected status 400, got %d", resp.StatusCode)
+		}
+	})
+
+	// Step 14: GetVersions returns 400 for malformed tags
+	t.Run("get versions with malformed tags returns 400", func(t *testing.T) {
+		resp, err := client.Get(baseURL + "/groups/org.spongepowered/artifacts/spongevanilla/versions?tags=badformat")
+		if err != nil {
+			t.Fatalf("failed to get versions: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Fatalf("expected status 400, got %d", resp.StatusCode)
+		}
+	})
+
+	// Step 15: List all groups
 	t.Run("list groups includes registered group", func(t *testing.T) {
 		resp, err := client.Get(baseURL + "/groups")
 		if err != nil {

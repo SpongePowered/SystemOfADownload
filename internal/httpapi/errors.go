@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/spongepowered/systemofadownload/api"
@@ -91,3 +92,23 @@ func (e *ArtifactAlreadyExistsError) VisitRegisterArtifactResponse(w http.Respon
 // Ensure ArtifactAlreadyExistsError implements both error and RegisterArtifactResponseObject
 var _ error = (*ArtifactAlreadyExistsError)(nil)
 var _ api.RegisterArtifactResponseObject = (*ArtifactAlreadyExistsError)(nil)
+
+// GetVersionsBadRequestError returns 400 for invalid GetVersions parameters.
+type GetVersionsBadRequestError struct {
+	HTTPError
+}
+
+func NewGetVersionsBadRequestError(message string) *GetVersionsBadRequestError {
+	return &GetVersionsBadRequestError{
+		HTTPError: HTTPError{StatusCode: http.StatusBadRequest, Message: message},
+	}
+}
+
+func (e *GetVersionsBadRequestError) VisitGetVersionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(e.StatusCode)
+	return json.NewEncoder(w).Encode(map[string]string{"error": e.Message})
+}
+
+var _ error = (*GetVersionsBadRequestError)(nil)
+var _ api.GetVersionsResponseObject = (*GetVersionsBadRequestError)(nil)

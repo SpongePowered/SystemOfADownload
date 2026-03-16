@@ -146,8 +146,9 @@ type ComputeVersionOrderingInput struct {
 
 // VersionSortAssignment maps a version's database ID to its computed sort order.
 type VersionSortAssignment struct {
-	VersionID int64
-	SortOrder int32
+	VersionID   int64
+	SortOrder   int32
+	Recommended bool
 }
 
 // VersionTagSet holds the extracted tags for a single version.
@@ -234,8 +235,9 @@ func (a *VersionOrderingActivities) ComputeVersionOrdering(ctx context.Context, 
 	assignments := make([]VersionSortAssignment, len(items))
 	for i, item := range items {
 		assignments[i] = VersionSortAssignment{
-			VersionID: item.dbID,
-			SortOrder: int32(i + 1),
+			VersionID:   item.dbID,
+			SortOrder:   int32(i + 1),
+			Recommended: item.parsed.Qualifier == domain.QualifierRelease,
 		}
 	}
 
@@ -282,8 +284,9 @@ func (a *VersionOrderingActivities) ApplyVersionOrdering(ctx context.Context, in
 	return a.Repo.WithTx(ctx, func(tx repository.Tx) error {
 		for _, assign := range input.Assignments {
 			err := tx.UpdateArtifactVersionOrder(ctx, db.UpdateArtifactVersionOrderParams{
-				ID:        assign.VersionID,
-				SortOrder: assign.SortOrder,
+				ID:          assign.VersionID,
+				SortOrder:   assign.SortOrder,
+				Recommended: assign.Recommended,
 			})
 			if err != nil {
 				return fmt.Errorf("updating sort_order for version %d: %w", assign.VersionID, err)

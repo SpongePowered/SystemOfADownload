@@ -19,6 +19,13 @@ var (
 	ErrArtifactNotFound      = errors.New("artifact not found")
 )
 
+// VersionEntry represents a single version in the GetVersions response.
+type VersionEntry struct {
+	Version     string
+	Recommended bool
+	Tags        map[string]string
+}
+
 type Service struct {
 	repo repository.Repository
 }
@@ -135,6 +142,59 @@ func (s *Service) GetArtifact(ctx context.Context, groupID, artifactID string) (
 	}
 
 	return artifact, tags, nil
+}
+
+func (s *Service) GetVersions(ctx context.Context, params repository.VersionQueryParams) ([]VersionEntry, error) {
+	// Check artifact exists
+	_, err := s.repo.GetArtifactByGroupAndId(ctx, db.GetArtifactByGroupAndIdParams{
+		GroupID:    params.GroupID,
+		ArtifactID: params.ArtifactID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrArtifactNotFound
+		}
+		return nil, fmt.Errorf("checking artifact: %w", err)
+	}
+
+	versions, err := s.repo.ListVersionsFiltered(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("listing versions: %w", err)
+	}
+
+	if len(versions) == 0 {
+		return []VersionEntry{}, nil
+	}
+
+	// Batch-fetch tags for all returned versions
+	versionIDs := make([]int64, len(versions))
+	for i, v := range versions {
+		versionIDs[i] = v.ID
+	}
+
+	tagRows, err := s.repo.ListTagsForVersions(ctx, versionIDs)
+	if err != nil {
+		return nil, fmt.Errorf("listing tags: %w", err)
+	}
+
+	tagsByVersion := make(map[int64]map[string]string)
+	for _, row := range tagRows {
+		if tagsByVersion[row.ArtifactVersionID] == nil {
+			tagsByVersion[row.ArtifactVersionID] = make(map[string]string)
+		}
+		tagsByVersion[row.ArtifactVersionID][row.TagKey] = row.TagValue
+	}
+
+	entries := make([]VersionEntry, len(versions))
+	for i, v := range versions {
+		entries[i] = VersionEntry{
+			Version:     v.Version,
+			Recommended: v.Recommended,
+			Tags:        tagsByVersion[v.ID],
+		}
+	}
+
+	return entries, nil
 }
 
 func (s *Service) RegisterArtifact(ctx context.Context, artifact *domain.Artifact) error {

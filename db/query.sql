@@ -29,7 +29,7 @@ ORDER BY av.sort_order DESC;
 
 -- name: UpdateArtifactVersionOrder :exec
 UPDATE artifact_versions
-SET sort_order = $2
+SET sort_order = $2, recommended = $3
 WHERE id = $1;
 
 -- name: GetArtifactVersion :one
@@ -108,3 +108,18 @@ JOIN artifact_versions av ON t.artifact_version_id = av.id
 JOIN artifacts a ON av.artifact_id = a.id
 WHERE a.group_id = $1 AND a.artifact_id = $2
 ORDER BY t.tag_key, t.tag_value;
+
+-- name: ListArtifactVersionsPaginated :many
+SELECT av.*
+FROM artifact_versions av
+JOIN artifacts a ON av.artifact_id = a.id
+WHERE a.group_id = $1 AND a.artifact_id = $2
+  AND (sqlc.narg('recommended')::boolean IS NULL OR av.recommended = sqlc.narg('recommended'))
+ORDER BY av.sort_order DESC
+LIMIT $3 OFFSET $4;
+
+-- name: ListTagsForVersions :many
+SELECT t.artifact_version_id, t.tag_key, t.tag_value
+FROM artifact_versioned_tags t
+WHERE t.artifact_version_id = ANY($1::bigint[])
+ORDER BY t.artifact_version_id, t.tag_key;

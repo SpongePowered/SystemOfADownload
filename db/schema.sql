@@ -21,6 +21,7 @@ CREATE TABLE artifact_versions (
     artifact_id BIGINT NOT NULL REFERENCES artifacts(id),
     version TEXT NOT NULL,
     sort_order INTEGER NOT NULL DEFAULT 0,
+    recommended BOOLEAN NOT NULL DEFAULT false,
     commit_body JSONB,
     UNIQUE(artifact_id, version)
 );
@@ -39,3 +40,7 @@ CREATE TABLE artifact_versioned_tags (
     tag_value TEXT NOT NULL,
     PRIMARY KEY (artifact_version_id, tag_key)
 );
+
+CREATE INDEX idx_versioned_tags_key_value ON artifact_versioned_tags(tag_key, tag_value, artifact_version_id);
+CREATE INDEX idx_versions_artifact_sort ON artifact_versions(artifact_id, sort_order DESC);
+CREATE INDEX idx_versions_artifact_recommended_sort ON artifact_versions(artifact_id, recommended, sort_order DESC);

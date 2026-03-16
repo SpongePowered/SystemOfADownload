@@ -213,6 +213,7 @@ CREATE TABLE artifacts (
     artifact_id TEXT NOT NULL,
     name TEXT NOT NULL,
     website TEXT,
+    issues TEXT,
     git_repositories JSONB NOT NULL DEFAULT '[]',
     version_schema JSONB,
     UNIQUE(group_id, artifact_id)
@@ -222,6 +223,7 @@ CREATE TABLE artifact_versions (
     artifact_id BIGINT NOT NULL REFERENCES artifacts(id),
     version TEXT NOT NULL,
     sort_order INTEGER NOT NULL DEFAULT 0,
+    recommended BOOLEAN NOT NULL DEFAULT false,
     commit_body JSONB,
     UNIQUE(artifact_id, version)
 );
@@ -238,6 +240,10 @@ CREATE TABLE artifact_versioned_tags (
     tag_value TEXT NOT NULL,
     PRIMARY KEY (artifact_version_id, tag_key)
 );
+
+CREATE INDEX idx_versioned_tags_key_value ON artifact_versioned_tags(tag_key, tag_value, artifact_version_id);
+CREATE INDEX idx_versions_artifact_sort ON artifact_versions(artifact_id, sort_order DESC);
+CREATE INDEX idx_versions_artifact_recommended_sort ON artifact_versions(artifact_id, recommended, sort_order DESC);
 `
 
 func main() {
@@ -380,6 +386,42 @@ func run(ctx context.Context) error {
 				fmt.Printf("  tag %q: %v\n", key, values)
 			}
 		}
+	}
+
+	// --- Verify: GetVersions service call ---
+	fmt.Println()
+	for _, ac := range artifacts {
+		entries, err := svc.GetVersions(ctx, repository.VersionQueryParams{
+			GroupID:    groupID,
+			ArtifactID: ac.ArtifactID,
+			Limit:      5,
+			Offset:     0,
+		})
+		if err != nil {
+			slog.WarnContext(ctx, "GetVersions failed", "artifactID", ac.ArtifactID, "error", err)
+			continue
+		}
+		slog.InfoContext(ctx, "verified GetVersions",
+			"artifactID", ac.ArtifactID, "returned", len(entries))
+		for _, e := range entries {
+			fmt.Printf("  %-45s recommended=%-5t tags=%v\n", e.Version, e.Recommended, e.Tags)
+		}
+
+		// Also test with recommended=true
+		rec := true
+		recEntries, err := svc.GetVersions(ctx, repository.VersionQueryParams{
+			GroupID:     groupID,
+			ArtifactID:  ac.ArtifactID,
+			Recommended: &rec,
+			Limit:       5,
+			Offset:      0,
+		})
+		if err != nil {
+			slog.WarnContext(ctx, "GetVersions (recommended) failed", "artifactID", ac.ArtifactID, "error", err)
+			continue
+		}
+		slog.InfoContext(ctx, "verified GetVersions recommended=true",
+			"artifactID", ac.ArtifactID, "returned", len(recEntries))
 	}
 
 	fmt.Println()

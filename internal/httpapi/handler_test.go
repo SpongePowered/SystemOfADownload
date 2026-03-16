@@ -15,6 +15,8 @@ type mockQuerier struct {
 	db.Querier
 	groups    map[string]db.Group
 	artifacts map[string]db.Artifact // key: "groupID:artifactID"
+	versions  map[int64]db.ArtifactVersion
+	tags      map[int64][]db.ArtifactVersionedTag
 }
 
 func (m *mockQuerier) WithTx(ctx context.Context, fn func(repository.Tx) error) error {
@@ -74,6 +76,64 @@ func (m *mockQuerier) CreateArtifact(ctx context.Context, arg db.CreateArtifactP
 	}
 	m.artifacts[key] = a
 	return a, nil
+}
+
+func (m *mockQuerier) ListTagsForVersions(ctx context.Context, versionIDs []int64) ([]db.ArtifactVersionedTag, error) {
+	var result []db.ArtifactVersionedTag
+	for _, id := range versionIDs {
+		if tags, ok := m.tags[id]; ok {
+			result = append(result, tags...)
+		}
+	}
+	return result, nil
+}
+
+func (m *mockQuerier) ListVersionsFiltered(ctx context.Context, params repository.VersionQueryParams) ([]db.ArtifactVersion, error) {
+	// Find the artifact
+	key := params.GroupID + ":" + params.ArtifactID
+	artifact, ok := m.artifacts[key]
+	if !ok {
+		return nil, nil
+	}
+
+	// Filter versions by artifact ID, recommended, and tags
+	var filtered []db.ArtifactVersion
+	for _, v := range m.versions {
+		if v.ArtifactID != artifact.ID {
+			continue
+		}
+		if params.Recommended != nil && v.Recommended != *params.Recommended {
+			continue
+		}
+		if len(params.Tags) > 0 {
+			vTags := m.tags[v.ID]
+			tagMap := make(map[string]string)
+			for _, t := range vTags {
+				tagMap[t.TagKey] = t.TagValue
+			}
+			match := true
+			for k, val := range params.Tags {
+				if tagMap[k] != val {
+					match = false
+					break
+				}
+			}
+			if !match {
+				continue
+			}
+		}
+		filtered = append(filtered, v)
+	}
+
+	// Apply offset and limit
+	if int(params.Offset) >= len(filtered) {
+		return nil, nil
+	}
+	filtered = filtered[params.Offset:]
+	if int(params.Limit) < len(filtered) {
+		filtered = filtered[:params.Limit]
+	}
+	return filtered, nil
 }
 
 func TestHandler(t *testing.T) {
@@ -213,4 +273,220 @@ func TestHandler(t *testing.T) {
 	} else if httpErr.Message != "request body is required" {
 		t.Errorf("Expected error message 'request body is required', got '%s'", httpErr.Message)
 	}
+}
+
+func TestParseTags(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    map[string]string
+		wantErr bool
+	}{
+		{name: "single tag", input: "minecraft:1.12.2", want: map[string]string{"minecraft": "1.12.2"}},
+		{name: "multiple tags", input: "minecraft:1.12.2,api:7.4", want: map[string]string{"minecraft": "1.12.2", "api": "7.4"}},
+		{name: "with spaces around pair", input: " minecraft:1.12.2 , api:7.4 ", want: map[string]string{"minecraft": "1.12.2", "api": "7.4"}},
+		{name: "with spaces around colon", input: "minecraft : 1.12.2", want: map[string]string{"minecraft": "1.12.2"}},
+		{name: "trailing comma", input: "minecraft:1.12.2,", want: map[string]string{"minecraft": "1.12.2"}},
+		{name: "missing value", input: "minecraft:", wantErr: true},
+		{name: "missing key", input: ":1.12.2", wantErr: true},
+		{name: "no colon", input: "minecraft", wantErr: true},
+		{name: "empty", input: "", wantErr: true},
+		{name: "only commas", input: ",,", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseTags(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(got) != len(tt.want) {
+				t.Fatalf("expected %d tags, got %d", len(tt.want), len(got))
+			}
+			for k, v := range tt.want {
+				if got[k] != v {
+					t.Errorf("tag %q: expected %q, got %q", k, v, got[k])
+				}
+			}
+		})
+	}
+}
+
+func TestGetVersions(t *testing.T) {
+	q := &mockQuerier{
+		groups: map[string]db.Group{
+			"org.spongepowered": {MavenID: "org.spongepowered", Name: "SpongePowered"},
+		},
+		artifacts: map[string]db.Artifact{
+			"org.spongepowered:spongeforge": {ID: 1, GroupID: "org.spongepowered", ArtifactID: "spongeforge", Name: "SpongeForge", GitRepositories: []byte("[]")},
+		},
+		versions: map[int64]db.ArtifactVersion{
+			1: {ID: 1, ArtifactID: 1, Version: "1.12.2-2838-7.4.0", SortOrder: 100, Recommended: true},
+			2: {ID: 2, ArtifactID: 1, Version: "1.12.2-2838-7.4.0-RC1", SortOrder: 99, Recommended: false},
+			3: {ID: 3, ArtifactID: 1, Version: "1.16.5-36.2.5-8.1.0", SortOrder: 200, Recommended: true},
+		},
+		tags: map[int64][]db.ArtifactVersionedTag{
+			1: {{ArtifactVersionID: 1, TagKey: "minecraft", TagValue: "1.12.2"}, {ArtifactVersionID: 1, TagKey: "api", TagValue: "7.4.0"}},
+			2: {{ArtifactVersionID: 2, TagKey: "minecraft", TagValue: "1.12.2"}, {ArtifactVersionID: 2, TagKey: "api", TagValue: "7.4.0"}},
+			3: {{ArtifactVersionID: 3, TagKey: "minecraft", TagValue: "1.16.5"}, {ArtifactVersionID: 3, TagKey: "api", TagValue: "8.1.0"}},
+		},
+	}
+	service := app.NewService(q)
+	handler := NewHandler(service, nil)
+	ctx := context.Background()
+
+	t.Run("returns versions for existing artifact", func(t *testing.T) {
+		resp, err := handler.GetVersions(ctx, api.GetVersionsRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongeforge",
+			Params:     api.GetVersionsParams{},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		r, ok := resp.(api.GetVersions200JSONResponse)
+		if !ok {
+			t.Fatalf("expected 200, got %T", resp)
+		}
+		if r.Artifacts == nil || len(*r.Artifacts) != 3 {
+			t.Errorf("expected 3 versions, got %v", r.Artifacts)
+		}
+	})
+
+	t.Run("returns 404 for non-existent artifact", func(t *testing.T) {
+		resp, err := handler.GetVersions(ctx, api.GetVersionsRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "nonexistent",
+			Params:     api.GetVersionsParams{},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := resp.(api.GetVersions404Response); !ok {
+			t.Errorf("expected 404, got %T", resp)
+		}
+	})
+
+	t.Run("returns 400 for invalid limit", func(t *testing.T) {
+		badLimit := 50
+		resp, err := handler.GetVersions(ctx, api.GetVersionsRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongeforge",
+			Params:     api.GetVersionsParams{Limit: &badLimit},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := resp.(*GetVersionsBadRequestError); !ok {
+			t.Errorf("expected 400, got %T", resp)
+		}
+	})
+
+	t.Run("returns 400 for zero limit", func(t *testing.T) {
+		zeroLimit := 0
+		resp, err := handler.GetVersions(ctx, api.GetVersionsRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongeforge",
+			Params:     api.GetVersionsParams{Limit: &zeroLimit},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := resp.(*GetVersionsBadRequestError); !ok {
+			t.Errorf("expected 400, got %T", resp)
+		}
+	})
+
+	t.Run("returns 400 for negative offset", func(t *testing.T) {
+		negOffset := -1
+		resp, err := handler.GetVersions(ctx, api.GetVersionsRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongeforge",
+			Params:     api.GetVersionsParams{Offset: &negOffset},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := resp.(*GetVersionsBadRequestError); !ok {
+			t.Errorf("expected 400, got %T", resp)
+		}
+	})
+
+	t.Run("returns 400 for malformed tags", func(t *testing.T) {
+		badTags := "invalidtag"
+		resp, err := handler.GetVersions(ctx, api.GetVersionsRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongeforge",
+			Params:     api.GetVersionsParams{Tags: &badTags},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := resp.(*GetVersionsBadRequestError); !ok {
+			t.Errorf("expected 400, got %T", resp)
+		}
+	})
+
+	t.Run("filters by recommended", func(t *testing.T) {
+		rec := true
+		resp, err := handler.GetVersions(ctx, api.GetVersionsRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongeforge",
+			Params:     api.GetVersionsParams{Recommended: &rec},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		r, ok := resp.(api.GetVersions200JSONResponse)
+		if !ok {
+			t.Fatalf("expected 200, got %T", resp)
+		}
+		if r.Artifacts == nil || len(*r.Artifacts) != 2 {
+			t.Errorf("expected 2 recommended versions, got %d", len(*r.Artifacts))
+		}
+	})
+
+	t.Run("filters by tags", func(t *testing.T) {
+		tags := "minecraft:1.12.2"
+		resp, err := handler.GetVersions(ctx, api.GetVersionsRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongeforge",
+			Params:     api.GetVersionsParams{Tags: &tags},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		r, ok := resp.(api.GetVersions200JSONResponse)
+		if !ok {
+			t.Fatalf("expected 200, got %T", resp)
+		}
+		if r.Artifacts == nil || len(*r.Artifacts) != 2 {
+			t.Errorf("expected 2 versions for minecraft:1.12.2, got %d", len(*r.Artifacts))
+		}
+	})
+
+	t.Run("respects limit", func(t *testing.T) {
+		limit := 1
+		resp, err := handler.GetVersions(ctx, api.GetVersionsRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongeforge",
+			Params:     api.GetVersionsParams{Limit: &limit},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		r, ok := resp.(api.GetVersions200JSONResponse)
+		if !ok {
+			t.Fatalf("expected 200, got %T", resp)
+		}
+		if r.Artifacts == nil || len(*r.Artifacts) != 1 {
+			t.Errorf("expected 1 version with limit=1, got %d", len(*r.Artifacts))
+		}
+	})
 }

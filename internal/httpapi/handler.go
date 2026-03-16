@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"go.temporal.io/sdk/client"
 
 	"github.com/spongepowered/systemofadownload/api"
 	"github.com/spongepowered/systemofadownload/internal/app"
 	"github.com/spongepowered/systemofadownload/internal/domain"
+	"github.com/spongepowered/systemofadownload/internal/repository"
 	"github.com/spongepowered/systemofadownload/internal/workflow"
 )
 
@@ -192,7 +194,100 @@ func (h *Handler) GetArtifact(ctx context.Context, request api.GetArtifactReques
 }
 
 func (h *Handler) GetVersions(ctx context.Context, request api.GetVersionsRequestObject) (api.GetVersionsResponseObject, error) {
-	return nil, nil
+	limit := int32(25)
+	if request.Params.Limit != nil {
+		l := int32(*request.Params.Limit)
+		if l < 1 || l > 25 {
+			return NewGetVersionsBadRequestError("limit must be between 1 and 25"), nil
+		}
+		limit = l
+	}
+
+	offset := int32(0)
+	if request.Params.Offset != nil {
+		o := int32(*request.Params.Offset)
+		if o < 0 {
+			return NewGetVersionsBadRequestError("offset must be non-negative"), nil
+		}
+		offset = o
+	}
+
+	var tags map[string]string
+	if request.Params.Tags != nil && *request.Params.Tags != "" {
+		var err error
+		tags, err = parseTags(*request.Params.Tags)
+		if err != nil {
+			return NewGetVersionsBadRequestError(fmt.Sprintf("invalid tags: %s", err)), nil
+		}
+	}
+
+	slog.DebugContext(ctx, "GetVersions",
+		"groupID", request.GroupID,
+		"artifactID", request.ArtifactID,
+		"limit", limit, "offset", offset,
+		"tags", tags,
+		"recommended", request.Params.Recommended)
+
+	entries, err := h.service.GetVersions(ctx, repository.VersionQueryParams{
+		GroupID:     request.GroupID,
+		ArtifactID:  request.ArtifactID,
+		Recommended: request.Params.Recommended,
+		Tags:        tags,
+		Limit:       limit,
+		Offset:      offset,
+	})
+	if err != nil {
+		if errors.Is(err, app.ErrArtifactNotFound) {
+			return api.GetVersions404Response{}, nil
+		}
+		slog.ErrorContext(ctx, "failed to get versions",
+			"groupID", request.GroupID,
+			"artifactID", request.ArtifactID,
+			"error", err)
+		return nil, err
+	}
+
+	type versionDetail = struct {
+		Recommended *bool              `json:"recommended,omitempty"`
+		TagValues   *map[string]string `json:"tagValues,omitempty"`
+	}
+
+	artifacts := make(map[string]versionDetail, len(entries))
+	for _, e := range entries {
+		rec := e.Recommended
+		var tagVals *map[string]string
+		if len(e.Tags) > 0 {
+			tagVals = &e.Tags
+		}
+		artifacts[e.Version] = versionDetail{
+			Recommended: &rec,
+			TagValues:   tagVals,
+		}
+	}
+
+	return api.GetVersions200JSONResponse{
+		Artifacts: &artifacts,
+	}, nil
+}
+
+// parseTags parses a comma-separated list of key:value tag pairs.
+func parseTags(raw string) (map[string]string, error) {
+	tags := make(map[string]string)
+	for _, pair := range strings.Split(raw, ",") {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+		idx := strings.IndexByte(pair, ':')
+		if idx <= 0 || idx == len(pair)-1 {
+			return nil, fmt.Errorf("malformed tag pair %q, expected key:value", pair)
+		}
+		tags[strings.TrimSpace(pair[:idx])] = strings.TrimSpace(pair[idx+1:])
+	}
+	if len(tags) == 0 {
+		return nil, fmt.Errorf("no valid tag pairs found")
+	}
+	return tags, nil
 }
 
 func (h *Handler) GetVersionInfo(ctx context.Context, request api.GetVersionInfoRequestObject) (api.GetVersionInfoResponseObject, error) {

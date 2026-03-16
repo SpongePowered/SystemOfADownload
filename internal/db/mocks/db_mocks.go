@@ -1029,6 +1029,74 @@ func (_c *MockQuerier_ListArtifactVersions_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
+// ListArtifactVersionsPaginated provides a mock function for the type MockQuerier
+func (_mock *MockQuerier) ListArtifactVersionsPaginated(ctx context.Context, arg db.ListArtifactVersionsPaginatedParams) ([]db.ArtifactVersion, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListArtifactVersionsPaginated")
+	}
+
+	var r0 []db.ArtifactVersion
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListArtifactVersionsPaginatedParams) ([]db.ArtifactVersion, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListArtifactVersionsPaginatedParams) []db.ArtifactVersion); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]db.ArtifactVersion)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.ListArtifactVersionsPaginatedParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockQuerier_ListArtifactVersionsPaginated_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListArtifactVersionsPaginated'
+type MockQuerier_ListArtifactVersionsPaginated_Call struct {
+	*mock.Call
+}
+
+// ListArtifactVersionsPaginated is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.ListArtifactVersionsPaginatedParams
+func (_e *MockQuerier_Expecter) ListArtifactVersionsPaginated(ctx interface{}, arg interface{}) *MockQuerier_ListArtifactVersionsPaginated_Call {
+	return &MockQuerier_ListArtifactVersionsPaginated_Call{Call: _e.mock.On("ListArtifactVersionsPaginated", ctx, arg)}
+}
+
+func (_c *MockQuerier_ListArtifactVersionsPaginated_Call) Run(run func(ctx context.Context, arg db.ListArtifactVersionsPaginatedParams)) *MockQuerier_ListArtifactVersionsPaginated_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.ListArtifactVersionsPaginatedParams
+		if args[1] != nil {
+			arg1 = args[1].(db.ListArtifactVersionsPaginatedParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockQuerier_ListArtifactVersionsPaginated_Call) Return(artifactVersions []db.ArtifactVersion, err error) *MockQuerier_ListArtifactVersionsPaginated_Call {
+	_c.Call.Return(artifactVersions, err)
+	return _c
+}
+
+func (_c *MockQuerier_ListArtifactVersionsPaginated_Call) RunAndReturn(run func(ctx context.Context, arg db.ListArtifactVersionsPaginatedParams) ([]db.ArtifactVersion, error)) *MockQuerier_ListArtifactVersionsPaginated_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListArtifactsByGroup provides a mock function for the type MockQuerier
 func (_mock *MockQuerier) ListArtifactsByGroup(ctx context.Context, groupID string) ([]db.Artifact, error) {
 	ret := _mock.Called(ctx, groupID)
@@ -1223,6 +1291,74 @@ func (_c *MockQuerier_ListGroups_Call) Return(groups []db.Group, err error) *Moc
 }
 
 func (_c *MockQuerier_ListGroups_Call) RunAndReturn(run func(ctx context.Context) ([]db.Group, error)) *MockQuerier_ListGroups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListTagsForVersions provides a mock function for the type MockQuerier
+func (_mock *MockQuerier) ListTagsForVersions(ctx context.Context, dollar_1 []int64) ([]db.ArtifactVersionedTag, error) {
+	ret := _mock.Called(ctx, dollar_1)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListTagsForVersions")
+	}
+
+	var r0 []db.ArtifactVersionedTag
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) ([]db.ArtifactVersionedTag, error)); ok {
+		return returnFunc(ctx, dollar_1)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) []db.ArtifactVersionedTag); ok {
+		r0 = returnFunc(ctx, dollar_1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]db.ArtifactVersionedTag)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []int64) error); ok {
+		r1 = returnFunc(ctx, dollar_1)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockQuerier_ListTagsForVersions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListTagsForVersions'
+type MockQuerier_ListTagsForVersions_Call struct {
+	*mock.Call
+}
+
+// ListTagsForVersions is a helper method to define mock.On call
+//   - ctx context.Context
+//   - dollar_1 []int64
+func (_e *MockQuerier_Expecter) ListTagsForVersions(ctx interface{}, dollar_1 interface{}) *MockQuerier_ListTagsForVersions_Call {
+	return &MockQuerier_ListTagsForVersions_Call{Call: _e.mock.On("ListTagsForVersions", ctx, dollar_1)}
+}
+
+func (_c *MockQuerier_ListTagsForVersions_Call) Run(run func(ctx context.Context, dollar_1 []int64)) *MockQuerier_ListTagsForVersions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []int64
+		if args[1] != nil {
+			arg1 = args[1].([]int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockQuerier_ListTagsForVersions_Call) Return(artifactVersionedTags []db.ArtifactVersionedTag, err error) *MockQuerier_ListTagsForVersions_Call {
+	_c.Call.Return(artifactVersionedTags, err)
+	return _c
+}
+
+func (_c *MockQuerier_ListTagsForVersions_Call) RunAndReturn(run func(ctx context.Context, dollar_1 []int64) ([]db.ArtifactVersionedTag, error)) *MockQuerier_ListTagsForVersions_Call {
 	_c.Call.Return(run)
 	return _c
 }

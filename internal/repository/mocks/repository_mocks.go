@@ -841,6 +841,142 @@ func (_c *MockReads_ListGroups_Call) RunAndReturn(run func(ctx context.Context) 
 	return _c
 }
 
+// ListTagsForVersions provides a mock function for the type MockReads
+func (_mock *MockReads) ListTagsForVersions(ctx context.Context, versionIDs []int64) ([]db.ArtifactVersionedTag, error) {
+	ret := _mock.Called(ctx, versionIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListTagsForVersions")
+	}
+
+	var r0 []db.ArtifactVersionedTag
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) ([]db.ArtifactVersionedTag, error)); ok {
+		return returnFunc(ctx, versionIDs)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) []db.ArtifactVersionedTag); ok {
+		r0 = returnFunc(ctx, versionIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]db.ArtifactVersionedTag)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []int64) error); ok {
+		r1 = returnFunc(ctx, versionIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockReads_ListTagsForVersions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListTagsForVersions'
+type MockReads_ListTagsForVersions_Call struct {
+	*mock.Call
+}
+
+// ListTagsForVersions is a helper method to define mock.On call
+//   - ctx context.Context
+//   - versionIDs []int64
+func (_e *MockReads_Expecter) ListTagsForVersions(ctx interface{}, versionIDs interface{}) *MockReads_ListTagsForVersions_Call {
+	return &MockReads_ListTagsForVersions_Call{Call: _e.mock.On("ListTagsForVersions", ctx, versionIDs)}
+}
+
+func (_c *MockReads_ListTagsForVersions_Call) Run(run func(ctx context.Context, versionIDs []int64)) *MockReads_ListTagsForVersions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []int64
+		if args[1] != nil {
+			arg1 = args[1].([]int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockReads_ListTagsForVersions_Call) Return(artifactVersionedTags []db.ArtifactVersionedTag, err error) *MockReads_ListTagsForVersions_Call {
+	_c.Call.Return(artifactVersionedTags, err)
+	return _c
+}
+
+func (_c *MockReads_ListTagsForVersions_Call) RunAndReturn(run func(ctx context.Context, versionIDs []int64) ([]db.ArtifactVersionedTag, error)) *MockReads_ListTagsForVersions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVersionsFiltered provides a mock function for the type MockReads
+func (_mock *MockReads) ListVersionsFiltered(ctx context.Context, params repository.VersionQueryParams) ([]db.ArtifactVersion, error) {
+	ret := _mock.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVersionsFiltered")
+	}
+
+	var r0 []db.ArtifactVersion
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) ([]db.ArtifactVersion, error)); ok {
+		return returnFunc(ctx, params)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) []db.ArtifactVersion); ok {
+		r0 = returnFunc(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]db.ArtifactVersion)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repository.VersionQueryParams) error); ok {
+		r1 = returnFunc(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockReads_ListVersionsFiltered_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVersionsFiltered'
+type MockReads_ListVersionsFiltered_Call struct {
+	*mock.Call
+}
+
+// ListVersionsFiltered is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params repository.VersionQueryParams
+func (_e *MockReads_Expecter) ListVersionsFiltered(ctx interface{}, params interface{}) *MockReads_ListVersionsFiltered_Call {
+	return &MockReads_ListVersionsFiltered_Call{Call: _e.mock.On("ListVersionsFiltered", ctx, params)}
+}
+
+func (_c *MockReads_ListVersionsFiltered_Call) Run(run func(ctx context.Context, params repository.VersionQueryParams)) *MockReads_ListVersionsFiltered_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repository.VersionQueryParams
+		if args[1] != nil {
+			arg1 = args[1].(repository.VersionQueryParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockReads_ListVersionsFiltered_Call) Return(artifactVersions []db.ArtifactVersion, err error) *MockReads_ListVersionsFiltered_Call {
+	_c.Call.Return(artifactVersions, err)
+	return _c
+}
+
+func (_c *MockReads_ListVersionsFiltered_Call) RunAndReturn(run func(ctx context.Context, params repository.VersionQueryParams) ([]db.ArtifactVersion, error)) *MockReads_ListVersionsFiltered_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockWrites creates a new instance of MockWrites. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockWrites(t interface {
@@ -2585,6 +2721,142 @@ func (_c *MockTx_ListGroups_Call) RunAndReturn(run func(ctx context.Context) ([]
 	return _c
 }
 
+// ListTagsForVersions provides a mock function for the type MockTx
+func (_mock *MockTx) ListTagsForVersions(ctx context.Context, versionIDs []int64) ([]db.ArtifactVersionedTag, error) {
+	ret := _mock.Called(ctx, versionIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListTagsForVersions")
+	}
+
+	var r0 []db.ArtifactVersionedTag
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) ([]db.ArtifactVersionedTag, error)); ok {
+		return returnFunc(ctx, versionIDs)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) []db.ArtifactVersionedTag); ok {
+		r0 = returnFunc(ctx, versionIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]db.ArtifactVersionedTag)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []int64) error); ok {
+		r1 = returnFunc(ctx, versionIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTx_ListTagsForVersions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListTagsForVersions'
+type MockTx_ListTagsForVersions_Call struct {
+	*mock.Call
+}
+
+// ListTagsForVersions is a helper method to define mock.On call
+//   - ctx context.Context
+//   - versionIDs []int64
+func (_e *MockTx_Expecter) ListTagsForVersions(ctx interface{}, versionIDs interface{}) *MockTx_ListTagsForVersions_Call {
+	return &MockTx_ListTagsForVersions_Call{Call: _e.mock.On("ListTagsForVersions", ctx, versionIDs)}
+}
+
+func (_c *MockTx_ListTagsForVersions_Call) Run(run func(ctx context.Context, versionIDs []int64)) *MockTx_ListTagsForVersions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []int64
+		if args[1] != nil {
+			arg1 = args[1].([]int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_ListTagsForVersions_Call) Return(artifactVersionedTags []db.ArtifactVersionedTag, err error) *MockTx_ListTagsForVersions_Call {
+	_c.Call.Return(artifactVersionedTags, err)
+	return _c
+}
+
+func (_c *MockTx_ListTagsForVersions_Call) RunAndReturn(run func(ctx context.Context, versionIDs []int64) ([]db.ArtifactVersionedTag, error)) *MockTx_ListTagsForVersions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVersionsFiltered provides a mock function for the type MockTx
+func (_mock *MockTx) ListVersionsFiltered(ctx context.Context, params repository.VersionQueryParams) ([]db.ArtifactVersion, error) {
+	ret := _mock.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVersionsFiltered")
+	}
+
+	var r0 []db.ArtifactVersion
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) ([]db.ArtifactVersion, error)); ok {
+		return returnFunc(ctx, params)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) []db.ArtifactVersion); ok {
+		r0 = returnFunc(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]db.ArtifactVersion)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repository.VersionQueryParams) error); ok {
+		r1 = returnFunc(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTx_ListVersionsFiltered_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVersionsFiltered'
+type MockTx_ListVersionsFiltered_Call struct {
+	*mock.Call
+}
+
+// ListVersionsFiltered is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params repository.VersionQueryParams
+func (_e *MockTx_Expecter) ListVersionsFiltered(ctx interface{}, params interface{}) *MockTx_ListVersionsFiltered_Call {
+	return &MockTx_ListVersionsFiltered_Call{Call: _e.mock.On("ListVersionsFiltered", ctx, params)}
+}
+
+func (_c *MockTx_ListVersionsFiltered_Call) Run(run func(ctx context.Context, params repository.VersionQueryParams)) *MockTx_ListVersionsFiltered_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repository.VersionQueryParams
+		if args[1] != nil {
+			arg1 = args[1].(repository.VersionQueryParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_ListVersionsFiltered_Call) Return(artifactVersions []db.ArtifactVersion, err error) *MockTx_ListVersionsFiltered_Call {
+	_c.Call.Return(artifactVersions, err)
+	return _c
+}
+
+func (_c *MockTx_ListVersionsFiltered_Call) RunAndReturn(run func(ctx context.Context, params repository.VersionQueryParams) ([]db.ArtifactVersion, error)) *MockTx_ListVersionsFiltered_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateArtifactVersionCommitBody provides a mock function for the type MockTx
 func (_mock *MockTx) UpdateArtifactVersionCommitBody(ctx context.Context, arg db.UpdateArtifactVersionCommitBodyParams) error {
 	ret := _mock.Called(ctx, arg)
@@ -3524,6 +3796,142 @@ func (_c *MockRepository_ListGroups_Call) Return(groups []db.Group, err error) *
 }
 
 func (_c *MockRepository_ListGroups_Call) RunAndReturn(run func(ctx context.Context) ([]db.Group, error)) *MockRepository_ListGroups_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListTagsForVersions provides a mock function for the type MockRepository
+func (_mock *MockRepository) ListTagsForVersions(ctx context.Context, versionIDs []int64) ([]db.ArtifactVersionedTag, error) {
+	ret := _mock.Called(ctx, versionIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListTagsForVersions")
+	}
+
+	var r0 []db.ArtifactVersionedTag
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) ([]db.ArtifactVersionedTag, error)); ok {
+		return returnFunc(ctx, versionIDs)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) []db.ArtifactVersionedTag); ok {
+		r0 = returnFunc(ctx, versionIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]db.ArtifactVersionedTag)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []int64) error); ok {
+		r1 = returnFunc(ctx, versionIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_ListTagsForVersions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListTagsForVersions'
+type MockRepository_ListTagsForVersions_Call struct {
+	*mock.Call
+}
+
+// ListTagsForVersions is a helper method to define mock.On call
+//   - ctx context.Context
+//   - versionIDs []int64
+func (_e *MockRepository_Expecter) ListTagsForVersions(ctx interface{}, versionIDs interface{}) *MockRepository_ListTagsForVersions_Call {
+	return &MockRepository_ListTagsForVersions_Call{Call: _e.mock.On("ListTagsForVersions", ctx, versionIDs)}
+}
+
+func (_c *MockRepository_ListTagsForVersions_Call) Run(run func(ctx context.Context, versionIDs []int64)) *MockRepository_ListTagsForVersions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []int64
+		if args[1] != nil {
+			arg1 = args[1].([]int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_ListTagsForVersions_Call) Return(artifactVersionedTags []db.ArtifactVersionedTag, err error) *MockRepository_ListTagsForVersions_Call {
+	_c.Call.Return(artifactVersionedTags, err)
+	return _c
+}
+
+func (_c *MockRepository_ListTagsForVersions_Call) RunAndReturn(run func(ctx context.Context, versionIDs []int64) ([]db.ArtifactVersionedTag, error)) *MockRepository_ListTagsForVersions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVersionsFiltered provides a mock function for the type MockRepository
+func (_mock *MockRepository) ListVersionsFiltered(ctx context.Context, params repository.VersionQueryParams) ([]db.ArtifactVersion, error) {
+	ret := _mock.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVersionsFiltered")
+	}
+
+	var r0 []db.ArtifactVersion
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) ([]db.ArtifactVersion, error)); ok {
+		return returnFunc(ctx, params)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) []db.ArtifactVersion); ok {
+		r0 = returnFunc(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]db.ArtifactVersion)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repository.VersionQueryParams) error); ok {
+		r1 = returnFunc(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_ListVersionsFiltered_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVersionsFiltered'
+type MockRepository_ListVersionsFiltered_Call struct {
+	*mock.Call
+}
+
+// ListVersionsFiltered is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params repository.VersionQueryParams
+func (_e *MockRepository_Expecter) ListVersionsFiltered(ctx interface{}, params interface{}) *MockRepository_ListVersionsFiltered_Call {
+	return &MockRepository_ListVersionsFiltered_Call{Call: _e.mock.On("ListVersionsFiltered", ctx, params)}
+}
+
+func (_c *MockRepository_ListVersionsFiltered_Call) Run(run func(ctx context.Context, params repository.VersionQueryParams)) *MockRepository_ListVersionsFiltered_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repository.VersionQueryParams
+		if args[1] != nil {
+			arg1 = args[1].(repository.VersionQueryParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_ListVersionsFiltered_Call) Return(artifactVersions []db.ArtifactVersion, err error) *MockRepository_ListVersionsFiltered_Call {
+	_c.Call.Return(artifactVersions, err)
+	return _c
+}
+
+func (_c *MockRepository_ListVersionsFiltered_Call) RunAndReturn(run func(ctx context.Context, params repository.VersionQueryParams) ([]db.ArtifactVersion, error)) *MockRepository_ListVersionsFiltered_Call {
 	_c.Call.Return(run)
 	return _c
 }

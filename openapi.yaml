@@ -167,17 +167,18 @@ paths:
                           minecraft: "1.16.5"
                           forge: "36.2.5"
                           api: "8.1"
+                        recommended: false
                     additionalProperties:
                       type: object
-                      additionalProperties:
-                        type: object
-                        properties:
-                          tagValues:
-                            type: object
-                            additionalProperties:
-                              type: string
-                          recommended:
-                            type: boolean
+                      properties:
+                        tagValues:
+                          type: object
+                          additionalProperties:
+                            type: string
+                        recommended:
+                          type: boolean
+        '404':
+          description: Artifact not found
   '/groups/{groupID}/artifacts/{artifactID}/versions/{versionID}':
     get:
       tags:

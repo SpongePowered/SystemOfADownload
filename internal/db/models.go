@@ -16,11 +16,12 @@ type Artifact struct {
 }
 
 type ArtifactVersion struct {
-	ID         int64
-	ArtifactID int64
-	Version    string
-	SortOrder  int32
-	CommitBody []byte
+	ID          int64
+	ArtifactID  int64
+	Version     string
+	SortOrder   int32
+	Recommended bool
+	CommitBody  []byte
 }
 
 type ArtifactVersionedAsset struct {

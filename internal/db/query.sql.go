@@ -61,7 +61,7 @@ VALUES ($1, $2, $3, $4)
 ON CONFLICT (artifact_id, version) DO UPDATE SET
     sort_order = EXCLUDED.sort_order,
     commit_body = EXCLUDED.commit_body
-RETURNING id, artifact_id, version, sort_order, commit_body
+RETURNING id, artifact_id, version, sort_order, recommended, commit_body
 `
 
 type CreateArtifactVersionParams struct {
@@ -84,6 +84,7 @@ func (q *Queries) CreateArtifactVersion(ctx context.Context, arg CreateArtifactV
 		&i.ArtifactID,
 		&i.Version,
 		&i.SortOrder,
+		&i.Recommended,
 		&i.CommitBody,
 	)
 	return i, err
@@ -200,7 +201,7 @@ func (q *Queries) GetArtifactByGroupAndId(ctx context.Context, arg GetArtifactBy
 }
 
 const getArtifactVersion = `-- name: GetArtifactVersion :one
-SELECT av.id, av.artifact_id, av.version, av.sort_order, av.commit_body
+SELECT av.id, av.artifact_id, av.version, av.sort_order, av.recommended, av.commit_body
 FROM artifact_versions av
 JOIN artifacts a ON av.artifact_id = a.id
 WHERE a.group_id = $1 AND a.artifact_id = $2 AND av.version = $3
@@ -220,6 +221,7 @@ func (q *Queries) GetArtifactVersion(ctx context.Context, arg GetArtifactVersion
 		&i.ArtifactID,
 		&i.Version,
 		&i.SortOrder,
+		&i.Recommended,
 		&i.CommitBody,
 	)
 	return i, err
@@ -356,7 +358,7 @@ func (q *Queries) ListArtifactVersionTags(ctx context.Context, artifactVersionID
 }
 
 const listArtifactVersions = `-- name: ListArtifactVersions :many
-SELECT av.id, av.artifact_id, av.version, av.sort_order, av.commit_body
+SELECT av.id, av.artifact_id, av.version, av.sort_order, av.recommended, av.commit_body
 FROM artifact_versions av
 JOIN artifacts a ON av.artifact_id = a.id
 WHERE a.group_id = $1 AND a.artifact_id = $2
@@ -382,6 +384,58 @@ func (q *Queries) ListArtifactVersions(ctx context.Context, arg ListArtifactVers
 			&i.ArtifactID,
 			&i.Version,
 			&i.SortOrder,
+			&i.Recommended,
+			&i.CommitBody,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listArtifactVersionsPaginated = `-- name: ListArtifactVersionsPaginated :many
+SELECT av.id, av.artifact_id, av.version, av.sort_order, av.recommended, av.commit_body
+FROM artifact_versions av
+JOIN artifacts a ON av.artifact_id = a.id
+WHERE a.group_id = $1 AND a.artifact_id = $2
+  AND ($5::boolean IS NULL OR av.recommended = $5)
+ORDER BY av.sort_order DESC
+LIMIT $3 OFFSET $4
+`
+
+type ListArtifactVersionsPaginatedParams struct {
+	GroupID     string
+	ArtifactID  string
+	Limit       int32
+	Offset      int32
+	Recommended *bool
+}
+
+func (q *Queries) ListArtifactVersionsPaginated(ctx context.Context, arg ListArtifactVersionsPaginatedParams) ([]ArtifactVersion, error) {
+	rows, err := q.db.Query(ctx, listArtifactVersionsPaginated,
+		arg.GroupID,
+		arg.ArtifactID,
+		arg.Limit,
+		arg.Offset,
+		arg.Recommended,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ArtifactVersion
+	for rows.Next() {
+		var i ArtifactVersion
+		if err := rows.Scan(
+			&i.ID,
+			&i.ArtifactID,
+			&i.Version,
+			&i.SortOrder,
+			&i.Recommended,
 			&i.CommitBody,
 		); err != nil {
 			return nil, err
@@ -491,6 +545,33 @@ func (q *Queries) ListGroups(ctx context.Context) ([]Group, error) {
 	return items, nil
 }
 
+const listTagsForVersions = `-- name: ListTagsForVersions :many
+SELECT t.artifact_version_id, t.tag_key, t.tag_value
+FROM artifact_versioned_tags t
+WHERE t.artifact_version_id = ANY($1::bigint[])
+ORDER BY t.artifact_version_id, t.tag_key
+`
+
+func (q *Queries) ListTagsForVersions(ctx context.Context, dollar_1 []int64) ([]ArtifactVersionedTag, error) {
+	rows, err := q.db.Query(ctx, listTagsForVersions, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ArtifactVersionedTag
+	for rows.Next() {
+		var i ArtifactVersionedTag
+		if err := rows.Scan(&i.ArtifactVersionID, &i.TagKey, &i.TagValue); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateArtifactVersionCommitBody = `-- name: UpdateArtifactVersionCommitBody :exec
 UPDATE artifact_versions
 SET commit_body = $2
@@ -509,16 +590,17 @@ func (q *Queries) UpdateArtifactVersionCommitBody(ctx context.Context, arg Updat
 
 const updateArtifactVersionOrder = `-- name: UpdateArtifactVersionOrder :exec
 UPDATE artifact_versions
-SET sort_order = $2
+SET sort_order = $2, recommended = $3
 WHERE id = $1
 `
 
 type UpdateArtifactVersionOrderParams struct {
-	ID        int64
-	SortOrder int32
+	ID          int64
+	SortOrder   int32
+	Recommended bool
 }
 
 func (q *Queries) UpdateArtifactVersionOrder(ctx context.Context, arg UpdateArtifactVersionOrderParams) error {
-	_, err := q.db.Exec(ctx, updateArtifactVersionOrder, arg.ID, arg.SortOrder)
+	_, err := q.db.Exec(ctx, updateArtifactVersionOrder, arg.ID, arg.SortOrder, arg.Recommended)
 	return err
 }

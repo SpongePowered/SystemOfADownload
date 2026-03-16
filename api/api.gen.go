@@ -698,7 +698,7 @@ type GetVersionsResponseObject interface {
 }
 
 type GetVersions200JSONResponse struct {
-	Artifacts *map[string]map[string]struct {
+	Artifacts *map[string]struct {
 		Recommended *bool              `json:"recommended,omitempty"`
 		TagValues   *map[string]string `json:"tagValues,omitempty"`
 	} `json:"artifacts,omitempty"`
@@ -709,6 +709,14 @@ func (response GetVersions200JSONResponse) VisitGetVersionsResponse(w http.Respo
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
+}
+
+type GetVersions404Response struct {
+}
+
+func (response GetVersions404Response) VisitGetVersionsResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
 }
 
 type GetVersionInfoRequestObject struct {
