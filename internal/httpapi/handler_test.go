@@ -17,6 +17,7 @@ type mockQuerier struct {
 	artifacts map[string]db.Artifact // key: "groupID:artifactID"
 	versions  map[int64]db.ArtifactVersion
 	tags      map[int64][]db.ArtifactVersionedTag
+	assets    map[int64][]db.ArtifactVersionedAsset
 }
 
 func (m *mockQuerier) WithTx(ctx context.Context, fn func(repository.Tx) error) error {
@@ -86,6 +87,28 @@ func (m *mockQuerier) ListTagsForVersions(ctx context.Context, versionIDs []int6
 		}
 	}
 	return result, nil
+}
+
+func (m *mockQuerier) GetArtifactVersion(ctx context.Context, arg db.GetArtifactVersionParams) (db.ArtifactVersion, error) {
+	key := arg.GroupID + ":" + arg.ArtifactID
+	artifact, ok := m.artifacts[key]
+	if !ok {
+		return db.ArtifactVersion{}, pgx.ErrNoRows
+	}
+	for _, v := range m.versions {
+		if v.ArtifactID == artifact.ID && v.Version == arg.Version {
+			return v, nil
+		}
+	}
+	return db.ArtifactVersion{}, pgx.ErrNoRows
+}
+
+func (m *mockQuerier) ListArtifactVersionAssets(ctx context.Context, versionID int64) ([]db.ArtifactVersionedAsset, error) {
+	return m.assets[versionID], nil
+}
+
+func (m *mockQuerier) ListArtifactVersionTags(ctx context.Context, versionID int64) ([]db.ArtifactVersionedTag, error) {
+	return m.tags[versionID], nil
 }
 
 func (m *mockQuerier) ListVersionsFiltered(ctx context.Context, params repository.VersionQueryParams) ([]db.ArtifactVersion, error) {
@@ -487,6 +510,147 @@ func TestGetVersions(t *testing.T) {
 		}
 		if r.Artifacts == nil || len(*r.Artifacts) != 1 {
 			t.Errorf("expected 1 version with limit=1, got %d", len(*r.Artifacts))
+		}
+	})
+}
+
+func TestGetVersionInfo(t *testing.T) {
+	classifier := "universal"
+	q := &mockQuerier{
+		groups: map[string]db.Group{
+			"org.spongepowered": {MavenID: "org.spongepowered", Name: "SpongePowered"},
+		},
+		artifacts: map[string]db.Artifact{
+			"org.spongepowered:spongevanilla": {ID: 1, GroupID: "org.spongepowered", ArtifactID: "spongevanilla", Name: "SpongeVanilla", GitRepositories: []byte("[]")},
+		},
+		versions: map[int64]db.ArtifactVersion{
+			10: {ID: 10, ArtifactID: 1, Version: "1.12.2-7.4.0", SortOrder: 100, Recommended: true, CommitBody: []byte(`{"sha":"abc123","repository":"https://github.com/SpongePowered/SpongeVanilla"}`)},
+			11: {ID: 11, ArtifactID: 1, Version: "1.12.2-7.4.0-RC1", SortOrder: 99, Recommended: false},
+		},
+		tags: map[int64][]db.ArtifactVersionedTag{
+			10: {
+				{ArtifactVersionID: 10, TagKey: "minecraft", TagValue: "1.12.2"},
+				{ArtifactVersionID: 10, TagKey: "api", TagValue: "7.4.0"},
+			},
+		},
+		assets: map[int64][]db.ArtifactVersionedAsset{
+			10: {
+				{ID: 1, ArtifactVersionID: 10, Classifier: &classifier, DownloadUrl: "https://repo.spongepowered.org/spongevanilla-1.12.2-7.4.0-universal.jar"},
+			},
+		},
+	}
+	service := app.NewService(q)
+	handler := NewHandler(service, nil)
+	ctx := context.Background()
+
+	t.Run("returns version detail with assets, tags, and commit", func(t *testing.T) {
+		resp, err := handler.GetVersionInfo(ctx, api.GetVersionInfoRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongevanilla",
+			VersionID:  "1.12.2-7.4.0",
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		r, ok := resp.(api.GetVersionInfo200JSONResponse)
+		if !ok {
+			t.Fatalf("expected 200, got %T", resp)
+		}
+
+		// Coordinates
+		if r.Coordinates == nil {
+			t.Fatal("expected coordinates")
+		}
+		if *r.Coordinates.GroupId != "org.spongepowered" {
+			t.Errorf("expected groupId org.spongepowered, got %s", *r.Coordinates.GroupId)
+		}
+		if *r.Coordinates.ArtifactId != "spongevanilla" {
+			t.Errorf("expected artifactId spongevanilla, got %s", *r.Coordinates.ArtifactId)
+		}
+		if *r.Coordinates.Version != "1.12.2-7.4.0" {
+			t.Errorf("expected version 1.12.2-7.4.0, got %s", *r.Coordinates.Version)
+		}
+
+		// Recommended
+		if r.Recommended == nil || !*r.Recommended {
+			t.Error("expected recommended=true")
+		}
+
+		// Tags
+		if r.Tags == nil || len(*r.Tags) != 2 {
+			t.Fatalf("expected 2 tags, got %v", r.Tags)
+		}
+		if (*r.Tags)["minecraft"] != "1.12.2" {
+			t.Errorf("expected minecraft tag 1.12.2, got %s", (*r.Tags)["minecraft"])
+		}
+
+		// Assets
+		if r.Assets == nil || len(*r.Assets) != 1 {
+			t.Fatalf("expected 1 asset, got %v", r.Assets)
+		}
+		if *(*r.Assets)[0].Classifier != "universal" {
+			t.Errorf("expected classifier universal, got %s", *(*r.Assets)[0].Classifier)
+		}
+
+		// Commit
+		if r.Commit == nil || r.Commit.Commits == nil || len(*r.Commit.Commits) != 1 {
+			t.Fatal("expected 1 commit entry")
+		}
+		commitEntry := (*r.Commit.Commits)[0]
+		if commitEntry.Commit == nil || *commitEntry.Commit.Sha != "abc123" {
+			t.Errorf("expected commit sha abc123")
+		}
+		if *commitEntry.Commit.Link != "https://github.com/SpongePowered/SpongeVanilla" {
+			t.Errorf("expected commit link to repository")
+		}
+	})
+
+	t.Run("returns 404 for non-existent version", func(t *testing.T) {
+		resp, err := handler.GetVersionInfo(ctx, api.GetVersionInfoRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongevanilla",
+			VersionID:  "999.999.999",
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := resp.(api.GetVersionInfo404Response); !ok {
+			t.Errorf("expected 404, got %T", resp)
+		}
+	})
+
+	t.Run("returns 404 for non-existent artifact", func(t *testing.T) {
+		resp, err := handler.GetVersionInfo(ctx, api.GetVersionInfoRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "nonexistent",
+			VersionID:  "1.0.0",
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := resp.(api.GetVersionInfo404Response); !ok {
+			t.Errorf("expected 404, got %T", resp)
+		}
+	})
+
+	t.Run("handles version with no commit body", func(t *testing.T) {
+		resp, err := handler.GetVersionInfo(ctx, api.GetVersionInfoRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongevanilla",
+			VersionID:  "1.12.2-7.4.0-RC1",
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		r, ok := resp.(api.GetVersionInfo200JSONResponse)
+		if !ok {
+			t.Fatalf("expected 200, got %T", resp)
+		}
+		if r.Commit != nil {
+			t.Error("expected nil commit for version without commit body")
+		}
+		if r.Recommended == nil || *r.Recommended {
+			t.Error("expected recommended=false")
 		}
 	})
 }

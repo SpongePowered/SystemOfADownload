@@ -755,6 +755,14 @@ func (response GetVersionInfo200JSONResponse) VisitGetVersionInfoResponse(w http
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetVersionInfo404Response struct {
+}
+
+func (response GetVersionInfo404Response) VisitGetVersionInfoResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 

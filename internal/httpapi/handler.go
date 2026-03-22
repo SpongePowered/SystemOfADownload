@@ -2,11 +2,14 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 
+	openapi_types "github.com/oapi-codegen/runtime/types"
 	"go.temporal.io/sdk/client"
 
 	"github.com/spongepowered/systemofadownload/api"
@@ -291,5 +294,152 @@ func parseTags(raw string) (map[string]string, error) {
 }
 
 func (h *Handler) GetVersionInfo(ctx context.Context, request api.GetVersionInfoRequestObject) (api.GetVersionInfoResponseObject, error) {
-	return nil, nil
+	detail, err := h.service.GetVersionInfo(ctx, request.GroupID, request.ArtifactID, request.VersionID)
+	if err != nil {
+		if errors.Is(err, app.ErrVersionNotFound) {
+			return api.GetVersionInfo404Response{}, nil
+		}
+		slog.ErrorContext(ctx, "failed to get version info",
+			"groupID", request.GroupID,
+			"artifactID", request.ArtifactID,
+			"versionID", request.VersionID,
+			"error", err)
+		return nil, err
+	}
+
+	assets := make([]api.Asset, len(detail.Assets))
+	for i, a := range detail.Assets {
+		classifier := a.Classifier
+		downloadURL := a.DownloadURL
+		assets[i] = api.Asset{
+			Classifier:  &classifier,
+			DownloadUrl: &downloadURL,
+		}
+	}
+
+	var tags *map[string]string
+	if len(detail.Tags) > 0 {
+		tags = &detail.Tags
+	}
+
+	response := api.GetVersionInfo200JSONResponse{
+		Coordinates: &struct {
+			ArtifactId *string `json:"artifactId,omitempty"`
+			GroupId    *string `json:"groupId,omitempty"`
+			Version    *string `json:"version,omitempty"`
+		}{
+			ArtifactId: &detail.ArtifactID,
+			GroupId:    &detail.GroupID,
+			Version:    &detail.Version,
+		},
+		Assets:      &assets,
+		Tags:        tags,
+		Recommended: &detail.Recommended,
+	}
+
+	// Parse commit body if present
+	if len(detail.CommitBody) > 0 {
+		var commitInfo domain.CommitInfo
+		if err := json.Unmarshal(detail.CommitBody, &commitInfo); err == nil && commitInfo.Sha != "" {
+			commit := commitInfoToAPICommit(&commitInfo)
+
+			// Map submodule commits
+			var subCommits *[]api.Commit
+			if len(commitInfo.Submodules) > 0 {
+				subs := make([]api.Commit, len(commitInfo.Submodules))
+				for i, sub := range commitInfo.Submodules {
+					subs[i] = submoduleCommitToAPICommit(&sub)
+				}
+				subCommits = &subs
+			}
+
+			response.Commit = &struct {
+				Commits *[]struct {
+					Commit           *api.Commit   `json:"commit,omitempty"`
+					SubmoduleCommits *[]api.Commit  `json:"submoduleCommits,omitempty"`
+				} `json:"commits,omitempty"`
+			}{
+				Commits: &[]struct {
+					Commit           *api.Commit   `json:"commit,omitempty"`
+					SubmoduleCommits *[]api.Commit  `json:"submoduleCommits,omitempty"`
+				}{
+					{Commit: &commit, SubmoduleCommits: subCommits},
+				},
+			}
+		}
+	}
+
+	return response, nil
+}
+
+func commitInfoToAPICommit(info *domain.CommitInfo) api.Commit {
+	sha := info.Sha
+	link := info.Repository
+	c := api.Commit{
+		Sha:  &sha,
+		Link: &link,
+	}
+	if info.Message != "" {
+		c.Message = &info.Message
+	}
+	if info.Body != "" {
+		c.Body = &info.Body
+	}
+	if info.CommitDate != "" {
+		date := openapi_types.Date{Time: parseDate(info.CommitDate)}
+		if !date.Time.IsZero() {
+			c.CommitDate = &date
+		}
+	}
+	if info.Author != nil {
+		c.Author = &struct {
+			Email *string `json:"email,omitempty"`
+			Name  *string `json:"name,omitempty"`
+		}{
+			Name:  &info.Author.Name,
+			Email: &info.Author.Email,
+		}
+	}
+	return c
+}
+
+func submoduleCommitToAPICommit(sub *domain.SubmoduleCommit) api.Commit {
+	sha := sub.Sha
+	link := sub.Repository
+	c := api.Commit{
+		Sha:  &sha,
+		Link: &link,
+	}
+	if sub.Message != "" {
+		c.Message = &sub.Message
+	}
+	if sub.CommitDate != "" {
+		date := openapi_types.Date{Time: parseDate(sub.CommitDate)}
+		if !date.Time.IsZero() {
+			c.CommitDate = &date
+		}
+	}
+	if sub.Author != nil {
+		c.Author = &struct {
+			Email *string `json:"email,omitempty"`
+			Name  *string `json:"name,omitempty"`
+		}{
+			Name:  &sub.Author.Name,
+			Email: &sub.Author.Email,
+		}
+	}
+	return c
+}
+
+func parseDate(s string) time.Time {
+	for _, layout := range []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05-07:00",
+		"2006-01-02",
+	} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
 }

@@ -257,6 +257,8 @@ paths:
                     description: |
                       Whether the artifact is considered a "standard release" version or if it is still in development.
                     example: false
+        '404':
+          description: Version not found
 components:
   schemas:
     Group:

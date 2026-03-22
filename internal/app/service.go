@@ -17,6 +17,7 @@ var (
 	ErrGroupNotFound         = errors.New("group not found")
 	ErrArtifactAlreadyExists = errors.New("artifact already exists")
 	ErrArtifactNotFound      = errors.New("artifact not found")
+	ErrVersionNotFound       = errors.New("version not found")
 )
 
 // VersionEntry represents a single version in the GetVersions response.
@@ -195,6 +196,79 @@ func (s *Service) GetVersions(ctx context.Context, params repository.VersionQuer
 	}
 
 	return entries, nil
+}
+
+// VersionAsset represents a single downloadable asset for a version.
+type VersionAsset struct {
+	Classifier  string
+	DownloadURL string
+	Sha256      string
+}
+
+// VersionDetail holds all data for a single version info response.
+type VersionDetail struct {
+	GroupID     string
+	ArtifactID  string
+	Version     string
+	Recommended bool
+	CommitBody  []byte // raw JSON from DB
+	Tags        map[string]string
+	Assets      []VersionAsset
+}
+
+func (s *Service) GetVersionInfo(ctx context.Context, groupID, artifactID, version string) (*VersionDetail, error) {
+	av, err := s.repo.GetArtifactVersion(ctx, db.GetArtifactVersionParams{
+		GroupID:    groupID,
+		ArtifactID: artifactID,
+		Version:    version,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrVersionNotFound
+		}
+		return nil, fmt.Errorf("getting version: %w", err)
+	}
+
+	assets, err := s.repo.ListArtifactVersionAssets(ctx, av.ID)
+	if err != nil {
+		return nil, fmt.Errorf("listing assets: %w", err)
+	}
+
+	tagRows, err := s.repo.ListArtifactVersionTags(ctx, av.ID)
+	if err != nil {
+		return nil, fmt.Errorf("listing tags: %w", err)
+	}
+
+	tags := make(map[string]string, len(tagRows))
+	for _, row := range tagRows {
+		tags[row.TagKey] = row.TagValue
+	}
+
+	versionAssets := make([]VersionAsset, len(assets))
+	for i, a := range assets {
+		var classifier, sha256 string
+		if a.Classifier != nil {
+			classifier = *a.Classifier
+		}
+		if a.Sha256 != nil {
+			sha256 = *a.Sha256
+		}
+		versionAssets[i] = VersionAsset{
+			Classifier:  classifier,
+			DownloadURL: a.DownloadUrl,
+			Sha256:      sha256,
+		}
+	}
+
+	return &VersionDetail{
+		GroupID:     groupID,
+		ArtifactID:  artifactID,
+		Version:     av.Version,
+		Recommended: av.Recommended,
+		CommitBody:  av.CommitBody,
+		Tags:        tags,
+		Assets:      versionAssets,
+	}, nil
 }
 
 func (s *Service) RegisterArtifact(ctx context.Context, artifact *domain.Artifact) error {
