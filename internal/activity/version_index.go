@@ -304,6 +304,8 @@ func parseGitProperties(f *zip.File) (*domain.CommitInfo, error) {
 				info.Sha = val
 			case "git.remote.origin.url":
 				info.Repository = val
+			case "git.branch":
+				info.Branch = val
 			}
 		}
 	}
@@ -332,6 +334,8 @@ func parseManifest(f *zip.File) (*domain.CommitInfo, error) {
 				info.Sha = val
 			case "Git-Repository":
 				info.Repository = val
+			case "Git-Branch":
+				info.Branch = val
 			}
 		}
 	}

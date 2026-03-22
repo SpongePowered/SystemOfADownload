@@ -123,3 +123,42 @@ SELECT t.artifact_version_id, t.tag_key, t.tag_value
 FROM artifact_versioned_tags t
 WHERE t.artifact_version_id = ANY($1::bigint[])
 ORDER BY t.artifact_version_id, t.tag_key;
+
+-- name: GetArtifactVersionByID :one
+SELECT * FROM artifact_versions WHERE id = $1;
+
+-- name: ListVersionsNeedingEnrichment :many
+SELECT av.*
+FROM artifact_versions av
+JOIN artifacts a ON av.artifact_id = a.id
+WHERE a.group_id = $1 AND a.artifact_id = $2
+  AND av.commit_body IS NOT NULL
+  AND av.commit_body->>'sha' IS NOT NULL
+  AND (av.commit_body->>'enrichedAt') IS NULL
+  AND av.sort_order > 0
+ORDER BY av.sort_order ASC;
+
+-- name: GetPreviousVersion :one
+SELECT av.*
+FROM artifact_versions av
+WHERE av.artifact_id = $1
+  AND av.sort_order < $2 AND av.sort_order > 0
+  AND av.commit_body IS NOT NULL
+  AND av.commit_body->>'sha' IS NOT NULL
+ORDER BY av.sort_order DESC
+LIMIT 1;
+
+-- name: IsVersionEnriched :one
+SELECT COALESCE((av.commit_body->>'enrichedAt') IS NOT NULL, false)::boolean AS enriched
+FROM artifact_versions av
+WHERE av.id = $1;
+
+-- name: ListVersionsNeedingChangelog :many
+SELECT av.*
+FROM artifact_versions av
+JOIN artifacts a ON av.artifact_id = a.id
+WHERE a.group_id = $1 AND a.artifact_id = $2
+  AND av.commit_body IS NOT NULL
+  AND av.commit_body->>'enrichedAt' IS NOT NULL
+  AND av.commit_body->>'changelogStatus' = 'pending_predecessor'
+ORDER BY av.sort_order ASC;

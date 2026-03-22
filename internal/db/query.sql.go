@@ -227,6 +227,24 @@ func (q *Queries) GetArtifactVersion(ctx context.Context, arg GetArtifactVersion
 	return i, err
 }
 
+const getArtifactVersionByID = `-- name: GetArtifactVersionByID :one
+SELECT id, artifact_id, version, sort_order, recommended, commit_body FROM artifact_versions WHERE id = $1
+`
+
+func (q *Queries) GetArtifactVersionByID(ctx context.Context, id int64) (ArtifactVersion, error) {
+	row := q.db.QueryRow(ctx, getArtifactVersionByID, id)
+	var i ArtifactVersion
+	err := row.Scan(
+		&i.ID,
+		&i.ArtifactID,
+		&i.Version,
+		&i.SortOrder,
+		&i.Recommended,
+		&i.CommitBody,
+	)
+	return i, err
+}
+
 const getArtifactVersionSchema = `-- name: GetArtifactVersionSchema :one
 SELECT version_schema FROM artifacts
 WHERE group_id = $1 AND artifact_id = $2
@@ -256,6 +274,36 @@ func (q *Queries) GetGroup(ctx context.Context, mavenID string) (Group, error) {
 	return i, err
 }
 
+const getPreviousVersion = `-- name: GetPreviousVersion :one
+SELECT av.id, av.artifact_id, av.version, av.sort_order, av.recommended, av.commit_body
+FROM artifact_versions av
+WHERE av.artifact_id = $1
+  AND av.sort_order < $2 AND av.sort_order > 0
+  AND av.commit_body IS NOT NULL
+  AND av.commit_body->>'sha' IS NOT NULL
+ORDER BY av.sort_order DESC
+LIMIT 1
+`
+
+type GetPreviousVersionParams struct {
+	ArtifactID int64
+	SortOrder  int32
+}
+
+func (q *Queries) GetPreviousVersion(ctx context.Context, arg GetPreviousVersionParams) (ArtifactVersion, error) {
+	row := q.db.QueryRow(ctx, getPreviousVersion, arg.ArtifactID, arg.SortOrder)
+	var i ArtifactVersion
+	err := row.Scan(
+		&i.ID,
+		&i.ArtifactID,
+		&i.Version,
+		&i.SortOrder,
+		&i.Recommended,
+		&i.CommitBody,
+	)
+	return i, err
+}
+
 const groupExistsByMavenID = `-- name: GroupExistsByMavenID :one
 SELECT EXISTS(SELECT 1 FROM groups WHERE LOWER(maven_id) = LOWER($1)) AS exists
 `
@@ -265,6 +313,19 @@ func (q *Queries) GroupExistsByMavenID(ctx context.Context, lower string) (bool,
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const isVersionEnriched = `-- name: IsVersionEnriched :one
+SELECT COALESCE((av.commit_body->>'enrichedAt') IS NOT NULL, false)::boolean AS enriched
+FROM artifact_versions av
+WHERE av.id = $1
+`
+
+func (q *Queries) IsVersionEnriched(ctx context.Context, id int64) (bool, error) {
+	row := q.db.QueryRow(ctx, isVersionEnriched, id)
+	var enriched bool
+	err := row.Scan(&enriched)
+	return enriched, err
 }
 
 const listArtifactVersionAssets = `-- name: ListArtifactVersionAssets :many
@@ -562,6 +623,93 @@ func (q *Queries) ListTagsForVersions(ctx context.Context, dollar_1 []int64) ([]
 	for rows.Next() {
 		var i ArtifactVersionedTag
 		if err := rows.Scan(&i.ArtifactVersionID, &i.TagKey, &i.TagValue); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVersionsNeedingChangelog = `-- name: ListVersionsNeedingChangelog :many
+SELECT av.id, av.artifact_id, av.version, av.sort_order, av.recommended, av.commit_body
+FROM artifact_versions av
+JOIN artifacts a ON av.artifact_id = a.id
+WHERE a.group_id = $1 AND a.artifact_id = $2
+  AND av.commit_body IS NOT NULL
+  AND av.commit_body->>'enrichedAt' IS NOT NULL
+  AND av.commit_body->>'changelogStatus' = 'pending_predecessor'
+ORDER BY av.sort_order ASC
+`
+
+type ListVersionsNeedingChangelogParams struct {
+	GroupID    string
+	ArtifactID string
+}
+
+func (q *Queries) ListVersionsNeedingChangelog(ctx context.Context, arg ListVersionsNeedingChangelogParams) ([]ArtifactVersion, error) {
+	rows, err := q.db.Query(ctx, listVersionsNeedingChangelog, arg.GroupID, arg.ArtifactID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ArtifactVersion
+	for rows.Next() {
+		var i ArtifactVersion
+		if err := rows.Scan(
+			&i.ID,
+			&i.ArtifactID,
+			&i.Version,
+			&i.SortOrder,
+			&i.Recommended,
+			&i.CommitBody,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVersionsNeedingEnrichment = `-- name: ListVersionsNeedingEnrichment :many
+SELECT av.id, av.artifact_id, av.version, av.sort_order, av.recommended, av.commit_body
+FROM artifact_versions av
+JOIN artifacts a ON av.artifact_id = a.id
+WHERE a.group_id = $1 AND a.artifact_id = $2
+  AND av.commit_body IS NOT NULL
+  AND av.commit_body->>'sha' IS NOT NULL
+  AND (av.commit_body->>'enrichedAt') IS NULL
+  AND av.sort_order > 0
+ORDER BY av.sort_order ASC
+`
+
+type ListVersionsNeedingEnrichmentParams struct {
+	GroupID    string
+	ArtifactID string
+}
+
+func (q *Queries) ListVersionsNeedingEnrichment(ctx context.Context, arg ListVersionsNeedingEnrichmentParams) ([]ArtifactVersion, error) {
+	rows, err := q.db.Query(ctx, listVersionsNeedingEnrichment, arg.GroupID, arg.ArtifactID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ArtifactVersion
+	for rows.Next() {
+		var i ArtifactVersion
+		if err := rows.Scan(
+			&i.ID,
+			&i.ArtifactID,
+			&i.Version,
+			&i.SortOrder,
+			&i.Recommended,
+			&i.CommitBody,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

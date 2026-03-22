@@ -557,6 +557,72 @@ func (_c *MockQuerier_GetArtifactVersion_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
+// GetArtifactVersionByID provides a mock function for the type MockQuerier
+func (_mock *MockQuerier) GetArtifactVersionByID(ctx context.Context, id int64) (db.ArtifactVersion, error) {
+	ret := _mock.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetArtifactVersionByID")
+	}
+
+	var r0 db.ArtifactVersion
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) (db.ArtifactVersion, error)); ok {
+		return returnFunc(ctx, id)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) db.ArtifactVersion); ok {
+		r0 = returnFunc(ctx, id)
+	} else {
+		r0 = ret.Get(0).(db.ArtifactVersion)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = returnFunc(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockQuerier_GetArtifactVersionByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetArtifactVersionByID'
+type MockQuerier_GetArtifactVersionByID_Call struct {
+	*mock.Call
+}
+
+// GetArtifactVersionByID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+func (_e *MockQuerier_Expecter) GetArtifactVersionByID(ctx interface{}, id interface{}) *MockQuerier_GetArtifactVersionByID_Call {
+	return &MockQuerier_GetArtifactVersionByID_Call{Call: _e.mock.On("GetArtifactVersionByID", ctx, id)}
+}
+
+func (_c *MockQuerier_GetArtifactVersionByID_Call) Run(run func(ctx context.Context, id int64)) *MockQuerier_GetArtifactVersionByID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockQuerier_GetArtifactVersionByID_Call) Return(artifactVersion db.ArtifactVersion, err error) *MockQuerier_GetArtifactVersionByID_Call {
+	_c.Call.Return(artifactVersion, err)
+	return _c
+}
+
+func (_c *MockQuerier_GetArtifactVersionByID_Call) RunAndReturn(run func(ctx context.Context, id int64) (db.ArtifactVersion, error)) *MockQuerier_GetArtifactVersionByID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetArtifactVersionSchema provides a mock function for the type MockQuerier
 func (_mock *MockQuerier) GetArtifactVersionSchema(ctx context.Context, arg db.GetArtifactVersionSchemaParams) ([]byte, error) {
 	ret := _mock.Called(ctx, arg)
@@ -691,6 +757,72 @@ func (_c *MockQuerier_GetGroup_Call) RunAndReturn(run func(ctx context.Context, 
 	return _c
 }
 
+// GetPreviousVersion provides a mock function for the type MockQuerier
+func (_mock *MockQuerier) GetPreviousVersion(ctx context.Context, arg db.GetPreviousVersionParams) (db.ArtifactVersion, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPreviousVersion")
+	}
+
+	var r0 db.ArtifactVersion
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.GetPreviousVersionParams) (db.ArtifactVersion, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.GetPreviousVersionParams) db.ArtifactVersion); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		r0 = ret.Get(0).(db.ArtifactVersion)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.GetPreviousVersionParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockQuerier_GetPreviousVersion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPreviousVersion'
+type MockQuerier_GetPreviousVersion_Call struct {
+	*mock.Call
+}
+
+// GetPreviousVersion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.GetPreviousVersionParams
+func (_e *MockQuerier_Expecter) GetPreviousVersion(ctx interface{}, arg interface{}) *MockQuerier_GetPreviousVersion_Call {
+	return &MockQuerier_GetPreviousVersion_Call{Call: _e.mock.On("GetPreviousVersion", ctx, arg)}
+}
+
+func (_c *MockQuerier_GetPreviousVersion_Call) Run(run func(ctx context.Context, arg db.GetPreviousVersionParams)) *MockQuerier_GetPreviousVersion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.GetPreviousVersionParams
+		if args[1] != nil {
+			arg1 = args[1].(db.GetPreviousVersionParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockQuerier_GetPreviousVersion_Call) Return(artifactVersion db.ArtifactVersion, err error) *MockQuerier_GetPreviousVersion_Call {
+	_c.Call.Return(artifactVersion, err)
+	return _c
+}
+
+func (_c *MockQuerier_GetPreviousVersion_Call) RunAndReturn(run func(ctx context.Context, arg db.GetPreviousVersionParams) (db.ArtifactVersion, error)) *MockQuerier_GetPreviousVersion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GroupExistsByMavenID provides a mock function for the type MockQuerier
 func (_mock *MockQuerier) GroupExistsByMavenID(ctx context.Context, lower string) (bool, error) {
 	ret := _mock.Called(ctx, lower)
@@ -753,6 +885,72 @@ func (_c *MockQuerier_GroupExistsByMavenID_Call) Return(b bool, err error) *Mock
 }
 
 func (_c *MockQuerier_GroupExistsByMavenID_Call) RunAndReturn(run func(ctx context.Context, lower string) (bool, error)) *MockQuerier_GroupExistsByMavenID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IsVersionEnriched provides a mock function for the type MockQuerier
+func (_mock *MockQuerier) IsVersionEnriched(ctx context.Context, id int64) (bool, error) {
+	ret := _mock.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsVersionEnriched")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) (bool, error)); ok {
+		return returnFunc(ctx, id)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) bool); ok {
+		r0 = returnFunc(ctx, id)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = returnFunc(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockQuerier_IsVersionEnriched_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsVersionEnriched'
+type MockQuerier_IsVersionEnriched_Call struct {
+	*mock.Call
+}
+
+// IsVersionEnriched is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+func (_e *MockQuerier_Expecter) IsVersionEnriched(ctx interface{}, id interface{}) *MockQuerier_IsVersionEnriched_Call {
+	return &MockQuerier_IsVersionEnriched_Call{Call: _e.mock.On("IsVersionEnriched", ctx, id)}
+}
+
+func (_c *MockQuerier_IsVersionEnriched_Call) Run(run func(ctx context.Context, id int64)) *MockQuerier_IsVersionEnriched_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockQuerier_IsVersionEnriched_Call) Return(b bool, err error) *MockQuerier_IsVersionEnriched_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockQuerier_IsVersionEnriched_Call) RunAndReturn(run func(ctx context.Context, id int64) (bool, error)) *MockQuerier_IsVersionEnriched_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1359,6 +1557,142 @@ func (_c *MockQuerier_ListTagsForVersions_Call) Return(artifactVersionedTags []d
 }
 
 func (_c *MockQuerier_ListTagsForVersions_Call) RunAndReturn(run func(ctx context.Context, dollar_1 []int64) ([]db.ArtifactVersionedTag, error)) *MockQuerier_ListTagsForVersions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVersionsNeedingChangelog provides a mock function for the type MockQuerier
+func (_mock *MockQuerier) ListVersionsNeedingChangelog(ctx context.Context, arg db.ListVersionsNeedingChangelogParams) ([]db.ArtifactVersion, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVersionsNeedingChangelog")
+	}
+
+	var r0 []db.ArtifactVersion
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListVersionsNeedingChangelogParams) ([]db.ArtifactVersion, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListVersionsNeedingChangelogParams) []db.ArtifactVersion); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]db.ArtifactVersion)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.ListVersionsNeedingChangelogParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockQuerier_ListVersionsNeedingChangelog_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVersionsNeedingChangelog'
+type MockQuerier_ListVersionsNeedingChangelog_Call struct {
+	*mock.Call
+}
+
+// ListVersionsNeedingChangelog is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.ListVersionsNeedingChangelogParams
+func (_e *MockQuerier_Expecter) ListVersionsNeedingChangelog(ctx interface{}, arg interface{}) *MockQuerier_ListVersionsNeedingChangelog_Call {
+	return &MockQuerier_ListVersionsNeedingChangelog_Call{Call: _e.mock.On("ListVersionsNeedingChangelog", ctx, arg)}
+}
+
+func (_c *MockQuerier_ListVersionsNeedingChangelog_Call) Run(run func(ctx context.Context, arg db.ListVersionsNeedingChangelogParams)) *MockQuerier_ListVersionsNeedingChangelog_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.ListVersionsNeedingChangelogParams
+		if args[1] != nil {
+			arg1 = args[1].(db.ListVersionsNeedingChangelogParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockQuerier_ListVersionsNeedingChangelog_Call) Return(artifactVersions []db.ArtifactVersion, err error) *MockQuerier_ListVersionsNeedingChangelog_Call {
+	_c.Call.Return(artifactVersions, err)
+	return _c
+}
+
+func (_c *MockQuerier_ListVersionsNeedingChangelog_Call) RunAndReturn(run func(ctx context.Context, arg db.ListVersionsNeedingChangelogParams) ([]db.ArtifactVersion, error)) *MockQuerier_ListVersionsNeedingChangelog_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVersionsNeedingEnrichment provides a mock function for the type MockQuerier
+func (_mock *MockQuerier) ListVersionsNeedingEnrichment(ctx context.Context, arg db.ListVersionsNeedingEnrichmentParams) ([]db.ArtifactVersion, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVersionsNeedingEnrichment")
+	}
+
+	var r0 []db.ArtifactVersion
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListVersionsNeedingEnrichmentParams) ([]db.ArtifactVersion, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListVersionsNeedingEnrichmentParams) []db.ArtifactVersion); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]db.ArtifactVersion)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.ListVersionsNeedingEnrichmentParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockQuerier_ListVersionsNeedingEnrichment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVersionsNeedingEnrichment'
+type MockQuerier_ListVersionsNeedingEnrichment_Call struct {
+	*mock.Call
+}
+
+// ListVersionsNeedingEnrichment is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.ListVersionsNeedingEnrichmentParams
+func (_e *MockQuerier_Expecter) ListVersionsNeedingEnrichment(ctx interface{}, arg interface{}) *MockQuerier_ListVersionsNeedingEnrichment_Call {
+	return &MockQuerier_ListVersionsNeedingEnrichment_Call{Call: _e.mock.On("ListVersionsNeedingEnrichment", ctx, arg)}
+}
+
+func (_c *MockQuerier_ListVersionsNeedingEnrichment_Call) Run(run func(ctx context.Context, arg db.ListVersionsNeedingEnrichmentParams)) *MockQuerier_ListVersionsNeedingEnrichment_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.ListVersionsNeedingEnrichmentParams
+		if args[1] != nil {
+			arg1 = args[1].(db.ListVersionsNeedingEnrichmentParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockQuerier_ListVersionsNeedingEnrichment_Call) Return(artifactVersions []db.ArtifactVersion, err error) *MockQuerier_ListVersionsNeedingEnrichment_Call {
+	_c.Call.Return(artifactVersions, err)
+	return _c
+}
+
+func (_c *MockQuerier_ListVersionsNeedingEnrichment_Call) RunAndReturn(run func(ctx context.Context, arg db.ListVersionsNeedingEnrichmentParams) ([]db.ArtifactVersion, error)) *MockQuerier_ListVersionsNeedingEnrichment_Call {
 	_c.Call.Return(run)
 	return _c
 }

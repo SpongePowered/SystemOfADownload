@@ -23,9 +23,12 @@ type VersionQueryParams struct {
 type Reads interface {
 	GetArtifactByGroupAndId(ctx context.Context, arg db.GetArtifactByGroupAndIdParams) (db.Artifact, error)
 	GetArtifactVersion(ctx context.Context, arg db.GetArtifactVersionParams) (db.ArtifactVersion, error)
+	GetArtifactVersionByID(ctx context.Context, id int64) (db.ArtifactVersion, error)
 	GetArtifactVersionSchema(ctx context.Context, arg db.GetArtifactVersionSchemaParams) ([]byte, error)
 	GetGroup(ctx context.Context, mavenID string) (db.Group, error)
+	GetPreviousVersion(ctx context.Context, arg db.GetPreviousVersionParams) (db.ArtifactVersion, error)
 	GroupExistsByMavenID(ctx context.Context, lower string) (bool, error)
+	IsVersionEnriched(ctx context.Context, id int64) (bool, error)
 	ListArtifactVersionAssets(ctx context.Context, artifactVersionID int64) ([]db.ArtifactVersionedAsset, error)
 	ListArtifactVersionTags(ctx context.Context, artifactVersionID int64) ([]db.ArtifactVersionedTag, error)
 	ListArtifactVersions(ctx context.Context, arg db.ListArtifactVersionsParams) ([]db.ArtifactVersion, error)
@@ -35,6 +38,8 @@ type Reads interface {
 	ListGroups(ctx context.Context) ([]db.Group, error)
 	ListTagsForVersions(ctx context.Context, versionIDs []int64) ([]db.ArtifactVersionedTag, error)
 	ListVersionsFiltered(ctx context.Context, params VersionQueryParams) ([]db.ArtifactVersion, error)
+	ListVersionsNeedingEnrichment(ctx context.Context, arg db.ListVersionsNeedingEnrichmentParams) ([]db.ArtifactVersion, error)
+	ListVersionsNeedingChangelog(ctx context.Context, arg db.ListVersionsNeedingChangelogParams) ([]db.ArtifactVersion, error)
 }
 
 // Writes must happen in a transaction.

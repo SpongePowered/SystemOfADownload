@@ -17,9 +17,12 @@ type Querier interface {
 	DeleteArtifactVersionTags(ctx context.Context, artifactVersionID int64) error
 	GetArtifactByGroupAndId(ctx context.Context, arg GetArtifactByGroupAndIdParams) (Artifact, error)
 	GetArtifactVersion(ctx context.Context, arg GetArtifactVersionParams) (ArtifactVersion, error)
+	GetArtifactVersionByID(ctx context.Context, id int64) (ArtifactVersion, error)
 	GetArtifactVersionSchema(ctx context.Context, arg GetArtifactVersionSchemaParams) ([]byte, error)
 	GetGroup(ctx context.Context, mavenID string) (Group, error)
+	GetPreviousVersion(ctx context.Context, arg GetPreviousVersionParams) (ArtifactVersion, error)
 	GroupExistsByMavenID(ctx context.Context, lower string) (bool, error)
+	IsVersionEnriched(ctx context.Context, id int64) (bool, error)
 	ListArtifactVersionAssets(ctx context.Context, artifactVersionID int64) ([]ArtifactVersionedAsset, error)
 	ListArtifactVersionStringsByArtifactID(ctx context.Context, arg ListArtifactVersionStringsByArtifactIDParams) ([]string, error)
 	ListArtifactVersionTags(ctx context.Context, artifactVersionID int64) ([]ArtifactVersionedTag, error)
@@ -29,6 +32,8 @@ type Querier interface {
 	ListDistinctTagsByArtifact(ctx context.Context, arg ListDistinctTagsByArtifactParams) ([]ListDistinctTagsByArtifactRow, error)
 	ListGroups(ctx context.Context) ([]Group, error)
 	ListTagsForVersions(ctx context.Context, dollar_1 []int64) ([]ArtifactVersionedTag, error)
+	ListVersionsNeedingChangelog(ctx context.Context, arg ListVersionsNeedingChangelogParams) ([]ArtifactVersion, error)
+	ListVersionsNeedingEnrichment(ctx context.Context, arg ListVersionsNeedingEnrichmentParams) ([]ArtifactVersion, error)
 	UpdateArtifactVersionCommitBody(ctx context.Context, arg UpdateArtifactVersionCommitBodyParams) error
 	UpdateArtifactVersionOrder(ctx context.Context, arg UpdateArtifactVersionOrderParams) error
 }
