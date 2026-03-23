@@ -14,6 +14,7 @@ import (
     "go.uber.org/fx"
 
     "github.com/spongepowered/systemofadownload/internal/activity"
+    "github.com/spongepowered/systemofadownload/internal/gitcache"
     "github.com/spongepowered/systemofadownload/internal/repository"
     "github.com/spongepowered/systemofadownload/internal/sonatype"
     wf "github.com/spongepowered/systemofadownload/internal/workflow"
@@ -25,6 +26,7 @@ type Config struct {
     SonatypeBaseURL   string
     SonatypeRepoName  string
     DatabaseURL       string
+    GitCacheDir       string
 }
 
 func NewConfig() *Config {
@@ -48,12 +50,17 @@ func NewConfig() *Config {
     if databaseURL == "" {
         databaseURL = "postgres://localhost:5432/systemofadownload?sslmode=disable"
     }
+    gitCacheDir := os.Getenv("GIT_CACHE_DIR")
+    if gitCacheDir == "" {
+        gitCacheDir = "/var/cache/soad/git"
+    }
     return &Config{
         TemporalHostPort:  hostPort,
         TemporalNamespace: namespace,
         SonatypeBaseURL:   sonatypeURL,
         SonatypeRepoName:  repoName,
         DatabaseURL:       databaseURL,
+        GitCacheDir:       gitCacheDir,
     }
 }
 
@@ -98,8 +105,12 @@ func NewTemporalWorker(
         syncActivities *activity.VersionSyncActivities,
         indexActivities *activity.VersionIndexActivities,
         orderingActivities *activity.VersionOrderingActivities,
+        changelogActivities *activity.ChangelogActivities,
+        gitActivities *activity.GitActivities,
 ) worker.Worker {
-    w := worker.New(c, wf.VersionSyncTaskQueue, worker.Options{})
+    w := worker.New(c, wf.VersionSyncTaskQueue, worker.Options{
+        MaxConcurrentLocalActivityExecutionSize: 4,
+    })
 
     w.RegisterWorkflow(wf.VersionSyncWorkflow)
     w.RegisterWorkflow(wf.VersionBatchIndexWorkflow)
@@ -107,9 +118,16 @@ func NewTemporalWorker(
     w.RegisterWorkflow(wf.ExtractCommitBatchWorkflow)
     w.RegisterWorkflow(wf.ExtractCommitWorkflow)
     w.RegisterWorkflow(wf.VersionOrderingWorkflow)
+    w.RegisterWorkflow(wf.CommitEnrichmentWorkflow)
+    w.RegisterWorkflow(wf.EnrichmentBatchWorkflow)
+    w.RegisterWorkflow(wf.EnrichVersionWorkflow)
+    w.RegisterWorkflow(wf.ChangelogBatchWorkflow)
+    w.RegisterWorkflow(wf.ChangelogVersionWorkflow)
     w.RegisterActivity(syncActivities)
     w.RegisterActivity(indexActivities)
     w.RegisterActivity(orderingActivities)
+    w.RegisterActivity(changelogActivities)
+    w.RegisterActivity(gitActivities)
 
     lc.Append(fx.Hook{
         OnStart: func(ctx context.Context) error {
@@ -154,6 +172,15 @@ func main() {
                     Repo:       repo,
                     HTTPClient: http.DefaultClient,
                 }
+            },
+            func(repo repository.Repository) *activity.ChangelogActivities {
+                return &activity.ChangelogActivities{Repo: repo}
+            },
+            func(cfg *Config) *gitcache.Manager {
+                return gitcache.NewManager(cfg.GitCacheDir)
+            },
+            func(cache *gitcache.Manager) *activity.GitActivities {
+                return &activity.GitActivities{Cache: cache}
             },
             NewTemporalWorker,
         ),

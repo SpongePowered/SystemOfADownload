@@ -102,6 +102,21 @@ func VersionSyncWorkflow(ctx workflow.Context, input VersionSyncInput) (*Version
 		return nil, fmt.Errorf("ordering versions: %w", err)
 	}
 
+	// Enrich commit details and compute changelogs.
+	enrichOpts := workflow.ChildWorkflowOptions{
+		WorkflowID: fmt.Sprintf("commit-enrichment-%s-%s", input.GroupID, input.ArtifactID),
+	}
+	enrichCtx := workflow.WithChildOptions(ctx, enrichOpts)
+
+	var enrichResult CommitEnrichmentOutput
+	err = workflow.ExecuteChildWorkflow(enrichCtx, CommitEnrichmentWorkflow, CommitEnrichmentInput{
+		GroupID:    input.GroupID,
+		ArtifactID: input.ArtifactID,
+	}).Get(ctx, &enrichResult)
+	if err != nil {
+		return nil, fmt.Errorf("enriching commits: %w", err)
+	}
+
 	return &VersionSyncOutput{
 		NewVersionsStored: len(storeResult.NewVersions),
 		NewVersions:       storeResult.NewVersions,

@@ -67,6 +67,9 @@ func TestVersionSyncWorkflow(t *testing.T) {
 
 				env.OnWorkflow(workflow.VersionOrderingWorkflow, mock.Anything, mock.Anything).
 					Return(&workflow.VersionOrderingOutput{VersionsOrdered: 2}, nil)
+
+				env.OnWorkflow(workflow.CommitEnrichmentWorkflow, mock.Anything, mock.Anything).
+					Return(&workflow.CommitEnrichmentOutput{}, nil)
 			},
 			wantCount: 1,
 		},
@@ -149,6 +152,9 @@ func TestVersionSyncWorkflow(t *testing.T) {
 				// No batch indexing since no new versions, but ordering still runs.
 				env.OnWorkflow(workflow.VersionOrderingWorkflow, mock.Anything, mock.Anything).
 					Return(&workflow.VersionOrderingOutput{VersionsOrdered: 1}, nil)
+
+				env.OnWorkflow(workflow.CommitEnrichmentWorkflow, mock.Anything, mock.Anything).
+					Return(&workflow.CommitEnrichmentOutput{}, nil)
 			},
 			wantCount: 0,
 		},
