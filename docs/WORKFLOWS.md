@@ -20,12 +20,31 @@ VersionSyncWorkflow ────────────────────
  │              └── ExtractCommitWorkflow (per jar, window of 3)     |
  │                   ├── ExtractCommitFromJar (HTTP + zip parse)     |
  │                   └── StoreCommitInfo     (DB)                    |
- └── VersionOrderingWorkflow (child, always runs for ALL versions)   |
-      ├── FetchVersionSchema        (DB)                             |
-      ├── FetchMojangManifest       (HTTP, optional)                 |
-      ├── ComputeVersionOrdering    (DB read + sort + tag extract)   |
-      ├── ApplyVersionOrdering x N  (DB write, batches of 500)       |
-      └── StoreVersionTags x N     (DB write, batches of 500)        |
+ ├── VersionOrderingWorkflow (child, always runs for ALL versions)   |
+ │    ├── FetchVersionSchema        (DB)                             |
+ │    ├── FetchMojangManifest       (HTTP, optional)                 |
+ │    ├── ComputeVersionOrdering    (DB read + sort + tag extract)   |
+ │    ├── ApplyVersionOrdering x N  (DB write, batches of 500)       |
+ │    └── StoreVersionTags x N     (DB write, batches of 500)        |
+ └── CommitEnrichmentWorkflow (child, enriches commits + changelogs) |
+      ├── FetchVersionsForEnrichment (DB: versions needing enrichment)|
+      ├── EnrichmentBatchWorkflow  (sliding window of 3, parallel)   |
+      │    └── EnrichVersionWorkflow (per version)                    |
+      │         ├── EnsureRepoCloned       (local: git clone/fetch)  |
+      │         ├── GetCommitDetails       (local: git show)         |
+      │         ├── ResolveSubmodules      (local: .gitmodules)      |
+      │         ├── [per submodule, parallel]                         |
+      │         │    ├── EnsureRepoCloned  (local: submodule repo)   |
+      │         │    └── GetCommitDetails  (local: submodule SHA)    |
+      │         └── StoreEnrichedCommit    (DB)                      |
+      └── ChangelogBatchWorkflow   (sequential, sort_order ASC)      |
+           └── ChangelogVersionWorkflow (per version)                 |
+                ├── GetPreviousVersionCommit (DB)                     |
+                ├── [wait for N-1 enrichment if needed]               |
+                ├── ComputeChangelog       (local: git log)           |
+                ├── [per submodule with changed pointer]              |
+                │    └── ComputeChangelog  (local: submodule log)     |
+                └── StoreChangelog         (DB)                       |
 ──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -116,6 +135,22 @@ Each artifact can have a `version_schema` stored as JSONB that defines how its v
 
 **Variant ordering:** When comparing versions from different variants (e.g., a beta-era version vs a current-format version with the same Minecraft version), the variant's position in the list acts as a tiebreaker. Variants should be listed newest-first — earlier variants sort as newer.
 
+### CommitEnrichmentWorkflow
+
+Enriches version commit records with full git details (message, author, date, submodule state) and computes changelogs between consecutive versions. Runs after `VersionOrderingWorkflow` so sort order is known.
+
+**Two-phase approach:**
+
+1. **Enrichment phase** (parallel): For each version with a commit SHA but no enrichment, clones the git repo (bare, cached on the worker), resolves full commit details via `git show`, and resolves submodule SHAs from `.gitmodules`. Different versions can be enriched in parallel.
+
+2. **Changelog phase** (sequential): For each version in ascending sort order, computes `git log prevSHA..curSHA` for the main repo and each submodule where the pointer changed. Sequential processing guarantees N-1 is enriched before N computes its changelog.
+
+**Worker-local git cache:** Git repos are stored as bare clones under `$GIT_CACHE_DIR` (default `/var/cache/soad/git`). A per-repo mutex prevents concurrent git operations on the same directory. `MaxConcurrentLocalActivityExecutionSize: 4` caps total simultaneous git operations.
+
+**Repo transitions:** When consecutive versions use different repositories (e.g., SpongeForge repo for <=1.12, Sponge repo for >=1.16), the main-repo changelog is skipped since there's no common git history. Submodule changelogs may still be computed if both versions share a common submodule.
+
+**Dependency resolution:** If version N-1's enrichment hasn't completed when N's changelog is due, the workflow polls every 30s for up to 10 minutes. On timeout, the version is marked `changelogStatus: "pending_predecessor"` and retried on the next sync.
+
 ## Activity Structs
 
 Activities are grouped into structs by responsibility, each with explicit dependencies:
@@ -125,6 +160,8 @@ Activities are grouped into structs by responsibility, each with explicit depend
 | `VersionSyncActivities` | Sonatype client, Repository | Fetch versions from Nexus, store new versions |
 | `VersionIndexActivities` | Sonatype client, Repository, HTTP client | Fetch/store assets, inspect jars, extract commits |
 | `VersionOrderingActivities` | Repository, HTTP client | Schema loading, manifest fetching, ordering, tag storage |
+| `ChangelogActivities` | Repository | Fetch versions for enrichment, store enriched commits, store changelogs |
+| `GitActivities` | GitCacheManager | Local activities: clone/fetch repos, git show, resolve submodules, git log |
 
 All activity structs are registered on the worker via `w.RegisterActivity(struct)`, which auto-registers all exported methods.
 
@@ -135,6 +172,9 @@ All activity structs are registered on the worker via `w.RegisterActivity(struct
 | Sync/Index activities | 30s | 3 | Standard DB + Sonatype API calls |
 | Ordering activities | 60s | 3 | ComputeVersionOrdering may process thousands of versions |
 | Commit extraction activities | 5m | 2 | Jar downloads can be slow |
+| Git clone/fetch (local) | 2m | 3 | Large repos may take time to clone |
+| Git read operations (local) | 30s | 3 | git show, git log, git ls-tree |
+| Changelog DB activities | 30s | 3 | Standard DB reads/writes |
 
 All use exponential backoff (initial 1-2s, coefficient 2.0, max 30s-1m).
 
