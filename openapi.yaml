@@ -114,6 +114,88 @@ paths:
                 $ref: '#/components/schemas/Artifact'
         '404':
           description: Artifact not found
+    patch:
+      tags:
+        - Artifacts
+      operationId: updateArtifact
+      description: Updates mutable fields on an artifact. Only fields present in the request body are changed.
+      parameters:
+        - $ref: '#/components/parameters/GroupID'
+        - $ref: '#/components/parameters/ArtifactID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName:
+                  type: string
+                  description: Display name for the artifact
+                gitRepository:
+                  type: array
+                  items:
+                    type: string
+                    format: URL
+                  description: Git repository URLs
+                website:
+                  type: string
+                  format: URL
+                issues:
+                  type: string
+                  format: URL
+      responses:
+        '200':
+          description: Artifact updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Artifact'
+        '404':
+          description: Artifact not found
+  '/groups/{groupID}/artifacts/{artifactID}/schema':
+    get:
+      tags:
+        - Artifacts
+      operationId: getArtifactSchema
+      description: Returns the version schema for an artifact
+      parameters:
+        - $ref: '#/components/parameters/GroupID'
+        - $ref: '#/components/parameters/ArtifactID'
+      responses:
+        '200':
+          description: The version schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionSchema'
+        '404':
+          description: Artifact not found or no schema set
+    put:
+      tags:
+        - Artifacts
+      operationId: putArtifactSchema
+      description: Replaces the version schema for an artifact. Triggers recomputation of version ordering and tags.
+      parameters:
+        - $ref: '#/components/parameters/GroupID'
+        - $ref: '#/components/parameters/ArtifactID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VersionSchema'
+      responses:
+        '200':
+          description: Schema updated, ordering recomputation triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionSchema'
+        '400':
+          description: Invalid schema (bad regex, missing segments, unknown parse_as)
+        '404':
+          description: Artifact not found
   '/groups/{groupID}/artifacts/{artifactID}/versions':
     get:
       tags:
@@ -470,7 +552,51 @@ components:
           format: URL
           example: "https://github.com/SpongePowered/Sponge/issues"
           description: The issues/tracker URL (optional)
-
+    VersionSchema:
+      type: object
+      required:
+        - variants
+      properties:
+        use_mojang_manifest:
+          type: boolean
+          description: Whether to fetch Mojang version manifest for Minecraft version ordering
+          default: false
+        variants:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required:
+              - name
+              - pattern
+              - segments
+            properties:
+              name:
+                type: string
+                description: Human-readable variant name (e.g. "current", "beta-era")
+                example: "current"
+              pattern:
+                type: string
+                description: Regex with named capture groups for version parsing
+                example: "^(?P<minecraft>\\d+\\.\\d+(?:\\.\\d+)?)-(?P<api>\\d+\\.\\d+\\.\\d+)$"
+              segments:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - name
+                    - parse_as
+                  properties:
+                    name:
+                      type: string
+                      description: Named capture group to match
+                    parse_as:
+                      type: string
+                      enum: [minecraft, dotted, integer, ignore]
+                      description: How to parse and compare this segment
+                    tag_key:
+                      type: string
+                      description: If set, produces a version tag with this key
   parameters:
     GroupID:
       name: groupID

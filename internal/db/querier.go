@@ -34,8 +34,10 @@ type Querier interface {
 	ListTagsForVersions(ctx context.Context, dollar_1 []int64) ([]ArtifactVersionedTag, error)
 	ListVersionsNeedingChangelog(ctx context.Context, arg ListVersionsNeedingChangelogParams) ([]ArtifactVersion, error)
 	ListVersionsNeedingEnrichment(ctx context.Context, arg ListVersionsNeedingEnrichmentParams) ([]ArtifactVersion, error)
+	UpdateArtifactFields(ctx context.Context, arg UpdateArtifactFieldsParams) (Artifact, error)
 	UpdateArtifactVersionCommitBody(ctx context.Context, arg UpdateArtifactVersionCommitBodyParams) error
 	UpdateArtifactVersionOrder(ctx context.Context, arg UpdateArtifactVersionOrderParams) error
+	UpdateArtifactVersionSchema(ctx context.Context, arg UpdateArtifactVersionSchemaParams) error
 }
 
 var _ Querier = (*Queries)(nil)

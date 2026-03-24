@@ -1725,6 +1725,72 @@ func (_c *MockWrites_DeleteArtifactVersionTags_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
+// UpdateArtifactFields provides a mock function for the type MockWrites
+func (_mock *MockWrites) UpdateArtifactFields(ctx context.Context, arg db.UpdateArtifactFieldsParams) (db.Artifact, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateArtifactFields")
+	}
+
+	var r0 db.Artifact
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpdateArtifactFieldsParams) (db.Artifact, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpdateArtifactFieldsParams) db.Artifact); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		r0 = ret.Get(0).(db.Artifact)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.UpdateArtifactFieldsParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockWrites_UpdateArtifactFields_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateArtifactFields'
+type MockWrites_UpdateArtifactFields_Call struct {
+	*mock.Call
+}
+
+// UpdateArtifactFields is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.UpdateArtifactFieldsParams
+func (_e *MockWrites_Expecter) UpdateArtifactFields(ctx interface{}, arg interface{}) *MockWrites_UpdateArtifactFields_Call {
+	return &MockWrites_UpdateArtifactFields_Call{Call: _e.mock.On("UpdateArtifactFields", ctx, arg)}
+}
+
+func (_c *MockWrites_UpdateArtifactFields_Call) Run(run func(ctx context.Context, arg db.UpdateArtifactFieldsParams)) *MockWrites_UpdateArtifactFields_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.UpdateArtifactFieldsParams
+		if args[1] != nil {
+			arg1 = args[1].(db.UpdateArtifactFieldsParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockWrites_UpdateArtifactFields_Call) Return(artifact db.Artifact, err error) *MockWrites_UpdateArtifactFields_Call {
+	_c.Call.Return(artifact, err)
+	return _c
+}
+
+func (_c *MockWrites_UpdateArtifactFields_Call) RunAndReturn(run func(ctx context.Context, arg db.UpdateArtifactFieldsParams) (db.Artifact, error)) *MockWrites_UpdateArtifactFields_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateArtifactVersionCommitBody provides a mock function for the type MockWrites
 func (_mock *MockWrites) UpdateArtifactVersionCommitBody(ctx context.Context, arg db.UpdateArtifactVersionCommitBodyParams) error {
 	ret := _mock.Called(ctx, arg)
@@ -1835,6 +1901,63 @@ func (_c *MockWrites_UpdateArtifactVersionOrder_Call) Return(err error) *MockWri
 }
 
 func (_c *MockWrites_UpdateArtifactVersionOrder_Call) RunAndReturn(run func(ctx context.Context, arg db.UpdateArtifactVersionOrderParams) error) *MockWrites_UpdateArtifactVersionOrder_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateArtifactVersionSchema provides a mock function for the type MockWrites
+func (_mock *MockWrites) UpdateArtifactVersionSchema(ctx context.Context, arg db.UpdateArtifactVersionSchemaParams) error {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateArtifactVersionSchema")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpdateArtifactVersionSchemaParams) error); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockWrites_UpdateArtifactVersionSchema_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateArtifactVersionSchema'
+type MockWrites_UpdateArtifactVersionSchema_Call struct {
+	*mock.Call
+}
+
+// UpdateArtifactVersionSchema is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.UpdateArtifactVersionSchemaParams
+func (_e *MockWrites_Expecter) UpdateArtifactVersionSchema(ctx interface{}, arg interface{}) *MockWrites_UpdateArtifactVersionSchema_Call {
+	return &MockWrites_UpdateArtifactVersionSchema_Call{Call: _e.mock.On("UpdateArtifactVersionSchema", ctx, arg)}
+}
+
+func (_c *MockWrites_UpdateArtifactVersionSchema_Call) Run(run func(ctx context.Context, arg db.UpdateArtifactVersionSchemaParams)) *MockWrites_UpdateArtifactVersionSchema_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.UpdateArtifactVersionSchemaParams
+		if args[1] != nil {
+			arg1 = args[1].(db.UpdateArtifactVersionSchemaParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockWrites_UpdateArtifactVersionSchema_Call) Return(err error) *MockWrites_UpdateArtifactVersionSchema_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockWrites_UpdateArtifactVersionSchema_Call) RunAndReturn(run func(ctx context.Context, arg db.UpdateArtifactVersionSchemaParams) error) *MockWrites_UpdateArtifactVersionSchema_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3525,6 +3648,72 @@ func (_c *MockTx_ListVersionsNeedingEnrichment_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
+// UpdateArtifactFields provides a mock function for the type MockTx
+func (_mock *MockTx) UpdateArtifactFields(ctx context.Context, arg db.UpdateArtifactFieldsParams) (db.Artifact, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateArtifactFields")
+	}
+
+	var r0 db.Artifact
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpdateArtifactFieldsParams) (db.Artifact, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpdateArtifactFieldsParams) db.Artifact); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		r0 = ret.Get(0).(db.Artifact)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.UpdateArtifactFieldsParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTx_UpdateArtifactFields_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateArtifactFields'
+type MockTx_UpdateArtifactFields_Call struct {
+	*mock.Call
+}
+
+// UpdateArtifactFields is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.UpdateArtifactFieldsParams
+func (_e *MockTx_Expecter) UpdateArtifactFields(ctx interface{}, arg interface{}) *MockTx_UpdateArtifactFields_Call {
+	return &MockTx_UpdateArtifactFields_Call{Call: _e.mock.On("UpdateArtifactFields", ctx, arg)}
+}
+
+func (_c *MockTx_UpdateArtifactFields_Call) Run(run func(ctx context.Context, arg db.UpdateArtifactFieldsParams)) *MockTx_UpdateArtifactFields_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.UpdateArtifactFieldsParams
+		if args[1] != nil {
+			arg1 = args[1].(db.UpdateArtifactFieldsParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_UpdateArtifactFields_Call) Return(artifact db.Artifact, err error) *MockTx_UpdateArtifactFields_Call {
+	_c.Call.Return(artifact, err)
+	return _c
+}
+
+func (_c *MockTx_UpdateArtifactFields_Call) RunAndReturn(run func(ctx context.Context, arg db.UpdateArtifactFieldsParams) (db.Artifact, error)) *MockTx_UpdateArtifactFields_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateArtifactVersionCommitBody provides a mock function for the type MockTx
 func (_mock *MockTx) UpdateArtifactVersionCommitBody(ctx context.Context, arg db.UpdateArtifactVersionCommitBodyParams) error {
 	ret := _mock.Called(ctx, arg)
@@ -3635,6 +3824,63 @@ func (_c *MockTx_UpdateArtifactVersionOrder_Call) Return(err error) *MockTx_Upda
 }
 
 func (_c *MockTx_UpdateArtifactVersionOrder_Call) RunAndReturn(run func(ctx context.Context, arg db.UpdateArtifactVersionOrderParams) error) *MockTx_UpdateArtifactVersionOrder_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateArtifactVersionSchema provides a mock function for the type MockTx
+func (_mock *MockTx) UpdateArtifactVersionSchema(ctx context.Context, arg db.UpdateArtifactVersionSchemaParams) error {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateArtifactVersionSchema")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpdateArtifactVersionSchemaParams) error); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTx_UpdateArtifactVersionSchema_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateArtifactVersionSchema'
+type MockTx_UpdateArtifactVersionSchema_Call struct {
+	*mock.Call
+}
+
+// UpdateArtifactVersionSchema is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.UpdateArtifactVersionSchemaParams
+func (_e *MockTx_Expecter) UpdateArtifactVersionSchema(ctx interface{}, arg interface{}) *MockTx_UpdateArtifactVersionSchema_Call {
+	return &MockTx_UpdateArtifactVersionSchema_Call{Call: _e.mock.On("UpdateArtifactVersionSchema", ctx, arg)}
+}
+
+func (_c *MockTx_UpdateArtifactVersionSchema_Call) Run(run func(ctx context.Context, arg db.UpdateArtifactVersionSchemaParams)) *MockTx_UpdateArtifactVersionSchema_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.UpdateArtifactVersionSchemaParams
+		if args[1] != nil {
+			arg1 = args[1].(db.UpdateArtifactVersionSchemaParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_UpdateArtifactVersionSchema_Call) Return(err error) *MockTx_UpdateArtifactVersionSchema_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTx_UpdateArtifactVersionSchema_Call) RunAndReturn(run func(ctx context.Context, arg db.UpdateArtifactVersionSchemaParams) error) *MockTx_UpdateArtifactVersionSchema_Call {
 	_c.Call.Return(run)
 	return _c
 }

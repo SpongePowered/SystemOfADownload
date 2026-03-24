@@ -162,3 +162,16 @@ WHERE a.group_id = $1 AND a.artifact_id = $2
   AND av.commit_body->>'enrichedAt' IS NOT NULL
   AND av.commit_body->>'changelogStatus' = 'pending_predecessor'
 ORDER BY av.sort_order ASC;
+
+-- name: UpdateArtifactVersionSchema :exec
+UPDATE artifacts SET version_schema = $3
+WHERE group_id = $1 AND artifact_id = $2;
+
+-- name: UpdateArtifactFields :one
+UPDATE artifacts SET
+  name = COALESCE(sqlc.narg('name'), name),
+  website = COALESCE(sqlc.narg('website'), website),
+  issues = COALESCE(sqlc.narg('issues'), issues),
+  git_repositories = COALESCE(sqlc.narg('git_repositories')::jsonb, git_repositories)
+WHERE group_id = $1 AND artifact_id = $2
+RETURNING *;

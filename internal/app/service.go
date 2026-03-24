@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/spongepowered/systemofadownload/internal/db"
@@ -18,6 +19,8 @@ var (
 	ErrArtifactAlreadyExists = errors.New("artifact already exists")
 	ErrArtifactNotFound      = errors.New("artifact not found")
 	ErrVersionNotFound       = errors.New("version not found")
+	ErrSchemaNotFound        = errors.New("version schema not set")
+	ErrInvalidSchema         = errors.New("invalid version schema")
 )
 
 // VersionEntry represents a single version in the GetVersions response.
@@ -307,4 +310,158 @@ func (s *Service) RegisterArtifact(ctx context.Context, artifact *domain.Artifac
 		})
 		return err
 	})
+}
+
+// ValidateSchema checks that a VersionSchema is well-formed: patterns compile,
+// segments reference named groups, and parse_as values are known.
+func ValidateSchema(schema *domain.VersionSchema) error {
+	if len(schema.Variants) == 0 {
+		return fmt.Errorf("%w: at least one variant is required", ErrInvalidSchema)
+	}
+
+	validParseAs := map[string]bool{
+		"minecraft": true, "dotted": true, "integer": true, "ignore": true,
+	}
+
+	for i, v := range schema.Variants {
+		if v.Name == "" {
+			return fmt.Errorf("%w: variant %d has no name", ErrInvalidSchema, i)
+		}
+		if v.Pattern == "" {
+			return fmt.Errorf("%w: variant %q has no pattern", ErrInvalidSchema, v.Name)
+		}
+
+		re, err := regexp.Compile(v.Pattern)
+		if err != nil {
+			return fmt.Errorf("%w: variant %q has invalid regex: %v", ErrInvalidSchema, v.Name, err)
+		}
+
+		groups := make(map[string]bool)
+		for _, name := range re.SubexpNames() {
+			if name != "" {
+				groups[name] = true
+			}
+		}
+
+		for _, seg := range v.Segments {
+			if !groups[seg.Name] {
+				return fmt.Errorf("%w: variant %q segment %q does not match a named capture group (available: %v)",
+					ErrInvalidSchema, v.Name, seg.Name, re.SubexpNames())
+			}
+			if !validParseAs[seg.ParseAs] {
+				return fmt.Errorf("%w: variant %q segment %q has unknown parse_as %q",
+					ErrInvalidSchema, v.Name, seg.Name, seg.ParseAs)
+			}
+		}
+	}
+	return nil
+}
+
+// UpdateVersionSchema validates and stores a new version schema for an artifact.
+func (s *Service) UpdateVersionSchema(ctx context.Context, groupID, artifactID string, schema *domain.VersionSchema) error {
+	if err := ValidateSchema(schema); err != nil {
+		return err
+	}
+
+	schemaJSON, err := json.Marshal(schema)
+	if err != nil {
+		return fmt.Errorf("marshaling schema: %w", err)
+	}
+
+	// Verify artifact exists
+	_, err = s.repo.GetArtifactByGroupAndId(ctx, db.GetArtifactByGroupAndIdParams{
+		GroupID:    groupID,
+		ArtifactID: artifactID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrArtifactNotFound
+		}
+		return fmt.Errorf("checking artifact: %w", err)
+	}
+
+	return s.repo.WithTx(ctx, func(tx repository.Tx) error {
+		return tx.UpdateArtifactVersionSchema(ctx, db.UpdateArtifactVersionSchemaParams{
+			GroupID:       groupID,
+			ArtifactID:    artifactID,
+			VersionSchema: schemaJSON,
+		})
+	})
+}
+
+// GetVersionSchema returns the version schema for an artifact.
+func (s *Service) GetVersionSchema(ctx context.Context, groupID, artifactID string) (*domain.VersionSchema, error) {
+	schemaBytes, err := s.repo.GetArtifactVersionSchema(ctx, db.GetArtifactVersionSchemaParams{
+		GroupID:    groupID,
+		ArtifactID: artifactID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrArtifactNotFound
+		}
+		return nil, fmt.Errorf("getting schema: %w", err)
+	}
+	if schemaBytes == nil {
+		return nil, ErrSchemaNotFound
+	}
+
+	var schema domain.VersionSchema
+	if err := json.Unmarshal(schemaBytes, &schema); err != nil {
+		return nil, fmt.Errorf("unmarshaling schema: %w", err)
+	}
+	return &schema, nil
+}
+
+// UpdateArtifactInput holds optional fields for updating an artifact.
+type UpdateArtifactInput struct {
+	DisplayName     *string
+	Website         *string
+	Issues          *string
+	GitRepositories []string // nil means don't change
+}
+
+// UpdateArtifact updates mutable fields on an artifact. Only non-nil fields are changed.
+func (s *Service) UpdateArtifact(ctx context.Context, groupID, artifactID string, input UpdateArtifactInput) (*domain.Artifact, error) {
+	var gitReposJSON []byte
+	if input.GitRepositories != nil {
+		var err error
+		gitReposJSON, err = json.Marshal(input.GitRepositories)
+		if err != nil {
+			return nil, fmt.Errorf("marshaling git repositories: %w", err)
+		}
+	}
+
+	var updated db.Artifact
+	err := s.repo.WithTx(ctx, func(tx repository.Tx) error {
+		var err error
+		updated, err = tx.UpdateArtifactFields(ctx, db.UpdateArtifactFieldsParams{
+			GroupID:         groupID,
+			ArtifactID:      artifactID,
+			Name:            input.DisplayName,
+			Website:         input.Website,
+			Issues:          input.Issues,
+			GitRepositories: gitReposJSON,
+		})
+		return err
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrArtifactNotFound
+		}
+		return nil, fmt.Errorf("updating artifact: %w", err)
+	}
+
+	var gitRepos []string
+	if err := json.Unmarshal(updated.GitRepositories, &gitRepos); err != nil {
+		return nil, fmt.Errorf("unmarshaling git repos: %w", err)
+	}
+
+	return &domain.Artifact{
+		GroupID:         updated.GroupID,
+		ArtifactID:      updated.ArtifactID,
+		DisplayName:     updated.Name,
+		Website:         updated.Website,
+		Issues:          updated.Issues,
+		GitRepositories: gitRepos,
+	}, nil
 }

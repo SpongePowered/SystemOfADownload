@@ -50,8 +50,10 @@ type Writes interface {
 	CreateArtifactVersionTag(ctx context.Context, arg db.CreateArtifactVersionTagParams) (db.ArtifactVersionedTag, error)
 	CreateGroup(ctx context.Context, arg db.CreateGroupParams) (db.Group, error)
 	DeleteArtifactVersionTags(ctx context.Context, artifactVersionID int64) error
+	UpdateArtifactFields(ctx context.Context, arg db.UpdateArtifactFieldsParams) (db.Artifact, error)
 	UpdateArtifactVersionCommitBody(ctx context.Context, arg db.UpdateArtifactVersionCommitBodyParams) error
 	UpdateArtifactVersionOrder(ctx context.Context, arg db.UpdateArtifactVersionOrderParams) error
+	UpdateArtifactVersionSchema(ctx context.Context, arg db.UpdateArtifactVersionSchemaParams) error
 }
 
 // Tx provides both read and write operations within a transaction.

@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -651,6 +652,285 @@ func TestGetVersionInfo(t *testing.T) {
 		}
 		if r.Recommended == nil || *r.Recommended {
 			t.Error("expected recommended=false")
+		}
+	})
+}
+
+func (m *mockQuerier) GetArtifactVersionSchema(ctx context.Context, arg db.GetArtifactVersionSchemaParams) ([]byte, error) {
+	key := arg.GroupID + ":" + arg.ArtifactID
+	a, ok := m.artifacts[key]
+	if !ok {
+		return nil, pgx.ErrNoRows
+	}
+	return a.VersionSchema, nil
+}
+
+func (m *mockQuerier) UpdateArtifactVersionSchema(ctx context.Context, arg db.UpdateArtifactVersionSchemaParams) error {
+	key := arg.GroupID + ":" + arg.ArtifactID
+	a, ok := m.artifacts[key]
+	if !ok {
+		return pgx.ErrNoRows
+	}
+	a.VersionSchema = arg.VersionSchema
+	m.artifacts[key] = a
+	return nil
+}
+
+func (m *mockQuerier) UpdateArtifactFields(ctx context.Context, arg db.UpdateArtifactFieldsParams) (db.Artifact, error) {
+	key := arg.GroupID + ":" + arg.ArtifactID
+	a, ok := m.artifacts[key]
+	if !ok {
+		return db.Artifact{}, pgx.ErrNoRows
+	}
+	if arg.Name != nil {
+		a.Name = *arg.Name
+	}
+	if arg.Website != nil {
+		a.Website = arg.Website
+	}
+	if arg.Issues != nil {
+		a.Issues = arg.Issues
+	}
+	if arg.GitRepositories != nil {
+		a.GitRepositories = arg.GitRepositories
+	}
+	m.artifacts[key] = a
+	return a, nil
+}
+
+func TestPutArtifactSchema(t *testing.T) {
+	schemaJSON, _ := json.Marshal(map[string]any{
+		"use_mojang_manifest": true,
+		"variants": []map[string]any{
+			{"name": "current", "pattern": `^(?P<mc>\d+)-(?P<api>\d+)$`, "segments": []map[string]any{
+				{"name": "mc", "parse_as": "minecraft", "tag_key": "minecraft"},
+				{"name": "api", "parse_as": "integer", "tag_key": "api"},
+			}},
+		},
+	})
+
+	q := &mockQuerier{
+		groups: map[string]db.Group{
+			"org.spongepowered": {MavenID: "org.spongepowered", Name: "SpongePowered"},
+		},
+		artifacts: map[string]db.Artifact{
+			"org.spongepowered:spongevanilla": {ID: 1, GroupID: "org.spongepowered", ArtifactID: "spongevanilla", Name: "SpongeVanilla", GitRepositories: []byte("[]"), VersionSchema: schemaJSON},
+		},
+	}
+	service := app.NewService(q)
+	handler := NewHandler(service, nil)
+	ctx := context.Background()
+
+	useMojang := true
+	mcStr := "minecraft"
+	apiStr := "api"
+
+	t.Run("updates schema and returns 200", func(t *testing.T) {
+		resp, err := handler.PutArtifactSchema(ctx, api.PutArtifactSchemaRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongevanilla",
+			Body: &api.VersionSchema{
+				UseMojangManifest: &useMojang,
+				Variants: []struct {
+					Name     string                                   `json:"name"`
+					Pattern  string                                   `json:"pattern"`
+					Segments []struct {
+						Name    string                                   `json:"name"`
+						ParseAs api.VersionSchemaVariantsSegmentsParseAs `json:"parse_as"`
+						TagKey  *string                                  `json:"tag_key,omitempty"`
+					} `json:"segments"`
+				}{
+					{
+						Name: "current", Pattern: `^(?P<mc>\d+)-(?P<api>\d+)$`,
+						Segments: []struct {
+							Name    string                                   `json:"name"`
+							ParseAs api.VersionSchemaVariantsSegmentsParseAs `json:"parse_as"`
+							TagKey  *string                                  `json:"tag_key,omitempty"`
+						}{
+							{Name: "mc", ParseAs: api.Minecraft, TagKey: &mcStr},
+							{Name: "api", ParseAs: api.Integer, TagKey: &apiStr},
+						},
+					},
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := resp.(api.PutArtifactSchema200JSONResponse); !ok {
+			t.Errorf("expected 200, got %T", resp)
+		}
+	})
+
+	t.Run("returns 404 for nonexistent artifact", func(t *testing.T) {
+		resp, err := handler.PutArtifactSchema(ctx, api.PutArtifactSchemaRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "nonexistent",
+			Body: &api.VersionSchema{
+				Variants: []struct {
+					Name     string                                   `json:"name"`
+					Pattern  string                                   `json:"pattern"`
+					Segments []struct {
+						Name    string                                   `json:"name"`
+						ParseAs api.VersionSchemaVariantsSegmentsParseAs `json:"parse_as"`
+						TagKey  *string                                  `json:"tag_key,omitempty"`
+					} `json:"segments"`
+				}{
+					{Name: "test", Pattern: `^(?P<v>\d+)$`, Segments: nil},
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := resp.(api.PutArtifactSchema404Response); !ok {
+			t.Errorf("expected 404, got %T", resp)
+		}
+	})
+
+	t.Run("returns 400 for invalid regex", func(t *testing.T) {
+		resp, err := handler.PutArtifactSchema(ctx, api.PutArtifactSchemaRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongevanilla",
+			Body: &api.VersionSchema{
+				Variants: []struct {
+					Name     string                                   `json:"name"`
+					Pattern  string                                   `json:"pattern"`
+					Segments []struct {
+						Name    string                                   `json:"name"`
+						ParseAs api.VersionSchemaVariantsSegmentsParseAs `json:"parse_as"`
+						TagKey  *string                                  `json:"tag_key,omitempty"`
+					} `json:"segments"`
+				}{
+					{Name: "bad", Pattern: `^[invalid`, Segments: nil},
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := resp.(api.PutArtifactSchema400Response); !ok {
+			t.Errorf("expected 400, got %T", resp)
+		}
+	})
+}
+
+func TestGetArtifactSchema(t *testing.T) {
+	schemaJSON, _ := json.Marshal(map[string]any{
+		"use_mojang_manifest": false,
+		"variants":           []map[string]any{{"name": "test", "pattern": `^(?P<v>\d+)$`, "segments": []map[string]any{{"name": "v", "parse_as": "integer"}}}},
+	})
+
+	q := &mockQuerier{
+		groups: map[string]db.Group{},
+		artifacts: map[string]db.Artifact{
+			"org.spongepowered:spongevanilla": {ID: 1, GroupID: "org.spongepowered", ArtifactID: "spongevanilla", Name: "SV", GitRepositories: []byte("[]"), VersionSchema: schemaJSON},
+			"org.spongepowered:noschema":      {ID: 2, GroupID: "org.spongepowered", ArtifactID: "noschema", Name: "NS", GitRepositories: []byte("[]")},
+		},
+	}
+	service := app.NewService(q)
+	handler := NewHandler(service, nil)
+	ctx := context.Background()
+
+	t.Run("returns schema", func(t *testing.T) {
+		resp, err := handler.GetArtifactSchema(ctx, api.GetArtifactSchemaRequestObject{
+			GroupID: "org.spongepowered", ArtifactID: "spongevanilla",
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		r, ok := resp.(api.GetArtifactSchema200JSONResponse)
+		if !ok {
+			t.Fatalf("expected 200, got %T", resp)
+		}
+		if len(r.Variants) != 1 {
+			t.Errorf("expected 1 variant, got %d", len(r.Variants))
+		}
+	})
+
+	t.Run("returns 404 for no schema", func(t *testing.T) {
+		resp, err := handler.GetArtifactSchema(ctx, api.GetArtifactSchemaRequestObject{
+			GroupID: "org.spongepowered", ArtifactID: "noschema",
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := resp.(api.GetArtifactSchema404Response); !ok {
+			t.Errorf("expected 404, got %T", resp)
+		}
+	})
+
+	t.Run("returns 404 for nonexistent artifact", func(t *testing.T) {
+		resp, err := handler.GetArtifactSchema(ctx, api.GetArtifactSchemaRequestObject{
+			GroupID: "org.spongepowered", ArtifactID: "nonexistent",
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := resp.(api.GetArtifactSchema404Response); !ok {
+			t.Errorf("expected 404, got %T", resp)
+		}
+	})
+}
+
+func TestUpdateArtifact(t *testing.T) {
+	q := &mockQuerier{
+		groups: map[string]db.Group{},
+		artifacts: map[string]db.Artifact{
+			"org.spongepowered:spongevanilla": {ID: 1, GroupID: "org.spongepowered", ArtifactID: "spongevanilla", Name: "SpongeVanilla", GitRepositories: []byte(`["https://github.com/SpongePowered/SpongeVanilla"]`)},
+		},
+	}
+	service := app.NewService(q)
+	handler := NewHandler(service, nil)
+	ctx := context.Background()
+
+	t.Run("updates display name", func(t *testing.T) {
+		newName := "SpongeVanilla Updated"
+		resp, err := handler.UpdateArtifact(ctx, api.UpdateArtifactRequestObject{
+			GroupID: "org.spongepowered", ArtifactID: "spongevanilla",
+			Body: &api.UpdateArtifactJSONRequestBody{DisplayName: &newName},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		r, ok := resp.(api.UpdateArtifact200JSONResponse)
+		if !ok {
+			t.Fatalf("expected 200, got %T", resp)
+		}
+		if r.DisplayName == nil || *r.DisplayName != "SpongeVanilla Updated" {
+			t.Errorf("expected updated display name")
+		}
+	})
+
+	t.Run("updates git repositories", func(t *testing.T) {
+		newRepos := []string{"https://github.com/SpongePowered/SpongeCommon"}
+		resp, err := handler.UpdateArtifact(ctx, api.UpdateArtifactRequestObject{
+			GroupID: "org.spongepowered", ArtifactID: "spongevanilla",
+			Body: &api.UpdateArtifactJSONRequestBody{GitRepository: &newRepos},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		r, ok := resp.(api.UpdateArtifact200JSONResponse)
+		if !ok {
+			t.Fatalf("expected 200, got %T", resp)
+		}
+		if r.GitRepository == nil || len(*r.GitRepository) != 1 || (*r.GitRepository)[0] != "https://github.com/SpongePowered/SpongeCommon" {
+			t.Errorf("expected updated git repos")
+		}
+	})
+
+	t.Run("returns 404 for nonexistent artifact", func(t *testing.T) {
+		name := "test"
+		resp, err := handler.UpdateArtifact(ctx, api.UpdateArtifactRequestObject{
+			GroupID: "org.spongepowered", ArtifactID: "nonexistent",
+			Body: &api.UpdateArtifactJSONRequestBody{DisplayName: &name},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if _, ok := resp.(api.UpdateArtifact404Response); !ok {
+			t.Errorf("expected 404, got %T", resp)
 		}
 	})
 }

@@ -5,7 +5,8 @@ SystemOfADownload uses [Temporal](https://temporal.io/) to orchestrate artifact 
 ## Architecture Overview
 
 ```
-HTTP API (RegisterArtifact)
+HTTP API (RegisterArtifact → triggers VersionSyncWorkflow)
+         (PutArtifactSchema → triggers VersionOrderingWorkflow)
  |
  v
 VersionSyncWorkflow ─────────────────────────────────────────────────┐
@@ -134,6 +135,17 @@ Each artifact can have a `version_schema` stored as JSONB that defines how its v
 **Tag extraction:** Segments with a `tag_key` produce version tags stored in `artifact_versioned_tags`. For example, parsing `1.21.10-17.0.1-RC2547` produces tags `minecraft=1.21.10` and `api=17.0.1`.
 
 **Variant ordering:** When comparing versions from different variants (e.g., a beta-era version vs a current-format version with the same Minecraft version), the variant's position in the list acts as a tiebreaker. Variants should be listed newest-first — earlier variants sort as newer.
+
+**Schema management:** The version schema is managed via `PUT /groups/{groupID}/artifacts/{artifactID}/schema`. Updating the schema triggers a `VersionOrderingWorkflow` with `TERMINATE_EXISTING` conflict policy — any in-flight ordering with stale schema is cancelled and restarted.
+
+## Workflow Conflict Policies
+
+| Trigger | Workflow | Conflict Policy | Behavior |
+|---------|----------|----------------|----------|
+| `RegisterArtifact` | VersionSyncWorkflow | `USE_EXISTING` | If already running, return handle to existing run |
+| `PutArtifactSchema` | VersionOrderingWorkflow | `TERMINATE_EXISTING` | Cancel stale run, restart with new schema |
+
+Both use `ALLOW_DUPLICATE` reuse policy so workflows can be re-run after completion.
 
 ### CommitEnrichmentWorkflow
 

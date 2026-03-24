@@ -16,6 +16,14 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for VersionSchemaVariantsSegmentsParseAs.
+const (
+	Dotted    VersionSchemaVariantsSegmentsParseAs = "dotted"
+	Ignore    VersionSchemaVariantsSegmentsParseAs = "ignore"
+	Integer   VersionSchemaVariantsSegmentsParseAs = "integer"
+	Minecraft VersionSchemaVariantsSegmentsParseAs = "minecraft"
+)
+
 // Artifact defines model for Artifact.
 type Artifact struct {
 	Coordinates struct {
@@ -106,11 +114,48 @@ type Groups struct {
 	Groups []Group `json:"groups"`
 }
 
+// VersionSchema defines model for VersionSchema.
+type VersionSchema struct {
+	// UseMojangManifest Whether to fetch Mojang version manifest for Minecraft version ordering
+	UseMojangManifest *bool `json:"use_mojang_manifest,omitempty"`
+	Variants          []struct {
+		// Name Human-readable variant name (e.g. "current", "beta-era")
+		Name string `json:"name"`
+
+		// Pattern Regex with named capture groups for version parsing
+		Pattern  string `json:"pattern"`
+		Segments []struct {
+			// Name Named capture group to match
+			Name string `json:"name"`
+
+			// ParseAs How to parse and compare this segment
+			ParseAs VersionSchemaVariantsSegmentsParseAs `json:"parse_as"`
+
+			// TagKey If set, produces a version tag with this key
+			TagKey *string `json:"tag_key,omitempty"`
+		} `json:"segments"`
+	} `json:"variants"`
+}
+
+// VersionSchemaVariantsSegmentsParseAs How to parse and compare this segment
+type VersionSchemaVariantsSegmentsParseAs string
+
 // ArtifactID defines model for ArtifactID.
 type ArtifactID = string
 
 // GroupID defines model for GroupID.
 type GroupID = string
+
+// UpdateArtifactJSONBody defines parameters for UpdateArtifact.
+type UpdateArtifactJSONBody struct {
+	// DisplayName Display name for the artifact
+	DisplayName *string `json:"displayName,omitempty"`
+
+	// GitRepository Git repository URLs
+	GitRepository *[]string `json:"gitRepository,omitempty"`
+	Issues        *string   `json:"issues,omitempty"`
+	Website       *string   `json:"website,omitempty"`
+}
 
 // GetVersionsParams defines parameters for GetVersions.
 type GetVersionsParams struct {
@@ -125,6 +170,12 @@ type RegisterGroupJSONRequestBody = Group
 
 // RegisterArtifactJSONRequestBody defines body for RegisterArtifact for application/json ContentType.
 type RegisterArtifactJSONRequestBody = ArtifactRegistration
+
+// UpdateArtifactJSONRequestBody defines body for UpdateArtifact for application/json ContentType.
+type UpdateArtifactJSONRequestBody UpdateArtifactJSONBody
+
+// PutArtifactSchemaJSONRequestBody defines body for PutArtifactSchema for application/json ContentType.
+type PutArtifactSchemaJSONRequestBody = VersionSchema
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -146,6 +197,15 @@ type ServerInterface interface {
 
 	// (GET /groups/{groupID}/artifacts/{artifactID})
 	GetArtifact(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID)
+
+	// (PATCH /groups/{groupID}/artifacts/{artifactID})
+	UpdateArtifact(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID)
+
+	// (GET /groups/{groupID}/artifacts/{artifactID}/schema)
+	GetArtifactSchema(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID)
+
+	// (PUT /groups/{groupID}/artifacts/{artifactID}/schema)
+	PutArtifactSchema(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID)
 
 	// (GET /groups/{groupID}/artifacts/{artifactID}/versions)
 	GetVersions(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID, params GetVersionsParams)
@@ -291,6 +351,108 @@ func (siw *ServerInterfaceWrapper) GetArtifact(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetArtifact(w, r, groupID, artifactID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateArtifact operation middleware
+func (siw *ServerInterfaceWrapper) UpdateArtifact(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "groupID" -------------
+	var groupID GroupID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupID", r.PathValue("groupID"), &groupID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupID", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "artifactID" -------------
+	var artifactID ArtifactID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "artifactID", r.PathValue("artifactID"), &artifactID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "artifactID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateArtifact(w, r, groupID, artifactID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetArtifactSchema operation middleware
+func (siw *ServerInterfaceWrapper) GetArtifactSchema(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "groupID" -------------
+	var groupID GroupID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupID", r.PathValue("groupID"), &groupID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupID", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "artifactID" -------------
+	var artifactID ArtifactID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "artifactID", r.PathValue("artifactID"), &artifactID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "artifactID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetArtifactSchema(w, r, groupID, artifactID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutArtifactSchema operation middleware
+func (siw *ServerInterfaceWrapper) PutArtifactSchema(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "groupID" -------------
+	var groupID GroupID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupID", r.PathValue("groupID"), &groupID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupID", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "artifactID" -------------
+	var artifactID ArtifactID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "artifactID", r.PathValue("artifactID"), &artifactID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "artifactID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutArtifactSchema(w, r, groupID, artifactID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -538,6 +700,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/groups/{groupID}/artifacts", wrapper.GetArtifacts)
 	m.HandleFunc("POST "+options.BaseURL+"/groups/{groupID}/artifacts", wrapper.RegisterArtifact)
 	m.HandleFunc("GET "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}", wrapper.GetArtifact)
+	m.HandleFunc("PATCH "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}", wrapper.UpdateArtifact)
+	m.HandleFunc("GET "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}/schema", wrapper.GetArtifactSchema)
+	m.HandleFunc("PUT "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}/schema", wrapper.PutArtifactSchema)
 	m.HandleFunc("GET "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}/versions", wrapper.GetVersions)
 	m.HandleFunc("GET "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}/versions/{versionID}", wrapper.GetVersionInfo)
 
@@ -687,6 +852,94 @@ func (response GetArtifact404Response) VisitGetArtifactResponse(w http.ResponseW
 	return nil
 }
 
+type UpdateArtifactRequestObject struct {
+	GroupID    GroupID    `json:"groupID"`
+	ArtifactID ArtifactID `json:"artifactID"`
+	Body       *UpdateArtifactJSONRequestBody
+}
+
+type UpdateArtifactResponseObject interface {
+	VisitUpdateArtifactResponse(w http.ResponseWriter) error
+}
+
+type UpdateArtifact200JSONResponse Artifact
+
+func (response UpdateArtifact200JSONResponse) VisitUpdateArtifactResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateArtifact404Response struct {
+}
+
+func (response UpdateArtifact404Response) VisitUpdateArtifactResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type GetArtifactSchemaRequestObject struct {
+	GroupID    GroupID    `json:"groupID"`
+	ArtifactID ArtifactID `json:"artifactID"`
+}
+
+type GetArtifactSchemaResponseObject interface {
+	VisitGetArtifactSchemaResponse(w http.ResponseWriter) error
+}
+
+type GetArtifactSchema200JSONResponse VersionSchema
+
+func (response GetArtifactSchema200JSONResponse) VisitGetArtifactSchemaResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetArtifactSchema404Response struct {
+}
+
+func (response GetArtifactSchema404Response) VisitGetArtifactSchemaResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type PutArtifactSchemaRequestObject struct {
+	GroupID    GroupID    `json:"groupID"`
+	ArtifactID ArtifactID `json:"artifactID"`
+	Body       *PutArtifactSchemaJSONRequestBody
+}
+
+type PutArtifactSchemaResponseObject interface {
+	VisitPutArtifactSchemaResponse(w http.ResponseWriter) error
+}
+
+type PutArtifactSchema200JSONResponse VersionSchema
+
+func (response PutArtifactSchema200JSONResponse) VisitPutArtifactSchemaResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PutArtifactSchema400Response struct {
+}
+
+func (response PutArtifactSchema400Response) VisitPutArtifactSchemaResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
+}
+
+type PutArtifactSchema404Response struct {
+}
+
+func (response PutArtifactSchema404Response) VisitPutArtifactSchemaResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
 type GetVersionsRequestObject struct {
 	GroupID    GroupID    `json:"groupID"`
 	ArtifactID ArtifactID `json:"artifactID"`
@@ -783,6 +1036,15 @@ type StrictServerInterface interface {
 
 	// (GET /groups/{groupID}/artifacts/{artifactID})
 	GetArtifact(ctx context.Context, request GetArtifactRequestObject) (GetArtifactResponseObject, error)
+
+	// (PATCH /groups/{groupID}/artifacts/{artifactID})
+	UpdateArtifact(ctx context.Context, request UpdateArtifactRequestObject) (UpdateArtifactResponseObject, error)
+
+	// (GET /groups/{groupID}/artifacts/{artifactID}/schema)
+	GetArtifactSchema(ctx context.Context, request GetArtifactSchemaRequestObject) (GetArtifactSchemaResponseObject, error)
+
+	// (PUT /groups/{groupID}/artifacts/{artifactID}/schema)
+	PutArtifactSchema(ctx context.Context, request PutArtifactSchemaRequestObject) (PutArtifactSchemaResponseObject, error)
 
 	// (GET /groups/{groupID}/artifacts/{artifactID}/versions)
 	GetVersions(ctx context.Context, request GetVersionsRequestObject) (GetVersionsResponseObject, error)
@@ -980,6 +1242,101 @@ func (sh *strictHandler) GetArtifact(w http.ResponseWriter, r *http.Request, gro
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetArtifactResponseObject); ok {
 		if err := validResponse.VisitGetArtifactResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateArtifact operation middleware
+func (sh *strictHandler) UpdateArtifact(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID) {
+	var request UpdateArtifactRequestObject
+
+	request.GroupID = groupID
+	request.ArtifactID = artifactID
+
+	var body UpdateArtifactJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateArtifact(ctx, request.(UpdateArtifactRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateArtifact")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateArtifactResponseObject); ok {
+		if err := validResponse.VisitUpdateArtifactResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetArtifactSchema operation middleware
+func (sh *strictHandler) GetArtifactSchema(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID) {
+	var request GetArtifactSchemaRequestObject
+
+	request.GroupID = groupID
+	request.ArtifactID = artifactID
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetArtifactSchema(ctx, request.(GetArtifactSchemaRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetArtifactSchema")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetArtifactSchemaResponseObject); ok {
+		if err := validResponse.VisitGetArtifactSchemaResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutArtifactSchema operation middleware
+func (sh *strictHandler) PutArtifactSchema(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID) {
+	var request PutArtifactSchemaRequestObject
+
+	request.GroupID = groupID
+	request.ArtifactID = artifactID
+
+	var body PutArtifactSchemaJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutArtifactSchema(ctx, request.(PutArtifactSchemaRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutArtifactSchema")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutArtifactSchemaResponseObject); ok {
+		if err := validResponse.VisitPutArtifactSchemaResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

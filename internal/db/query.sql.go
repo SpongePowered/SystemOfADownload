@@ -720,6 +720,48 @@ func (q *Queries) ListVersionsNeedingEnrichment(ctx context.Context, arg ListVer
 	return items, nil
 }
 
+const updateArtifactFields = `-- name: UpdateArtifactFields :one
+UPDATE artifacts SET
+  name = COALESCE($3, name),
+  website = COALESCE($4, website),
+  issues = COALESCE($5, issues),
+  git_repositories = COALESCE($6::jsonb, git_repositories)
+WHERE group_id = $1 AND artifact_id = $2
+RETURNING id, group_id, artifact_id, name, website, issues, git_repositories, version_schema
+`
+
+type UpdateArtifactFieldsParams struct {
+	GroupID         string
+	ArtifactID      string
+	Name            *string
+	Website         *string
+	Issues          *string
+	GitRepositories []byte
+}
+
+func (q *Queries) UpdateArtifactFields(ctx context.Context, arg UpdateArtifactFieldsParams) (Artifact, error) {
+	row := q.db.QueryRow(ctx, updateArtifactFields,
+		arg.GroupID,
+		arg.ArtifactID,
+		arg.Name,
+		arg.Website,
+		arg.Issues,
+		arg.GitRepositories,
+	)
+	var i Artifact
+	err := row.Scan(
+		&i.ID,
+		&i.GroupID,
+		&i.ArtifactID,
+		&i.Name,
+		&i.Website,
+		&i.Issues,
+		&i.GitRepositories,
+		&i.VersionSchema,
+	)
+	return i, err
+}
+
 const updateArtifactVersionCommitBody = `-- name: UpdateArtifactVersionCommitBody :exec
 UPDATE artifact_versions
 SET commit_body = $2
@@ -750,5 +792,21 @@ type UpdateArtifactVersionOrderParams struct {
 
 func (q *Queries) UpdateArtifactVersionOrder(ctx context.Context, arg UpdateArtifactVersionOrderParams) error {
 	_, err := q.db.Exec(ctx, updateArtifactVersionOrder, arg.ID, arg.SortOrder, arg.Recommended)
+	return err
+}
+
+const updateArtifactVersionSchema = `-- name: UpdateArtifactVersionSchema :exec
+UPDATE artifacts SET version_schema = $3
+WHERE group_id = $1 AND artifact_id = $2
+`
+
+type UpdateArtifactVersionSchemaParams struct {
+	GroupID       string
+	ArtifactID    string
+	VersionSchema []byte
+}
+
+func (q *Queries) UpdateArtifactVersionSchema(ctx context.Context, arg UpdateArtifactVersionSchemaParams) error {
+	_, err := q.db.Exec(ctx, updateArtifactVersionSchema, arg.GroupID, arg.ArtifactID, arg.VersionSchema)
 	return err
 }

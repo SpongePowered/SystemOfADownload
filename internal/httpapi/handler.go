@@ -10,6 +10,7 @@ import (
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
 
 	"github.com/spongepowered/systemofadownload/api"
@@ -137,8 +138,10 @@ func (h *Handler) RegisterArtifact(ctx context.Context, request api.RegisterArti
 	if h.workflows != nil {
 		workflowID := fmt.Sprintf("version-sync-%s-%s", request.GroupID, request.Body.ArtifactId)
 		_, err := h.workflows.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
-			ID:        workflowID,
-			TaskQueue: workflow.VersionSyncTaskQueue,
+			ID:                       workflowID,
+			TaskQueue:                workflow.VersionSyncTaskQueue,
+			WorkflowIDConflictPolicy: enumspb.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING,
+			WorkflowIDReusePolicy:    enumspb.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
 		}, workflow.VersionSyncWorkflow, workflow.VersionSyncInput{
 			GroupID:    request.GroupID,
 			ArtifactID: request.Body.ArtifactId,
@@ -356,12 +359,12 @@ func (h *Handler) GetVersionInfo(ctx context.Context, request api.GetVersionInfo
 			response.Commit = &struct {
 				Commits *[]struct {
 					Commit           *api.Commit   `json:"commit,omitempty"`
-					SubmoduleCommits *[]api.Commit  `json:"submoduleCommits,omitempty"`
+					SubmoduleCommits *[]api.Commit `json:"submoduleCommits,omitempty"`
 				} `json:"commits,omitempty"`
 			}{
 				Commits: &[]struct {
 					Commit           *api.Commit   `json:"commit,omitempty"`
-					SubmoduleCommits *[]api.Commit  `json:"submoduleCommits,omitempty"`
+					SubmoduleCommits *[]api.Commit `json:"submoduleCommits,omitempty"`
 				}{
 					{Commit: &commit, SubmoduleCommits: subCommits},
 				},
@@ -370,6 +373,168 @@ func (h *Handler) GetVersionInfo(ctx context.Context, request api.GetVersionInfo
 	}
 
 	return response, nil
+}
+
+func (h *Handler) GetArtifactSchema(ctx context.Context, request api.GetArtifactSchemaRequestObject) (api.GetArtifactSchemaResponseObject, error) {
+	schema, err := h.service.GetVersionSchema(ctx, request.GroupID, request.ArtifactID)
+	if err != nil {
+		if errors.Is(err, app.ErrArtifactNotFound) || errors.Is(err, app.ErrSchemaNotFound) {
+			return api.GetArtifactSchema404Response{}, nil
+		}
+		return nil, err
+	}
+
+	return api.GetArtifactSchema200JSONResponse(domainSchemaToAPI(schema)), nil
+}
+
+func (h *Handler) PutArtifactSchema(ctx context.Context, request api.PutArtifactSchemaRequestObject) (api.PutArtifactSchemaResponseObject, error) {
+	if request.Body == nil {
+		return api.PutArtifactSchema400Response{}, nil
+	}
+
+	schema := apiSchemaToDomain(request.Body)
+
+	err := h.service.UpdateVersionSchema(ctx, request.GroupID, request.ArtifactID, schema)
+	if err != nil {
+		if errors.Is(err, app.ErrArtifactNotFound) {
+			return api.PutArtifactSchema404Response{}, nil
+		}
+		if errors.Is(err, app.ErrInvalidSchema) {
+			return api.PutArtifactSchema400Response{}, nil
+		}
+		return nil, err
+	}
+
+	// Trigger version ordering recomputation with new schema.
+	if h.workflows != nil {
+		workflowID := fmt.Sprintf("version-ordering-%s-%s", request.GroupID, request.ArtifactID)
+		_, err := h.workflows.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
+			ID:                       workflowID,
+			TaskQueue:                workflow.VersionSyncTaskQueue,
+			WorkflowIDConflictPolicy: enumspb.WORKFLOW_ID_CONFLICT_POLICY_TERMINATE_EXISTING,
+			WorkflowIDReusePolicy:    enumspb.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
+		}, workflow.VersionOrderingWorkflow, workflow.VersionOrderingInput{
+			GroupID:    request.GroupID,
+			ArtifactID: request.ArtifactID,
+		})
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to trigger version ordering",
+				"groupID", request.GroupID,
+				"artifactID", request.ArtifactID,
+				"error", err)
+		}
+	}
+
+	return api.PutArtifactSchema200JSONResponse(domainSchemaToAPI(schema)), nil
+}
+
+func (h *Handler) UpdateArtifact(ctx context.Context, request api.UpdateArtifactRequestObject) (api.UpdateArtifactResponseObject, error) {
+	if request.Body == nil {
+		return api.UpdateArtifact404Response{}, nil
+	}
+
+	input := app.UpdateArtifactInput{
+		DisplayName: request.Body.DisplayName,
+		Website:     request.Body.Website,
+		Issues:      request.Body.Issues,
+	}
+	if request.Body.GitRepository != nil {
+		input.GitRepositories = *request.Body.GitRepository
+	}
+
+	artifact, err := h.service.UpdateArtifact(ctx, request.GroupID, request.ArtifactID, input)
+	if err != nil {
+		if errors.Is(err, app.ErrArtifactNotFound) {
+			return api.UpdateArtifact404Response{}, nil
+		}
+		return nil, err
+	}
+
+	return api.UpdateArtifact200JSONResponse{
+		Type: "latest",
+		Coordinates: struct {
+			ArtifactId string `json:"artifactId"`
+			GroupId    string `json:"groupId"`
+		}{
+			ArtifactId: artifact.ArtifactID,
+			GroupId:    artifact.GroupID,
+		},
+		DisplayName:   &artifact.DisplayName,
+		GitRepository: &artifact.GitRepositories,
+		Website:       artifact.Website,
+		Issues:        artifact.Issues,
+		Tags:          map[string][]string{},
+	}, nil
+}
+
+// domainSchemaToAPI converts a domain VersionSchema to the API VersionSchema type.
+func domainSchemaToAPI(schema *domain.VersionSchema) api.VersionSchema {
+	useMojang := schema.UseMojangManifest
+	variants := make([]struct {
+		Name     string `json:"name"`
+		Pattern  string `json:"pattern"`
+		Segments []struct {
+			Name    string                                   `json:"name"`
+			ParseAs api.VersionSchemaVariantsSegmentsParseAs `json:"parse_as"`
+			TagKey  *string                                  `json:"tag_key,omitempty"`
+		} `json:"segments"`
+	}, len(schema.Variants))
+
+	for i, v := range schema.Variants {
+		segments := make([]struct {
+			Name    string                                   `json:"name"`
+			ParseAs api.VersionSchemaVariantsSegmentsParseAs `json:"parse_as"`
+			TagKey  *string                                  `json:"tag_key,omitempty"`
+		}, len(v.Segments))
+		for j, seg := range v.Segments {
+			segments[j].Name = seg.Name
+			segments[j].ParseAs = api.VersionSchemaVariantsSegmentsParseAs(seg.ParseAs)
+			if seg.TagKey != "" {
+				tagKey := seg.TagKey
+				segments[j].TagKey = &tagKey
+			}
+		}
+		variants[i].Name = v.Name
+		variants[i].Pattern = v.Pattern
+		variants[i].Segments = segments
+	}
+
+	return api.VersionSchema{
+		UseMojangManifest: &useMojang,
+		Variants:          variants,
+	}
+}
+
+// apiSchemaToDomain converts an API VersionSchema to the domain VersionSchema type.
+func apiSchemaToDomain(schema *api.VersionSchema) *domain.VersionSchema {
+	useMojang := false
+	if schema.UseMojangManifest != nil {
+		useMojang = *schema.UseMojangManifest
+	}
+
+	variants := make([]domain.VersionFormatVariant, len(schema.Variants))
+	for i, v := range schema.Variants {
+		segments := make([]domain.SegmentRule, len(v.Segments))
+		for j, seg := range v.Segments {
+			segments[j] = domain.SegmentRule{
+				Name:    seg.Name,
+				ParseAs: string(seg.ParseAs),
+			}
+			if seg.TagKey != nil {
+				segments[j].TagKey = *seg.TagKey
+			}
+		}
+		variants[i] = domain.VersionFormatVariant{
+			Name:     v.Name,
+			Pattern:  v.Pattern,
+			Segments: segments,
+		}
+	}
+
+	return &domain.VersionSchema{
+		UseMojangManifest: useMojang,
+		Variants:          variants,
+	}
 }
 
 func commitInfoToAPICommit(info *domain.CommitInfo) api.Commit {
