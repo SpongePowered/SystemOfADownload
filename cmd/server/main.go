@@ -22,6 +22,7 @@ type Config struct {
 	Port             string
 	DatabaseURL      string
 	TemporalHostPort string
+	AdminToken       string
 }
 
 func NewConfig() *Config {
@@ -40,10 +41,13 @@ func NewConfig() *Config {
 		temporalHost = "localhost:7233"
 	}
 
+	adminToken := os.Getenv("ADMIN_API_TOKEN")
+
 	return &Config{
 		Port:             port,
 		DatabaseURL:      dbURL,
 		TemporalHostPort: temporalHost,
+		AdminToken:       adminToken,
 	}
 }
 
@@ -106,8 +110,11 @@ func NewHTTPServer(lc fx.Lifecycle, cfg *Config, handler http.Handler, s fx.Shut
 	return srv
 }
 
-func NewMux(h *httpapi.Handler) http.Handler {
-	apiHandler := api.NewStrictHandler(h, nil)
+func NewMux(h *httpapi.Handler, cfg *Config) http.Handler {
+	middlewares := []api.StrictMiddlewareFunc{
+		httpapi.AdminAuthMiddleware(cfg.AdminToken),
+	}
+	apiHandler := api.NewStrictHandler(h, middlewares)
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
