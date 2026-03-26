@@ -3,7 +3,6 @@ package sonatype
 import (
 	"context"
 	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -33,22 +32,16 @@ type searchAssetMaven2 struct {
 	Classifier string `json:"classifier"`
 }
 
-// mavenMetadata models the maven-metadata.xml structure.
-type mavenMetadata struct {
-	GroupID    string `xml:"groupId"`
-	ArtifactID string `xml:"artifactId"`
-	Versioning struct {
-		Versions struct {
-			Version []string `xml:"version"`
-		} `xml:"versions"`
-	} `xml:"versioning"`
-}
+// ProgressFunc is called during paginated fetches with the versions so far
+// and the next continuation token (empty if this was the last page).
+type ProgressFunc func(versions []domain.VersionInfo, nextToken string)
 
-// HTTPClient implements Client by fetching maven-metadata.xml from a Nexus 3 repository.
+// HTTPClient implements Client using the Sonatype REST API.
 type HTTPClient struct {
 	httpClient *http.Client
 	baseURL    string
 	repoName   string
+	onProgress ProgressFunc // called during paginated fetches (optional)
 }
 
 // NewHTTPClient creates a new Sonatype Nexus HTTP client.
@@ -60,40 +53,91 @@ func NewHTTPClient(baseURL, repoName string) *HTTPClient {
 	}
 }
 
-// FetchVersions fetches all versions of an artifact from the Nexus maven-metadata.xml.
+// WithProgress returns a copy of the client that calls fn after each page
+// of paginated fetches. Use this to wire heartbeating into activities.
+func (c *HTTPClient) WithProgress(fn ProgressFunc) *HTTPClient {
+	clone := *c
+	clone.onProgress = fn
+	return &clone
+}
+
+// searchComponentsResponse models the Sonatype REST API v3 search response.
+type searchComponentsResponse struct {
+	Items             []searchComponentItem `json:"items"`
+	ContinuationToken *string               `json:"continuationToken"`
+}
+
+type searchComponentItem struct {
+	Version string `json:"version"`
+}
+
+// FetchVersions fetches all versions of an artifact using the Sonatype REST API
+// component search. Calls onProgress after each page with the versions fetched
+// so far (for heartbeating).
 func (c *HTTPClient) FetchVersions(ctx context.Context, groupID, artifactID string) ([]domain.VersionInfo, error) {
-	// Convert groupID dots to path separators (e.g. "org.spongepowered" -> "org/spongepowered")
-	groupPath := strings.ReplaceAll(groupID, ".", "/")
-	url := fmt.Sprintf("%s/repository/%s/%s/%s/maven-metadata.xml", c.baseURL, c.repoName, groupPath, artifactID)
+	var versions []domain.VersionInfo
+	seen := make(map[string]bool)
+	var continuationToken *string
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
+	for {
+		params := url.Values{
+			"group":      {groupID},
+			"name":       {artifactID},
+			"repository": {c.repoName},
+		}
+		if continuationToken != nil {
+			params.Set("continuationToken", *continuationToken)
+		}
+
+		searchURL := fmt.Sprintf("%s/service/rest/v1/search?%s", c.baseURL, params.Encode())
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("creating search request: %w", err)
+		}
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("searching components: %w", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			return nil, fmt.Errorf("unexpected status %d from search API", resp.StatusCode)
+		}
+
+		var searchResp searchComponentsResponse
+		err = json.NewDecoder(resp.Body).Decode(&searchResp)
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("decoding search response: %w", err)
+		}
+
+		for _, item := range searchResp.Items {
+			if !seen[item.Version] {
+				seen[item.Version] = true
+				versions = append(versions, domain.VersionInfo{
+					GroupID:    groupID,
+					ArtifactID: artifactID,
+					Version:    item.Version,
+				})
+			}
+		}
+
+		if searchResp.ContinuationToken == nil {
+			if c.onProgress != nil {
+				c.onProgress(versions, "")
+			}
+			break
+		}
+
+		nextToken := *searchResp.ContinuationToken
+		if c.onProgress != nil {
+			c.onProgress(versions, nextToken)
+		}
+		continuationToken = &nextToken
 	}
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("fetching maven-metadata.xml: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status %d from %s", resp.StatusCode, url)
-	}
-
-	var metadata mavenMetadata
-	if err := xml.NewDecoder(resp.Body).Decode(&metadata); err != nil {
-		return nil, fmt.Errorf("decoding maven-metadata.xml: %w", err)
-	}
-
-	versions := make([]domain.VersionInfo, 0, len(metadata.Versioning.Versions.Version))
-	for _, v := range metadata.Versioning.Versions.Version {
-		versions = append(versions, domain.VersionInfo{
-			GroupID:    groupID,
-			ArtifactID: artifactID,
-			Version:    v,
-		})
-	}
 	return versions, nil
 }
 

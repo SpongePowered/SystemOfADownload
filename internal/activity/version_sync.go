@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"go.temporal.io/sdk/activity"
+
 	"github.com/spongepowered/systemofadownload/internal/db"
 	"github.com/spongepowered/systemofadownload/internal/domain"
 	"github.com/spongepowered/systemofadownload/internal/repository"
@@ -27,12 +29,23 @@ type FetchVersionsOutput struct {
 	Versions []domain.VersionInfo
 }
 
-// FetchVersions calls the Sonatype Nexus API to retrieve version info for an artifact.
+// FetchVersions calls the Sonatype REST API to retrieve all version info for an artifact.
+// It heartbeats a progress counter on each page to prove liveness. On retry, pagination
+// restarts from scratch — the Sonatype API is idempotent and fast (~30s for all pages).
 func (a *VersionSyncActivities) FetchVersions(ctx context.Context, input FetchVersionsInput) (*FetchVersionsOutput, error) {
-	versions, err := a.SonatypeClient.FetchVersions(ctx, input.GroupID, input.ArtifactID)
+	// Heartbeat just the count on each page (~8 bytes vs ~300KB for the full list)
+	fetchClient := a.SonatypeClient
+	if sc, ok := a.SonatypeClient.(*sonatype.HTTPClient); ok {
+		fetchClient = sc.WithProgress(func(versions []domain.VersionInfo, _ string) {
+			activity.RecordHeartbeat(ctx, len(versions))
+		})
+	}
+
+	versions, err := fetchClient.FetchVersions(ctx, input.GroupID, input.ArtifactID)
 	if err != nil {
 		return nil, fmt.Errorf("fetching versions: %w", err)
 	}
+
 	return &FetchVersionsOutput{Versions: versions}, nil
 }
 
