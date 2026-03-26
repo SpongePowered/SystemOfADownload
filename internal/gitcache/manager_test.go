@@ -171,7 +171,7 @@ func TestComputeChangelog(t *testing.T) {
 	firstSHA := getCommitSHA(t, sourceRepo, "HEAD~2")
 	headSHA := getCommitSHA(t, sourceRepo, "HEAD")
 
-	commits, err := m.ComputeChangelog(ctx, path, firstSHA, headSHA)
+	commits, _, err := m.ComputeChangelog(ctx, path, firstSHA, headSHA)
 	if err != nil {
 		t.Fatalf("ComputeChangelog: %v", err)
 	}
@@ -204,7 +204,7 @@ func TestComputeChangelogEmpty(t *testing.T) {
 	headSHA := getCommitSHA(t, sourceRepo, "HEAD")
 
 	// Same SHA → empty changelog
-	commits, err := m.ComputeChangelog(ctx, path, headSHA, headSHA)
+	commits, _, err := m.ComputeChangelog(ctx, path, headSHA, headSHA)
 	if err != nil {
 		t.Fatalf("ComputeChangelog: %v", err)
 	}

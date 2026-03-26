@@ -32,6 +32,21 @@ func (a *GitActivities) EnsureRepoCloned(ctx context.Context, input EnsureRepoCl
 	return &EnsureRepoClonedOutput{LocalPath: path}, nil
 }
 
+// ResolveRepoInput is the input for ResolveRepo.
+type ResolveRepoInput struct {
+	RepoURL string
+}
+
+// ResolveRepo returns the path to an already-cloned repo without fetching.
+// Use for read-only operations when the repo is known to be up-to-date.
+func (a *GitActivities) ResolveRepo(ctx context.Context, input ResolveRepoInput) (*EnsureRepoClonedOutput, error) {
+	path, err := a.Cache.ResolveRepo(ctx, input.RepoURL)
+	if err != nil {
+		return nil, err
+	}
+	return &EnsureRepoClonedOutput{LocalPath: path}, nil
+}
+
 // GetCommitDetailsInput is the input for GetCommitDetails.
 type GetCommitDetailsInput struct {
 	RepoPath string
@@ -108,7 +123,8 @@ type ComputeChangelogInput struct {
 
 // ComputeChangelogOutput holds the commit list between two SHAs.
 type ComputeChangelogOutput struct {
-	Commits []ChangelogCommit
+	Commits   []ChangelogCommit
+	Truncated bool // true if more commits exist beyond the cap
 }
 
 // ChangelogCommit is a commit entry in a changelog.
@@ -120,9 +136,10 @@ type ChangelogCommit struct {
 	CommitDate  string
 }
 
-// ComputeChangelog returns the list of commits between fromSHA and toSHA.
+// ComputeChangelog returns the list of commits between fromSHA and toSHA,
+// capped at 500 commits. Sets Truncated=true if there are more.
 func (a *GitActivities) ComputeChangelog(ctx context.Context, input ComputeChangelogInput) (*ComputeChangelogOutput, error) {
-	commits, err := a.Cache.ComputeChangelog(ctx, input.RepoPath, input.FromSHA, input.ToSHA)
+	commits, truncated, err := a.Cache.ComputeChangelog(ctx, input.RepoPath, input.FromSHA, input.ToSHA)
 	if err != nil {
 		return nil, err
 	}
@@ -136,5 +153,5 @@ func (a *GitActivities) ComputeChangelog(ctx context.Context, input ComputeChang
 			CommitDate:  c.CommitDate,
 		}
 	}
-	return &ComputeChangelogOutput{Commits: out}, nil
+	return &ComputeChangelogOutput{Commits: out, Truncated: truncated}, nil
 }

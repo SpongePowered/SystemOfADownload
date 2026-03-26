@@ -31,9 +31,11 @@ type SubmoduleRef struct {
 }
 
 // Manager manages bare git clones on the local filesystem with per-repo locking.
+// Write operations (clone, fetch) take an exclusive lock. Read operations
+// (git show, git log, git ls-tree) take a shared lock and run concurrently.
 type Manager struct {
 	baseDir string
-	locks   sync.Map // normalized repo URL → *sync.Mutex
+	locks   sync.Map // normalized repo URL → *sync.RWMutex
 }
 
 // NewManager creates a Manager that stores bare clones under baseDir.
@@ -41,10 +43,10 @@ func NewManager(baseDir string) *Manager {
 	return &Manager{baseDir: baseDir}
 }
 
-// repoLock returns the mutex for the given repo URL, creating one if needed.
-func (m *Manager) repoLock(repoURL string) *sync.Mutex {
-	actual, _ := m.locks.LoadOrStore(repoURL, &sync.Mutex{})
-	return actual.(*sync.Mutex)
+// repoLock returns the RWMutex for the given repo URL, creating one if needed.
+func (m *Manager) repoLock(repoURL string) *sync.RWMutex {
+	actual, _ := m.locks.LoadOrStore(repoURL, &sync.RWMutex{})
+	return actual.(*sync.RWMutex)
 }
 
 // repoPath returns the local filesystem path for a bare clone of the given URL.
@@ -92,6 +94,22 @@ func (m *Manager) EnsureCloned(ctx context.Context, repoURL string) (string, err
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return "", fmt.Errorf("fetching %s: %w\n%s", repoURL, err, out)
 		}
+	}
+
+	return localPath, nil
+}
+
+// ResolveRepo returns the local path for an already-cloned repo without
+// fetching. Returns an error if the repo hasn't been cloned yet. Use this
+// for read-only operations when the repo is known to be up-to-date.
+func (m *Manager) ResolveRepo(ctx context.Context, repoURL string) (string, error) {
+	localPath, err := m.repoPath(repoURL)
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := os.Stat(filepath.Join(localPath, "HEAD")); os.IsNotExist(err) {
+		return "", fmt.Errorf("repo not cloned: %s", repoURL)
 	}
 
 	return localPath, nil
@@ -187,31 +205,38 @@ func (m *Manager) ResolveSubmodules(ctx context.Context, repoPath string, sha st
 	return refs, scanner.Err()
 }
 
+// MaxChangelogCommits is the maximum number of commits returned by ComputeChangelog.
+// Prevents unbounded payloads for large version gaps.
+const MaxChangelogCommits = 500
+
 // ComputeChangelog returns the list of commits between fromSHA (exclusive) and
-// toSHA (inclusive) in reverse chronological order.
-func (m *Manager) ComputeChangelog(ctx context.Context, repoPath string, fromSHA, toSHA string) ([]CommitDetails, error) {
+// toSHA (inclusive) in reverse chronological order, capped at MaxChangelogCommits.
+// Returns truncated=true if there were more commits than the cap.
+func (m *Manager) ComputeChangelog(ctx context.Context, repoPath string, fromSHA, toSHA string) (commits []CommitDetails, truncated bool, err error) {
 	format := "%H%n%s%n%aN%n%aE%n%aI"
 	rangeSpec := fromSHA + ".." + toSHA
-	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "log", "--format="+format, rangeSpec)
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("git log %s: %w", rangeSpec, err)
+	// Request one extra to detect truncation
+	maxCount := fmt.Sprintf("--max-count=%d", MaxChangelogCommits+1)
+	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "log", maxCount, "--format="+format, rangeSpec)
+	out, outErr := cmd.Output()
+	if outErr != nil {
+		return nil, false, fmt.Errorf("git log %s: %w", rangeSpec, outErr)
 	}
 
 	text := strings.TrimRight(string(out), "\n")
 	if text == "" {
-		return nil, nil
+		return nil, false, nil
 	}
 
 	lines := strings.Split(text, "\n")
 	// Each commit produces exactly 5 lines
 	if len(lines)%5 != 0 {
-		return nil, fmt.Errorf("unexpected git log output: %d lines (not multiple of 5)", len(lines))
+		return nil, false, fmt.Errorf("unexpected git log output: %d lines (not multiple of 5)", len(lines))
 	}
 
-	commits := make([]CommitDetails, 0, len(lines)/5)
+	result := make([]CommitDetails, 0, len(lines)/5)
 	for i := 0; i < len(lines); i += 5 {
-		commits = append(commits, CommitDetails{
+		result = append(result, CommitDetails{
 			Sha:         lines[i],
 			Message:     lines[i+1],
 			AuthorName:  lines[i+2],
@@ -220,7 +245,10 @@ func (m *Manager) ComputeChangelog(ctx context.Context, repoPath string, fromSHA
 		})
 	}
 
-	return commits, nil
+	if len(result) > MaxChangelogCommits {
+		return result[:MaxChangelogCommits], true, nil
+	}
+	return result, false, nil
 }
 
 // parseGitmodules parses a .gitmodules file and returns a map of path → URL.
