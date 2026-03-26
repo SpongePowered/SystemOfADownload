@@ -199,8 +199,6 @@ func run(ctx context.Context) error {
     w.RegisterWorkflow(wf.VersionSyncWorkflow)
     w.RegisterWorkflow(wf.VersionBatchIndexWorkflow)
     w.RegisterWorkflow(wf.VersionIndexWorkflow)
-    w.RegisterWorkflow(wf.ExtractCommitBatchWorkflow)
-    w.RegisterWorkflow(wf.ExtractCommitWorkflow)
     w.RegisterWorkflow(wf.VersionOrderingWorkflow)
     w.RegisterWorkflow(wf.CommitEnrichmentWorkflow)
     w.RegisterWorkflow(wf.EnrichmentBatchWorkflow)

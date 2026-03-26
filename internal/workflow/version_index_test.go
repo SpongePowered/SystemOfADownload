@@ -40,15 +40,15 @@ func TestVersionIndexWorkflow(t *testing.T) {
 				env.OnActivity(indexActivities.StoreVersionAssets, mock.Anything, mock.Anything).
 					Return(&activity.StoreVersionAssetsOutput{StoredCount: 1}, nil)
 
-				env.OnActivity(indexActivities.InspectJarsForCommits, mock.Anything, mock.Anything).
-					Return(&activity.InspectJarsForCommitsOutput{
-						Candidates: []activity.JarCommitCandidate{
-							{DownloadURL: "https://repo.example/a.jar"},
-						},
+				// InspectJarsForCommits is now inlined (pure function, not an activity)
+
+				env.OnActivity(indexActivities.ExtractCommitFromJar, mock.Anything, mock.Anything).
+					Return(&activity.ExtractCommitFromJarOutput{
+						CommitInfo: &domain.CommitInfo{Sha: "abc123"},
 					}, nil)
 
-				env.OnWorkflow(workflow.ExtractCommitBatchWorkflow, mock.Anything, mock.Anything).
-					Return(1, nil)
+				env.OnActivity(indexActivities.StoreCommitInfo, mock.Anything, mock.Anything).
+					Return(nil)
 			},
 			want: &workflow.VersionIndexOutput{
 				AssetsStored: 1,
@@ -93,8 +93,7 @@ func TestVersionIndexWorkflow(t *testing.T) {
 				env.OnActivity(indexActivities.StoreVersionAssets, mock.Anything, mock.Anything).
 					Return(&activity.StoreVersionAssetsOutput{StoredCount: 1}, nil)
 
-				env.OnActivity(indexActivities.InspectJarsForCommits, mock.Anything, mock.Anything).
-					Return(&activity.InspectJarsForCommitsOutput{}, nil)
+				// No jar candidates — PickBestJarCandidate returns nil for .pom only
 			},
 			want: &workflow.VersionIndexOutput{
 				AssetsStored: 1,

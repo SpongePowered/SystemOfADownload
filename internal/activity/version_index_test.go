@@ -263,49 +263,49 @@ func TestBuildAndStoreTags(t *testing.T) {
 	}
 }
 
-func TestInspectJarsForCommits(t *testing.T) {
+func TestPickBestJarCandidate(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name  string
-		input activity.InspectJarsForCommitsInput
-		want  *activity.InspectJarsForCommitsOutput
+		name   string
+		assets []domain.AssetInfo
+		want   *activity.JarCommitCandidate
 	}{
 		{
-			name: "identifies jar files",
-			input: activity.InspectJarsForCommitsInput{
-				Assets: []domain.AssetInfo{
-					{DownloadURL: "https://repo.example/a.jar", Extension: "jar", Classifier: ""},
-					{DownloadURL: "https://repo.example/a.pom", Extension: "pom"},
-					{DownloadURL: "https://repo.example/a-sources.jar", Extension: "jar", Classifier: "sources"},
-				},
+			name: "prefers main jar (empty classifier)",
+			assets: []domain.AssetInfo{
+				{DownloadURL: "https://repo.example/a.jar", Extension: "jar", Classifier: ""},
+				{DownloadURL: "https://repo.example/a.pom", Extension: "pom"},
+				{DownloadURL: "https://repo.example/a-sources.jar", Extension: "jar", Classifier: "sources"},
 			},
-			want: &activity.InspectJarsForCommitsOutput{
-				Candidates: []activity.JarCommitCandidate{
-					{DownloadURL: "https://repo.example/a.jar", Classifier: ""},
-					{DownloadURL: "https://repo.example/a-sources.jar", Classifier: "sources"},
-				},
-			},
+			want: &activity.JarCommitCandidate{DownloadURL: "https://repo.example/a.jar", Classifier: ""},
 		},
 		{
-			name: "no jars returns nil candidates",
-			input: activity.InspectJarsForCommitsInput{
-				Assets: []domain.AssetInfo{
-					{DownloadURL: "https://repo.example/a.pom", Extension: "pom"},
-				},
+			name: "falls back to first jar when no empty classifier",
+			assets: []domain.AssetInfo{
+				{DownloadURL: "https://repo.example/a.pom", Extension: "pom"},
+				{DownloadURL: "https://repo.example/a-sources.jar", Extension: "jar", Classifier: "sources"},
 			},
-			want: &activity.InspectJarsForCommitsOutput{},
+			want: &activity.JarCommitCandidate{DownloadURL: "https://repo.example/a-sources.jar", Classifier: "sources"},
+		},
+		{
+			name: "no jars returns nil",
+			assets: []domain.AssetInfo{
+				{DownloadURL: "https://repo.example/a.pom", Extension: "pom"},
+			},
+			want: nil,
+		},
+		{
+			name:   "empty assets returns nil",
+			assets: nil,
+			want:   nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			a := &activity.VersionIndexActivities{}
-			got, err := a.InspectJarsForCommits(t.Context(), tt.input)
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
+			got := activity.PickBestJarCandidate(tt.assets)
 			if diff := cmp.Diff(tt.want, got); diff != "" {
 				t.Fatalf("diff (-want +got):\n%s", diff)
 			}

@@ -27,6 +27,21 @@ type VersionIndexOutput struct {
 // Sonatype, stores them, and extracts commit info from jars.
 // Tags are handled separately by VersionOrderingWorkflow using schema-driven extraction.
 func VersionIndexWorkflow(ctx workflow.Context, input VersionIndexInput) (*VersionIndexOutput, error) {
+	output, err := versionIndexWork(ctx, input)
+
+	// Always signal the parent, even on failure. Without this, the batch
+	// workflow's currentRecords map never clears for this version, and the
+	// sliding window blocks forever.
+	parent := workflow.GetInfo(ctx).ParentWorkflowExecution
+	if parent != nil {
+		signaled := workflow.SignalExternalWorkflow(ctx, parent.ID, "", versionBatchCompletionSignalName, input.Version)
+		_ = signaled.Get(ctx, nil) // best-effort; don't mask the original error
+	}
+
+	return output, err
+}
+
+func versionIndexWork(ctx workflow.Context, input VersionIndexInput) (*VersionIndexOutput, error) {
 	activityOpts := workflow.ActivityOptions{
 		StartToCloseTimeout: 30 * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -67,49 +82,48 @@ func VersionIndexWorkflow(ctx workflow.Context, input VersionIndexInput) (*Versi
 		return nil, fmt.Errorf("storing version assets: %w", err)
 	}
 
-	// Step 3: Identify jar candidates for commit extraction
-	var inspectResult activity.InspectJarsForCommitsOutput
-	err = workflow.ExecuteActivity(ctx, indexActivities.InspectJarsForCommits, activity.InspectJarsForCommitsInput{
-		Assets: fetchResult.Assets,
-	}).Get(ctx, &inspectResult)
-	if err != nil {
-		return nil, fmt.Errorf("inspecting jars: %w", err)
-	}
+	// Step 3: Pick the best jar candidate for commit extraction.
+	// This is pure computation (no I/O) so it's called directly in the
+	// workflow, not as an activity. Saves 3 history events per version.
+	candidate := activity.PickBestJarCandidate(fetchResult.Assets)
 
 	output := &VersionIndexOutput{
 		AssetsStored: storeResult.StoredCount,
 	}
 
-	// Step 4: Launch ExtractCommitBatch if jar candidates found
-	if len(inspectResult.Candidates) > 0 {
-		childOpts := workflow.ChildWorkflowOptions{
-			WorkflowID: fmt.Sprintf("%s/extract-commits", workflow.GetInfo(ctx).WorkflowExecution.ID),
+	// Step 4: Extract commit from the best jar candidate (if any)
+	if candidate != nil {
+
+		extractOpts := workflow.ActivityOptions{
+			StartToCloseTimeout: 5 * time.Minute,
 			RetryPolicy: &temporal.RetryPolicy{
-				MaximumAttempts: 2,
+				InitialInterval:    2 * time.Second,
+				BackoffCoefficient: 2.0,
+				MaximumInterval:    time.Minute,
+				MaximumAttempts:    3,
 			},
 		}
-		childCtx := workflow.WithChildOptions(ctx, childOpts)
+		extractCtx := workflow.WithActivityOptions(ctx, extractOpts)
 
-		var commitsExtracted int
-		err = workflow.ExecuteChildWorkflow(childCtx, ExtractCommitBatchWorkflow, ExtractCommitBatchInput{
-			GroupID:    input.GroupID,
-			ArtifactID: input.ArtifactID,
-			Version:    input.Version,
-			Candidates: inspectResult.Candidates,
-			WindowSize: 3,
-		}).Get(ctx, &commitsExtracted)
+		var extractResult activity.ExtractCommitFromJarOutput
+		err = workflow.ExecuteActivity(extractCtx, indexActivities.ExtractCommitFromJar, activity.ExtractCommitFromJarInput{
+			DownloadURL: candidate.DownloadURL,
+		}).Get(ctx, &extractResult)
 		if err != nil {
-			return nil, fmt.Errorf("extracting commits: %w", err)
+			return nil, fmt.Errorf("extracting commit from jar: %w", err)
 		}
-		output.CommitFound = commitsExtracted > 0
-	}
 
-	// Signal parent workflow about completion
-	parent := workflow.GetInfo(ctx).ParentWorkflowExecution
-	if parent != nil {
-		signaled := workflow.SignalExternalWorkflow(ctx, parent.ID, "", versionBatchCompletionSignalName, input.Version)
-		if err := signaled.Get(ctx, nil); err != nil {
-			return nil, fmt.Errorf("signaling parent: %w", err)
+		if extractResult.CommitInfo != nil {
+			err = workflow.ExecuteActivity(ctx, indexActivities.StoreCommitInfo, activity.StoreCommitInfoInput{
+				GroupID:    input.GroupID,
+				ArtifactID: input.ArtifactID,
+				Version:    input.Version,
+				CommitInfo: *extractResult.CommitInfo,
+			}).Get(ctx, nil)
+			if err != nil {
+				return nil, fmt.Errorf("storing commit info: %w", err)
+			}
+			output.CommitFound = true
 		}
 	}
 

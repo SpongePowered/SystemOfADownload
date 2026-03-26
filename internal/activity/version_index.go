@@ -199,19 +199,28 @@ type InspectJarsForCommitsOutput struct {
 	Candidates []JarCommitCandidate
 }
 
-// InspectJarsForCommits identifies jar assets that are candidates for commit extraction.
-// It filters assets to jar files and returns them as candidates for the ExtractCommit batch.
-func (a *VersionIndexActivities) InspectJarsForCommits(_ context.Context, input InspectJarsForCommitsInput) (*InspectJarsForCommitsOutput, error) {
-	var candidates []JarCommitCandidate
-	for _, asset := range input.Assets {
-		if asset.Extension == "jar" || strings.HasSuffix(asset.Path, ".jar") {
-			candidates = append(candidates, JarCommitCandidate{
-				DownloadURL: asset.DownloadURL,
-				Classifier:  asset.Classifier,
-			})
+// PickBestJarCandidate identifies the best jar asset for commit extraction.
+// It prefers the main jar (empty classifier) since all jars from the same
+// build contain identical commit metadata. This is a pure function — no I/O —
+// and is called directly from workflow code (not as an activity).
+func PickBestJarCandidate(assets []domain.AssetInfo) *JarCommitCandidate {
+	var fallback *JarCommitCandidate
+	for _, asset := range assets {
+		if asset.Extension != "jar" && !strings.HasSuffix(asset.Path, ".jar") {
+			continue
+		}
+		candidate := JarCommitCandidate{
+			DownloadURL: asset.DownloadURL,
+			Classifier:  asset.Classifier,
+		}
+		if asset.Classifier == "" {
+			return &candidate
+		}
+		if fallback == nil {
+			fallback = &candidate
 		}
 	}
-	return &InspectJarsForCommitsOutput{Candidates: candidates}, nil
+	return fallback
 }
 
 // ExtractCommitFromJarInput is the input for the ExtractCommitFromJar activity.
