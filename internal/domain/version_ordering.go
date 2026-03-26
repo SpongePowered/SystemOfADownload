@@ -117,14 +117,15 @@ func parseSimpleVersion(raw string) ParsedVersion {
 // Returns negative if a < b, positive if a > b, zero if equal.
 // "Less than" means older / lower sort_order.
 func CompareVersions(a, b ParsedVersion) int {
-	// If both have manifest ordering, that takes full precedence.
+	// If both have manifest ordering and they differ, use manifest order.
+	// If equal, fall through to segment/qualifier comparison.
 	if a.ManifestOrder > 0 && b.ManifestOrder > 0 {
-		return cmp.Compare(a.ManifestOrder, b.ManifestOrder)
-	}
-	if a.ManifestOrder > 0 {
+		if c := cmp.Compare(a.ManifestOrder, b.ManifestOrder); c != 0 {
+			return c
+		}
+	} else if a.ManifestOrder > 0 {
 		return 1
-	}
-	if b.ManifestOrder > 0 {
+	} else if b.ManifestOrder > 0 {
 		return -1
 	}
 

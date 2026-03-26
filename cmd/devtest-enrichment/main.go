@@ -52,7 +52,7 @@ const (
     temporalAddr = "localhost:7233"
 )
 
-const mcPattern = `(?:\d+w\d+[a-z]|\d+\.\d+(?:\.\d+)?-snapshot-\d+|\d+\.\d+(?:\.\d+)?-(?:pre|rc)\d+|\d+\.\d+(?:\.\d+)?)`
+const mcPattern = `(?:\d+w\d+[a-z]|\d+\.\d+(?:\.\d+)?-snapshot-\d+|\d+\.\d+(?:\.\d+)?-(?:pre|rc)-?\d+|\d+\.\d+(?:\.\d+)?)`
 
 var vanillaSchema = &domain.VersionSchema{
     UseMojangManifest: true,

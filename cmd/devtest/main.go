@@ -48,7 +48,7 @@ const (
 )
 
 // mcPattern is the regex alternation for all Minecraft version formats.
-const mcPattern = `(?:\d+w\d+[a-z]|\d+\.\d+(?:\.\d+)?-snapshot-\d+|\d+\.\d+(?:\.\d+)?-(?:pre|rc)\d+|\d+\.\d+(?:\.\d+)?)`
+const mcPattern = `(?:\d+w\d+[a-z]|\d+\.\d+(?:\.\d+)?-snapshot-\d+|\d+\.\d+(?:\.\d+)?-(?:pre|rc)-?\d+|\d+\.\d+(?:\.\d+)?)`
 
 type artifactConfig struct {
 	ArtifactID string
