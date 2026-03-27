@@ -9,6 +9,7 @@ import (
 )
 
 type Querier interface {
+	CountArtifactVersions(ctx context.Context, arg CountArtifactVersionsParams) (int32, error)
 	CreateArtifact(ctx context.Context, arg CreateArtifactParams) (Artifact, error)
 	CreateArtifactVersion(ctx context.Context, arg CreateArtifactVersionParams) (ArtifactVersion, error)
 	CreateArtifactVersionAsset(ctx context.Context, arg CreateArtifactVersionAssetParams) (ArtifactVersionedAsset, error)

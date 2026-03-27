@@ -3,6 +3,11 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -112,6 +117,15 @@ func (m *mockQuerier) ListArtifactVersionTags(ctx context.Context, versionID int
 	return m.tags[versionID], nil
 }
 
+func (m *mockQuerier) CountVersionsFiltered(ctx context.Context, params repository.VersionQueryParams) (int, error) {
+	// Reuse ListVersionsFiltered without limit/offset to count
+	noLimit := params
+	noLimit.Limit = 10000
+	noLimit.Offset = 0
+	versions, err := m.ListVersionsFiltered(ctx, noLimit)
+	return len(versions), err
+}
+
 func (m *mockQuerier) ListVersionsFiltered(ctx context.Context, params repository.VersionQueryParams) ([]db.ArtifactVersion, error) {
 	// Find the artifact
 	key := params.GroupID + ":" + params.ArtifactID
@@ -148,6 +162,11 @@ func (m *mockQuerier) ListVersionsFiltered(ctx context.Context, params repositor
 		}
 		filtered = append(filtered, v)
 	}
+
+	// Sort by sort_order DESC (matching real DB behavior)
+	slices.SortFunc(filtered, func(a, b db.ArtifactVersion) int {
+		return int(b.SortOrder) - int(a.SortOrder)
+	})
 
 	// Apply offset and limit
 	if int(params.Offset) >= len(filtered) {
@@ -374,12 +393,12 @@ func TestGetVersions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		r, ok := resp.(api.GetVersions200JSONResponse)
+		r, ok := resp.(*orderedVersionsResponse)
 		if !ok {
-			t.Fatalf("expected 200, got %T", resp)
+			t.Fatalf("expected orderedVersionsResponse, got %T", resp)
 		}
-		if r.Artifacts == nil || len(*r.Artifacts) != 3 {
-			t.Errorf("expected 3 versions, got %v", r.Artifacts)
+		if len(r.Entries) != 3 {
+			t.Errorf("expected 3 versions, got %v", r.Entries)
 		}
 	})
 
@@ -467,12 +486,12 @@ func TestGetVersions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		r, ok := resp.(api.GetVersions200JSONResponse)
+		r, ok := resp.(*orderedVersionsResponse)
 		if !ok {
-			t.Fatalf("expected 200, got %T", resp)
+			t.Fatalf("expected orderedVersionsResponse, got %T", resp)
 		}
-		if r.Artifacts == nil || len(*r.Artifacts) != 2 {
-			t.Errorf("expected 2 recommended versions, got %d", len(*r.Artifacts))
+		if len(r.Entries) != 2 {
+			t.Errorf("expected 2 recommended versions, got %d", len(r.Entries))
 		}
 	})
 
@@ -486,12 +505,12 @@ func TestGetVersions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		r, ok := resp.(api.GetVersions200JSONResponse)
+		r, ok := resp.(*orderedVersionsResponse)
 		if !ok {
-			t.Fatalf("expected 200, got %T", resp)
+			t.Fatalf("expected orderedVersionsResponse, got %T", resp)
 		}
-		if r.Artifacts == nil || len(*r.Artifacts) != 2 {
-			t.Errorf("expected 2 versions for minecraft:1.12.2, got %d", len(*r.Artifacts))
+		if len(r.Entries) != 2 {
+			t.Errorf("expected 2 versions for minecraft:1.12.2, got %d", len(r.Entries))
 		}
 	})
 
@@ -505,12 +524,12 @@ func TestGetVersions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		r, ok := resp.(api.GetVersions200JSONResponse)
+		r, ok := resp.(*orderedVersionsResponse)
 		if !ok {
-			t.Fatalf("expected 200, got %T", resp)
+			t.Fatalf("expected orderedVersionsResponse, got %T", resp)
 		}
-		if r.Artifacts == nil || len(*r.Artifacts) != 1 {
-			t.Errorf("expected 1 version with limit=1, got %d", len(*r.Artifacts))
+		if len(r.Entries) != 1 {
+			t.Errorf("expected 1 version with limit=1, got %d", len(r.Entries))
 		}
 	})
 }
@@ -933,4 +952,92 @@ func TestUpdateArtifact(t *testing.T) {
 			t.Errorf("expected 404, got %T", resp)
 		}
 	})
+}
+
+func TestGetVersionsHTTPOrdering(t *testing.T) {
+	// Versions with descending sort_order — the JSON output must preserve this order.
+	q := &mockQuerier{
+		groups: map[string]db.Group{
+			"org.spongepowered": {MavenID: "org.spongepowered", Name: "SpongePowered"},
+		},
+		artifacts: map[string]db.Artifact{
+			"org.spongepowered:spongevanilla": {ID: 1, GroupID: "org.spongepowered", ArtifactID: "spongevanilla", Name: "SpongeVanilla", GitRepositories: []byte("[]")},
+		},
+		versions: map[int64]db.ArtifactVersion{
+			1: {ID: 1, ArtifactID: 1, Version: "1.12.2-7.4.7", SortOrder: 1005, Recommended: true},
+			2: {ID: 2, ArtifactID: 1, Version: "1.12.2-7.4.7-RC424", SortOrder: 1004, Recommended: false},
+			3: {ID: 3, ArtifactID: 1, Version: "1.12.2-7.4.7-RC423", SortOrder: 1003, Recommended: false},
+			4: {ID: 4, ArtifactID: 1, Version: "1.12.2-7.4.6", SortOrder: 1002, Recommended: true},
+			5: {ID: 5, ArtifactID: 1, Version: "1.12.2-7.4.5", SortOrder: 1001, Recommended: true},
+		},
+		tags: map[int64][]db.ArtifactVersionedTag{
+			1: {{ArtifactVersionID: 1, TagKey: "minecraft", TagValue: "1.12.2"}},
+			2: {{ArtifactVersionID: 2, TagKey: "minecraft", TagValue: "1.12.2"}},
+			3: {{ArtifactVersionID: 3, TagKey: "minecraft", TagValue: "1.12.2"}},
+			4: {{ArtifactVersionID: 4, TagKey: "minecraft", TagValue: "1.12.2"}},
+			5: {{ArtifactVersionID: 5, TagKey: "minecraft", TagValue: "1.12.2"}},
+		},
+	}
+	service := app.NewService(q)
+	handler := NewHandler(service, nil)
+
+	// Wire through the full HTTP stack
+	apiHandler := api.NewStrictHandler(handler, nil)
+	mux := http.NewServeMux()
+	httpHandler := api.HandlerFromMux(apiHandler, mux)
+
+	srv := httptest.NewServer(httpHandler)
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/groups/org.spongepowered/artifacts/spongevanilla/versions?limit=5")
+	if err != nil {
+		t.Fatalf("HTTP request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	// Read raw body to verify JSON key order
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("reading body: %v", err)
+	}
+	body := string(bodyBytes)
+
+	// Verify the versions appear in descending sort_order in the raw JSON
+	expectedOrder := []string{
+		"1.12.2-7.4.7",
+		"1.12.2-7.4.7-RC424",
+		"1.12.2-7.4.7-RC423",
+		"1.12.2-7.4.6",
+		"1.12.2-7.4.5",
+	}
+
+	lastIdx := -1
+	for _, version := range expectedOrder {
+		idx := strings.Index(body, `"`+version+`"`)
+		if idx == -1 {
+			t.Errorf("version %q not found in response body", version)
+			continue
+		}
+		if idx <= lastIdx {
+			t.Errorf("version %q (pos %d) appears before previous version (pos %d) — order not preserved", version, idx, lastIdx)
+		}
+		lastIdx = idx
+	}
+
+	// Also verify pagination metadata exists
+	if !strings.Contains(body, `"offset":0`) {
+		t.Error("missing offset in response")
+	}
+	if !strings.Contains(body, `"limit":5`) {
+		t.Error("missing limit in response")
+	}
+	if !strings.Contains(body, `"size":5`) {
+		t.Error("missing size in response")
+	}
+
+	t.Logf("Response body:\n%s", body)
 }

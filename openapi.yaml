@@ -196,6 +196,34 @@ paths:
           description: Invalid schema (bad regex, missing segments, unknown parse_as)
         '404':
           description: Artifact not found
+  '/groups/{groupID}/artifacts/{artifactID}/latest':
+    get:
+      tags:
+        - Versions
+      operationId: getLatestVersion
+      description: Returns the latest version for an artifact, optionally filtered by tags.
+      parameters:
+        - $ref: '#/components/parameters/GroupID'
+        - $ref: '#/components/parameters/ArtifactID'
+        - name: tags
+          required: false
+          in: query
+          schema:
+            type: string
+            description: |
+              Tag filter to find the latest version matching specific tags.
+              Same format as getVersions: colon-separated key:value pairs,
+              comma-separated for multiple. Supports prefix matching.
+            example: "minecraft:1.21.11"
+      responses:
+        '200':
+          description: The latest version matching the filter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionInfo'
+        '404':
+          description: Artifact not found or no versions match the filter
   '/groups/{groupID}/artifacts/{artifactID}/versions':
     get:
       tags:
@@ -259,6 +287,18 @@ paths:
                             type: string
                         recommended:
                           type: boolean
+                  offset:
+                    type: integer
+                    description: The offset used for this page of results
+                    example: 0
+                  limit:
+                    type: integer
+                    description: The limit used for this page of results
+                    example: 25
+                  size:
+                    type: integer
+                    description: Total number of versions matching the query (for pagination)
+                    example: 142
         '404':
           description: Artifact not found
   '/groups/{groupID}/artifacts/{artifactID}/versions/{versionID}':
@@ -289,56 +329,11 @@ paths:
             type: string
       responses:
         '200':
-          description: The versions available
+          description: The version details
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  coordinates:
-                    type: object
-                    properties:
-                      groupId:
-                        type: string
-                        example: "org.spongepowered"
-                      artifactId:
-                        type: string
-                        example: "spongeforge"
-                      version:
-                        type: string
-                        example: "1.16.5-36.2.5-8.1.0-RC1331"
-                  commit:
-                    type: object
-                    properties:
-                      commits:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            commit:
-                              $ref: '#/components/schemas/Commit'
-                            submoduleCommits:
-                              type: array
-                              items:
-                                $ref: '#/components/schemas/Commit'
-
-                  assets:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Asset'
-                  tags:
-                    type: object
-                    additionalProperties:
-                      type: string
-                    example:
-                      minecraft: "1.16.5"
-                      forge: "36.2.5"
-                      api: "8.1"
-                  recommended:
-                    type: boolean
-                    description: |
-                      Whether the artifact is considered a "standard release" version or if it is still in development.
-                    example: false
+                $ref: '#/components/schemas/VersionInfo'
         '404':
           description: Version not found
 components:
@@ -552,6 +547,51 @@ components:
           format: URL
           example: "https://github.com/SpongePowered/Sponge/issues"
           description: The issues/tracker URL (optional)
+    VersionInfo:
+      type: object
+      properties:
+        coordinates:
+          type: object
+          properties:
+            groupId:
+              type: string
+              example: "org.spongepowered"
+            artifactId:
+              type: string
+              example: "spongeforge"
+            version:
+              type: string
+              example: "1.16.5-36.2.5-8.1.0-RC1331"
+        commit:
+          type: object
+          properties:
+            commits:
+              type: array
+              items:
+                type: object
+                properties:
+                  commit:
+                    $ref: '#/components/schemas/Commit'
+                  submoduleCommits:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Commit'
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Asset'
+        tags:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            minecraft: "1.16.5"
+            forge: "36.2.5"
+            api: "8.1"
+        recommended:
+          type: boolean
+          description: Whether the artifact is considered a "standard release" version or if it is still in development.
+          example: false
     VersionSchema:
       type: object
       required:

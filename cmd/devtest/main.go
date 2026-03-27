@@ -402,8 +402,8 @@ func run(ctx context.Context) error {
 			continue
 		}
 		slog.InfoContext(ctx, "verified GetVersions",
-			"artifactID", ac.ArtifactID, "returned", len(entries))
-		for _, e := range entries {
+			"artifactID", ac.ArtifactID, "returned", len(entries.Entries), "total", entries.Total)
+		for _, e := range entries.Entries {
 			fmt.Printf("  %-45s recommended=%-5t tags=%v\n", e.Version, e.Recommended, e.Tags)
 		}
 
@@ -421,7 +421,7 @@ func run(ctx context.Context) error {
 			continue
 		}
 		slog.InfoContext(ctx, "verified GetVersions recommended=true",
-			"artifactID", ac.ArtifactID, "returned", len(recEntries))
+			"artifactID", ac.ArtifactID, "returned", len(recEntries.Entries), "total", recEntries.Total)
 	}
 
 	fmt.Println()

@@ -39,6 +39,72 @@ func (_m *MockReads) EXPECT() *MockReads_Expecter {
 	return &MockReads_Expecter{mock: &_m.Mock}
 }
 
+// CountVersionsFiltered provides a mock function for the type MockReads
+func (_mock *MockReads) CountVersionsFiltered(ctx context.Context, params repository.VersionQueryParams) (int, error) {
+	ret := _mock.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountVersionsFiltered")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) (int, error)); ok {
+		return returnFunc(ctx, params)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) int); ok {
+		r0 = returnFunc(ctx, params)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repository.VersionQueryParams) error); ok {
+		r1 = returnFunc(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockReads_CountVersionsFiltered_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountVersionsFiltered'
+type MockReads_CountVersionsFiltered_Call struct {
+	*mock.Call
+}
+
+// CountVersionsFiltered is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params repository.VersionQueryParams
+func (_e *MockReads_Expecter) CountVersionsFiltered(ctx interface{}, params interface{}) *MockReads_CountVersionsFiltered_Call {
+	return &MockReads_CountVersionsFiltered_Call{Call: _e.mock.On("CountVersionsFiltered", ctx, params)}
+}
+
+func (_c *MockReads_CountVersionsFiltered_Call) Run(run func(ctx context.Context, params repository.VersionQueryParams)) *MockReads_CountVersionsFiltered_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repository.VersionQueryParams
+		if args[1] != nil {
+			arg1 = args[1].(repository.VersionQueryParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockReads_CountVersionsFiltered_Call) Return(n int, err error) *MockReads_CountVersionsFiltered_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockReads_CountVersionsFiltered_Call) RunAndReturn(run func(ctx context.Context, params repository.VersionQueryParams) (int, error)) *MockReads_CountVersionsFiltered_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetArtifactByGroupAndId provides a mock function for the type MockReads
 func (_mock *MockReads) GetArtifactByGroupAndId(ctx context.Context, arg db.GetArtifactByGroupAndIdParams) (db.Artifact, error) {
 	ret := _mock.Called(ctx, arg)
@@ -1989,6 +2055,72 @@ func (_m *MockTx) EXPECT() *MockTx_Expecter {
 	return &MockTx_Expecter{mock: &_m.Mock}
 }
 
+// CountVersionsFiltered provides a mock function for the type MockTx
+func (_mock *MockTx) CountVersionsFiltered(ctx context.Context, params repository.VersionQueryParams) (int, error) {
+	ret := _mock.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountVersionsFiltered")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) (int, error)); ok {
+		return returnFunc(ctx, params)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) int); ok {
+		r0 = returnFunc(ctx, params)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repository.VersionQueryParams) error); ok {
+		r1 = returnFunc(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTx_CountVersionsFiltered_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountVersionsFiltered'
+type MockTx_CountVersionsFiltered_Call struct {
+	*mock.Call
+}
+
+// CountVersionsFiltered is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params repository.VersionQueryParams
+func (_e *MockTx_Expecter) CountVersionsFiltered(ctx interface{}, params interface{}) *MockTx_CountVersionsFiltered_Call {
+	return &MockTx_CountVersionsFiltered_Call{Call: _e.mock.On("CountVersionsFiltered", ctx, params)}
+}
+
+func (_c *MockTx_CountVersionsFiltered_Call) Run(run func(ctx context.Context, params repository.VersionQueryParams)) *MockTx_CountVersionsFiltered_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repository.VersionQueryParams
+		if args[1] != nil {
+			arg1 = args[1].(repository.VersionQueryParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_CountVersionsFiltered_Call) Return(n int, err error) *MockTx_CountVersionsFiltered_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockTx_CountVersionsFiltered_Call) RunAndReturn(run func(ctx context.Context, params repository.VersionQueryParams) (int, error)) *MockTx_CountVersionsFiltered_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateArtifact provides a mock function for the type MockTx
 func (_mock *MockTx) CreateArtifact(ctx context.Context, arg db.CreateArtifactParams) (db.Artifact, error) {
 	ret := _mock.Called(ctx, arg)
@@ -3910,6 +4042,72 @@ type MockRepository_Expecter struct {
 
 func (_m *MockRepository) EXPECT() *MockRepository_Expecter {
 	return &MockRepository_Expecter{mock: &_m.Mock}
+}
+
+// CountVersionsFiltered provides a mock function for the type MockRepository
+func (_mock *MockRepository) CountVersionsFiltered(ctx context.Context, params repository.VersionQueryParams) (int, error) {
+	ret := _mock.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountVersionsFiltered")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) (int, error)); ok {
+		return returnFunc(ctx, params)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) int); ok {
+		r0 = returnFunc(ctx, params)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repository.VersionQueryParams) error); ok {
+		r1 = returnFunc(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_CountVersionsFiltered_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountVersionsFiltered'
+type MockRepository_CountVersionsFiltered_Call struct {
+	*mock.Call
+}
+
+// CountVersionsFiltered is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params repository.VersionQueryParams
+func (_e *MockRepository_Expecter) CountVersionsFiltered(ctx interface{}, params interface{}) *MockRepository_CountVersionsFiltered_Call {
+	return &MockRepository_CountVersionsFiltered_Call{Call: _e.mock.On("CountVersionsFiltered", ctx, params)}
+}
+
+func (_c *MockRepository_CountVersionsFiltered_Call) Run(run func(ctx context.Context, params repository.VersionQueryParams)) *MockRepository_CountVersionsFiltered_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repository.VersionQueryParams
+		if args[1] != nil {
+			arg1 = args[1].(repository.VersionQueryParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_CountVersionsFiltered_Call) Return(n int, err error) *MockRepository_CountVersionsFiltered_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockRepository_CountVersionsFiltered_Call) RunAndReturn(run func(ctx context.Context, params repository.VersionQueryParams) (int, error)) *MockRepository_CountVersionsFiltered_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // GetArtifactByGroupAndId provides a mock function for the type MockRepository

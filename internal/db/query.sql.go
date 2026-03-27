@@ -9,6 +9,26 @@ import (
 	"context"
 )
 
+const countArtifactVersions = `-- name: CountArtifactVersions :one
+SELECT COUNT(*)::int FROM artifact_versions av
+JOIN artifacts a ON av.artifact_id = a.id
+WHERE a.group_id = $1 AND a.artifact_id = $2
+  AND ($3::boolean IS NULL OR av.recommended = $3)
+`
+
+type CountArtifactVersionsParams struct {
+	GroupID     string
+	ArtifactID  string
+	Recommended *bool
+}
+
+func (q *Queries) CountArtifactVersions(ctx context.Context, arg CountArtifactVersionsParams) (int32, error) {
+	row := q.db.QueryRow(ctx, countArtifactVersions, arg.GroupID, arg.ArtifactID, arg.Recommended)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createArtifact = `-- name: CreateArtifact :one
 INSERT INTO artifacts (group_id, artifact_id, name, website, issues, git_repositories, version_schema)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -544,12 +564,13 @@ func (q *Queries) ListArtifactsByGroup(ctx context.Context, groupID string) ([]A
 }
 
 const listDistinctTagsByArtifact = `-- name: ListDistinctTagsByArtifact :many
-SELECT DISTINCT t.tag_key, t.tag_value
+SELECT t.tag_key, t.tag_value
 FROM artifact_versioned_tags t
 JOIN artifact_versions av ON t.artifact_version_id = av.id
 JOIN artifacts a ON av.artifact_id = a.id
 WHERE a.group_id = $1 AND a.artifact_id = $2
-ORDER BY t.tag_key, t.tag_value
+GROUP BY t.tag_key, t.tag_value
+ORDER BY t.tag_key, MAX(av.sort_order) DESC
 `
 
 type ListDistinctTagsByArtifactParams struct {

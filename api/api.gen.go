@@ -114,6 +114,26 @@ type Groups struct {
 	Groups []Group `json:"groups"`
 }
 
+// VersionInfo defines model for VersionInfo.
+type VersionInfo struct {
+	Assets *[]Asset `json:"assets,omitempty"`
+	Commit *struct {
+		Commits *[]struct {
+			Commit           *Commit   `json:"commit,omitempty"`
+			SubmoduleCommits *[]Commit `json:"submoduleCommits,omitempty"`
+		} `json:"commits,omitempty"`
+	} `json:"commit,omitempty"`
+	Coordinates *struct {
+		ArtifactId *string `json:"artifactId,omitempty"`
+		GroupId    *string `json:"groupId,omitempty"`
+		Version    *string `json:"version,omitempty"`
+	} `json:"coordinates,omitempty"`
+
+	// Recommended Whether the artifact is considered a "standard release" version or if it is still in development.
+	Recommended *bool              `json:"recommended,omitempty"`
+	Tags        *map[string]string `json:"tags,omitempty"`
+}
+
 // VersionSchema defines model for VersionSchema.
 type VersionSchema struct {
 	// UseMojangManifest Whether to fetch Mojang version manifest for Minecraft version ordering
@@ -155,6 +175,11 @@ type UpdateArtifactJSONBody struct {
 	GitRepository *[]string `json:"gitRepository,omitempty"`
 	Issues        *string   `json:"issues,omitempty"`
 	Website       *string   `json:"website,omitempty"`
+}
+
+// GetLatestVersionParams defines parameters for GetLatestVersion.
+type GetLatestVersionParams struct {
+	Tags *string `form:"tags,omitempty" json:"tags,omitempty"`
 }
 
 // GetVersionsParams defines parameters for GetVersions.
@@ -200,6 +225,9 @@ type ServerInterface interface {
 
 	// (PATCH /groups/{groupID}/artifacts/{artifactID})
 	UpdateArtifact(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID)
+
+	// (GET /groups/{groupID}/artifacts/{artifactID}/latest)
+	GetLatestVersion(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID, params GetLatestVersionParams)
 
 	// (GET /groups/{groupID}/artifacts/{artifactID}/schema)
 	GetArtifactSchema(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID)
@@ -385,6 +413,51 @@ func (siw *ServerInterfaceWrapper) UpdateArtifact(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateArtifact(w, r, groupID, artifactID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetLatestVersion operation middleware
+func (siw *ServerInterfaceWrapper) GetLatestVersion(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "groupID" -------------
+	var groupID GroupID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupID", r.PathValue("groupID"), &groupID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupID", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "artifactID" -------------
+	var artifactID ArtifactID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "artifactID", r.PathValue("artifactID"), &artifactID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "artifactID", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetLatestVersionParams
+
+	// ------------- Optional query parameter "tags" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "tags", r.URL.Query(), &params.Tags)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tags", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetLatestVersion(w, r, groupID, artifactID, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -701,6 +774,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/groups/{groupID}/artifacts", wrapper.RegisterArtifact)
 	m.HandleFunc("GET "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}", wrapper.GetArtifact)
 	m.HandleFunc("PATCH "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}", wrapper.UpdateArtifact)
+	m.HandleFunc("GET "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}/latest", wrapper.GetLatestVersion)
 	m.HandleFunc("GET "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}/schema", wrapper.GetArtifactSchema)
 	m.HandleFunc("PUT "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}/schema", wrapper.PutArtifactSchema)
 	m.HandleFunc("GET "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}/versions", wrapper.GetVersions)
@@ -879,6 +953,33 @@ func (response UpdateArtifact404Response) VisitUpdateArtifactResponse(w http.Res
 	return nil
 }
 
+type GetLatestVersionRequestObject struct {
+	GroupID    GroupID    `json:"groupID"`
+	ArtifactID ArtifactID `json:"artifactID"`
+	Params     GetLatestVersionParams
+}
+
+type GetLatestVersionResponseObject interface {
+	VisitGetLatestVersionResponse(w http.ResponseWriter) error
+}
+
+type GetLatestVersion200JSONResponse VersionInfo
+
+func (response GetLatestVersion200JSONResponse) VisitGetLatestVersionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetLatestVersion404Response struct {
+}
+
+func (response GetLatestVersion404Response) VisitGetLatestVersionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
 type GetArtifactSchemaRequestObject struct {
 	GroupID    GroupID    `json:"groupID"`
 	ArtifactID ArtifactID `json:"artifactID"`
@@ -955,6 +1056,15 @@ type GetVersions200JSONResponse struct {
 		Recommended *bool              `json:"recommended,omitempty"`
 		TagValues   *map[string]string `json:"tagValues,omitempty"`
 	} `json:"artifacts,omitempty"`
+
+	// Limit The limit used for this page of results
+	Limit *int `json:"limit,omitempty"`
+
+	// Offset The offset used for this page of results
+	Offset *int `json:"offset,omitempty"`
+
+	// Size Total number of versions matching the query (for pagination)
+	Size *int `json:"size,omitempty"`
 }
 
 func (response GetVersions200JSONResponse) VisitGetVersionsResponse(w http.ResponseWriter) error {
@@ -982,24 +1092,7 @@ type GetVersionInfoResponseObject interface {
 	VisitGetVersionInfoResponse(w http.ResponseWriter) error
 }
 
-type GetVersionInfo200JSONResponse struct {
-	Assets *[]Asset `json:"assets,omitempty"`
-	Commit *struct {
-		Commits *[]struct {
-			Commit           *Commit   `json:"commit,omitempty"`
-			SubmoduleCommits *[]Commit `json:"submoduleCommits,omitempty"`
-		} `json:"commits,omitempty"`
-	} `json:"commit,omitempty"`
-	Coordinates *struct {
-		ArtifactId *string `json:"artifactId,omitempty"`
-		GroupId    *string `json:"groupId,omitempty"`
-		Version    *string `json:"version,omitempty"`
-	} `json:"coordinates,omitempty"`
-
-	// Recommended Whether the artifact is considered a "standard release" version or if it is still in development.
-	Recommended *bool              `json:"recommended,omitempty"`
-	Tags        *map[string]string `json:"tags,omitempty"`
-}
+type GetVersionInfo200JSONResponse VersionInfo
 
 func (response GetVersionInfo200JSONResponse) VisitGetVersionInfoResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
@@ -1039,6 +1132,9 @@ type StrictServerInterface interface {
 
 	// (PATCH /groups/{groupID}/artifacts/{artifactID})
 	UpdateArtifact(ctx context.Context, request UpdateArtifactRequestObject) (UpdateArtifactResponseObject, error)
+
+	// (GET /groups/{groupID}/artifacts/{artifactID}/latest)
+	GetLatestVersion(ctx context.Context, request GetLatestVersionRequestObject) (GetLatestVersionResponseObject, error)
 
 	// (GET /groups/{groupID}/artifacts/{artifactID}/schema)
 	GetArtifactSchema(ctx context.Context, request GetArtifactSchemaRequestObject) (GetArtifactSchemaResponseObject, error)
@@ -1276,6 +1372,34 @@ func (sh *strictHandler) UpdateArtifact(w http.ResponseWriter, r *http.Request, 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateArtifactResponseObject); ok {
 		if err := validResponse.VisitUpdateArtifactResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetLatestVersion operation middleware
+func (sh *strictHandler) GetLatestVersion(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID, params GetLatestVersionParams) {
+	var request GetLatestVersionRequestObject
+
+	request.GroupID = groupID
+	request.ArtifactID = artifactID
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetLatestVersion(ctx, request.(GetLatestVersionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetLatestVersion")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetLatestVersionResponseObject); ok {
+		if err := validResponse.VisitGetLatestVersionResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

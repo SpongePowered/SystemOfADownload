@@ -38,6 +38,7 @@ type Reads interface {
 	ListGroups(ctx context.Context) ([]db.Group, error)
 	ListTagsForVersions(ctx context.Context, versionIDs []int64) ([]db.ArtifactVersionedTag, error)
 	ListVersionsFiltered(ctx context.Context, params VersionQueryParams) ([]db.ArtifactVersion, error)
+	CountVersionsFiltered(ctx context.Context, params VersionQueryParams) (int, error)
 	ListVersionsNeedingEnrichment(ctx context.Context, arg db.ListVersionsNeedingEnrichmentParams) ([]db.ArtifactVersion, error)
 	ListVersionsNeedingChangelog(ctx context.Context, arg db.ListVersionsNeedingChangelogParams) ([]db.ArtifactVersion, error)
 }
@@ -176,15 +177,19 @@ WHERE a.group_id = $` + strconv.Itoa(argN)
 	}
 
 	// Subquery: find version IDs that match ALL provided tags.
-	query += ` AND av.id IN (SELECT t.artifact_version_id FROM artifact_versioned_tags t WHERE (t.tag_key, t.tag_value) IN (`
+	// Supports prefix matching with dot boundary: "minecraft:1.12" matches "1.12" and
+	// "1.12.2" but NOT "1.120". The value must match exactly or be a prefix followed by a dot.
+	query += ` AND av.id IN (SELECT t.artifact_version_id FROM artifact_versioned_tags t WHERE (`
 	i := 0
 	for key, value := range params.Tags {
 		if i > 0 {
-			query += `, `
+			query += ` OR `
 		}
-		query += `($` + strconv.Itoa(argN) + `, $` + strconv.Itoa(argN+1) + `)`
-		args = append(args, key, value)
-		argN += 2
+		query += `(t.tag_key = $` + strconv.Itoa(argN) +
+			` AND (t.tag_value = $` + strconv.Itoa(argN+1) +
+			` OR t.tag_value LIKE $` + strconv.Itoa(argN+2) + `))`
+		args = append(args, key, value, value+".%")
+		argN += 3
 		i++
 	}
 	query += `) GROUP BY t.artifact_version_id HAVING COUNT(DISTINCT t.tag_key) = $` + strconv.Itoa(argN) + `)`
@@ -216,4 +221,63 @@ WHERE a.group_id = $` + strconv.Itoa(argN)
 		return nil, fmt.Errorf("iterating filtered version rows: %w", err)
 	}
 	return versions, nil
+}
+
+// CountVersionsFiltered returns the total count of versions matching the filter criteria
+// (without LIMIT/OFFSET), for pagination support.
+func (q *querierWithConn) CountVersionsFiltered(ctx context.Context, params VersionQueryParams) (int, error) {
+	if len(params.Tags) == 0 {
+		count, err := q.Queries.CountArtifactVersions(ctx, db.CountArtifactVersionsParams{
+			GroupID:     params.GroupID,
+			ArtifactID:  params.ArtifactID,
+			Recommended: params.Recommended,
+		})
+		if err != nil {
+			return 0, err
+		}
+		return int(count), nil
+	}
+
+	// Dynamic count query with tag filtering
+	var args []any
+	argN := 1
+
+	query := `SELECT COUNT(*) FROM artifact_versions av
+JOIN artifacts a ON av.artifact_id = a.id
+WHERE a.group_id = $` + strconv.Itoa(argN)
+	args = append(args, params.GroupID)
+	argN++
+
+	query += ` AND a.artifact_id = $` + strconv.Itoa(argN)
+	args = append(args, params.ArtifactID)
+	argN++
+
+	if params.Recommended != nil {
+		query += ` AND av.recommended = $` + strconv.Itoa(argN)
+		args = append(args, *params.Recommended)
+		argN++
+	}
+
+	query += ` AND av.id IN (SELECT t.artifact_version_id FROM artifact_versioned_tags t WHERE (`
+	i := 0
+	for key, value := range params.Tags {
+		if i > 0 {
+			query += ` OR `
+		}
+		query += `(t.tag_key = $` + strconv.Itoa(argN) +
+			` AND (t.tag_value = $` + strconv.Itoa(argN+1) +
+			` OR t.tag_value LIKE $` + strconv.Itoa(argN+2) + `))`
+		args = append(args, key, value, value+".%")
+		argN += 3
+		i++
+	}
+	query += `) GROUP BY t.artifact_version_id HAVING COUNT(DISTINCT t.tag_key) = $` + strconv.Itoa(argN) + `)`
+	args = append(args, len(params.Tags))
+
+	var count int
+	err := q.conn.QueryRow(ctx, query, args...).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("counting filtered versions: %w", err)
+	}
+	return count, nil
 }

@@ -102,12 +102,13 @@ DELETE FROM artifact_versioned_tags
 WHERE artifact_version_id = $1;
 
 -- name: ListDistinctTagsByArtifact :many
-SELECT DISTINCT t.tag_key, t.tag_value
+SELECT t.tag_key, t.tag_value
 FROM artifact_versioned_tags t
 JOIN artifact_versions av ON t.artifact_version_id = av.id
 JOIN artifacts a ON av.artifact_id = a.id
 WHERE a.group_id = $1 AND a.artifact_id = $2
-ORDER BY t.tag_key, t.tag_value;
+GROUP BY t.tag_key, t.tag_value
+ORDER BY t.tag_key, MAX(av.sort_order) DESC;
 
 -- name: ListArtifactVersionsPaginated :many
 SELECT av.*
@@ -162,6 +163,12 @@ WHERE a.group_id = $1 AND a.artifact_id = $2
   AND av.commit_body->>'enrichedAt' IS NOT NULL
   AND av.commit_body->>'changelogStatus' = 'pending_predecessor'
 ORDER BY av.sort_order ASC;
+
+-- name: CountArtifactVersions :one
+SELECT COUNT(*)::int FROM artifact_versions av
+JOIN artifacts a ON av.artifact_id = a.id
+WHERE a.group_id = $1 AND a.artifact_id = $2
+  AND (sqlc.narg('recommended')::boolean IS NULL OR av.recommended = sqlc.narg('recommended'));
 
 -- name: UpdateArtifactVersionSchema :exec
 UPDATE artifacts SET version_schema = $3

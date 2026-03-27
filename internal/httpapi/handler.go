@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strings"
 	"time"
 
@@ -234,7 +235,7 @@ func (h *Handler) GetVersions(ctx context.Context, request api.GetVersionsReques
 		"tags", tags,
 		"recommended", request.Params.Recommended)
 
-	entries, err := h.service.GetVersions(ctx, repository.VersionQueryParams{
+	result, err := h.service.GetVersions(ctx, repository.VersionQueryParams{
 		GroupID:     request.GroupID,
 		ArtifactID:  request.ArtifactID,
 		Recommended: request.Params.Recommended,
@@ -253,27 +254,21 @@ func (h *Handler) GetVersions(ctx context.Context, request api.GetVersionsReques
 		return nil, err
 	}
 
-	type versionDetail = struct {
-		Recommended *bool              `json:"recommended,omitempty"`
-		TagValues   *map[string]string `json:"tagValues,omitempty"`
+	resp := &orderedVersionsResponse{
+		Entries: make([]orderedVersionEntry, len(result.Entries)),
+		Offset:  offset,
+		Limit:   limit,
+		Total:   int32(result.Total),
 	}
-
-	artifacts := make(map[string]versionDetail, len(entries))
-	for _, e := range entries {
-		rec := e.Recommended
-		var tagVals *map[string]string
-		if len(e.Tags) > 0 {
-			tagVals = &e.Tags
-		}
-		artifacts[e.Version] = versionDetail{
-			Recommended: &rec,
-			TagValues:   tagVals,
+	for i, e := range result.Entries {
+		resp.Entries[i] = orderedVersionEntry{
+			Version:     e.Version,
+			Recommended: e.Recommended,
+			Tags:        e.Tags,
 		}
 	}
 
-	return api.GetVersions200JSONResponse{
-		Artifacts: &artifacts,
-	}, nil
+	return resp, nil
 }
 
 // parseTags parses a comma-separated list of key:value tag pairs.
@@ -296,6 +291,96 @@ func parseTags(raw string) (map[string]string, error) {
 	return tags, nil
 }
 
+type orderedVersionEntry struct {
+	Version     string
+	Recommended bool
+	Tags        map[string]string
+}
+
+// orderedVersionsResponse writes the versions map as ordered JSON, preserving
+// sort_order DESC from the database. Go maps lose insertion order, so this
+// writes the JSON manually.
+type orderedVersionsResponse struct {
+	Entries []orderedVersionEntry
+	Offset  int32
+	Limit   int32
+	Total   int32
+}
+
+func (r *orderedVersionsResponse) VisitGetVersionsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	// Build ordered JSON manually
+	w.Write([]byte(`{"artifacts":{`))
+	for i, e := range r.Entries {
+		if i > 0 {
+			w.Write([]byte(`,`))
+		}
+		// Write key
+		keyJSON, _ := json.Marshal(e.Version)
+		w.Write(keyJSON)
+		w.Write([]byte(`:{`))
+
+		// Write recommended
+		w.Write([]byte(`"recommended":`))
+		if e.Recommended {
+			w.Write([]byte(`true`))
+		} else {
+			w.Write([]byte(`false`))
+		}
+
+		// Write tagValues
+		if len(e.Tags) > 0 {
+			tagJSON, _ := json.Marshal(e.Tags)
+			w.Write([]byte(`,"tagValues":`))
+			w.Write(tagJSON)
+		}
+
+		w.Write([]byte(`}`))
+	}
+	w.Write([]byte(`}`))
+	fmt.Fprintf(w, `,"offset":%d,"limit":%d,"size":%d`, r.Offset, r.Limit, r.Total)
+	w.Write([]byte("}\n"))
+	return nil
+}
+
+func (h *Handler) GetLatestVersion(ctx context.Context, request api.GetLatestVersionRequestObject) (api.GetLatestVersionResponseObject, error) {
+	var tags map[string]string
+	if request.Params.Tags != nil && *request.Params.Tags != "" {
+		var err error
+		tags, err = parseTags(*request.Params.Tags)
+		if err != nil {
+			return api.GetLatestVersion404Response{}, nil
+		}
+	}
+
+	result, err := h.service.GetVersions(ctx, repository.VersionQueryParams{
+		GroupID:    request.GroupID,
+		ArtifactID: request.ArtifactID,
+		Tags:      tags,
+		Limit:     1,
+		Offset:    0,
+	})
+	if err != nil {
+		if errors.Is(err, app.ErrArtifactNotFound) {
+			return api.GetLatestVersion404Response{}, nil
+		}
+		return nil, err
+	}
+	if len(result.Entries) == 0 {
+		return api.GetLatestVersion404Response{}, nil
+	}
+
+	// Get the full version detail for the latest version
+	detail, err := h.service.GetVersionInfo(ctx, request.GroupID, request.ArtifactID, result.Entries[0].Version)
+	if err != nil {
+		return api.GetLatestVersion404Response{}, nil
+	}
+
+	return api.GetLatestVersion200JSONResponse(buildVersionInfoResponse(detail)), nil
+}
+
 func (h *Handler) GetVersionInfo(ctx context.Context, request api.GetVersionInfoRequestObject) (api.GetVersionInfoResponseObject, error) {
 	detail, err := h.service.GetVersionInfo(ctx, request.GroupID, request.ArtifactID, request.VersionID)
 	if err != nil {
@@ -310,6 +395,10 @@ func (h *Handler) GetVersionInfo(ctx context.Context, request api.GetVersionInfo
 		return nil, err
 	}
 
+	return api.GetVersionInfo200JSONResponse(buildVersionInfoResponse(detail)), nil
+}
+
+func buildVersionInfoResponse(detail *app.VersionDetail) api.VersionInfo {
 	assets := make([]api.Asset, len(detail.Assets))
 	for i, a := range detail.Assets {
 		classifier := a.Classifier
@@ -325,7 +414,7 @@ func (h *Handler) GetVersionInfo(ctx context.Context, request api.GetVersionInfo
 		tags = &detail.Tags
 	}
 
-	response := api.GetVersionInfo200JSONResponse{
+	response := api.VersionInfo{
 		Coordinates: &struct {
 			ArtifactId *string `json:"artifactId,omitempty"`
 			GroupId    *string `json:"groupId,omitempty"`
@@ -340,13 +429,11 @@ func (h *Handler) GetVersionInfo(ctx context.Context, request api.GetVersionInfo
 		Recommended: &detail.Recommended,
 	}
 
-	// Parse commit body if present
 	if len(detail.CommitBody) > 0 {
 		var commitInfo domain.CommitInfo
 		if err := json.Unmarshal(detail.CommitBody, &commitInfo); err == nil && commitInfo.Sha != "" {
 			commit := commitInfoToAPICommit(&commitInfo)
 
-			// Map submodule commits
 			var subCommits *[]api.Commit
 			if len(commitInfo.Submodules) > 0 {
 				subs := make([]api.Commit, len(commitInfo.Submodules))
@@ -372,7 +459,7 @@ func (h *Handler) GetVersionInfo(ctx context.Context, request api.GetVersionInfo
 		}
 	}
 
-	return response, nil
+	return response
 }
 
 func (h *Handler) GetArtifactSchema(ctx context.Context, request api.GetArtifactSchemaRequestObject) (api.GetArtifactSchemaResponseObject, error) {

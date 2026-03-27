@@ -148,7 +148,13 @@ func (s *Service) GetArtifact(ctx context.Context, groupID, artifactID string) (
 	return artifact, tags, nil
 }
 
-func (s *Service) GetVersions(ctx context.Context, params repository.VersionQueryParams) ([]VersionEntry, error) {
+// GetVersionsResult wraps the version entries with total count for pagination.
+type GetVersionsResult struct {
+	Entries []VersionEntry
+	Total   int
+}
+
+func (s *Service) GetVersions(ctx context.Context, params repository.VersionQueryParams) (*GetVersionsResult, error) {
 	// Check artifact exists
 	_, err := s.repo.GetArtifactByGroupAndId(ctx, db.GetArtifactByGroupAndIdParams{
 		GroupID:    params.GroupID,
@@ -167,7 +173,7 @@ func (s *Service) GetVersions(ctx context.Context, params repository.VersionQuer
 	}
 
 	if len(versions) == 0 {
-		return []VersionEntry{}, nil
+		return &GetVersionsResult{Entries: []VersionEntry{}, Total: 0}, nil
 	}
 
 	// Batch-fetch tags for all returned versions
@@ -198,7 +204,13 @@ func (s *Service) GetVersions(ctx context.Context, params repository.VersionQuer
 		}
 	}
 
-	return entries, nil
+	// Get total count for pagination
+	total, err := s.repo.CountVersionsFiltered(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("counting versions: %w", err)
+	}
+
+	return &GetVersionsResult{Entries: entries, Total: total}, nil
 }
 
 // VersionAsset represents a single downloadable asset for a version.
