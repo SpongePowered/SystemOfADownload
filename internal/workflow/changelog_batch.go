@@ -23,8 +23,8 @@ type ChangelogBatchInput struct {
 }
 
 const (
-	changelogBatchPageSize             = 10
-	changelogBatchDefaultWindowSize    = 1 // sequential: N-1 must complete before N
+	changelogBatchPageSize             = 50
+	changelogBatchDefaultWindowSize    = 5 // parallel: enrichment phase guarantees N-1 is already resolved
 	changelogBatchCompletionSignalName = "ChangelogVersionCompletion"
 	changelogPollInterval              = 30 * time.Second
 	changelogPollMaxAttempts           = 20 // 30s × 20 = 10 minutes
@@ -130,6 +130,7 @@ func (s *changelogBatchState) continueOrComplete(ctx workflow.Context) (int, err
 	if err != nil {
 		return 0, err
 	}
+	s.drainCompletionSignals(ctx)
 	return s.progress, nil
 }
 
@@ -193,6 +194,19 @@ type ChangelogVersionInput struct {
 // ChangelogVersionWorkflow computes the changelog between this version and
 // its predecessor. It waits for the predecessor to be enriched if needed.
 func ChangelogVersionWorkflow(ctx workflow.Context, input ChangelogVersionInput) error {
+	err := changelogVersionWork(ctx, input)
+
+	// Always signal the parent, even on failure.
+	parent := workflow.GetInfo(ctx).ParentWorkflowExecution
+	if parent != nil {
+		signaled := workflow.SignalExternalWorkflow(ctx, parent.ID, "", changelogBatchCompletionSignalName, input.Version)
+		_ = signaled.Get(ctx, nil)
+	}
+
+	return err
+}
+
+func changelogVersionWork(ctx workflow.Context, input ChangelogVersionInput) error {
 	activityOpts := workflow.ActivityOptions{
 		StartToCloseTimeout: 30 * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -212,14 +226,6 @@ func ChangelogVersionWorkflow(ctx workflow.Context, input ChangelogVersionInput)
 	var changelogActs *activity.ChangelogActivities
 	var gitActs *activity.GitActivities
 
-	// Step 1: Read the current version's enriched commit info (set during Phase 1).
-	// We need this because the enrichment phase resolved which repo contains the commit.
-	var curVersionResult activity.GetPreviousVersionCommitOutput
-	// Reuse the same activity — it reads commit_body by ID. We pass the current version's
-	// artifact_id and sort_order+1 so it finds "the version before sort_order+1" = this version.
-	// Actually, let's just read by ID using a dedicated approach.
-	// For simplicity, we'll use the commit SHA and repo from enrichment output.
-
 	// Step 1: Get the previous version's commit data
 	var prevResult activity.GetPreviousVersionCommitOutput
 	err := workflow.ExecuteActivity(actCtx, changelogActs.GetPreviousVersionCommit, activity.GetPreviousVersionCommitInput{
@@ -229,11 +235,10 @@ func ChangelogVersionWorkflow(ctx workflow.Context, input ChangelogVersionInput)
 	if err != nil {
 		return fmt.Errorf("getting previous version: %w", err)
 	}
-	_ = curVersionResult
 
 	// No predecessor — skip changelog, just signal completion
 	if !prevResult.Found || prevResult.CommitInfo == nil || prevResult.CommitInfo.Sha == "" {
-		return signalChangelogParent(ctx, input.Version)
+		return nil
 	}
 
 	// Step 2: Wait for predecessor to be enriched (poll with timeout)
@@ -277,11 +282,11 @@ func ChangelogVersionWorkflow(ctx workflow.Context, input ChangelogVersionInput)
 	var mainCommits []domain.CommitSummary
 	if sameRepo {
 		var cloneOut activity.EnsureRepoClonedOutput
-		err = workflow.ExecuteLocalActivity(localCtx, gitActs.EnsureRepoCloned, activity.EnsureRepoClonedInput{
+		err = workflow.ExecuteLocalActivity(localCtx, gitActs.ResolveRepo, activity.ResolveRepoInput{
 			RepoURL: currentRepo,
 		}).Get(ctx, &cloneOut)
 		if err != nil {
-			return fmt.Errorf("cloning repo for changelog: %w", err)
+			return fmt.Errorf("resolving repo for changelog: %w", err)
 		}
 
 		var changelogOut activity.ComputeChangelogOutput
@@ -314,7 +319,7 @@ func ChangelogVersionWorkflow(ctx workflow.Context, input ChangelogVersionInput)
 		return fmt.Errorf("storing changelog: %w", err)
 	}
 
-	return signalChangelogParent(ctx, input.Version)
+	return nil
 }
 
 func waitForPredecessorEnrichment(
@@ -357,7 +362,7 @@ func markPendingPredecessor(
 		VersionID:  input.VersionID,
 		CommitInfo: pending,
 	}).Get(ctx, nil)
-	return signalChangelogParent(ctx, input.Version)
+	return nil
 }
 
 func storeChangelogOnVersion(
@@ -391,6 +396,9 @@ func storeChangelogOnVersion(
 	}).Get(ctx, nil)
 }
 
+// maxSubmoduleDepth limits recursive submodule changelog resolution.
+const maxSubmoduleDepth = 3
+
 func computeSubmoduleChangelogs(
 	ctx workflow.Context,
 	localCtx workflow.Context,
@@ -399,6 +407,21 @@ func computeSubmoduleChangelogs(
 	commitSha string,
 	prevResult activity.GetPreviousVersionCommitOutput,
 ) map[string]*domain.Changelog {
+	return computeSubmoduleChangelogsWithDepth(ctx, localCtx, gitActs, repoURL, commitSha, prevResult, 0)
+}
+
+func computeSubmoduleChangelogsWithDepth(
+	ctx workflow.Context,
+	localCtx workflow.Context,
+	gitActs *activity.GitActivities,
+	repoURL string,
+	commitSha string,
+	prevResult activity.GetPreviousVersionCommitOutput,
+	depth int,
+) map[string]*domain.Changelog {
+	if depth >= maxSubmoduleDepth {
+		return nil
+	}
 	if prevResult.CommitInfo == nil || len(prevResult.CommitInfo.Submodules) == 0 {
 		return nil
 	}
@@ -412,7 +435,7 @@ func computeSubmoduleChangelogs(
 	// We need the current version's submodule SHAs too. These should have been
 	// stored during enrichment. For now, we resolve them again from git.
 	var cloneOut activity.EnsureRepoClonedOutput
-	err := workflow.ExecuteLocalActivity(localCtx, gitActs.EnsureRepoCloned, activity.EnsureRepoClonedInput{
+	err := workflow.ExecuteLocalActivity(localCtx, gitActs.ResolveRepo, activity.ResolveRepoInput{
 		RepoURL: repoURL,
 	}).Get(ctx, &cloneOut)
 	if err != nil {
@@ -441,9 +464,9 @@ func computeSubmoduleChangelogs(
 			continue // no change or new submodule
 		}
 
-		// Clone submodule repo and compute changelog
+		// Resolve submodule repo path (already cloned during enrichment)
 		var subClone activity.EnsureRepoClonedOutput
-		err := workflow.ExecuteLocalActivity(localCtx, gitActs.EnsureRepoCloned, activity.EnsureRepoClonedInput{
+		err := workflow.ExecuteLocalActivity(localCtx, gitActs.ResolveRepo, activity.ResolveRepoInput{
 			RepoURL: sub.URL,
 		}).Get(ctx, &subClone)
 		if err != nil {
@@ -498,7 +521,7 @@ func computeSubmoduleChangelogs(
 							Submodules: nestedPrevSubs,
 						},
 					}
-					nested := computeSubmoduleChangelogs(ctx, localCtx, gitActs, sub.URL, sub.Sha, nestedPrev)
+					nested := computeSubmoduleChangelogsWithDepth(ctx, localCtx, gitActs, sub.URL, sub.Sha, nestedPrev, depth+1)
 					if len(nested) > 0 {
 						subChangelog.SubmoduleChangelogs = nested
 					}

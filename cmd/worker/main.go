@@ -109,7 +109,7 @@ func NewTemporalWorker(
         gitActivities *activity.GitActivities,
 ) worker.Worker {
     w := worker.New(c, wf.VersionSyncTaskQueue, worker.Options{
-        MaxConcurrentLocalActivityExecutionSize: 4,
+        MaxConcurrentLocalActivityExecutionSize: 10,
     })
 
     w.RegisterWorkflow(wf.VersionSyncWorkflow)

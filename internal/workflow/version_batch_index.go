@@ -25,8 +25,8 @@ type VersionBatchIndexOutput struct {
 }
 
 const (
-	versionBatchPageSize              = 10
-	versionBatchDefaultWindowSize     = 5
+	versionBatchPageSize              = 50
+	versionBatchDefaultWindowSize     = 10
 	versionBatchCompletionSignalName  = "VersionIndexCompletion"
 )
 
@@ -133,6 +133,10 @@ func (s *versionBatchState) continueOrComplete(ctx workflow.Context) (int, error
 	if err != nil {
 		return 0, err
 	}
+
+	// Drain any remaining signals before completing
+	s.drainCompletionSignals(ctx)
+
 	return s.progress, nil
 }
 

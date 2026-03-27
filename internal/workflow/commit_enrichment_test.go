@@ -253,7 +253,7 @@ func TestChangelogVersionWorkflow(t *testing.T) {
 						},
 					}, nil)
 
-				env.OnActivity(gitActs.EnsureRepoCloned, mock.Anything, mock.Anything).
+				env.OnActivity(gitActs.ResolveRepo, mock.Anything, mock.Anything).
 					Return(&activity.EnsureRepoClonedOutput{LocalPath: "/cache/repo.git"}, nil)
 
 				env.OnActivity(gitActs.ComputeChangelog, mock.Anything, activity.ComputeChangelogInput{

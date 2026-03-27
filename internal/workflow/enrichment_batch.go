@@ -23,8 +23,8 @@ type EnrichmentBatchInput struct {
 }
 
 const (
-	enrichmentBatchPageSize             = 10
-	enrichmentBatchDefaultWindowSize    = 3
+	enrichmentBatchPageSize             = 50
+	enrichmentBatchDefaultWindowSize    = 5
 	enrichmentBatchCompletionSignalName = "EnrichVersionCompletion"
 )
 
@@ -89,6 +89,7 @@ func (s *enrichmentBatchState) execute(ctx workflow.Context) (int, error) {
 			VersionID:       v.ID,
 			ArtifactID:      v.ArtifactID,
 			Version:         v.Version,
+			SortOrder:       v.SortOrder,
 			CommitSha:       v.CommitSha,
 			Repository:      v.Repository,
 			GitRepositories: s.input.GitRepositories,
@@ -127,6 +128,7 @@ func (s *enrichmentBatchState) continueOrComplete(ctx workflow.Context) (int, er
 	if err != nil {
 		return 0, err
 	}
+	s.drainCompletionSignals(ctx)
 	return s.progress, nil
 }
 
@@ -181,6 +183,7 @@ type EnrichVersionInput struct {
 	VersionID       int64
 	ArtifactID      int64
 	Version         string
+	SortOrder       int32
 	CommitSha       string
 	Repository      string   // from commit_body (may be empty)
 	GitRepositories []string // from artifact registration
@@ -191,6 +194,19 @@ type EnrichVersionInput struct {
 //
 // It tries each registered git repository to find which one contains the commit SHA.
 func EnrichVersionWorkflow(ctx workflow.Context, input EnrichVersionInput) error {
+	err := enrichVersionWork(ctx, input)
+
+	// Always signal the parent, even on failure.
+	parent := workflow.GetInfo(ctx).ParentWorkflowExecution
+	if parent != nil {
+		signaled := workflow.SignalExternalWorkflow(ctx, parent.ID, "", enrichmentBatchCompletionSignalName, input.Version)
+		_ = signaled.Get(ctx, nil)
+	}
+
+	return err
+}
+
+func enrichVersionWork(ctx workflow.Context, input EnrichVersionInput) error {
 	localOpts := workflow.LocalActivityOptions{
 		StartToCloseTimeout: 2 * time.Minute,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -273,7 +289,7 @@ func EnrichVersionWorkflow(ctx workflow.Context, input EnrichVersionInput) error
 			VersionID:  input.VersionID,
 			CommitInfo: enriched,
 		}).Get(ctx, nil)
-		return signalEnrichmentParent(ctx, input.Version)
+		return nil
 	}
 
 	// Step 3: Resolve submodules
@@ -287,10 +303,35 @@ func EnrichVersionWorkflow(ctx workflow.Context, input EnrichVersionInput) error
 		submoduleResult = activity.ResolveSubmodulesOutput{}
 	}
 
-	// Step 4: Clone submodule repos and get their commit details (parallel)
-	var submoduleCommits []domain.SubmoduleCommit
+	// Step 4: Filter submodules to only those that changed since the previous version
+	var changedSubmodules []activity.SubmoduleRefOutput
 	if len(submoduleResult.Submodules) > 0 {
-		submoduleCommits, err = enrichSubmodules(ctx, localCtx, readLocalCtx, gitActs, submoduleResult.Submodules)
+		// Get previous version's submodule state
+		var prevResult activity.GetPreviousVersionCommitOutput
+		_ = workflow.ExecuteActivity(actCtx, changelogActs.GetPreviousVersionCommit, activity.GetPreviousVersionCommitInput{
+			ArtifactID: input.ArtifactID,
+			SortOrder:  input.SortOrder,
+		}).Get(ctx, &prevResult)
+
+		prevSubSHAs := make(map[string]string)
+		if prevResult.Found && prevResult.CommitInfo != nil {
+			for _, sub := range prevResult.CommitInfo.Submodules {
+				prevSubSHAs[sub.Repository] = sub.Sha
+			}
+		}
+
+		for _, sub := range submoduleResult.Submodules {
+			prevSHA, existed := prevSubSHAs[sub.URL]
+			if !existed || prevSHA != sub.Sha {
+				changedSubmodules = append(changedSubmodules, sub)
+			}
+		}
+	}
+
+	// Step 5: Clone changed submodule repos and get their commit details (parallel)
+	var submoduleCommits []domain.SubmoduleCommit
+	if len(changedSubmodules) > 0 {
+		submoduleCommits, err = enrichSubmodules(ctx, localCtx, readLocalCtx, gitActs, changedSubmodules)
 		if err != nil {
 			// Non-fatal: continue without submodule data
 			submoduleCommits = nil
@@ -320,17 +361,6 @@ func EnrichVersionWorkflow(ctx workflow.Context, input EnrichVersionInput) error
 		return fmt.Errorf("storing enriched commit: %w", err)
 	}
 
-	return signalEnrichmentParent(ctx, input.Version)
-}
-
-func signalEnrichmentParent(ctx workflow.Context, version string) error {
-	parent := workflow.GetInfo(ctx).ParentWorkflowExecution
-	if parent != nil {
-		signaled := workflow.SignalExternalWorkflow(ctx, parent.ID, "", enrichmentBatchCompletionSignalName, version)
-		if err := signaled.Get(ctx, nil); err != nil {
-			return fmt.Errorf("signaling parent: %w", err)
-		}
-	}
 	return nil
 }
 
