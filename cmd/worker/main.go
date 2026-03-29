@@ -9,12 +9,15 @@ import (
 
     "github.com/jackc/pgx/v5/pgxpool"
     "go.temporal.io/sdk/client"
+    temporalotel "go.temporal.io/sdk/contrib/opentelemetry"
+    "go.temporal.io/sdk/interceptor"
     tlog "go.temporal.io/sdk/log"
     "go.temporal.io/sdk/worker"
     "go.uber.org/fx"
 
     "github.com/spongepowered/systemofadownload/internal/activity"
     "github.com/spongepowered/systemofadownload/internal/gitcache"
+    "github.com/spongepowered/systemofadownload/internal/otelsetup"
     "github.com/spongepowered/systemofadownload/internal/repository"
     "github.com/spongepowered/systemofadownload/internal/sonatype"
     wf "github.com/spongepowered/systemofadownload/internal/workflow"
@@ -64,12 +67,41 @@ func NewConfig() *Config {
     }
 }
 
-func NewTemporalClient(lc fx.Lifecycle, cfg *Config) (client.Client, error) {
+// OTelShutdown is a named type so fx can distinguish it from other func signatures.
+type OTelShutdown func(context.Context) error
+
+func NewOTelShutdown(lc fx.Lifecycle) OTelShutdown {
+    shutdown, err := otelsetup.Setup(context.Background(), "soad-worker")
+    if err != nil {
+        slog.Error("failed to initialize OpenTelemetry", "error", err)
+        return func(context.Context) error { return nil }
+    }
+
+    lc.Append(fx.Hook{
+        OnStop: func(ctx context.Context) error {
+            slog.InfoContext(ctx, "shutting down OpenTelemetry")
+            return shutdown(ctx)
+        },
+    })
+    return shutdown
+}
+
+func NewTemporalClient(lc fx.Lifecycle, cfg *Config, _ OTelShutdown) (client.Client, error) {
     logger := tlog.NewStructuredLogger(slog.Default().With("component", "temporal"))
+
+    tracingInterceptor, err := temporalotel.NewTracingInterceptor(temporalotel.TracerOptions{})
+    if err != nil {
+        return nil, fmt.Errorf("creating tracing interceptor: %w", err)
+    }
+
+    metricsHandler := temporalotel.NewMetricsHandler(temporalotel.MetricsHandlerOptions{})
+
     c, err := client.Dial(client.Options{
-        HostPort:  cfg.TemporalHostPort,
-        Namespace: cfg.TemporalNamespace,
-        Logger:    logger,
+        HostPort:       cfg.TemporalHostPort,
+        Namespace:      cfg.TemporalNamespace,
+        Logger:         logger,
+        MetricsHandler: metricsHandler,
+        Interceptors:   []interceptor.ClientInterceptor{tracingInterceptor},
     })
     if err != nil {
         return nil, fmt.Errorf("creating temporal client: %w", err)
@@ -147,6 +179,7 @@ func main() {
     fx.New(
         fx.Provide(
             NewConfig,
+            NewOTelShutdown,
             NewTemporalClient,
             NewDatabasePool,
             func(pool *pgxpool.Pool) repository.Repository {

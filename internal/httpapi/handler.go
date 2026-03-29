@@ -11,6 +11,9 @@ import (
 	"time"
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/sdk/client"
 
@@ -21,21 +24,32 @@ import (
 	"github.com/spongepowered/systemofadownload/internal/workflow"
 )
 
+var apiMeter = otel.Meter("soad.httpapi")
+
 // WorkflowStarter is a narrow interface for starting Temporal workflows.
 type WorkflowStarter interface {
 	ExecuteWorkflow(ctx context.Context, options client.StartWorkflowOptions, workflow interface{}, args ...interface{}) (client.WorkflowRun, error)
 }
 
 type Handler struct {
-	service   *app.Service
-	workflows WorkflowStarter
+	service    *app.Service
+	workflows  WorkflowStarter
+	reqCounter metric.Int64Counter
 }
 
 func NewHandler(service *app.Service, workflows WorkflowStarter) *Handler {
-	return &Handler{service: service, workflows: workflows}
+	counter, _ := apiMeter.Int64Counter("soad.api.requests",
+		metric.WithDescription("Total API requests by operation"),
+	)
+	return &Handler{service: service, workflows: workflows, reqCounter: counter}
+}
+
+func (h *Handler) countRequest(ctx context.Context, operation string) {
+	h.reqCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("operation", operation)))
 }
 
 func (h *Handler) GetGroups(ctx context.Context, _ api.GetGroupsRequestObject) (api.GetGroupsResponseObject, error) {
+	h.countRequest(ctx, "GetGroups")
 	groups, err := h.service.ListGroups(ctx)
 	if err != nil {
 		return nil, err
@@ -56,6 +70,7 @@ func (h *Handler) GetGroups(ctx context.Context, _ api.GetGroupsRequestObject) (
 }
 
 func (h *Handler) RegisterGroup(ctx context.Context, request api.RegisterGroupRequestObject) (api.RegisterGroupResponseObject, error) {
+	h.countRequest(ctx, "RegisterGroup")
 	group := &domain.Group{
 		GroupID: request.Body.GroupCoordinates,
 		Name:    request.Body.Name,
@@ -75,6 +90,7 @@ func (h *Handler) RegisterGroup(ctx context.Context, request api.RegisterGroupRe
 }
 
 func (h *Handler) GetGroup(ctx context.Context, request api.GetGroupRequestObject) (api.GetGroupResponseObject, error) {
+	h.countRequest(ctx, "GetGroup")
 	g, err := h.service.GetGroup(ctx, request.GroupID)
 	if err != nil {
 		if errors.Is(err, app.ErrGroupNotFound) {
@@ -94,6 +110,7 @@ func (h *Handler) GetGroup(ctx context.Context, request api.GetGroupRequestObjec
 // as they are not requested yet.
 
 func (h *Handler) GetArtifacts(ctx context.Context, request api.GetArtifactsRequestObject) (api.GetArtifactsResponseObject, error) {
+	h.countRequest(ctx, "GetArtifacts")
 	artifactIDs, err := h.service.ListArtifacts(ctx, request.GroupID)
 	if err != nil {
 		return nil, err
@@ -110,6 +127,7 @@ func (h *Handler) GetArtifacts(ctx context.Context, request api.GetArtifactsRequ
 }
 
 func (h *Handler) RegisterArtifact(ctx context.Context, request api.RegisterArtifactRequestObject) (api.RegisterArtifactResponseObject, error) {
+	h.countRequest(ctx, "RegisterArtifact")
 	if request.Body == nil {
 		return NewBadRequestError("request body is required"), nil
 	}
@@ -175,6 +193,7 @@ func (h *Handler) RegisterArtifact(ctx context.Context, request api.RegisterArti
 }
 
 func (h *Handler) GetArtifact(ctx context.Context, request api.GetArtifactRequestObject) (api.GetArtifactResponseObject, error) {
+	h.countRequest(ctx, "GetArtifact")
 	artifact, tags, err := h.service.GetArtifact(ctx, request.GroupID, request.ArtifactID)
 	if err != nil {
 		if errors.Is(err, app.ErrArtifactNotFound) {
@@ -201,6 +220,7 @@ func (h *Handler) GetArtifact(ctx context.Context, request api.GetArtifactReques
 }
 
 func (h *Handler) GetVersions(ctx context.Context, request api.GetVersionsRequestObject) (api.GetVersionsResponseObject, error) {
+	h.countRequest(ctx, "GetVersions")
 	limit := int32(25)
 	if request.Params.Limit != nil {
 		l := int32(*request.Params.Limit)
@@ -346,6 +366,7 @@ func (r *orderedVersionsResponse) VisitGetVersionsResponse(w http.ResponseWriter
 }
 
 func (h *Handler) GetLatestVersion(ctx context.Context, request api.GetLatestVersionRequestObject) (api.GetLatestVersionResponseObject, error) {
+	h.countRequest(ctx, "GetLatestVersion")
 	var tags map[string]string
 	if request.Params.Tags != nil && *request.Params.Tags != "" {
 		var err error
@@ -382,6 +403,7 @@ func (h *Handler) GetLatestVersion(ctx context.Context, request api.GetLatestVer
 }
 
 func (h *Handler) GetVersionInfo(ctx context.Context, request api.GetVersionInfoRequestObject) (api.GetVersionInfoResponseObject, error) {
+	h.countRequest(ctx, "GetVersionInfo")
 	detail, err := h.service.GetVersionInfo(ctx, request.GroupID, request.ArtifactID, request.VersionID)
 	if err != nil {
 		if errors.Is(err, app.ErrVersionNotFound) {
@@ -463,6 +485,7 @@ func buildVersionInfoResponse(detail *app.VersionDetail) api.VersionInfo {
 }
 
 func (h *Handler) GetArtifactSchema(ctx context.Context, request api.GetArtifactSchemaRequestObject) (api.GetArtifactSchemaResponseObject, error) {
+	h.countRequest(ctx, "GetArtifactSchema")
 	schema, err := h.service.GetVersionSchema(ctx, request.GroupID, request.ArtifactID)
 	if err != nil {
 		if errors.Is(err, app.ErrArtifactNotFound) || errors.Is(err, app.ErrSchemaNotFound) {
@@ -475,6 +498,7 @@ func (h *Handler) GetArtifactSchema(ctx context.Context, request api.GetArtifact
 }
 
 func (h *Handler) PutArtifactSchema(ctx context.Context, request api.PutArtifactSchemaRequestObject) (api.PutArtifactSchemaResponseObject, error) {
+	h.countRequest(ctx, "PutArtifactSchema")
 	if request.Body == nil {
 		return api.PutArtifactSchema400Response{}, nil
 	}
@@ -516,6 +540,7 @@ func (h *Handler) PutArtifactSchema(ctx context.Context, request api.PutArtifact
 }
 
 func (h *Handler) UpdateArtifact(ctx context.Context, request api.UpdateArtifactRequestObject) (api.UpdateArtifactResponseObject, error) {
+	h.countRequest(ctx, "UpdateArtifact")
 	if request.Body == nil {
 		return api.UpdateArtifact404Response{}, nil
 	}
