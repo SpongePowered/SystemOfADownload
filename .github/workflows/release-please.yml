@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  packages: write
 
 jobs:
   release-please:
@@ -19,9 +20,7 @@ jobs:
       - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4.4.0
         id: release
         with:
-          # Using Go strategy for conventional commits and version management
           release-type: go
-          # Package name (defaults to repository name if not set)
           package-name: systemofadownload
 
   build-and-upload:
@@ -58,17 +57,17 @@ jobs:
           CGO_ENABLED: 0
         run: |
           VERSION=${{ needs.release-please.outputs.tag_name }}
-          
+
           # Build server
           go build -o dist/server-${GOOS}-${GOARCH}${{ matrix.goos == 'windows' && '.exe' || '' }} \
             -ldflags "-s -w -X main.Version=${VERSION}" \
             ./cmd/server
-          
+
           # Build worker
           go build -o dist/worker-${GOOS}-${GOARCH}${{ matrix.goos == 'windows' && '.exe' || '' }} \
             -ldflags "-s -w -X main.Version=${VERSION}" \
             ./cmd/worker
-          
+
           # Create archives
           if [ "${{ matrix.goos }}" = "windows" ]; then
             cd dist
@@ -90,11 +89,50 @@ jobs:
           VERSION=${{ needs.release-please.outputs.tag_name }}
           GOOS=${{ matrix.goos }}
           GOARCH=${{ matrix.goarch }}
-          
+
           if [ "$GOOS" = "windows" ]; then
             ARCHIVE="systemofadownload-${VERSION}-${GOOS}-${GOARCH}.zip"
           else
             ARCHIVE="systemofadownload-${VERSION}-${GOOS}-${GOARCH}.tar.gz"
           fi
-          
+
           gh release upload ${VERSION} ${ARCHIVE} --clobber
+
+  docker-release:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
+
+      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.release-please.outputs.tag_name }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.release-please.outputs.tag_name }}
+            type=raw,value=latest
+
+      - uses: docker/build-push-action@263435318d21b8e681c14492fe198e19c816612b # v6.18.0
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VERSION=${{ needs.release-please.outputs.tag_name }}
