@@ -1,16 +1,22 @@
-FROM golang:1.26-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates
 
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
 
 COPY . .
 
 ARG VERSION=dev
-RUN CGO_ENABLED=0 go build -ldflags "-s -w -X main.Version=${VERSION}" -o /out/server ./cmd/server && \
-    CGO_ENABLED=0 go build -ldflags "-s -w -X main.Version=${VERSION}" -o /out/worker ./cmd/worker
+ARG TARGETOS TARGETARCH
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -ldflags "-s -w -X main.Version=${VERSION}" -o /out/server ./cmd/server && \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -ldflags "-s -w -X main.Version=${VERSION}" -o /out/worker ./cmd/worker
 
 # --- App image (default target) ---
 FROM alpine:3.22 AS app
