@@ -115,8 +115,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker metadata
-        id: meta
+      - name: App image metadata
+        id: app-meta
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
         with:
           images: ghcr.io/${{ github.repository }}
@@ -125,14 +125,38 @@ jobs:
             type=semver,pattern={{major}}.{{minor}},value=${{ needs.release-please.outputs.tag_name }}
             type=raw,value=latest
 
-      - uses: docker/build-push-action@263435318d21b8e681c14492fe198e19c816612b # v6.18.0
+      - name: Migrate image metadata
+        id: migrate-meta
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
+        with:
+          images: ghcr.io/${{ github.repository }}/migrate
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.release-please.outputs.tag_name }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.release-please.outputs.tag_name }}
+            type=raw,value=latest
+
+      - name: Build and push app image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: .
+          target: app
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.app-meta.outputs.tags }}
+          labels: ${{ steps.app-meta.outputs.labels }}
+          cache-from: type=gha,scope=app
+          cache-to: type=gha,scope=app,mode=max
           build-args: |
             VERSION=${{ needs.release-please.outputs.tag_name }}
+
+      - name: Build and push migrate image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          target: migrate
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.migrate-meta.outputs.tags }}
+          labels: ${{ steps.migrate-meta.outputs.labels }}
+          cache-from: type=gha,scope=migrate
+          cache-to: type=gha,scope=migrate,mode=max

@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -27,6 +28,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -156,14 +160,14 @@ func run(ctx context.Context) error {
 	}
 	defer pool.Close()
 
-	schemaSQL, err := os.ReadFile("db/schema.sql")
+	m, err := migrate.New("file://db/migrations", connStr)
 	if err != nil {
-		return fmt.Errorf("reading schema: %w", err)
+		return fmt.Errorf("creating migrator: %w", err)
 	}
-	if _, err := pool.Exec(ctx, string(schemaSQL)); err != nil {
-		return fmt.Errorf("applying schema: %w", err)
+	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("running migrations: %w", err)
 	}
-	slog.InfoContext(ctx, "PostgreSQL ready")
+	slog.InfoContext(ctx, "PostgreSQL ready (migrations applied)")
 
 	repo := repository.NewRepository(pool)
 
