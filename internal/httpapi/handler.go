@@ -466,29 +466,39 @@ func buildVersionInfoResponse(detail *app.VersionDetail) api.VersionInfo {
 	if len(detail.CommitBody) > 0 {
 		var commitInfo domain.CommitInfo
 		if err := json.Unmarshal(detail.CommitBody, &commitInfo); err == nil && commitInfo.Sha != "" {
-			commit := commitInfoToAPICommit(&commitInfo)
+			type commitEntry = struct {
+				Commit           *api.Commit   `json:"commit,omitempty"`
+				SubmoduleCommits *[]api.Commit `json:"submoduleCommits,omitempty"`
+			}
 
-			var subCommits *[]api.Commit
-			if len(commitInfo.Submodules) > 0 {
-				subs := make([]api.Commit, len(commitInfo.Submodules))
-				for i, sub := range commitInfo.Submodules {
-					subs[i] = submoduleCommitToAPICommit(&sub)
+			var entries []commitEntry
+
+			if cl := commitInfo.Changelog; cl != nil && len(cl.Commits) > 0 {
+				for _, cs := range cl.Commits {
+					entries = append(entries, commitEntry{
+						Commit: commitSummaryToAPICommit(&cs, commitInfo.Repository),
+					})
 				}
-				subCommits = &subs
+				if len(cl.SubmoduleChangelogs) > 0 && len(entries) > 0 {
+					var subs []api.Commit
+					for repo, subCL := range cl.SubmoduleChangelogs {
+						for _, cs := range subCL.Commits {
+							subs = append(subs, *commitSummaryToAPICommit(&cs, repo))
+						}
+					}
+					if len(subs) > 0 {
+						entries[0].SubmoduleCommits = &subs
+					}
+				}
+			} else {
+				commit := commitInfoToAPICommit(&commitInfo)
+				entries = append(entries, commitEntry{Commit: &commit})
 			}
 
 			response.Commit = &struct {
-				Commits *[]struct {
-					Commit           *api.Commit   `json:"commit,omitempty"`
-					SubmoduleCommits *[]api.Commit `json:"submoduleCommits,omitempty"`
-				} `json:"commits,omitempty"`
+				Commits *[]commitEntry `json:"commits,omitempty"`
 			}{
-				Commits: &[]struct {
-					Commit           *api.Commit   `json:"commit,omitempty"`
-					SubmoduleCommits *[]api.Commit `json:"submoduleCommits,omitempty"`
-				}{
-					{Commit: &commit, SubmoduleCommits: subCommits},
-				},
+				Commits: &entries,
 			}
 		}
 	}
@@ -692,32 +702,31 @@ func commitInfoToAPICommit(info *domain.CommitInfo) api.Commit {
 	return c
 }
 
-func submoduleCommitToAPICommit(sub *domain.SubmoduleCommit) api.Commit {
-	sha := sub.Sha
-	link := sub.Repository
+func commitSummaryToAPICommit(cs *domain.CommitSummary, repo string) *api.Commit {
+	sha := cs.Sha
 	c := api.Commit{
 		Sha:  &sha,
-		Link: &link,
+		Link: &repo,
 	}
-	if sub.Message != "" {
-		c.Message = &sub.Message
+	if cs.Message != "" {
+		c.Message = &cs.Message
 	}
-	if sub.CommitDate != "" {
-		date := openapi_types.Date{Time: parseDate(sub.CommitDate)}
+	if cs.CommitDate != "" {
+		date := openapi_types.Date{Time: parseDate(cs.CommitDate)}
 		if !date.IsZero() {
 			c.CommitDate = &date
 		}
 	}
-	if sub.Author != nil {
+	if cs.Author != nil {
 		c.Author = &struct {
 			Email *string `json:"email,omitempty"`
 			Name  *string `json:"name,omitempty"`
 		}{
-			Name:  &sub.Author.Name,
-			Email: &sub.Author.Email,
+			Name:  &cs.Author.Name,
+			Email: &cs.Author.Email,
 		}
 	}
-	return c
+	return &c
 }
 
 func parseDate(s string) time.Time {

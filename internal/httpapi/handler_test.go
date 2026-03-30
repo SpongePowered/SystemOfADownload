@@ -649,6 +649,120 @@ func TestGetVersionInfo(t *testing.T) {
 		}
 	})
 
+	t.Run("returns changelog commits when changelog exists", func(t *testing.T) {
+		// Add a version with full changelog in commit_body
+		q.versions[12] = db.ArtifactVersion{
+			ID: 12, ArtifactID: 1, Version: "1.12.2-7.5.0", SortOrder: 101, Recommended: false,
+			CommitBody: []byte(`{
+				"sha":"def456",
+				"repository":"https://github.com/SpongePowered/SpongeVanilla",
+				"message":"feat: add new API",
+				"changelog":{
+					"previousVersion":"1.12.2-7.4.0",
+					"commits":[
+						{"sha":"def456","message":"feat: add new API","author":{"name":"Alice","email":"alice@example.com"},"commitDate":"2026-03-28"},
+						{"sha":"ccc333","message":"fix: correct event handling","author":{"name":"Bob","email":"bob@example.com"},"commitDate":"2026-03-27"},
+						{"sha":"bbb222","message":"refactor: clean up mixins","commitDate":"2026-03-26"}
+					]
+				}
+			}`),
+		}
+		q.tags[12] = []db.ArtifactVersionedTag{}
+		q.assets[12] = []db.ArtifactVersionedAsset{}
+
+		resp, err := handler.GetVersionInfo(ctx, api.GetVersionInfoRequestObject{
+			GroupID: "org.spongepowered", ArtifactID: "spongevanilla", VersionID: "1.12.2-7.5.0",
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		r, ok := resp.(api.GetVersionInfo200JSONResponse)
+		if !ok {
+			t.Fatalf("expected 200, got %T", resp)
+		}
+		if r.Commit == nil || r.Commit.Commits == nil {
+			t.Fatal("expected commits")
+		}
+		commits := *r.Commit.Commits
+		if len(commits) != 3 {
+			t.Fatalf("expected 3 changelog commits, got %d", len(commits))
+		}
+		if *commits[0].Commit.Sha != "def456" {
+			t.Errorf("expected first commit sha def456, got %s", *commits[0].Commit.Sha)
+		}
+		if *commits[1].Commit.Sha != "ccc333" {
+			t.Errorf("expected second commit sha ccc333, got %s", *commits[1].Commit.Sha)
+		}
+		if *commits[2].Commit.Sha != "bbb222" {
+			t.Errorf("expected third commit sha bbb222, got %s", *commits[2].Commit.Sha)
+		}
+		if *commits[0].Commit.Message != "feat: add new API" {
+			t.Errorf("expected message 'feat: add new API', got %s", *commits[0].Commit.Message)
+		}
+		// No submodule commits on any entry
+		for i, c := range commits {
+			if c.SubmoduleCommits != nil {
+				t.Errorf("commit %d: expected no submodule commits", i)
+			}
+		}
+	})
+
+	t.Run("includes submodule changelog commits", func(t *testing.T) {
+		q.versions[13] = db.ArtifactVersion{
+			ID: 13, ArtifactID: 1, Version: "1.12.2-7.6.0", SortOrder: 102, Recommended: false,
+			CommitBody: []byte(`{
+				"sha":"eee555",
+				"repository":"https://github.com/SpongePowered/SpongeVanilla",
+				"message":"feat: bump API",
+				"changelog":{
+					"previousVersion":"1.12.2-7.5.0",
+					"commits":[
+						{"sha":"eee555","message":"feat: bump API","commitDate":"2026-03-29"}
+					],
+					"submoduleChangelogs":{
+						"https://github.com/SpongePowered/SpongeAPI.git":{
+							"previousVersion":"",
+							"commits":[
+								{"sha":"sub111","message":"feat: new event API","commitDate":"2026-03-28"},
+								{"sha":"sub222","message":"fix: event bus NPE","commitDate":"2026-03-27"}
+							]
+						}
+					}
+				}
+			}`),
+		}
+		q.tags[13] = []db.ArtifactVersionedTag{}
+		q.assets[13] = []db.ArtifactVersionedAsset{}
+
+		resp, err := handler.GetVersionInfo(ctx, api.GetVersionInfoRequestObject{
+			GroupID: "org.spongepowered", ArtifactID: "spongevanilla", VersionID: "1.12.2-7.6.0",
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		r, ok := resp.(api.GetVersionInfo200JSONResponse)
+		if !ok {
+			t.Fatalf("expected 200, got %T", resp)
+		}
+		commits := *r.Commit.Commits
+		if len(commits) != 1 {
+			t.Fatalf("expected 1 main commit, got %d", len(commits))
+		}
+		if commits[0].SubmoduleCommits == nil {
+			t.Fatal("expected submodule commits on first entry")
+		}
+		subs := *commits[0].SubmoduleCommits
+		if len(subs) != 2 {
+			t.Fatalf("expected 2 submodule commits, got %d", len(subs))
+		}
+		if *subs[0].Sha != "sub111" {
+			t.Errorf("expected sub commit sha sub111, got %s", *subs[0].Sha)
+		}
+		if *subs[0].Link != "https://github.com/SpongePowered/SpongeAPI.git" {
+			t.Errorf("expected sub commit link to SpongeAPI repo, got %s", *subs[0].Link)
+		}
+	})
+
 	t.Run("handles version with no commit body", func(t *testing.T) {
 		resp, err := handler.GetVersionInfo(ctx, api.GetVersionInfoRequestObject{
 			GroupID:    "org.spongepowered",
