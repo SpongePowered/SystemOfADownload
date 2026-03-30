@@ -368,7 +368,7 @@ func TestExtractCommitFromJar(t *testing.T) {
 			jarBytes := tt.jarData()
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/java-archive")
-				w.Write(jarBytes)
+				_, _ = w.Write(jarBytes)
 			}))
 			t.Cleanup(server.Close)
 

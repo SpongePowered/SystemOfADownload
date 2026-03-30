@@ -53,11 +53,7 @@ func (m *mockQuerier) ListGroups(ctx context.Context) ([]db.Group, error) {
 }
 
 func (m *mockQuerier) CreateGroup(ctx context.Context, arg db.CreateGroupParams) (db.Group, error) {
-	g := db.Group{
-		MavenID: arg.MavenID,
-		Name:    arg.Name,
-		Website: arg.Website,
-	}
+	g := db.Group(arg)
 	m.groups[arg.MavenID] = g
 	return g, nil
 }
@@ -71,7 +67,7 @@ func (m *mockQuerier) GetArtifactByGroupAndId(ctx context.Context, arg db.GetArt
 	return a, nil
 }
 
-func (m *mockQuerier) CreateArtifact(ctx context.Context, arg db.CreateArtifactParams) (db.Artifact, error) {
+func (m *mockQuerier) CreateArtifact(ctx context.Context, arg db.CreateArtifactParams) (db.Artifact, error) { //nolint:gocritic // interface implementation
 	key := arg.GroupID + ":" + arg.ArtifactID
 	a := db.Artifact{
 		ID:              int64(len(m.artifacts) + 1),
@@ -695,7 +691,7 @@ func (m *mockQuerier) UpdateArtifactVersionSchema(ctx context.Context, arg db.Up
 	return nil
 }
 
-func (m *mockQuerier) UpdateArtifactFields(ctx context.Context, arg db.UpdateArtifactFieldsParams) (db.Artifact, error) {
+func (m *mockQuerier) UpdateArtifactFields(ctx context.Context, arg db.UpdateArtifactFieldsParams) (db.Artifact, error) { //nolint:gocritic // interface implementation
 	key := arg.GroupID + ":" + arg.ArtifactID
 	a, ok := m.artifacts[key]
 	if !ok {
@@ -751,8 +747,8 @@ func TestPutArtifactSchema(t *testing.T) {
 			Body: &api.VersionSchema{
 				UseMojangManifest: &useMojang,
 				Variants: []struct {
-					Name     string                                   `json:"name"`
-					Pattern  string                                   `json:"pattern"`
+					Name     string `json:"name"`
+					Pattern  string `json:"pattern"`
 					Segments []struct {
 						Name    string                                   `json:"name"`
 						ParseAs api.VersionSchemaVariantsSegmentsParseAs `json:"parse_as"`
@@ -787,8 +783,8 @@ func TestPutArtifactSchema(t *testing.T) {
 			ArtifactID: "nonexistent",
 			Body: &api.VersionSchema{
 				Variants: []struct {
-					Name     string                                   `json:"name"`
-					Pattern  string                                   `json:"pattern"`
+					Name     string `json:"name"`
+					Pattern  string `json:"pattern"`
 					Segments []struct {
 						Name    string                                   `json:"name"`
 						ParseAs api.VersionSchemaVariantsSegmentsParseAs `json:"parse_as"`
@@ -813,8 +809,8 @@ func TestPutArtifactSchema(t *testing.T) {
 			ArtifactID: "spongevanilla",
 			Body: &api.VersionSchema{
 				Variants: []struct {
-					Name     string                                   `json:"name"`
-					Pattern  string                                   `json:"pattern"`
+					Name     string `json:"name"`
+					Pattern  string `json:"pattern"`
 					Segments []struct {
 						Name    string                                   `json:"name"`
 						ParseAs api.VersionSchemaVariantsSegmentsParseAs `json:"parse_as"`
@@ -837,7 +833,7 @@ func TestPutArtifactSchema(t *testing.T) {
 func TestGetArtifactSchema(t *testing.T) {
 	schemaJSON, _ := json.Marshal(map[string]any{
 		"use_mojang_manifest": false,
-		"variants":           []map[string]any{{"name": "test", "pattern": `^(?P<v>\d+)$`, "segments": []map[string]any{{"name": "v", "parse_as": "integer"}}}},
+		"variants":            []map[string]any{{"name": "test", "pattern": `^(?P<v>\d+)$`, "segments": []map[string]any{{"name": "v", "parse_as": "integer"}}}},
 	})
 
 	q := &mockQuerier{
@@ -993,7 +989,7 @@ func TestGetVersionsHTTPOrdering(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HTTP request failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)

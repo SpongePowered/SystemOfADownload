@@ -92,7 +92,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 			Website:          &website,
 		}
 		resp := doJSON(t, client, http.MethodPost, baseURL+"/groups", body)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusCreated {
 			t.Fatalf("expected status 201, got %d", resp.StatusCode)
@@ -120,7 +120,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get group: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("expected status 200, got %d", resp.StatusCode)
@@ -145,7 +145,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get artifacts: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("expected status 200, got %d", resp.StatusCode)
@@ -171,7 +171,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 			Website:       &artifactWebsite,
 		}
 		resp := doJSON(t, client, http.MethodPost, baseURL+"/groups/org.spongepowered/artifacts", body)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusCreated {
 			t.Fatalf("expected status 201, got %d", resp.StatusCode)
@@ -196,7 +196,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get artifacts: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("expected status 200, got %d", resp.StatusCode)
@@ -223,7 +223,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 			GitRepository: []string{"https://github.com/SpongePowered/Sponge"},
 		}
 		resp := doJSON(t, client, http.MethodPost, baseURL+"/groups/org.spongepowered/artifacts", body)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusConflict {
 			t.Fatalf("expected status 409, got %d", resp.StatusCode)
@@ -238,7 +238,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 			GitRepository: []string{},
 		}
 		resp := doJSON(t, client, http.MethodPost, baseURL+"/groups/com.nonexistent/artifacts", body)
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusNotFound {
 			t.Fatalf("expected status 404, got %d", resp.StatusCode)
@@ -251,7 +251,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get artifact: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("expected status 200, got %d", resp.StatusCode)
@@ -292,7 +292,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get artifact: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusNotFound {
 			t.Fatalf("expected status 404, got %d", resp.StatusCode)
@@ -305,7 +305,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get group: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusNotFound {
 			t.Fatalf("expected status 404, got %d", resp.StatusCode)
@@ -318,7 +318,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get versions: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusNotFound {
 			t.Fatalf("expected status 404, got %d", resp.StatusCode)
@@ -331,7 +331,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get versions: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("expected status 200, got %d", resp.StatusCode)
@@ -344,7 +344,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get versions: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusBadRequest {
 			t.Fatalf("expected status 400, got %d", resp.StatusCode)
@@ -357,7 +357,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get versions: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusBadRequest {
 			t.Fatalf("expected status 400, got %d", resp.StatusCode)
@@ -370,7 +370,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to list groups: %v", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("expected status 200, got %d", resp.StatusCode)
@@ -391,7 +391,7 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 }
 
 // doJSON marshals body to JSON and sends an HTTP request, returning the response.
-func doJSON(t *testing.T, client *http.Client, method, url string, body any) *http.Response {
+func doJSON(t *testing.T, client *http.Client, method, url string, body any) *http.Response { //nolint:unparam // keeping method param for future flexibility
 	t.Helper()
 	jsonBody, err := json.Marshal(body)
 	if err != nil {

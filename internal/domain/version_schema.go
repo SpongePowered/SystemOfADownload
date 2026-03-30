@@ -190,7 +190,7 @@ func ParseVersionWithSchema(raw string, schema *VersionSchema) ParsedVersion {
 // ExtractTags returns a map of tag key → raw segment value for all segments
 // that have a non-empty TagKey. This is used to surface version-component
 // tags (e.g. "minecraft" → "1.21.10", "forge" → "2847") for API queries.
-func (pv ParsedVersion) ExtractTags() map[string]string {
+func (pv ParsedVersion) ExtractTags() map[string]string { //nolint:gocritic // value receiver used in sort/iteration contexts
 	if len(pv.Segments) == 0 {
 		return nil
 	}
@@ -207,7 +207,7 @@ func (pv ParsedVersion) ExtractTags() map[string]string {
 }
 
 // compareSegments compares two parsed segments using their ParseAs rule.
-func compareSegments(a, b ParsedSegment) int {
+func compareSegments(a, b ParsedSegment) int { //nolint:gocritic // value params used in comparison function
 	switch a.Rule.ParseAs {
 	case "minecraft":
 		if a.Version != nil && b.Version != nil {

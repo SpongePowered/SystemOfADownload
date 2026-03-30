@@ -345,7 +345,7 @@ func ValidateSchema(schema *domain.VersionSchema) error {
 
 		re, err := regexp.Compile(v.Pattern)
 		if err != nil {
-			return fmt.Errorf("%w: variant %q has invalid regex: %v", ErrInvalidSchema, v.Name, err)
+			return fmt.Errorf("%w: variant %q has invalid regex: %w", ErrInvalidSchema, v.Name, err)
 		}
 
 		groups := make(map[string]bool)

@@ -138,10 +138,7 @@ func VersionSyncWorkflow(ctx workflow.Context, input VersionSyncInput) (*Version
 	enrichCtx := workflow.WithChildOptions(ctx, enrichOpts)
 
 	var enrichResult CommitEnrichmentOutput
-	err = workflow.ExecuteChildWorkflow(enrichCtx, CommitEnrichmentWorkflow, CommitEnrichmentInput{
-		GroupID:    input.GroupID,
-		ArtifactID: input.ArtifactID,
-	}).Get(ctx, &enrichResult)
+	err = workflow.ExecuteChildWorkflow(enrichCtx, CommitEnrichmentWorkflow, CommitEnrichmentInput(input)).Get(ctx, &enrichResult)
 	if err != nil {
 		return nil, fmt.Errorf("enriching commits: %w", err)
 	}

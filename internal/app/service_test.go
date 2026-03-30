@@ -60,7 +60,6 @@ func TestService_GetGroup(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -125,7 +124,6 @@ func TestService_ListGroups(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -250,7 +248,6 @@ func TestService_RegisterGroup(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -486,7 +483,6 @@ func TestService_RegisterArtifact(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -503,16 +499,19 @@ func TestService_RegisterArtifact(t *testing.T) {
 					t.Fatalf("expected error %v, got nil", tt.wantErr)
 				}
 				// Use errors.Is for sentinel errors, otherwise compare messages
-				if errors.Is(tt.wantErr, app.ErrGroupNotFound) {
+				switch {
+				case errors.Is(tt.wantErr, app.ErrGroupNotFound):
 					if !errors.Is(err, app.ErrGroupNotFound) {
 						t.Fatalf("expected error %v, got %v", tt.wantErr, err)
 					}
-				} else if errors.Is(tt.wantErr, app.ErrArtifactAlreadyExists) {
+				case errors.Is(tt.wantErr, app.ErrArtifactAlreadyExists):
 					if !errors.Is(err, app.ErrArtifactAlreadyExists) {
 						t.Fatalf("expected error %v, got %v", tt.wantErr, err)
 					}
-				} else if err.Error() != tt.wantErr.Error() {
-					t.Fatalf("expected error %v, got %v", tt.wantErr, err)
+				default:
+					if err.Error() != tt.wantErr.Error() {
+						t.Fatalf("expected error %v, got %v", tt.wantErr, err)
+					}
 				}
 				return
 			}

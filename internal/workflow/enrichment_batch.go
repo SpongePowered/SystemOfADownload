@@ -40,7 +40,7 @@ type enrichmentBatchState struct {
 
 // EnrichmentBatchWorkflow processes versions using a sliding window of child
 // workflows to enrich commit details. Versions can be processed in parallel.
-func EnrichmentBatchWorkflow(ctx workflow.Context, input EnrichmentBatchInput) (int, error) {
+func EnrichmentBatchWorkflow(ctx workflow.Context, input EnrichmentBatchInput) (int, error) { //nolint:gocritic // Temporal workflow signature requires value type
 	if input.WindowSize <= 0 {
 		input.WindowSize = enrichmentBatchDefaultWindowSize
 	}
@@ -193,7 +193,7 @@ type EnrichVersionInput struct {
 // submodule state by running local activities against the git cache.
 //
 // It tries each registered git repository to find which one contains the commit SHA.
-func EnrichVersionWorkflow(ctx workflow.Context, input EnrichVersionInput) error {
+func EnrichVersionWorkflow(ctx workflow.Context, input EnrichVersionInput) error { //nolint:gocritic // Temporal workflow signature requires value type
 	err := enrichVersionWork(ctx, input)
 
 	// Always signal the parent, even on failure.
@@ -206,7 +206,7 @@ func EnrichVersionWorkflow(ctx workflow.Context, input EnrichVersionInput) error
 	return err
 }
 
-func enrichVersionWork(ctx workflow.Context, input EnrichVersionInput) error {
+func enrichVersionWork(ctx workflow.Context, input EnrichVersionInput) error { //nolint:gocritic // matches workflow signature
 	localOpts := workflow.LocalActivityOptions{
 		StartToCloseTimeout: 2 * time.Minute,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -373,14 +373,8 @@ func enrichSubmodules(
 	submodules []activity.SubmoduleRefOutput,
 ) ([]domain.SubmoduleCommit, error) {
 	// Launch clone + details in parallel for each submodule
-	type subResult struct {
-		commit domain.SubmoduleCommit
-		err    error
-	}
-
 	futures := make([]workflow.Future, len(submodules))
 	for i, sub := range submodules {
-		sub := sub
 		done, settable := workflow.NewFuture(ctx)
 		futures[i] = done
 

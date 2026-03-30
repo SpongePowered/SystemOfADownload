@@ -24,10 +24,10 @@ type FetchVersionsForEnrichmentInput struct {
 
 // VersionForEnrichment holds the data needed to enrich a single version.
 type VersionForEnrichment struct {
-	ID        int64
+	ID         int64
 	ArtifactID int64
-	Version   string
-	SortOrder int32
+	Version    string
+	SortOrder  int32
 	CommitSha  string
 	Repository string // from commit_body (may be empty)
 	Branch     string // from commit_body (may be empty)
@@ -114,7 +114,7 @@ func (a *ChangelogActivities) GetPreviousVersionCommit(ctx context.Context, inpu
 	})
 	if err != nil {
 		// pgx.ErrNoRows means there is no previous version
-		return &GetPreviousVersionCommitOutput{Found: false}, nil
+		return &GetPreviousVersionCommitOutput{Found: false}, nil //nolint:nilerr // intentional: no previous version is not an error
 	}
 
 	var info domain.CommitInfo
@@ -149,7 +149,7 @@ type StoreEnrichedCommitInput struct {
 }
 
 // StoreEnrichedCommit writes the enriched commit info back to the DB.
-func (a *ChangelogActivities) StoreEnrichedCommit(ctx context.Context, input StoreEnrichedCommitInput) error {
+func (a *ChangelogActivities) StoreEnrichedCommit(ctx context.Context, input StoreEnrichedCommitInput) error { //nolint:gocritic // Temporal activity signature requires value type
 	data, err := json.Marshal(input.CommitInfo)
 	if err != nil {
 		return fmt.Errorf("marshaling enriched commit: %w", err)

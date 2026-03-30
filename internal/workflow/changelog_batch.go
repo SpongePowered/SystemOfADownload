@@ -42,7 +42,7 @@ type changelogBatchState struct {
 
 // ChangelogBatchWorkflow processes versions sequentially (window size 1) to
 // compute changelogs between consecutive versions in sort order.
-func ChangelogBatchWorkflow(ctx workflow.Context, input ChangelogBatchInput) (int, error) {
+func ChangelogBatchWorkflow(ctx workflow.Context, input ChangelogBatchInput) (int, error) { //nolint:gocritic // Temporal workflow signature requires value type
 	if input.WindowSize <= 0 {
 		input.WindowSize = changelogBatchDefaultWindowSize
 	}
@@ -193,7 +193,7 @@ type ChangelogVersionInput struct {
 
 // ChangelogVersionWorkflow computes the changelog between this version and
 // its predecessor. It waits for the predecessor to be enriched if needed.
-func ChangelogVersionWorkflow(ctx workflow.Context, input ChangelogVersionInput) error {
+func ChangelogVersionWorkflow(ctx workflow.Context, input ChangelogVersionInput) error { //nolint:gocritic // Temporal workflow signature requires value type
 	err := changelogVersionWork(ctx, input)
 
 	// Always signal the parent, even on failure.
@@ -206,7 +206,7 @@ func ChangelogVersionWorkflow(ctx workflow.Context, input ChangelogVersionInput)
 	return err
 }
 
-func changelogVersionWork(ctx workflow.Context, input ChangelogVersionInput) error {
+func changelogVersionWork(ctx workflow.Context, input ChangelogVersionInput) error { //nolint:gocritic // matches workflow signature
 	activityOpts := workflow.ActivityOptions{
 		StartToCloseTimeout: 30 * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
@@ -346,11 +346,11 @@ func waitForPredecessorEnrichment(
 	return false, nil
 }
 
-func markPendingPredecessor(
+func markPendingPredecessor( //nolint:gocritic // matches workflow signature
 	ctx workflow.Context,
 	actCtx workflow.Context,
 	acts *activity.ChangelogActivities,
-	input ChangelogVersionInput,
+	input ChangelogVersionInput, //nolint:gocritic // matches workflow signature
 ) error {
 	pending := domain.CommitInfo{
 		Sha:             input.CommitSha,
@@ -552,15 +552,4 @@ func toCommitSummaries(commits []activity.ChangelogCommit) []domain.CommitSummar
 		}
 	}
 	return summaries
-}
-
-func signalChangelogParent(ctx workflow.Context, version string) error {
-	parent := workflow.GetInfo(ctx).ParentWorkflowExecution
-	if parent != nil {
-		signaled := workflow.SignalExternalWorkflow(ctx, parent.ID, "", changelogBatchCompletionSignalName, version)
-		if err := signaled.Get(ctx, nil); err != nil {
-			return fmt.Errorf("signaling parent: %w", err)
-		}
-	}
-	return nil
 }

@@ -18,7 +18,7 @@ type CommitEnrichmentInput struct {
 
 // CommitEnrichmentOutput is the result of the CommitEnrichmentWorkflow.
 type CommitEnrichmentOutput struct {
-	VersionsEnriched  int
+	VersionsEnriched   int
 	ChangelogsComputed int
 }
 

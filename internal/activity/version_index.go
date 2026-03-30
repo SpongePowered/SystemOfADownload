@@ -112,12 +112,12 @@ type BuildAndStoreTagsInput struct {
 
 // BuildAndStoreTagsOutput is the output of the BuildAndStoreTags activity.
 type BuildAndStoreTagsOutput struct {
-	TagsCreated   int
-	Recommended   bool
+	TagsCreated int
+	Recommended bool
 }
 
 // BuildAndStoreTags applies tag rules against assets and stores matching tags.
-func (a *VersionIndexActivities) BuildAndStoreTags(ctx context.Context, input BuildAndStoreTagsInput) (*BuildAndStoreTagsOutput, error) {
+func (a *VersionIndexActivities) BuildAndStoreTags(ctx context.Context, input BuildAndStoreTagsInput) (*BuildAndStoreTagsOutput, error) { //nolint:gocritic // Temporal activity signature requires value type
 	av, err := a.Repo.GetArtifactVersion(ctx, db.GetArtifactVersionParams{
 		GroupID:    input.GroupID,
 		ArtifactID: input.ArtifactID,
@@ -240,7 +240,7 @@ func (a *VersionIndexActivities) ExtractCommitFromJar(ctx context.Context, input
 		httpClient = http.DefaultClient
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, input.DownloadURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, input.DownloadURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -249,7 +249,7 @@ func (a *VersionIndexActivities) ExtractCommitFromJar(ctx context.Context, input
 	if err != nil {
 		return nil, fmt.Errorf("downloading jar: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status %d downloading %s", resp.StatusCode, input.DownloadURL)
@@ -299,7 +299,7 @@ func parseGitProperties(f *zip.File) (*domain.CommitInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	info := &domain.CommitInfo{}
 	scanner := bufio.NewScanner(rc)
@@ -329,7 +329,7 @@ func parseManifest(f *zip.File) (*domain.CommitInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	info := &domain.CommitInfo{}
 	scanner := bufio.NewScanner(rc)
@@ -363,7 +363,7 @@ type StoreCommitInfoInput struct {
 }
 
 // StoreCommitInfo stores extracted commit metadata on an artifact version.
-func (a *VersionIndexActivities) StoreCommitInfo(ctx context.Context, input StoreCommitInfoInput) error {
+func (a *VersionIndexActivities) StoreCommitInfo(ctx context.Context, input StoreCommitInfoInput) error { //nolint:gocritic // Temporal activity signature requires value type
 	av, err := a.Repo.GetArtifactVersion(ctx, db.GetArtifactVersionParams{
 		GroupID:    input.GroupID,
 		ArtifactID: input.ArtifactID,
@@ -386,6 +386,6 @@ func (a *VersionIndexActivities) StoreCommitInfo(ctx context.Context, input Stor
 	})
 }
 
-func marshalCommitBody(info domain.CommitInfo) ([]byte, error) {
+func marshalCommitBody(info domain.CommitInfo) ([]byte, error) { //nolint:gocritic // small helper, value type is fine
 	return json.Marshal(info)
 }

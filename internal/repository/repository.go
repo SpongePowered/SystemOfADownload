@@ -112,7 +112,7 @@ func (r *postgresRepository) WithTx(ctx context.Context, fn func(Tx) error) (err
 				err = fmt.Errorf("panic in transaction: %v", recovered)
 			}
 			if rollbackErr != nil {
-				err = fmt.Errorf("%w (rollback failed: %v)", err, rollbackErr)
+				err = fmt.Errorf("%w (rollback failed: %w)", err, rollbackErr)
 			}
 		}
 	}()
@@ -124,7 +124,7 @@ func (r *postgresRepository) WithTx(ctx context.Context, fn func(Tx) error) (err
 
 	if err := fn(txQwc); err != nil {
 		if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
-			return fmt.Errorf("transaction failed: %w (rollback failed: %v)", err, rollbackErr)
+			return fmt.Errorf("transaction failed: %w (rollback failed: %w)", err, rollbackErr)
 		}
 		return fmt.Errorf("transaction failed: %w", err)
 	}
@@ -144,7 +144,7 @@ func (q *querierWithConn) ListTagsForVersions(ctx context.Context, versionIDs []
 // When tags are provided, uses a dynamic SQL query with a subquery to match all tags.
 func (q *querierWithConn) ListVersionsFiltered(ctx context.Context, params VersionQueryParams) ([]db.ArtifactVersion, error) {
 	if len(params.Tags) == 0 {
-		return q.Queries.ListArtifactVersionsPaginated(ctx, db.ListArtifactVersionsPaginatedParams{
+		return q.ListArtifactVersionsPaginated(ctx, db.ListArtifactVersionsPaginatedParams{
 			GroupID:     params.GroupID,
 			ArtifactID:  params.ArtifactID,
 			Recommended: params.Recommended,
@@ -227,7 +227,7 @@ WHERE a.group_id = $` + strconv.Itoa(argN)
 // (without LIMIT/OFFSET), for pagination support.
 func (q *querierWithConn) CountVersionsFiltered(ctx context.Context, params VersionQueryParams) (int, error) {
 	if len(params.Tags) == 0 {
-		count, err := q.Queries.CountArtifactVersions(ctx, db.CountArtifactVersionsParams{
+		count, err := q.CountArtifactVersions(ctx, db.CountArtifactVersionsParams{
 			GroupID:     params.GroupID,
 			ArtifactID:  params.ArtifactID,
 			Recommended: params.Recommended,

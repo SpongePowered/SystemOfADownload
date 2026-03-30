@@ -58,7 +58,7 @@ func (a *VersionOrderingActivities) FetchMojangManifest(ctx context.Context, inp
 
 	logger.Info("fetching Mojang version manifest", "url", url)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -67,7 +67,7 @@ func (a *VersionOrderingActivities) FetchMojangManifest(ctx context.Context, inp
 	if err != nil {
 		return nil, fmt.Errorf("fetching manifest: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status %d from manifest", resp.StatusCode)
@@ -233,22 +233,22 @@ func (a *VersionOrderingActivities) ComputeVersionOrdering(ctx context.Context, 
 
 	// Assign sort_order: 1 = oldest, N = newest.
 	assignments := make([]VersionSortAssignment, len(items))
-	for i, item := range items {
+	for i := range items {
 		assignments[i] = VersionSortAssignment{
-			VersionID:   item.dbID,
+			VersionID:   items[i].dbID,
 			SortOrder:   int32(i + 1),
-			Recommended: item.parsed.Qualifier == domain.QualifierRelease,
+			Recommended: items[i].parsed.Qualifier == domain.QualifierRelease,
 		}
 	}
 
 	// Extract tags from schema-parsed versions.
 	var versionTags []VersionTagSet
 	if input.Schema != nil {
-		for _, item := range items {
-			tags := item.parsed.ExtractTags()
+		for i := range items {
+			tags := items[i].parsed.ExtractTags()
 			if len(tags) > 0 {
 				versionTags = append(versionTags, VersionTagSet{
-					VersionID: item.dbID,
+					VersionID: items[i].dbID,
 					Tags:      tags,
 				})
 			}

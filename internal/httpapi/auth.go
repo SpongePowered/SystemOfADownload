@@ -10,9 +10,9 @@ import (
 
 // writeOperations is the set of operationIDs that require authentication.
 var writeOperations = map[string]bool{
-	"RegisterGroup":    true,
-	"RegisterArtifact": true,
-	"UpdateArtifact":   true,
+	"RegisterGroup":     true,
+	"RegisterArtifact":  true,
+	"UpdateArtifact":    true,
 	"PutArtifactSchema": true,
 }
 

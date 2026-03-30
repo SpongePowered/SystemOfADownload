@@ -52,7 +52,7 @@ type WeeklySnapshot struct {
 // MinecraftVersionString returns the string to use for Mojang manifest lookups.
 // For composite versions, this is the minecraft sub-component.
 // For non-composite versions, this is the full version string.
-func (pv ParsedVersion) MinecraftVersionString() string {
+func (pv ParsedVersion) MinecraftVersionString() string { //nolint:gocritic // value receiver used in sort comparisons
 	if pv.IsComposite && pv.Minecraft != nil {
 		return pv.Minecraft.Raw
 	}
@@ -116,16 +116,17 @@ func parseSimpleVersion(raw string) ParsedVersion {
 // CompareVersions compares two parsed versions.
 // Returns negative if a < b, positive if a > b, zero if equal.
 // "Less than" means older / lower sort_order.
-func CompareVersions(a, b ParsedVersion) int {
+func CompareVersions(a, b ParsedVersion) int { //nolint:gocritic // value params required by slices.SortStableFunc signature
 	// If both have manifest ordering and they differ, use manifest order.
 	// If equal, fall through to segment/qualifier comparison.
-	if a.ManifestOrder > 0 && b.ManifestOrder > 0 {
+	switch {
+	case a.ManifestOrder > 0 && b.ManifestOrder > 0:
 		if c := cmp.Compare(a.ManifestOrder, b.ManifestOrder); c != 0 {
 			return c
 		}
-	} else if a.ManifestOrder > 0 {
+	case a.ManifestOrder > 0:
 		return 1
-	} else if b.ManifestOrder > 0 {
+	case b.ManifestOrder > 0:
 		return -1
 	}
 

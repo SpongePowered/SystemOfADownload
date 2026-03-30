@@ -144,7 +144,7 @@ func TestValidateSchema(t *testing.T) {
 }
 
 func containsSubstring(s, sub string) bool {
-	return len(s) >= len(sub) && (s == sub || len(s) > 0 && containsAt(s, sub))
+	return len(s) >= len(sub) && (s == sub || s != "" && containsAt(s, sub))
 }
 
 func containsAt(s, sub string) bool {

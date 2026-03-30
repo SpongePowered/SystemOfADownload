@@ -26,13 +26,13 @@ type CommitInfo struct {
 	Branch     string `json:"branch,omitempty"`
 
 	// Enrichment fields (populated by CommitEnrichmentWorkflow)
-	Message    string           `json:"message,omitempty"`
-	Body       string           `json:"body,omitempty"`
-	Author     *CommitAuthor    `json:"author,omitempty"`
-	CommitDate string           `json:"commitDate,omitempty"`
+	Message    string            `json:"message,omitempty"`
+	Body       string            `json:"body,omitempty"`
+	Author     *CommitAuthor     `json:"author,omitempty"`
+	CommitDate string            `json:"commitDate,omitempty"`
 	Submodules []SubmoduleCommit `json:"submodules,omitempty"`
-	Changelog  *Changelog       `json:"changelog,omitempty"`
-	EnrichedAt string           `json:"enrichedAt,omitempty"`
+	Changelog  *Changelog        `json:"changelog,omitempty"`
+	EnrichedAt string            `json:"enrichedAt,omitempty"`
 
 	// ChangelogStatus tracks pending changelog computation.
 	// "pending_predecessor" means N-1 was not yet enriched.
@@ -47,11 +47,11 @@ type CommitAuthor struct {
 
 // SubmoduleCommit holds commit details for a submodule at a specific version.
 type SubmoduleCommit struct {
-	Repository string       `json:"repository"`
-	Sha        string       `json:"sha"`
-	Message    string       `json:"message,omitempty"`
+	Repository string        `json:"repository"`
+	Sha        string        `json:"sha"`
+	Message    string        `json:"message,omitempty"`
 	Author     *CommitAuthor `json:"author,omitempty"`
-	CommitDate string       `json:"commitDate,omitempty"`
+	CommitDate string        `json:"commitDate,omitempty"`
 }
 
 // Changelog holds the list of commits between two consecutive versions.
@@ -63,8 +63,8 @@ type Changelog struct {
 
 // CommitSummary is a condensed commit record used in changelogs.
 type CommitSummary struct {
-	Sha        string       `json:"sha"`
-	Message    string       `json:"message"`
+	Sha        string        `json:"sha"`
+	Message    string        `json:"message"`
 	Author     *CommitAuthor `json:"author,omitempty"`
-	CommitDate string       `json:"commitDate,omitempty"`
+	CommitDate string        `json:"commitDate,omitempty"`
 }

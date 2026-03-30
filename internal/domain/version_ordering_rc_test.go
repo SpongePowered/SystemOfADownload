@@ -127,9 +127,7 @@ func TestRCBuildNumberOrdering(t *testing.T) {
 			}
 
 			// Sort ascending (same as ComputeVersionOrdering)
-			slices.SortStableFunc(parsed, func(a, b ParsedVersion) int {
-				return CompareVersions(a, b)
-			})
+			slices.SortStableFunc(parsed, CompareVersions)
 
 			// Verify order
 			got := make([]string, len(parsed))
@@ -163,17 +161,17 @@ func TestRCBuildNumberOrderingWithManifest(t *testing.T) {
 	// Simulate manifest ordering: map MC version string → position (higher = newer).
 	// This replicates what ComputeVersionOrdering does with the Mojang manifest.
 	manifestOrder := map[string]int{
-		"26.1":            11,
-		"26.1-rc-3":       10,
-		"26.1-rc-2":       9,
-		"26.1-rc-1":       8,
-		"26.1-pre-3":      7,
-		"26.1-pre-2":      6,
+		"26.1":             11,
+		"26.1-rc-3":        10,
+		"26.1-rc-2":        9,
+		"26.1-rc-1":        8,
+		"26.1-pre-3":       7,
+		"26.1-pre-2":       6,
 		"26.1-snapshot-10": 5,
 		"26.1-snapshot-2":  4,
 		"26.1-snapshot-1":  3,
-		"1.21.11":         2,
-		"1.21.10":         1,
+		"1.21.11":          2,
+		"1.21.10":          1,
 	}
 
 	versions := []string{
@@ -213,9 +211,7 @@ func TestRCBuildNumberOrderingWithManifest(t *testing.T) {
 			v, mcStr, parsed[i].ManifestOrder, parsed[i].Qualifier, parsed[i].QualifierNum)
 	}
 
-	slices.SortStableFunc(parsed, func(a, b ParsedVersion) int {
-		return CompareVersions(a, b)
-	})
+	slices.SortStableFunc(parsed, CompareVersions)
 
 	got := make([]string, len(parsed))
 	for i, p := range parsed {

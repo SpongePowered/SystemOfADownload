@@ -15,19 +15,19 @@ import (
 
 // CommitDetails holds full metadata for a single git commit.
 type CommitDetails struct {
-	Sha        string
-	Message    string
-	Body       string
-	AuthorName string
+	Sha         string
+	Message     string
+	Body        string
+	AuthorName  string
 	AuthorEmail string
-	CommitDate string // ISO 8601
+	CommitDate  string // ISO 8601
 }
 
 // SubmoduleRef represents a submodule pointer at a specific commit.
 type SubmoduleRef struct {
-	Path       string // submodule path in the repo
-	URL        string // submodule remote URL
-	Sha        string // commit SHA the submodule points to
+	Path string // submodule path in the repo
+	URL  string // submodule remote URL
+	Sha  string // commit SHA the submodule points to
 }
 
 // Manager manages bare git clones on the local filesystem with per-repo locking.
@@ -116,7 +116,7 @@ func (m *Manager) ResolveRepo(ctx context.Context, repoURL string) (string, erro
 }
 
 // GetCommitDetails reads full commit metadata for the given SHA.
-func (m *Manager) GetCommitDetails(ctx context.Context, repoPath string, sha string) (*CommitDetails, error) {
+func (m *Manager) GetCommitDetails(ctx context.Context, repoPath, sha string) (*CommitDetails, error) {
 	// Format: SHA\nsubject\nauthor name\nauthor email\ndate\n\nbody
 	format := "%H%n%s%n%aN%n%aE%n%aI"
 	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "show", "-s", "--format="+format, sha)
@@ -149,13 +149,13 @@ func (m *Manager) GetCommitDetails(ctx context.Context, repoPath string, sha str
 
 // ResolveSubmodules parses .gitmodules and git ls-tree at the given SHA to
 // find submodule URLs and their pinned commit SHAs.
-func (m *Manager) ResolveSubmodules(ctx context.Context, repoPath string, sha string) ([]SubmoduleRef, error) {
+func (m *Manager) ResolveSubmodules(ctx context.Context, repoPath, sha string) ([]SubmoduleRef, error) {
 	// Try to read .gitmodules at the given commit
 	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "show", sha+":.gitmodules")
 	gitmodulesOut, err := cmd.Output()
 	if err != nil {
 		// No .gitmodules at this commit — not an error, just no submodules
-		return nil, nil
+		return nil, nil //nolint:nilerr // intentional: missing .gitmodules means no submodules
 	}
 
 	// Parse .gitmodules INI-like format to get path → URL mapping
@@ -212,7 +212,7 @@ const MaxChangelogCommits = 500
 // ComputeChangelog returns the list of commits between fromSHA (exclusive) and
 // toSHA (inclusive) in reverse chronological order, capped at MaxChangelogCommits.
 // Returns truncated=true if there were more commits than the cap.
-func (m *Manager) ComputeChangelog(ctx context.Context, repoPath string, fromSHA, toSHA string) (commits []CommitDetails, truncated bool, err error) {
+func (m *Manager) ComputeChangelog(ctx context.Context, repoPath, fromSHA, toSHA string) (commits []CommitDetails, truncated bool, err error) {
 	format := "%H%n%s%n%aN%n%aE%n%aI"
 	rangeSpec := fromSHA + ".." + toSHA
 	// Request one extra to detect truncation

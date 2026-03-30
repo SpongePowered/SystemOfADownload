@@ -25,21 +25,21 @@ type VersionBatchIndexOutput struct {
 }
 
 const (
-	versionBatchPageSize              = 50
-	versionBatchDefaultWindowSize     = 10
-	versionBatchCompletionSignalName  = "VersionIndexCompletion"
+	versionBatchPageSize             = 50
+	versionBatchDefaultWindowSize    = 10
+	versionBatchCompletionSignalName = "VersionIndexCompletion"
 )
 
 // versionBatchState holds the mutable state for the sliding window.
 type versionBatchState struct {
-	input          VersionBatchIndexInput
-	currentRecords map[string]bool
+	input           VersionBatchIndexInput
+	currentRecords  map[string]bool
 	childrenStarted []workflow.ChildWorkflowFuture
-	offset         int
-	progress       int
+	offset          int
+	progress        int
 
-	pumpCancel     workflow.CancelFunc
-	pumpDone       workflow.Future
+	pumpCancel workflow.CancelFunc
+	pumpDone   workflow.Future
 }
 
 // VersionBatchIndexWorkflow processes new versions using a sliding window of child workflows.

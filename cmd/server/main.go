@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -35,7 +36,7 @@ func NewConfig() *Config {
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:password@localhost:5432/postgres?sslmode=disable"
+		dbURL = "postgres://postgres:password@localhost:5432/postgres?sslmode=disable" //nolint:gosec // development default
 	}
 
 	temporalHost := os.Getenv("TEMPORAL_HOST_PORT")
@@ -88,8 +89,9 @@ func NewDBPool(lc fx.Lifecycle, cfg *Config) (*pgxpool.Pool, error) {
 
 func NewHTTPServer(lc fx.Lifecycle, cfg *Config, handler http.Handler, s fx.Shutdowner) *http.Server {
 	srv := &http.Server{
-		Addr:    ":" + cfg.Port,
-		Handler: handler,
+		Addr:              ":" + cfg.Port,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second,
 	}
 
 	lc.Append(fx.Hook{
@@ -140,7 +142,7 @@ func NewMux(h *httpapi.Handler, cfg *Config, _ OTelShutdown) http.Handler {
 
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "OK")
+		_, _ = fmt.Fprintln(w, "OK")
 	})
 
 	return otelhttp.NewHandler(api.HandlerFromMux(apiHandler, mux), "soad-server")
@@ -153,9 +155,7 @@ func main() {
 			NewOTelShutdown,
 			NewDBPool,
 			NewTemporalClient,
-			func(pool *pgxpool.Pool) repository.Repository {
-				return repository.NewRepository(pool)
-			},
+			repository.NewRepository,
 			func(c client.Client) httpapi.WorkflowStarter {
 				return c
 			},

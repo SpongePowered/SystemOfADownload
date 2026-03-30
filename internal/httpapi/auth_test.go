@@ -18,7 +18,7 @@ func TestAdminAuthMiddleware(t *testing.T) {
 		mw := AdminAuthMiddleware("secret123")
 		handler := mw(noopHandler, "GetGroups")
 
-		r := httptest.NewRequest("GET", "/groups", nil)
+		r := httptest.NewRequest("GET", "/groups", http.NoBody)
 		w := httptest.NewRecorder()
 
 		result, err := handler(context.Background(), w, r, nil)
@@ -34,7 +34,7 @@ func TestAdminAuthMiddleware(t *testing.T) {
 		mw := AdminAuthMiddleware("secret123")
 		handler := mw(noopHandler, "RegisterArtifact")
 
-		r := httptest.NewRequest("POST", "/groups/org/artifacts", nil)
+		r := httptest.NewRequest("POST", "/groups/org/artifacts", http.NoBody)
 		w := httptest.NewRecorder()
 
 		result, _ := handler(context.Background(), w, r, nil)
@@ -53,7 +53,7 @@ func TestAdminAuthMiddleware(t *testing.T) {
 		mw := AdminAuthMiddleware("secret123")
 		handler := mw(noopHandler, "RegisterArtifact")
 
-		r := httptest.NewRequest("POST", "/groups/org/artifacts", nil)
+		r := httptest.NewRequest("POST", "/groups/org/artifacts", http.NoBody)
 		r.Header.Set("Authorization", "Bearer secret123")
 		w := httptest.NewRecorder()
 
@@ -70,7 +70,7 @@ func TestAdminAuthMiddleware(t *testing.T) {
 		mw := AdminAuthMiddleware("secret123")
 		handler := mw(noopHandler, "PutArtifactSchema")
 
-		r := httptest.NewRequest("PUT", "/schema", nil)
+		r := httptest.NewRequest("PUT", "/schema", http.NoBody)
 		r.Header.Set("Authorization", "Bearer wrong-token")
 		w := httptest.NewRecorder()
 
@@ -87,7 +87,7 @@ func TestAdminAuthMiddleware(t *testing.T) {
 		mw := AdminAuthMiddleware("")
 		handler := mw(noopHandler, "RegisterArtifact")
 
-		r := httptest.NewRequest("POST", "/groups/org/artifacts", nil)
+		r := httptest.NewRequest("POST", "/groups/org/artifacts", http.NoBody)
 		w := httptest.NewRecorder()
 
 		result, err := handler(context.Background(), w, r, nil)
@@ -103,7 +103,7 @@ func TestAdminAuthMiddleware(t *testing.T) {
 		mw := AdminAuthMiddleware("token")
 		for _, op := range []string{"RegisterGroup", "RegisterArtifact", "UpdateArtifact", "PutArtifactSchema"} {
 			handler := mw(noopHandler, op)
-			r := httptest.NewRequest("POST", "/", nil)
+			r := httptest.NewRequest("POST", "/", http.NoBody)
 			w := httptest.NewRecorder()
 			result, _ := handler(context.Background(), w, r, nil)
 			if result != nil {

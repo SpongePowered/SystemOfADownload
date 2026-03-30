@@ -40,11 +40,11 @@ import (
 )
 
 const (
-	groupID       = "org.spongepowered"
-	sonatypeBase  = "https://repo.spongepowered.org"
-	repoName      = "maven-public"
-	taskQueue     = "version-sync"
-	temporalAddr  = "localhost:7233"
+	groupID      = "org.spongepowered"
+	sonatypeBase = "https://repo.spongepowered.org"
+	repoName     = "maven-public"
+	taskQueue    = "version-sync"
+	temporalAddr = "localhost:7233"
 )
 
 // mcPattern is the regex alternation for all Minecraft version formats.
@@ -273,7 +273,7 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("starting postgres: %w", err)
 	}
-	defer pgContainer.Terminate(ctx)
+	defer func() { _ = pgContainer.Terminate(ctx) }()
 
 	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
@@ -515,7 +515,7 @@ func fetchMavenVersions(ctx context.Context, artifactID string) ([]string, error
 	url := fmt.Sprintf("%s/repository/%s/%s/%s/maven-metadata.xml",
 		sonatypeBase, repoName, groupPath, artifactID)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -524,7 +524,7 @@ func fetchMavenVersions(ctx context.Context, artifactID string) ([]string, error
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status %d from %s", resp.StatusCode, url)

@@ -75,7 +75,7 @@ func TestRepoPath(t *testing.T) {
 	m := NewManager("/tmp/test-cache")
 
 	tests := []struct {
-		url      string
+		url        string
 		wantSuffix string
 	}{
 		{"https://github.com/SpongePowered/Sponge", "github.com/SpongePowered/Sponge.git"},
@@ -89,7 +89,7 @@ func TestRepoPath(t *testing.T) {
 		if !filepath.IsAbs(got) {
 			t.Errorf("expected absolute path, got %s", got)
 		}
-		if want := filepath.Join("/tmp/test-cache", tt.wantSuffix); got != want {
+		if want := "/tmp/test-cache/" + tt.wantSuffix; got != want {
 			t.Errorf("repoPath(%q) = %s, want %s", tt.url, got, want)
 		}
 	}

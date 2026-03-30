@@ -332,36 +332,36 @@ func (r *orderedVersionsResponse) VisitGetVersionsResponse(w http.ResponseWriter
 	w.WriteHeader(200)
 
 	// Build ordered JSON manually
-	w.Write([]byte(`{"artifacts":{`))
+	_, _ = w.Write([]byte(`{"artifacts":{`))
 	for i, e := range r.Entries {
 		if i > 0 {
-			w.Write([]byte(`,`))
+			_, _ = w.Write([]byte(`,`))
 		}
 		// Write key
 		keyJSON, _ := json.Marshal(e.Version)
-		w.Write(keyJSON)
-		w.Write([]byte(`:{`))
+		_, _ = w.Write(keyJSON)
+		_, _ = w.Write([]byte(`:{`))
 
 		// Write recommended
-		w.Write([]byte(`"recommended":`))
+		_, _ = w.Write([]byte(`"recommended":`))
 		if e.Recommended {
-			w.Write([]byte(`true`))
+			_, _ = w.Write([]byte(`true`))
 		} else {
-			w.Write([]byte(`false`))
+			_, _ = w.Write([]byte(`false`))
 		}
 
 		// Write tagValues
 		if len(e.Tags) > 0 {
 			tagJSON, _ := json.Marshal(e.Tags)
-			w.Write([]byte(`,"tagValues":`))
-			w.Write(tagJSON)
+			_, _ = w.Write([]byte(`,"tagValues":`))
+			_, _ = w.Write(tagJSON)
 		}
 
-		w.Write([]byte(`}`))
+		_, _ = w.Write([]byte(`}`))
 	}
-	w.Write([]byte(`}`))
-	fmt.Fprintf(w, `,"offset":%d,"limit":%d,"size":%d`, r.Offset, r.Limit, r.Total)
-	w.Write([]byte("}\n"))
+	_, _ = w.Write([]byte(`}`))
+	_, _ = fmt.Fprintf(w, `,"offset":%d,"limit":%d,"size":%d`, r.Offset, r.Limit, r.Total)
+	_, _ = w.Write([]byte("}\n"))
 	return nil
 }
 
@@ -372,16 +372,16 @@ func (h *Handler) GetLatestVersion(ctx context.Context, request api.GetLatestVer
 		var err error
 		tags, err = parseTags(*request.Params.Tags)
 		if err != nil {
-			return api.GetLatestVersion404Response{}, nil
+			return api.GetLatestVersion404Response{}, nil //nolint:nilerr // intentional: invalid tags returns 404
 		}
 	}
 
 	result, err := h.service.GetVersions(ctx, repository.VersionQueryParams{
 		GroupID:    request.GroupID,
 		ArtifactID: request.ArtifactID,
-		Tags:      tags,
-		Limit:     1,
-		Offset:    0,
+		Tags:       tags,
+		Limit:      1,
+		Offset:     0,
 	})
 	if err != nil {
 		if errors.Is(err, app.ErrArtifactNotFound) {
@@ -396,7 +396,7 @@ func (h *Handler) GetLatestVersion(ctx context.Context, request api.GetLatestVer
 	// Get the full version detail for the latest version
 	detail, err := h.service.GetVersionInfo(ctx, request.GroupID, request.ArtifactID, result.Entries[0].Version)
 	if err != nil {
-		return api.GetLatestVersion404Response{}, nil
+		return api.GetLatestVersion404Response{}, nil //nolint:nilerr // intentional: converts error to 404
 	}
 
 	return api.GetLatestVersion200JSONResponse(buildVersionInfoResponse(detail)), nil
@@ -664,7 +664,7 @@ func commitInfoToAPICommit(info *domain.CommitInfo) api.Commit {
 	}
 	if info.CommitDate != "" {
 		date := openapi_types.Date{Time: parseDate(info.CommitDate)}
-		if !date.Time.IsZero() {
+		if !date.IsZero() {
 			c.CommitDate = &date
 		}
 	}
@@ -692,7 +692,7 @@ func submoduleCommitToAPICommit(sub *domain.SubmoduleCommit) api.Commit {
 	}
 	if sub.CommitDate != "" {
 		date := openapi_types.Date{Time: parseDate(sub.CommitDate)}
-		if !date.Time.IsZero() {
+		if !date.IsZero() {
 			c.CommitDate = &date
 		}
 	}

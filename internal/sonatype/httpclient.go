@@ -91,7 +91,7 @@ func (c *HTTPClient) FetchVersions(ctx context.Context, groupID, artifactID stri
 
 		searchURL := fmt.Sprintf("%s/service/rest/v1/search?%s", c.baseURL, params.Encode())
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, http.NoBody)
 		if err != nil {
 			return nil, fmt.Errorf("creating search request: %w", err)
 		}
@@ -102,13 +102,13 @@ func (c *HTTPClient) FetchVersions(ctx context.Context, groupID, artifactID stri
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return nil, fmt.Errorf("unexpected status %d from search API", resp.StatusCode)
 		}
 
 		var searchResp searchComponentsResponse
 		err = json.NewDecoder(resp.Body).Decode(&searchResp)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if err != nil {
 			return nil, fmt.Errorf("decoding search response: %w", err)
 		}
@@ -159,7 +159,7 @@ func (c *HTTPClient) SearchAssets(ctx context.Context, groupID, artifactID, vers
 
 		searchURL := fmt.Sprintf("%s/service/rest/v1/search/assets?%s", c.baseURL, params.Encode())
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, searchURL, http.NoBody)
 		if err != nil {
 			return nil, fmt.Errorf("creating search request: %w", err)
 		}
@@ -170,13 +170,13 @@ func (c *HTTPClient) SearchAssets(ctx context.Context, groupID, artifactID, vers
 		}
 
 		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return nil, fmt.Errorf("unexpected status %d from search API", resp.StatusCode)
 		}
 
 		var searchResp searchAssetsResponse
 		err = json.NewDecoder(resp.Body).Decode(&searchResp)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if err != nil {
 			return nil, fmt.Errorf("decoding search response: %w", err)
 		}
