@@ -126,7 +126,7 @@ jobs:
             type=sha,prefix=dev-,enable=${{ github.ref == 'refs/heads/dev' }}
             type=raw,value=dev-latest,enable=${{ github.ref == 'refs/heads/dev' }}
 
-      - uses: docker/build-push-action@263435318d21b8e681c14492fe198e19c816612b # v6.18.0
+      - uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: .
           push: true
