@@ -12,7 +12,7 @@ HTTP API (RegisterArtifact → triggers VersionSyncWorkflow)
 VersionSyncWorkflow ─────────────────────────────────────────────────┐
  ├── FetchVersions           (Sonatype maven-metadata.xml)           |
  ├── StoreNewVersions        (DB: compare + insert new versions)     |
- ├── VersionBatchIndexWorkflow (child, if new versions found)        |
+ ├── VersionBatchIndexWorkflow (child, if new versions or ForceReindex)|
  │    └── VersionIndexWorkflow (per version, sliding window of 5)    |
  │         ├── FetchVersionAssets   (Sonatype REST API)              |
  │         ├── StoreVersionAssets   (DB)                             |
@@ -57,13 +57,15 @@ The top-level orchestrator, triggered when an artifact is registered via the HTT
 
 **Trigger:** `POST /groups/{groupID}/artifacts` (fire-and-forget)
 
+**Input:** `VersionSyncInput{GroupID, ArtifactID, ForceReindex}`
+
 **Steps:**
 1. Fetch all version strings from Sonatype Nexus (`maven-metadata.xml`)
 2. Compare against DB and store only new versions
-3. Launch batch indexing for new versions (assets + commits)
+3. Launch batch indexing for new versions (assets + commits) — or **all** versions when `ForceReindex` is true
 4. Compute version ordering and extract schema-driven tags for **all** versions
 
-The ordering step runs for all versions (not just new ones) because `sort_order` is a relative ranking that must be recomputed when new versions are inserted.
+The ordering step runs for all versions (not just new ones) because `sort_order` is a relative ranking that must be recomputed when new versions are inserted. The `ForceReindex` flag is useful for backfilling data after schema changes (e.g. new asset columns).
 
 ### VersionBatchIndexWorkflow
 

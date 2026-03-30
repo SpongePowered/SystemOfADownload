@@ -17,8 +17,9 @@ const (
 
 // VersionSyncInput is the input payload for the VersionSyncWorkflow.
 type VersionSyncInput struct {
-	GroupID    string
-	ArtifactID string
+	GroupID      string
+	ArtifactID   string
+	ForceReindex bool
 }
 
 // VersionSyncOutput is the result of the VersionSyncWorkflow.
@@ -95,15 +96,19 @@ func VersionSyncWorkflow(ctx workflow.Context, input VersionSyncInput) (*Version
 	// Ordering needs version rows but not assets or commits.
 	// Both can run concurrently.
 
-	// Start indexing (only for new versions)
+	// Start indexing — for new versions, or all versions when force-reindexing.
+	versionsToIndex := storeResult.NewVersions
+	if input.ForceReindex {
+		versionsToIndex = fetchResult.Versions
+	}
 	var indexFuture workflow.ChildWorkflowFuture
-	if len(storeResult.NewVersions) > 0 {
+	if len(versionsToIndex) > 0 {
 		indexOpts := workflow.ChildWorkflowOptions{
 			WorkflowID: fmt.Sprintf("version-batch-index-%s-%s", input.GroupID, input.ArtifactID),
 		}
 		indexCtx := workflow.WithChildOptions(ctx, indexOpts)
 		indexFuture = workflow.ExecuteChildWorkflow(indexCtx, VersionBatchIndexWorkflow, VersionBatchIndexInput{
-			Versions:   storeResult.NewVersions,
+			Versions:   versionsToIndex,
 			WindowSize: versionBatchDefaultWindowSize,
 		})
 	}
@@ -138,7 +143,10 @@ func VersionSyncWorkflow(ctx workflow.Context, input VersionSyncInput) (*Version
 	enrichCtx := workflow.WithChildOptions(ctx, enrichOpts)
 
 	var enrichResult CommitEnrichmentOutput
-	err = workflow.ExecuteChildWorkflow(enrichCtx, CommitEnrichmentWorkflow, CommitEnrichmentInput(input)).Get(ctx, &enrichResult)
+	err = workflow.ExecuteChildWorkflow(enrichCtx, CommitEnrichmentWorkflow, CommitEnrichmentInput{
+		GroupID:    input.GroupID,
+		ArtifactID: input.ArtifactID,
+	}).Get(ctx, &enrichResult)
 	if err != nil {
 		return nil, fmt.Errorf("enriching commits: %w", err)
 	}

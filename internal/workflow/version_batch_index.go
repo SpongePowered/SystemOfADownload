@@ -118,9 +118,9 @@ func (s *versionBatchState) continueOrComplete(ctx workflow.Context) (int, error
 		s.drainCompletionSignals(ctx)
 
 		return 0, workflow.NewContinueAsNewError(ctx, VersionBatchIndexWorkflow, VersionBatchIndexInput{
-			Versions:       s.input.Versions,
+			Versions:       s.input.Versions[s.offset:],
 			WindowSize:     s.input.WindowSize,
-			Offset:         s.offset,
+			Offset:         0,
 			Progress:       s.progress,
 			CurrentRecords: s.currentRecords,
 		})
