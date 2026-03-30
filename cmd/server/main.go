@@ -9,6 +9,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-chi/httplog/v2"
+	"github.com/go-slog/otelslog"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.temporal.io/sdk/client"
@@ -114,26 +116,29 @@ func NewHTTPServer(lc fx.Lifecycle, cfg *Config, handler http.Handler, s fx.Shut
 	return srv
 }
 
-// OTelShutdown is a named type so fx can distinguish it from other func signatures.
-type OTelShutdown func(context.Context) error
-
-func NewOTelShutdown(lc fx.Lifecycle) OTelShutdown {
-	shutdown, err := otelsetup.Setup(context.Background(), "soad-server")
+func NewOTel(lc fx.Lifecycle) *otelsetup.Result {
+	result, err := otelsetup.Setup(context.Background(), "soad-server")
 	if err != nil {
 		slog.Error("failed to initialize OpenTelemetry", "error", err)
-		return func(context.Context) error { return nil }
+		return &otelsetup.Result{
+			Shutdown:       func(context.Context) error { return nil },
+			MetricsHandler: http.NotFoundHandler(),
+		}
 	}
+
+	// Set traced slog as default so all log output includes trace/span IDs
+	slog.SetDefault(slog.New(otelslog.NewHandler(slog.Default().Handler())))
 
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
 			slog.InfoContext(ctx, "shutting down OpenTelemetry")
-			return shutdown(ctx)
+			return result.Shutdown(ctx)
 		},
 	})
-	return shutdown
+	return result
 }
 
-func NewMux(h *httpapi.Handler, cfg *Config, _ OTelShutdown) http.Handler {
+func NewMux(h *httpapi.Handler, cfg *Config, otel *otelsetup.Result) http.Handler {
 	middlewares := []api.StrictMiddlewareFunc{
 		httpapi.AdminAuthMiddleware(cfg.AdminToken),
 	}
@@ -144,15 +149,25 @@ func NewMux(h *httpapi.Handler, cfg *Config, _ OTelShutdown) http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = fmt.Fprintln(w, "OK")
 	})
+	mux.Handle("/metrics", otel.MetricsHandler)
 
-	return otelhttp.NewHandler(api.HandlerFromMux(apiHandler, mux), "soad-server")
+	logger := httplog.NewLogger("soad-server", httplog.Options{
+		LogLevel:        slog.LevelInfo,
+		Concise:         true,
+		RequestHeaders:  true,
+		QuietDownRoutes: []string{"/healthz", "/metrics"},
+		QuietDownPeriod: 10 * time.Second,
+	})
+
+	handler := otelhttp.NewHandler(api.HandlerFromMux(apiHandler, mux), "soad-server")
+	return httplog.RequestLogger(logger)(handler)
 }
 
 func main() {
 	fx.New(
 		fx.Provide(
 			NewConfig,
-			NewOTelShutdown,
+			NewOTel,
 			NewDBPool,
 			NewTemporalClient,
 			repository.NewRepository,

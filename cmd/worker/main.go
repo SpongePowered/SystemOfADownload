@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
+	"github.com/go-slog/otelslog"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.temporal.io/sdk/client"
 	temporalotel "go.temporal.io/sdk/contrib/opentelemetry"
@@ -30,6 +33,7 @@ type Config struct {
 	SonatypeRepoName  string
 	DatabaseURL       string
 	GitCacheDir       string
+	MetricsPort       string
 }
 
 func NewConfig() *Config {
@@ -57,6 +61,10 @@ func NewConfig() *Config {
 	if gitCacheDir == "" {
 		gitCacheDir = "/var/cache/soad/git"
 	}
+	metricsPort := os.Getenv("METRICS_PORT")
+	if metricsPort == "" {
+		metricsPort = "9090"
+	}
 	return &Config{
 		TemporalHostPort:  hostPort,
 		TemporalNamespace: namespace,
@@ -64,29 +72,52 @@ func NewConfig() *Config {
 		SonatypeRepoName:  repoName,
 		DatabaseURL:       databaseURL,
 		GitCacheDir:       gitCacheDir,
+		MetricsPort:       metricsPort,
 	}
 }
 
-// OTelShutdown is a named type so fx can distinguish it from other func signatures.
-type OTelShutdown func(context.Context) error
-
-func NewOTelShutdown(lc fx.Lifecycle) OTelShutdown {
-	shutdown, err := otelsetup.Setup(context.Background(), "soad-worker")
+func NewOTel(lc fx.Lifecycle, cfg *Config) *otelsetup.Result {
+	result, err := otelsetup.Setup(context.Background(), "soad-worker")
 	if err != nil {
 		slog.Error("failed to initialize OpenTelemetry", "error", err)
-		return func(context.Context) error { return nil }
+		return &otelsetup.Result{
+			Shutdown:       func(context.Context) error { return nil },
+			MetricsHandler: http.NotFoundHandler(),
+		}
+	}
+
+	// Set traced slog as default so all log output includes trace/span IDs
+	slog.SetDefault(slog.New(otelslog.NewHandler(slog.Default().Handler())))
+
+	// Start metrics HTTP server for Prometheus scraping
+	metricsMux := http.NewServeMux()
+	metricsMux.Handle("/metrics", result.MetricsHandler)
+	metricsSrv := &http.Server{
+		Addr:              ":" + cfg.MetricsPort,
+		Handler:           metricsMux,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			slog.InfoContext(ctx, "starting metrics server", "addr", ":"+cfg.MetricsPort)
+			go func() {
+				if err := metricsSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+					slog.Error("metrics server failed", "error", err)
+				}
+			}()
+			return nil
+		},
 		OnStop: func(ctx context.Context) error {
 			slog.InfoContext(ctx, "shutting down OpenTelemetry")
-			return shutdown(ctx)
+			_ = metricsSrv.Shutdown(ctx)
+			return result.Shutdown(ctx)
 		},
 	})
-	return shutdown
+	return result
 }
 
-func NewTemporalClient(lc fx.Lifecycle, cfg *Config, _ OTelShutdown) (client.Client, error) {
+func NewTemporalClient(lc fx.Lifecycle, cfg *Config, _ *otelsetup.Result) (client.Client, error) {
 	logger := tlog.NewStructuredLogger(slog.Default().With("component", "temporal"))
 
 	tracingInterceptor, err := temporalotel.NewTracingInterceptor(temporalotel.TracerOptions{})
@@ -179,7 +210,7 @@ func main() {
 	fx.New(
 		fx.Provide(
 			NewConfig,
-			NewOTelShutdown,
+			NewOTel,
 			NewTemporalClient,
 			NewDatabasePool,
 			repository.NewRepository,
