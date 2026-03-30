@@ -66,9 +66,12 @@ worker.Options{
             DeploymentName: "soad-worker",
             BuildID:        cfg.BuildID,
         },
+        DefaultVersioningBehavior: workflow.VersioningBehaviorAutoUpgrade,
     },
 }
 ```
+
+`AutoUpgrade` means in-flight workflows automatically move to the new build after `set-current-version` promotes it — no manual pinning needed.
 
 **Promotion flow:** After deployment, an ArgoCD PostSync Job promotes the new build:
 ```

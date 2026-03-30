@@ -16,6 +16,7 @@ import (
 	"go.temporal.io/sdk/interceptor"
 	tlog "go.temporal.io/sdk/log"
 	"go.temporal.io/sdk/worker"
+	"go.temporal.io/sdk/workflow"
 	"go.uber.org/fx"
 
 	"github.com/spongepowered/systemofadownload/internal/activity"
@@ -194,6 +195,7 @@ func NewTemporalWorker(
 				DeploymentName: "soad-worker",
 				BuildID:        cfg.BuildID,
 			},
+			DefaultVersioningBehavior: workflow.VersioningBehaviorAutoUpgrade,
 		},
 	})
 
