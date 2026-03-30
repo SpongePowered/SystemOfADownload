@@ -1734,6 +1734,63 @@ func (_c *MockWrites_CreateGroup_Call) RunAndReturn(run func(ctx context.Context
 	return _c
 }
 
+// DeleteArtifactVersionAssets provides a mock function for the type MockWrites
+func (_mock *MockWrites) DeleteArtifactVersionAssets(ctx context.Context, artifactVersionID int64) error {
+	ret := _mock.Called(ctx, artifactVersionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteArtifactVersionAssets")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = returnFunc(ctx, artifactVersionID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockWrites_DeleteArtifactVersionAssets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteArtifactVersionAssets'
+type MockWrites_DeleteArtifactVersionAssets_Call struct {
+	*mock.Call
+}
+
+// DeleteArtifactVersionAssets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - artifactVersionID int64
+func (_e *MockWrites_Expecter) DeleteArtifactVersionAssets(ctx interface{}, artifactVersionID interface{}) *MockWrites_DeleteArtifactVersionAssets_Call {
+	return &MockWrites_DeleteArtifactVersionAssets_Call{Call: _e.mock.On("DeleteArtifactVersionAssets", ctx, artifactVersionID)}
+}
+
+func (_c *MockWrites_DeleteArtifactVersionAssets_Call) Run(run func(ctx context.Context, artifactVersionID int64)) *MockWrites_DeleteArtifactVersionAssets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockWrites_DeleteArtifactVersionAssets_Call) Return(err error) *MockWrites_DeleteArtifactVersionAssets_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockWrites_DeleteArtifactVersionAssets_Call) RunAndReturn(run func(ctx context.Context, artifactVersionID int64) error) *MockWrites_DeleteArtifactVersionAssets_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteArtifactVersionTags provides a mock function for the type MockWrites
 func (_mock *MockWrites) DeleteArtifactVersionTags(ctx context.Context, artifactVersionID int64) error {
 	ret := _mock.Called(ctx, artifactVersionID)
@@ -2447,6 +2504,63 @@ func (_c *MockTx_CreateGroup_Call) Return(group db.Group, err error) *MockTx_Cre
 }
 
 func (_c *MockTx_CreateGroup_Call) RunAndReturn(run func(ctx context.Context, arg db.CreateGroupParams) (db.Group, error)) *MockTx_CreateGroup_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteArtifactVersionAssets provides a mock function for the type MockTx
+func (_mock *MockTx) DeleteArtifactVersionAssets(ctx context.Context, artifactVersionID int64) error {
+	ret := _mock.Called(ctx, artifactVersionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteArtifactVersionAssets")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = returnFunc(ctx, artifactVersionID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTx_DeleteArtifactVersionAssets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteArtifactVersionAssets'
+type MockTx_DeleteArtifactVersionAssets_Call struct {
+	*mock.Call
+}
+
+// DeleteArtifactVersionAssets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - artifactVersionID int64
+func (_e *MockTx_Expecter) DeleteArtifactVersionAssets(ctx interface{}, artifactVersionID interface{}) *MockTx_DeleteArtifactVersionAssets_Call {
+	return &MockTx_DeleteArtifactVersionAssets_Call{Call: _e.mock.On("DeleteArtifactVersionAssets", ctx, artifactVersionID)}
+}
+
+func (_c *MockTx_DeleteArtifactVersionAssets_Call) Run(run func(ctx context.Context, artifactVersionID int64)) *MockTx_DeleteArtifactVersionAssets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_DeleteArtifactVersionAssets_Call) Return(err error) *MockTx_DeleteArtifactVersionAssets_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTx_DeleteArtifactVersionAssets_Call) RunAndReturn(run func(ctx context.Context, artifactVersionID int64) error) *MockTx_DeleteArtifactVersionAssets_Call {
 	_c.Call.Return(run)
 	return _c
 }

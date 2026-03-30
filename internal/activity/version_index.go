@@ -74,20 +74,21 @@ func (a *VersionIndexActivities) StoreVersionAssets(ctx context.Context, input S
 
 	stored := 0
 	err = a.Repo.WithTx(ctx, func(tx repository.Tx) error {
-		for _, asset := range input.Assets {
-			classifier := &asset.Classifier
-			if asset.Classifier == "" {
-				classifier = nil
-			}
-			sha := &asset.Sha256
-			if asset.Sha256 == "" {
-				sha = nil
-			}
+		// Delete existing assets so re-syncs replace stale data
+		if err := tx.DeleteArtifactVersionAssets(ctx, av.ID); err != nil {
+			return fmt.Errorf("deleting existing assets: %w", err)
+		}
+		for i := range input.Assets {
+			asset := &input.Assets[i]
 			_, err := tx.CreateArtifactVersionAsset(ctx, db.CreateArtifactVersionAssetParams{
 				ArtifactVersionID: av.ID,
-				Classifier:        classifier,
-				Sha256:            sha,
+				Classifier:        ptrOrNil(asset.Classifier),
+				Sha256:            ptrOrNil(asset.Sha256),
 				DownloadUrl:       asset.DownloadURL,
+				Md5:               ptrOrNil(asset.Md5),
+				Sha1:              ptrOrNil(asset.Sha1),
+				Sha512:            ptrOrNil(asset.Sha512),
+				Extension:         ptrOrNil(asset.Extension),
 			})
 			if err != nil {
 				return fmt.Errorf("creating asset %s: %w", asset.Path, err)
@@ -141,9 +142,9 @@ func (a *VersionIndexActivities) BuildAndStoreTags(ctx context.Context, input Bu
 		if err != nil {
 			return nil, fmt.Errorf("compiling regex for tag %q: %w", rule.Name, err)
 		}
-		for _, asset := range input.Assets {
+		for i := range input.Assets {
 			// Test against classifier and path
-			if re.MatchString(asset.Classifier) || re.MatchString(asset.Path) {
+			if re.MatchString(input.Assets[i].Classifier) || re.MatchString(input.Assets[i].Path) {
 				matched = append(matched, matchedTag{
 					key:               rule.Name,
 					value:             rule.Test,
@@ -207,15 +208,15 @@ type InspectJarsForCommitsOutput struct {
 // and is called directly from workflow code (not as an activity).
 func PickBestJarCandidate(assets []domain.AssetInfo) *JarCommitCandidate {
 	var fallback *JarCommitCandidate
-	for _, asset := range assets {
-		if asset.Extension != "jar" && !strings.HasSuffix(asset.Path, ".jar") {
+	for i := range assets {
+		if assets[i].Extension != "jar" && !strings.HasSuffix(assets[i].Path, ".jar") {
 			continue
 		}
 		candidate := JarCommitCandidate{
-			DownloadURL: asset.DownloadURL,
-			Classifier:  asset.Classifier,
+			DownloadURL: assets[i].DownloadURL,
+			Classifier:  assets[i].Classifier,
 		}
-		if asset.Classifier == "" {
+		if assets[i].Classifier == "" {
 			return &candidate
 		}
 		if fallback == nil {
@@ -398,4 +399,11 @@ func (a *VersionIndexActivities) StoreCommitInfo(ctx context.Context, input Stor
 
 func marshalCommitBody(info domain.CommitInfo) ([]byte, error) { //nolint:gocritic // small helper, value type is fine
 	return json.Marshal(info)
+}
+
+func ptrOrNil(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }

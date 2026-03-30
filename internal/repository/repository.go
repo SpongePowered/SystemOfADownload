@@ -50,6 +50,7 @@ type Writes interface {
 	CreateArtifactVersionAsset(ctx context.Context, arg db.CreateArtifactVersionAssetParams) (db.ArtifactVersionedAsset, error)
 	CreateArtifactVersionTag(ctx context.Context, arg db.CreateArtifactVersionTagParams) (db.ArtifactVersionedTag, error)
 	CreateGroup(ctx context.Context, arg db.CreateGroupParams) (db.Group, error)
+	DeleteArtifactVersionAssets(ctx context.Context, artifactVersionID int64) error
 	DeleteArtifactVersionTags(ctx context.Context, artifactVersionID int64) error
 	UpdateArtifactFields(ctx context.Context, arg db.UpdateArtifactFieldsParams) (db.Artifact, error)
 	UpdateArtifactVersionCommitBody(ctx context.Context, arg db.UpdateArtifactVersionCommitBodyParams) error

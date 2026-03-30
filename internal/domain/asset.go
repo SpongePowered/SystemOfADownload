@@ -7,7 +7,10 @@ type AssetInfo struct {
 	ContentType string
 	Classifier  string
 	Extension   string
+	Md5         string
+	Sha1        string
 	Sha256      string
+	Sha512      string
 }
 
 // ArtifactTag defines a rule for building tagged metadata on artifact versions.

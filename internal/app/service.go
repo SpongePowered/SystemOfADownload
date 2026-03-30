@@ -217,7 +217,11 @@ func (s *Service) GetVersions(ctx context.Context, params repository.VersionQuer
 type VersionAsset struct {
 	Classifier  string
 	DownloadURL string
+	Md5         string
+	Sha1        string
 	Sha256      string
+	Sha512      string
+	Extension   string
 }
 
 // VersionDetail holds all data for a single version info response.
@@ -261,17 +265,14 @@ func (s *Service) GetVersionInfo(ctx context.Context, groupID, artifactID, versi
 
 	versionAssets := make([]VersionAsset, len(assets))
 	for i, a := range assets {
-		var classifier, sha256 string
-		if a.Classifier != nil {
-			classifier = *a.Classifier
-		}
-		if a.Sha256 != nil {
-			sha256 = *a.Sha256
-		}
 		versionAssets[i] = VersionAsset{
-			Classifier:  classifier,
+			Classifier:  deref(a.Classifier),
 			DownloadURL: a.DownloadUrl,
-			Sha256:      sha256,
+			Md5:         deref(a.Md5),
+			Sha1:        deref(a.Sha1),
+			Sha256:      deref(a.Sha256),
+			Sha512:      deref(a.Sha512),
+			Extension:   deref(a.Extension),
 		}
 	}
 
@@ -476,4 +477,11 @@ func (s *Service) UpdateArtifact(ctx context.Context, groupID, artifactID string
 		Issues:          updated.Issues,
 		GitRepositories: gitRepos,
 	}, nil
+}
+
+func deref(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }

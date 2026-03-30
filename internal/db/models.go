@@ -30,6 +30,10 @@ type ArtifactVersionedAsset struct {
 	Classifier        *string
 	Sha256            *string
 	DownloadUrl       string
+	Md5               *string
+	Sha1              *string
+	Sha512            *string
+	Extension         *string
 }
 
 type ArtifactVersionedTag struct {

@@ -109,7 +109,7 @@ func TestStoreVersionAssets(t *testing.T) {
 			input: activity.StoreVersionAssetsInput{
 				GroupID: groupID, ArtifactID: artifactID, Version: version,
 				Assets: []domain.AssetInfo{
-					{DownloadURL: "https://repo.example/spongeapi-8.0.0.jar", Classifier: "sources", Sha256: "abc123"},
+					{DownloadURL: "https://repo.example/spongeapi-8.0.0.jar", Classifier: "sources", Sha256: "abc123", Md5: "md5hash", Sha1: "sha1hash", Sha512: "sha512hash", Extension: "jar"},
 				},
 			},
 			mockSetup: func(repo *repomocks.MockRepository, tx *repomocks.MockTx) {
@@ -117,13 +117,23 @@ func TestStoreVersionAssets(t *testing.T) {
 					GroupID: groupID, ArtifactID: artifactID, Version: version,
 				}).Return(avRow, nil)
 
+				tx.EXPECT().DeleteArtifactVersionAssets(mock.Anything, int64(10)).Return(nil)
+
 				classifier := "sources"
 				sha := "abc123"
+				md5 := "md5hash"
+				sha1 := "sha1hash"
+				sha512 := "sha512hash"
+				ext := "jar"
 				tx.EXPECT().CreateArtifactVersionAsset(mock.Anything, db.CreateArtifactVersionAssetParams{
 					ArtifactVersionID: 10,
 					Classifier:        &classifier,
 					Sha256:            &sha,
 					DownloadUrl:       "https://repo.example/spongeapi-8.0.0.jar",
+					Md5:               &md5,
+					Sha1:              &sha1,
+					Sha512:            &sha512,
+					Extension:         &ext,
 				}).Return(db.ArtifactVersionedAsset{}, nil)
 
 				repo.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(

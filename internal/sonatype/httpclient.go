@@ -22,7 +22,10 @@ type searchAssetItem struct {
 	Path        string `json:"path"`
 	ContentType string `json:"contentType"`
 	Checksum    struct {
+		Md5    string `json:"md5"`
+		Sha1   string `json:"sha1"`
 		Sha256 string `json:"sha256"`
+		Sha512 string `json:"sha512"`
 	} `json:"checksum"`
 	Maven2 *searchAssetMaven2 `json:"maven2"`
 }
@@ -182,11 +185,18 @@ func (c *HTTPClient) SearchAssets(ctx context.Context, groupID, artifactID, vers
 		}
 
 		for _, item := range searchResp.Items {
+			// Skip checksum files — their extension contains a dot (e.g. "jar.md5", "pom.sha1")
+			if item.Maven2 != nil && strings.Contains(item.Maven2.Extension, ".") {
+				continue
+			}
 			asset := domain.AssetInfo{
 				DownloadURL: item.DownloadURL,
 				Path:        item.Path,
 				ContentType: item.ContentType,
+				Md5:         item.Checksum.Md5,
+				Sha1:        item.Checksum.Sha1,
 				Sha256:      item.Checksum.Sha256,
+				Sha512:      item.Checksum.Sha512,
 			}
 			if item.Maven2 != nil {
 				asset.Extension = item.Maven2.Extension

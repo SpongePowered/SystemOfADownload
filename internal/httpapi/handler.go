@@ -429,6 +429,18 @@ func buildVersionInfoResponse(detail *app.VersionDetail) api.VersionInfo {
 			Classifier:  &classifier,
 			DownloadUrl: &downloadURL,
 		}
+		if a.Md5 != "" {
+			md5 := a.Md5
+			assets[i].Md5 = &md5
+		}
+		if a.Sha1 != "" {
+			sha1 := a.Sha1
+			assets[i].Sha1 = &sha1
+		}
+		if a.Extension != "" {
+			ext := a.Extension
+			assets[i].Extension = &ext
+		}
 	}
 
 	var tags *map[string]string

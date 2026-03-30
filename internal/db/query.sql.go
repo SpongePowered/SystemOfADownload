@@ -111,9 +111,9 @@ func (q *Queries) CreateArtifactVersion(ctx context.Context, arg CreateArtifactV
 }
 
 const createArtifactVersionAsset = `-- name: CreateArtifactVersionAsset :one
-INSERT INTO artifact_versioned_assets (artifact_version_id, classifier, sha256, download_url)
-VALUES ($1, $2, $3, $4)
-RETURNING id, artifact_version_id, classifier, sha256, download_url
+INSERT INTO artifact_versioned_assets (artifact_version_id, classifier, sha256, download_url, md5, sha1, sha512, extension)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, artifact_version_id, classifier, sha256, download_url, md5, sha1, sha512, extension
 `
 
 type CreateArtifactVersionAssetParams struct {
@@ -121,6 +121,10 @@ type CreateArtifactVersionAssetParams struct {
 	Classifier        *string
 	Sha256            *string
 	DownloadUrl       string
+	Md5               *string
+	Sha1              *string
+	Sha512            *string
+	Extension         *string
 }
 
 func (q *Queries) CreateArtifactVersionAsset(ctx context.Context, arg CreateArtifactVersionAssetParams) (ArtifactVersionedAsset, error) {
@@ -129,6 +133,10 @@ func (q *Queries) CreateArtifactVersionAsset(ctx context.Context, arg CreateArti
 		arg.Classifier,
 		arg.Sha256,
 		arg.DownloadUrl,
+		arg.Md5,
+		arg.Sha1,
+		arg.Sha512,
+		arg.Extension,
 	)
 	var i ArtifactVersionedAsset
 	err := row.Scan(
@@ -137,6 +145,10 @@ func (q *Queries) CreateArtifactVersionAsset(ctx context.Context, arg CreateArti
 		&i.Classifier,
 		&i.Sha256,
 		&i.DownloadUrl,
+		&i.Md5,
+		&i.Sha1,
+		&i.Sha512,
+		&i.Extension,
 	)
 	return i, err
 }
@@ -182,6 +194,16 @@ func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (Group
 	var i Group
 	err := row.Scan(&i.MavenID, &i.Name, &i.Website)
 	return i, err
+}
+
+const deleteArtifactVersionAssets = `-- name: DeleteArtifactVersionAssets :exec
+DELETE FROM artifact_versioned_assets
+WHERE artifact_version_id = $1
+`
+
+func (q *Queries) DeleteArtifactVersionAssets(ctx context.Context, artifactVersionID int64) error {
+	_, err := q.db.Exec(ctx, deleteArtifactVersionAssets, artifactVersionID)
+	return err
 }
 
 const deleteArtifactVersionTags = `-- name: DeleteArtifactVersionTags :exec
@@ -349,7 +371,7 @@ func (q *Queries) IsVersionEnriched(ctx context.Context, id int64) (bool, error)
 }
 
 const listArtifactVersionAssets = `-- name: ListArtifactVersionAssets :many
-SELECT id, artifact_version_id, classifier, sha256, download_url FROM artifact_versioned_assets
+SELECT id, artifact_version_id, classifier, sha256, download_url, md5, sha1, sha512, extension FROM artifact_versioned_assets
 WHERE artifact_version_id = $1
 `
 
@@ -368,6 +390,10 @@ func (q *Queries) ListArtifactVersionAssets(ctx context.Context, artifactVersion
 			&i.Classifier,
 			&i.Sha256,
 			&i.DownloadUrl,
+			&i.Md5,
+			&i.Sha1,
+			&i.Sha512,
+			&i.Extension,
 		); err != nil {
 			return nil, err
 		}

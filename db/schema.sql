@@ -31,7 +31,11 @@ CREATE TABLE artifact_versioned_assets (
     artifact_version_id BIGINT NOT NULL REFERENCES artifact_versions(id),
     classifier TEXT,
     sha256 TEXT,
-    download_url TEXT NOT NULL
+    download_url TEXT NOT NULL,
+    md5 TEXT,
+    sha1 TEXT,
+    sha512 TEXT,
+    extension TEXT
 );
 
 CREATE TABLE artifact_versioned_tags (

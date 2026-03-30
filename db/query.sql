@@ -73,9 +73,13 @@ ON CONFLICT (artifact_id, version) DO UPDATE SET
     commit_body = EXCLUDED.commit_body
 RETURNING *;
 
+-- name: DeleteArtifactVersionAssets :exec
+DELETE FROM artifact_versioned_assets
+WHERE artifact_version_id = $1;
+
 -- name: CreateArtifactVersionAsset :one
-INSERT INTO artifact_versioned_assets (artifact_version_id, classifier, sha256, download_url)
-VALUES ($1, $2, $3, $4)
+INSERT INTO artifact_versioned_assets (artifact_version_id, classifier, sha256, download_url, md5, sha1, sha512, extension)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING *;
 
 -- name: ListArtifactVersionStringsByArtifactID :many

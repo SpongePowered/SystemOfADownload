@@ -434,6 +434,63 @@ func (_c *MockQuerier_CreateGroup_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
+// DeleteArtifactVersionAssets provides a mock function for the type MockQuerier
+func (_mock *MockQuerier) DeleteArtifactVersionAssets(ctx context.Context, artifactVersionID int64) error {
+	ret := _mock.Called(ctx, artifactVersionID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteArtifactVersionAssets")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = returnFunc(ctx, artifactVersionID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockQuerier_DeleteArtifactVersionAssets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteArtifactVersionAssets'
+type MockQuerier_DeleteArtifactVersionAssets_Call struct {
+	*mock.Call
+}
+
+// DeleteArtifactVersionAssets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - artifactVersionID int64
+func (_e *MockQuerier_Expecter) DeleteArtifactVersionAssets(ctx interface{}, artifactVersionID interface{}) *MockQuerier_DeleteArtifactVersionAssets_Call {
+	return &MockQuerier_DeleteArtifactVersionAssets_Call{Call: _e.mock.On("DeleteArtifactVersionAssets", ctx, artifactVersionID)}
+}
+
+func (_c *MockQuerier_DeleteArtifactVersionAssets_Call) Run(run func(ctx context.Context, artifactVersionID int64)) *MockQuerier_DeleteArtifactVersionAssets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockQuerier_DeleteArtifactVersionAssets_Call) Return(err error) *MockQuerier_DeleteArtifactVersionAssets_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockQuerier_DeleteArtifactVersionAssets_Call) RunAndReturn(run func(ctx context.Context, artifactVersionID int64) error) *MockQuerier_DeleteArtifactVersionAssets_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteArtifactVersionTags provides a mock function for the type MockQuerier
 func (_mock *MockQuerier) DeleteArtifactVersionTags(ctx context.Context, artifactVersionID int64) error {
 	ret := _mock.Called(ctx, artifactVersionID)

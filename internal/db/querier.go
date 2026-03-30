@@ -15,6 +15,7 @@ type Querier interface {
 	CreateArtifactVersionAsset(ctx context.Context, arg CreateArtifactVersionAssetParams) (ArtifactVersionedAsset, error)
 	CreateArtifactVersionTag(ctx context.Context, arg CreateArtifactVersionTagParams) (ArtifactVersionedTag, error)
 	CreateGroup(ctx context.Context, arg CreateGroupParams) (Group, error)
+	DeleteArtifactVersionAssets(ctx context.Context, artifactVersionID int64) error
 	DeleteArtifactVersionTags(ctx context.Context, artifactVersionID int64) error
 	GetArtifactByGroupAndId(ctx context.Context, arg GetArtifactByGroupAndIdParams) (Artifact, error)
 	GetArtifactVersion(ctx context.Context, arg GetArtifactVersionParams) (ArtifactVersion, error)
