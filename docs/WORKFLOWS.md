@@ -49,6 +49,36 @@ VersionSyncWorkflow ────────────────────
 ──────────────────────────────────────────────────────────────────────┘
 ```
 
+## Worker Deployment Versioning
+
+The worker uses Temporal's [Worker Deployment Versioning](https://docs.temporal.io/workers#worker-versioning) to enable safe rolling updates. Each worker binary identifies itself with a deployment name and build ID, allowing Temporal to route workflows to compatible workers.
+
+**Configuration (env vars):**
+- `BUILD_ID` (required) — image tag or version identifier, set by the deployment pipeline. The worker will refuse to start if this is empty.
+- `POD_NAME` (optional) — Kubernetes pod name, used as the Temporal client `Identity` for traceability in the Temporal UI.
+
+**Worker registration:**
+```go
+worker.Options{
+    DeploymentOptions: worker.DeploymentOptions{
+        UseVersioning: true,
+        Version: worker.WorkerDeploymentVersion{
+            DeploymentName: "soad-worker",
+            BuildID:        cfg.BuildID,
+        },
+    },
+}
+```
+
+**Promotion flow:** After deployment, an ArgoCD PostSync Job promotes the new build:
+```
+temporal worker deployment set-current-version \
+    --deployment-name=soad-worker \
+    --build-id=$BUILD_ID
+```
+
+The `DeploymentName` ("soad-worker") must match the `--deployment-name` in the PostSync job. The worker self-registers with Temporal on startup; the PostSync job then tells Temporal to route new workflow tasks to this build.
+
 ## Workflow Details
 
 ### VersionSyncWorkflow

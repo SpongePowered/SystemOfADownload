@@ -34,6 +34,8 @@ type Config struct {
 	DatabaseURL       string
 	GitCacheDir       string
 	MetricsPort       string
+	BuildID           string
+	PodName           string
 }
 
 func NewConfig() *Config {
@@ -65,6 +67,12 @@ func NewConfig() *Config {
 	if metricsPort == "" {
 		metricsPort = "9090"
 	}
+	buildID := os.Getenv("BUILD_ID")
+	if buildID == "" {
+		slog.Error("BUILD_ID environment variable is required but not set")
+		os.Exit(1)
+	}
+	podName := os.Getenv("POD_NAME")
 	return &Config{
 		TemporalHostPort:  hostPort,
 		TemporalNamespace: namespace,
@@ -73,6 +81,8 @@ func NewConfig() *Config {
 		DatabaseURL:       databaseURL,
 		GitCacheDir:       gitCacheDir,
 		MetricsPort:       metricsPort,
+		BuildID:           buildID,
+		PodName:           podName,
 	}
 }
 
@@ -127,13 +137,17 @@ func NewTemporalClient(lc fx.Lifecycle, cfg *Config, _ *otelsetup.Result) (clien
 
 	metricsHandler := temporalotel.NewMetricsHandler(temporalotel.MetricsHandlerOptions{})
 
-	c, err := client.Dial(client.Options{
+	dialOpts := client.Options{
 		HostPort:       cfg.TemporalHostPort,
 		Namespace:      cfg.TemporalNamespace,
 		Logger:         logger,
 		MetricsHandler: metricsHandler,
 		Interceptors:   []interceptor.ClientInterceptor{tracingInterceptor},
-	})
+	}
+	if cfg.PodName != "" {
+		dialOpts.Identity = cfg.PodName
+	}
+	c, err := client.Dial(dialOpts)
 	if err != nil {
 		return nil, fmt.Errorf("creating temporal client: %w", err)
 	}
@@ -165,6 +179,7 @@ func NewDatabasePool(lc fx.Lifecycle, cfg *Config) (*pgxpool.Pool, error) {
 func NewTemporalWorker(
 	lc fx.Lifecycle,
 	c client.Client,
+	cfg *Config,
 	syncActivities *activity.VersionSyncActivities,
 	indexActivities *activity.VersionIndexActivities,
 	orderingActivities *activity.VersionOrderingActivities,
@@ -173,6 +188,13 @@ func NewTemporalWorker(
 ) worker.Worker {
 	w := worker.New(c, wf.VersionSyncTaskQueue, worker.Options{
 		MaxConcurrentLocalActivityExecutionSize: 10,
+		DeploymentOptions: worker.DeploymentOptions{
+			UseVersioning: true,
+			Version: worker.WorkerDeploymentVersion{
+				DeploymentName: "soad-worker",
+				BuildID:        cfg.BuildID,
+			},
+		},
 	})
 
 	w.RegisterWorkflow(wf.VersionSyncWorkflow)
