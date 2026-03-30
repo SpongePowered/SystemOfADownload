@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strings"
 
+	temporalactivity "go.temporal.io/sdk/activity"
+
 	"github.com/spongepowered/systemofadownload/internal/db"
 	"github.com/spongepowered/systemofadownload/internal/domain"
 	"github.com/spongepowered/systemofadownload/internal/repository"
@@ -260,9 +262,17 @@ func (a *VersionIndexActivities) ExtractCommitFromJar(ctx context.Context, input
 		return nil, fmt.Errorf("reading jar body: %w", err)
 	}
 
+	// Small or empty responses are corrupt/placeholder artifacts — skip gracefully
+	if len(body) < 100 {
+		return &ExtractCommitFromJarOutput{}, nil
+	}
+
 	commitInfo, err := extractCommitFromZip(body)
 	if err != nil {
-		return nil, fmt.Errorf("extracting commit info: %w", err)
+		// Invalid zip is not fatal — old/corrupt JARs exist on Sonatype
+		temporalactivity.GetLogger(ctx).Warn("failed to read JAR as zip, skipping commit extraction",
+			"url", input.DownloadURL, "error", err, "size", len(body))
+		return &ExtractCommitFromJarOutput{}, nil
 	}
 
 	return &ExtractCommitFromJarOutput{CommitInfo: commitInfo}, nil
