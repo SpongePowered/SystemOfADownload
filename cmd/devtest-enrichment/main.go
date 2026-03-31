@@ -214,15 +214,8 @@ func run(ctx context.Context) error {
 		SonatypeClient: sonatypeClient,
 		Repo:           repo,
 	})
-	w.RegisterActivity(&activity.VersionIndexActivities{
-		SonatypeClient: sonatypeClient,
-		Repo:           repo,
-		HTTPClient:     http.DefaultClient,
-	})
-	w.RegisterActivity(&activity.VersionOrderingActivities{
-		Repo:       repo,
-		HTTPClient: http.DefaultClient,
-	})
+	w.RegisterActivity(activity.NewVersionIndexActivities(sonatypeClient, repo))
+	w.RegisterActivity(activity.NewVersionOrderingActivities(repo))
 	w.RegisterActivity(&activity.ChangelogActivities{Repo: repo})
 	w.RegisterActivity(&activity.GitActivities{Cache: gitCache})
 

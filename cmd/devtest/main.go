@@ -322,10 +322,7 @@ func run(ctx context.Context) error {
 	// --- Register worker ---
 	w := worker.New(c, taskQueue, worker.Options{})
 	w.RegisterWorkflow(wf.VersionOrderingWorkflow)
-	w.RegisterActivity(&activity.VersionOrderingActivities{
-		Repo:       repo,
-		HTTPClient: http.DefaultClient,
-	})
+	w.RegisterActivity(activity.NewVersionOrderingActivities(repo))
 
 	if err := w.Start(); err != nil {
 		return fmt.Errorf("starting worker: %w", err)

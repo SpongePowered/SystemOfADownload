@@ -3,6 +3,7 @@ module github.com/spongepowered/systemofadownload
 go 1.26.1
 
 require (
+	github.com/exaring/otelpgx v0.10.0
 	github.com/go-chi/httplog/v2 v2.1.1
 	github.com/go-slog/otelslog v0.3.0
 	github.com/golang-migrate/migrate/v4 v4.19.1

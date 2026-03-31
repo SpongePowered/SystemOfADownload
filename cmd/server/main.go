@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/exaring/otelpgx"
 	"github.com/go-chi/httplog/v2"
 	"github.com/go-slog/otelslog"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -74,7 +75,12 @@ func NewTemporalClient(lc fx.Lifecycle, cfg *Config) (client.Client, error) {
 }
 
 func NewDBPool(lc fx.Lifecycle, cfg *Config) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
+	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
+	if err != nil {
+		return nil, err
+	}
+	poolCfg.ConnConfig.Tracer = otelpgx.NewTracer()
+	pool, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
 	if err != nil {
 		return nil, err
 	}

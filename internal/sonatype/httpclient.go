@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strings"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/spongepowered/systemofadownload/internal/domain"
 )
 
@@ -50,9 +52,11 @@ type HTTPClient struct {
 // NewHTTPClient creates a new Sonatype Nexus HTTP client.
 func NewHTTPClient(baseURL, repoName string) *HTTPClient {
 	return &HTTPClient{
-		httpClient: http.DefaultClient,
-		baseURL:    strings.TrimRight(baseURL, "/"),
-		repoName:   repoName,
+		httpClient: &http.Client{
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+		},
+		baseURL:  strings.TrimRight(baseURL, "/"),
+		repoName: repoName,
 	}
 }
 

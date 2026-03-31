@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	temporalactivity "go.temporal.io/sdk/activity"
 
 	"github.com/spongepowered/systemofadownload/internal/db"
@@ -24,7 +25,25 @@ import (
 type VersionIndexActivities struct {
 	SonatypeClient sonatype.Client
 	Repo           repository.Repository
-	HTTPClient     *http.Client
+	HTTPClient     *http.Client // nil defaults to an otelhttp-instrumented client
+}
+
+// NewVersionIndexActivities creates a new VersionIndexActivities with an instrumented HTTP client.
+func NewVersionIndexActivities(sc sonatype.Client, repo repository.Repository) *VersionIndexActivities {
+	return &VersionIndexActivities{
+		SonatypeClient: sc,
+		Repo:           repo,
+		HTTPClient: &http.Client{
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+		},
+	}
+}
+
+func (a *VersionIndexActivities) client() *http.Client {
+	if a.HTTPClient != nil {
+		return a.HTTPClient
+	}
+	return &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
 }
 
 // FetchVersionAssetsInput is the input for the FetchVersionAssets activity.
@@ -238,17 +257,12 @@ type ExtractCommitFromJarOutput struct {
 
 // ExtractCommitFromJar downloads a jar and inspects META-INF for commit SHA information.
 func (a *VersionIndexActivities) ExtractCommitFromJar(ctx context.Context, input ExtractCommitFromJarInput) (*ExtractCommitFromJarOutput, error) {
-	httpClient := a.HTTPClient
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
-
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, input.DownloadURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 
-	resp, err := httpClient.Do(req)
+	resp, err := a.client().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("downloading jar: %w", err)
 	}

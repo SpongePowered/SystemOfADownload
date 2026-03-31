@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"slices"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.temporal.io/sdk/activity"
 
 	"github.com/spongepowered/systemofadownload/internal/db"
@@ -17,7 +18,24 @@ import (
 // VersionOrderingActivities holds dependencies for version ordering activities.
 type VersionOrderingActivities struct {
 	Repo       repository.Repository
-	HTTPClient *http.Client
+	HTTPClient *http.Client // nil defaults to an otelhttp-instrumented client
+}
+
+// NewVersionOrderingActivities creates a new VersionOrderingActivities with an instrumented HTTP client.
+func NewVersionOrderingActivities(repo repository.Repository) *VersionOrderingActivities {
+	return &VersionOrderingActivities{
+		Repo: repo,
+		HTTPClient: &http.Client{
+			Transport: otelhttp.NewTransport(http.DefaultTransport),
+		},
+	}
+}
+
+func (a *VersionOrderingActivities) client() *http.Client {
+	if a.HTTPClient != nil {
+		return a.HTTPClient
+	}
+	return &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
 }
 
 // FetchMojangManifestInput is the input for the FetchMojangManifest activity.
@@ -46,11 +64,6 @@ const DefaultMojangManifestURL = "https://piston-meta.mojang.com/mc/game/version
 func (a *VersionOrderingActivities) FetchMojangManifest(ctx context.Context, input FetchMojangManifestInput) (*FetchMojangManifestOutput, error) {
 	logger := activity.GetLogger(ctx)
 
-	httpClient := a.HTTPClient
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
-
 	url := input.ManifestURL
 	if url == "" {
 		url = DefaultMojangManifestURL
@@ -63,7 +76,7 @@ func (a *VersionOrderingActivities) FetchMojangManifest(ctx context.Context, inp
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 
-	resp, err := httpClient.Do(req)
+	resp, err := a.client().Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("fetching manifest: %w", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/exaring/otelpgx"
 	"github.com/go-slog/otelslog"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.temporal.io/sdk/client"
@@ -163,7 +164,12 @@ func NewTemporalClient(lc fx.Lifecycle, cfg *Config, _ *otelsetup.Result) (clien
 }
 
 func NewDatabasePool(lc fx.Lifecycle, cfg *Config) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(context.Background(), cfg.DatabaseURL)
+	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("parsing database config: %w", err)
+	}
+	poolCfg.ConnConfig.Tracer = otelpgx.NewTracer()
+	pool, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
 	if err != nil {
 		return nil, fmt.Errorf("creating database pool: %w", err)
 	}
@@ -244,19 +250,8 @@ func main() {
 			func(sc sonatype.Client, repo repository.Repository) *activity.VersionSyncActivities {
 				return &activity.VersionSyncActivities{SonatypeClient: sc, Repo: repo}
 			},
-			func(sc sonatype.Client, repo repository.Repository) *activity.VersionIndexActivities {
-				return &activity.VersionIndexActivities{
-					SonatypeClient: sc,
-					Repo:           repo,
-					HTTPClient:     http.DefaultClient,
-				}
-			},
-			func(repo repository.Repository) *activity.VersionOrderingActivities {
-				return &activity.VersionOrderingActivities{
-					Repo:       repo,
-					HTTPClient: http.DefaultClient,
-				}
-			},
+			activity.NewVersionIndexActivities,
+			activity.NewVersionOrderingActivities,
 			func(repo repository.Repository) *activity.ChangelogActivities {
 				return &activity.ChangelogActivities{Repo: repo}
 			},
