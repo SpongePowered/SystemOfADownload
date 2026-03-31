@@ -134,8 +134,11 @@ func NewOTel(lc fx.Lifecycle) *otelsetup.Result {
 		}
 	}
 
-	// Set traced slog as default so all log output includes trace/span IDs
-	slog.SetDefault(slog.New(otelslog.NewHandler(slog.Default().Handler())))
+	// Set traced slog as default so all log output includes trace/span IDs.
+	// Use a fresh TextHandler writing directly to stderr to avoid a deadlock:
+	// slog.SetDefault redirects log.Default() through the new handler, so
+	// wrapping the original defaultHandler would create a circular chain.
+	slog.SetDefault(slog.New(otelslog.NewHandler(slog.NewTextHandler(os.Stderr, nil))))
 
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
