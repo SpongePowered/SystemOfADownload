@@ -169,7 +169,9 @@ func NewDatabasePool(lc fx.Lifecycle, cfg *Config) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("parsing database config: %w", err)
 	}
 	poolCfg.ConnConfig.Tracer = otelpgx.NewTracer()
-	pool, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		return nil, fmt.Errorf("creating database pool: %w", err)
 	}
@@ -238,6 +240,7 @@ func NewTemporalWorker(
 
 func main() {
 	fx.New(
+		fx.StartTimeout(60*time.Second),
 		fx.Provide(
 			NewConfig,
 			NewOTel,

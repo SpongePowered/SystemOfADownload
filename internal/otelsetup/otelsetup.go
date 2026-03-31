@@ -72,7 +72,9 @@ func Setup(ctx context.Context, serviceName string) (*Result, error) {
 	// OTLP exporters (only when endpoint is configured)
 	otlpEnabled := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT") != ""
 	if otlpEnabled {
-		traceExporter, err := otlptracehttp.New(ctx)
+		otlpCtx, otlpCancel := context.WithTimeout(ctx, 10*time.Second)
+		defer otlpCancel()
+		traceExporter, err := otlptracehttp.New(otlpCtx)
 		if err != nil {
 			return nil, err
 		}
@@ -87,7 +89,7 @@ func Setup(ctx context.Context, serviceName string) (*Result, error) {
 			propagation.Baggage{},
 		))
 
-		metricExporter, err := otlpmetrichttp.New(ctx)
+		metricExporter, err := otlpmetrichttp.New(otlpCtx)
 		if err != nil {
 			return &Result{Shutdown: shutdown, MetricsHandler: promhttp.Handler()}, err
 		}

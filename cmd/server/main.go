@@ -80,7 +80,9 @@ func NewDBPool(lc fx.Lifecycle, cfg *Config) (*pgxpool.Pool, error) {
 		return nil, err
 	}
 	poolCfg.ConnConfig.Tracer = otelpgx.NewTracer()
-	pool, err := pgxpool.NewWithConfig(context.Background(), poolCfg)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		return nil, err
 	}
@@ -171,6 +173,7 @@ func NewMux(h *httpapi.Handler, cfg *Config, otel *otelsetup.Result) http.Handle
 
 func main() {
 	fx.New(
+		fx.StartTimeout(60*time.Second),
 		fx.Provide(
 			NewConfig,
 			NewOTel,
