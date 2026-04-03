@@ -19,7 +19,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go build -ldflags "-s -w -X main.Version=${VERSION}" -o /out/worker ./cmd/worker
 
 # --- App image (default target) ---
-FROM alpine:3.22 AS app
+FROM alpine:3.23 AS app
 
 RUN apk add --no-cache ca-certificates git tzdata
 
@@ -29,9 +29,9 @@ COPY --from=builder /out/worker /app/worker
 ENTRYPOINT ["/app/server"]
 
 # --- Migrate image (built with --target migrate) ---
-FROM migrate/migrate:v4.18.3 AS migrate-bin
+FROM migrate/migrate:v4.19.1 AS migrate-bin
 
-FROM alpine:3.22 AS migrate
+FROM alpine:3.23 AS migrate
 
 RUN apk add --no-cache ca-certificates
 
