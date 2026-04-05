@@ -28,6 +28,8 @@ paths:
         - Groups
       description: registers a new group
       operationId: registerGroup
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -76,6 +78,8 @@ paths:
         - Artifacts
       description: registers a new artifact under a group
       operationId: registerArtifact
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/GroupID'
       requestBody:
@@ -118,6 +122,8 @@ paths:
       tags:
         - Artifacts
       operationId: updateArtifact
+      security:
+        - bearerAuth: []
       description: Updates mutable fields on an artifact. Only fields present in the request body are changed.
       parameters:
         - $ref: '#/components/parameters/GroupID'
@@ -153,6 +159,36 @@ paths:
                 $ref: '#/components/schemas/Artifact'
         '404':
           description: Artifact not found
+  '/groups/{groupID}/artifacts/{artifactID}/sync':
+    post:
+      tags:
+        - Artifacts
+      operationId: triggerSync
+      security:
+        - bearerAuth: []
+      description: |
+        Triggers an immediate version sync for the artifact by firing its
+        Temporal Schedule. Use this from CI (e.g. GitHub Actions) after
+        publishing a new version to Sonatype so SOAD indexes it without
+        waiting for the next polling interval.
+      parameters:
+        - $ref: '#/components/parameters/GroupID'
+        - $ref: '#/components/parameters/ArtifactID'
+      responses:
+        '200':
+          description: Sync triggered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "sync triggered"
+        '404':
+          description: No sync schedule found for this artifact (artifact may not be registered)
+        '500':
+          description: Internal error triggering sync
   '/groups/{groupID}/artifacts/{artifactID}/schema':
     get:
       tags:
@@ -175,6 +211,8 @@ paths:
       tags:
         - Artifacts
       operationId: putArtifactSchema
+      security:
+        - bearerAuth: []
       description: Replaces the version schema for an artifact. Triggers recomputation of version ordering and tags.
       parameters:
         - $ref: '#/components/parameters/GroupID'
@@ -652,3 +690,8 @@ components:
         type: string
       description: The maven style artifact id
       required: true
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Admin API token passed via ADMIN_API_TOKEN env var

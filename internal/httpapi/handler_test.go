@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,9 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"go.temporal.io/api/serviceerror"
+	"go.temporal.io/sdk/client"
+
 	"github.com/spongepowered/systemofadownload/api"
 	"github.com/spongepowered/systemofadownload/internal/app"
 	"github.com/spongepowered/systemofadownload/internal/db"
@@ -1150,4 +1154,218 @@ func TestGetVersionsHTTPOrdering(t *testing.T) {
 	}
 
 	t.Logf("Response body:\n%s", body)
+}
+
+// --- Mock types for Temporal ScheduleClient / ScheduleHandle ---
+
+type mockScheduleHandle struct {
+	triggerErr error
+}
+
+func (m *mockScheduleHandle) GetID() string                  { return "" }
+func (m *mockScheduleHandle) Delete(_ context.Context) error { return nil }
+func (m *mockScheduleHandle) Backfill(_ context.Context, _ client.ScheduleBackfillOptions) error {
+	return nil
+}
+func (m *mockScheduleHandle) Update(_ context.Context, _ client.ScheduleUpdateOptions) error {
+	return nil
+}
+func (m *mockScheduleHandle) Describe(_ context.Context) (*client.ScheduleDescription, error) {
+	return nil, nil
+}
+func (m *mockScheduleHandle) Pause(_ context.Context, _ client.SchedulePauseOptions) error {
+	return nil
+}
+func (m *mockScheduleHandle) Unpause(_ context.Context, _ client.ScheduleUnpauseOptions) error {
+	return nil
+}
+func (m *mockScheduleHandle) Trigger(_ context.Context, _ client.ScheduleTriggerOptions) error {
+	return m.triggerErr
+}
+
+type mockScheduleClient struct {
+	handle *mockScheduleHandle
+}
+
+func (m *mockScheduleClient) Create(_ context.Context, _ client.ScheduleOptions) (client.ScheduleHandle, error) { //nolint:gocritic // test mock
+	return m.handle, nil
+}
+
+func (m *mockScheduleClient) List(_ context.Context, _ client.ScheduleListOptions) (client.ScheduleListIterator, error) {
+	return nil, nil
+}
+
+func (m *mockScheduleClient) GetHandle(_ context.Context, _ string) client.ScheduleHandle {
+	return m.handle
+}
+
+func TestVersionSyncScheduleID(t *testing.T) {
+	tests := []struct {
+		groupID    string
+		artifactID string
+		want       string
+	}{
+		{"org.spongepowered", "spongeforge", "version-sync-org.spongepowered-spongeforge"},
+		{"com.example", "my-lib", "version-sync-com.example-my-lib"},
+		{"a", "b", "version-sync-a-b"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.groupID+"/"+tt.artifactID, func(t *testing.T) {
+			got := VersionSyncScheduleID(tt.groupID, tt.artifactID)
+			if got != tt.want {
+				t.Errorf("VersionSyncScheduleID(%q, %q) = %q, want %q", tt.groupID, tt.artifactID, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTriggerSync(t *testing.T) {
+	q := &mockQuerier{
+		groups:    make(map[string]db.Group),
+		artifacts: make(map[string]db.Artifact),
+	}
+	service := app.NewService(q)
+	ctx := context.Background()
+
+	t.Run("happy path", func(t *testing.T) {
+		sc := &mockScheduleClient{handle: &mockScheduleHandle{}}
+		h := NewHandler(service, nil, sc)
+
+		resp, err := h.TriggerSync(ctx, api.TriggerSyncRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongeforge",
+		})
+		if err != nil {
+			t.Fatalf("TriggerSync failed: %v", err)
+		}
+		if _, ok := resp.(api.TriggerSync200JSONResponse); !ok {
+			t.Errorf("expected 200 response, got %T", resp)
+		}
+	})
+
+	t.Run("schedule not found", func(t *testing.T) {
+		sc := &mockScheduleClient{handle: &mockScheduleHandle{
+			triggerErr: serviceerror.NewNotFound("schedule not found"),
+		}}
+		h := NewHandler(service, nil, sc)
+
+		resp, err := h.TriggerSync(ctx, api.TriggerSyncRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "nonexistent",
+		})
+		if err != nil {
+			t.Fatalf("TriggerSync failed: %v", err)
+		}
+		if _, ok := resp.(api.TriggerSync404Response); !ok {
+			t.Errorf("expected 404 response, got %T", resp)
+		}
+	})
+
+	t.Run("temporal unavailable", func(t *testing.T) {
+		sc := &mockScheduleClient{handle: &mockScheduleHandle{
+			triggerErr: fmt.Errorf("connection refused"),
+		}}
+		h := NewHandler(service, nil, sc)
+
+		resp, err := h.TriggerSync(ctx, api.TriggerSyncRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongeforge",
+		})
+		if err != nil {
+			t.Fatalf("TriggerSync failed: %v", err)
+		}
+		if _, ok := resp.(api.TriggerSync500Response); !ok {
+			t.Errorf("expected 500 response, got %T", resp)
+		}
+	})
+
+	t.Run("nil schedule client", func(t *testing.T) {
+		h := NewHandler(service, nil, nil)
+
+		resp, err := h.TriggerSync(ctx, api.TriggerSyncRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongeforge",
+		})
+		if err != nil {
+			t.Fatalf("TriggerSync failed: %v", err)
+		}
+		if _, ok := resp.(api.TriggerSync500Response); !ok {
+			t.Errorf("expected 500 response, got %T", resp)
+		}
+	})
+}
+
+func TestTriggerSyncHTTP(t *testing.T) {
+	q := &mockQuerier{
+		groups:    make(map[string]db.Group),
+		artifacts: make(map[string]db.Artifact),
+	}
+	service := app.NewService(q)
+	sc := &mockScheduleClient{handle: &mockScheduleHandle{}}
+	h := NewHandler(service, nil, sc)
+
+	token := "test-secret-token"
+	middlewares := []api.StrictMiddlewareFunc{
+		AdminAuthMiddleware(token),
+	}
+	apiHandler := api.NewStrictHandler(h, middlewares)
+	mux := api.HandlerFromMux(apiHandler, http.NewServeMux())
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	t.Run("POST with valid token returns 200", func(t *testing.T) {
+		req, _ := http.NewRequest("POST", srv.URL+"/groups/org.spongepowered/artifacts/spongeforge/sync", http.NoBody)
+		req.Header.Set("Authorization", "Bearer "+token)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		if resp.StatusCode != 200 {
+			body, _ := io.ReadAll(resp.Body)
+			t.Fatalf("expected 200, got %d: %s", resp.StatusCode, body)
+		}
+	})
+
+	t.Run("POST without token returns 401", func(t *testing.T) {
+		req, _ := http.NewRequest("POST", srv.URL+"/groups/org.spongepowered/artifacts/spongeforge/sync", http.NoBody)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		if resp.StatusCode != 401 {
+			t.Errorf("expected 401, got %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("POST with wrong token returns 401", func(t *testing.T) {
+		req, _ := http.NewRequest("POST", srv.URL+"/groups/org.spongepowered/artifacts/spongeforge/sync", http.NoBody)
+		req.Header.Set("Authorization", "Bearer wrong-token")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		if resp.StatusCode != 401 {
+			t.Errorf("expected 401, got %d", resp.StatusCode)
+		}
+	})
+
+	t.Run("GET returns 405", func(t *testing.T) {
+		req, _ := http.NewRequest("GET", srv.URL+"/groups/org.spongepowered/artifacts/spongeforge/sync", http.NoBody)
+		req.Header.Set("Authorization", "Bearer "+token)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("request failed: %v", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		if resp.StatusCode != 405 {
+			t.Errorf("expected 405, got %d", resp.StatusCode)
+		}
+	})
 }

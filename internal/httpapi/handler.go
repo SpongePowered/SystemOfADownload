@@ -15,6 +15,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	enumspb "go.temporal.io/api/enums/v1"
+	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/client"
 
 	"github.com/spongepowered/systemofadownload/api"
@@ -25,6 +26,13 @@ import (
 )
 
 var apiMeter = otel.Meter("soad.httpapi")
+
+// VersionSyncScheduleID returns the Temporal Schedule ID for a given artifact's
+// periodic version sync. Used by both RegisterArtifact (schedule creation) and
+// TriggerSync (on-demand trigger).
+func VersionSyncScheduleID(groupID, artifactID string) string {
+	return fmt.Sprintf("version-sync-%s-%s", groupID, artifactID)
+}
 
 // WorkflowStarter is a narrow interface for starting Temporal workflows.
 type WorkflowStarter interface {
@@ -158,7 +166,7 @@ func (h *Handler) RegisterArtifact(ctx context.Context, request api.RegisterArti
 	// TriggerImmediately runs the first sync now; the 2-minute interval handles ongoing polling.
 	// BUFFER_ONE ensures a missed tick runs once the current sync finishes.
 	if h.schedules != nil {
-		scheduleID := fmt.Sprintf("version-sync-%s-%s", request.GroupID, request.Body.ArtifactId)
+		scheduleID := VersionSyncScheduleID(request.GroupID, request.Body.ArtifactId)
 		_, err := h.schedules.Create(ctx, client.ScheduleOptions{
 			ID: scheduleID,
 			Spec: client.ScheduleSpec{
@@ -198,6 +206,42 @@ func (h *Handler) RegisterArtifact(ctx context.Context, request api.RegisterArti
 	}
 
 	return response, nil
+}
+
+func (h *Handler) TriggerSync(ctx context.Context, request api.TriggerSyncRequestObject) (api.TriggerSyncResponseObject, error) {
+	h.countRequest(ctx, "TriggerSync")
+
+	if h.schedules == nil {
+		slog.ErrorContext(ctx, "schedule client not configured")
+		return api.TriggerSync500Response{}, nil
+	}
+
+	scheduleID := VersionSyncScheduleID(request.GroupID, request.ArtifactID)
+	handle := h.schedules.GetHandle(ctx, scheduleID)
+	err := handle.Trigger(ctx, client.ScheduleTriggerOptions{})
+	if err != nil {
+		var notFound *serviceerror.NotFound
+		if errors.As(err, &notFound) {
+			slog.WarnContext(ctx, "no sync schedule found",
+				"groupID", request.GroupID,
+				"artifactID", request.ArtifactID,
+			)
+			return api.TriggerSync404Response{}, nil
+		}
+		slog.ErrorContext(ctx, "failed to trigger sync schedule",
+			"groupID", request.GroupID,
+			"artifactID", request.ArtifactID,
+			"error", err,
+		)
+		return api.TriggerSync500Response{}, nil
+	}
+
+	slog.InfoContext(ctx, "sync triggered",
+		"groupID", request.GroupID,
+		"artifactID", request.ArtifactID,
+	)
+	msg := "sync triggered"
+	return api.TriggerSync200JSONResponse{Message: &msg}, nil
 }
 
 func (h *Handler) GetArtifact(ctx context.Context, request api.GetArtifactRequestObject) (api.GetArtifactResponseObject, error) {
