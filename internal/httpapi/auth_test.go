@@ -15,7 +15,7 @@ func TestAdminAuthMiddleware(t *testing.T) {
 	}
 
 	t.Run("allows read operations without token", func(t *testing.T) {
-		mw := AdminAuthMiddleware("secret123")
+		mw := AdminAuthMiddleware([]string{"secret123"})
 		handler := mw(noopHandler, "GetGroups")
 
 		r := httptest.NewRequest("GET", "/groups", http.NoBody)
@@ -31,7 +31,7 @@ func TestAdminAuthMiddleware(t *testing.T) {
 	})
 
 	t.Run("blocks write operations without token", func(t *testing.T) {
-		mw := AdminAuthMiddleware("secret123")
+		mw := AdminAuthMiddleware([]string{"secret123"})
 		handler := mw(noopHandler, "RegisterArtifact")
 
 		r := httptest.NewRequest("POST", "/groups/org/artifacts", http.NoBody)
@@ -50,7 +50,7 @@ func TestAdminAuthMiddleware(t *testing.T) {
 	})
 
 	t.Run("allows write operations with valid token", func(t *testing.T) {
-		mw := AdminAuthMiddleware("secret123")
+		mw := AdminAuthMiddleware([]string{"secret123"})
 		handler := mw(noopHandler, "RegisterArtifact")
 
 		r := httptest.NewRequest("POST", "/groups/org/artifacts", http.NoBody)
@@ -67,7 +67,7 @@ func TestAdminAuthMiddleware(t *testing.T) {
 	})
 
 	t.Run("rejects wrong token", func(t *testing.T) {
-		mw := AdminAuthMiddleware("secret123")
+		mw := AdminAuthMiddleware([]string{"secret123"})
 		handler := mw(noopHandler, "PutArtifactSchema")
 
 		r := httptest.NewRequest("PUT", "/schema", http.NoBody)
@@ -83,8 +83,8 @@ func TestAdminAuthMiddleware(t *testing.T) {
 		}
 	})
 
-	t.Run("empty token disables auth entirely", func(t *testing.T) {
-		mw := AdminAuthMiddleware("")
+	t.Run("empty tokens disables auth entirely", func(t *testing.T) {
+		mw := AdminAuthMiddleware(nil)
 		handler := mw(noopHandler, "RegisterArtifact")
 
 		r := httptest.NewRequest("POST", "/groups/org/artifacts", http.NoBody)
@@ -99,9 +99,27 @@ func TestAdminAuthMiddleware(t *testing.T) {
 		}
 	})
 
+	t.Run("accepts any of multiple tokens", func(t *testing.T) {
+		mw := AdminAuthMiddleware([]string{"token-a", "token-b"})
+		for _, tok := range []string{"token-a", "token-b"} {
+			handler := mw(noopHandler, "RegisterGroup")
+			r := httptest.NewRequest("POST", "/groups", http.NoBody)
+			r.Header.Set("Authorization", "Bearer "+tok)
+			w := httptest.NewRecorder()
+
+			result, err := handler(context.Background(), w, r, nil)
+			if err != nil {
+				t.Fatalf("unexpected error for token %q: %v", tok, err)
+			}
+			if result != "ok" {
+				t.Errorf("expected handler to execute for token %q", tok)
+			}
+		}
+	})
+
 	t.Run("covers all write operations", func(t *testing.T) {
-		mw := AdminAuthMiddleware("token")
-		for _, op := range []string{"RegisterGroup", "RegisterArtifact", "UpdateArtifact", "PutArtifactSchema"} {
+		mw := AdminAuthMiddleware([]string{"token"})
+		for _, op := range []string{"RegisterGroup", "RegisterArtifact", "UpdateArtifact", "PutArtifactSchema", "TriggerSync"} {
 			handler := mw(noopHandler, op)
 			r := httptest.NewRequest("POST", "/", http.NoBody)
 			w := httptest.NewRecorder()

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/exaring/otelpgx"
@@ -28,7 +29,7 @@ type Config struct {
 	Port             string
 	DatabaseURL      string
 	TemporalHostPort string
-	AdminToken       string
+	AdminTokens      []string
 }
 
 func NewConfig() *Config {
@@ -47,13 +48,20 @@ func NewConfig() *Config {
 		temporalHost = "localhost:7233"
 	}
 
-	adminToken := os.Getenv("ADMIN_API_TOKEN")
+	var adminTokens []string
+	if raw := os.Getenv("ADMIN_API_TOKEN"); raw != "" {
+		for _, t := range strings.Split(raw, ",") {
+			if t = strings.TrimSpace(t); t != "" {
+				adminTokens = append(adminTokens, t)
+			}
+		}
+	}
 
 	return &Config{
 		Port:             port,
 		DatabaseURL:      dbURL,
 		TemporalHostPort: temporalHost,
-		AdminToken:       adminToken,
+		AdminTokens:      adminTokens,
 	}
 }
 
@@ -151,7 +159,7 @@ func NewOTel(lc fx.Lifecycle) *otelsetup.Result {
 
 func NewMux(h *httpapi.Handler, cfg *Config, otel *otelsetup.Result) http.Handler {
 	middlewares := []api.StrictMiddlewareFunc{
-		httpapi.AdminAuthMiddleware(cfg.AdminToken),
+		httpapi.AdminAuthMiddleware(cfg.AdminTokens),
 	}
 	apiHandler := api.NewStrictHandler(h, middlewares)
 	mux := http.NewServeMux()
