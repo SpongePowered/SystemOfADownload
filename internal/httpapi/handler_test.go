@@ -1306,7 +1306,7 @@ func TestTriggerSyncHTTP(t *testing.T) {
 
 	token := "test-secret-token"
 	middlewares := []api.StrictMiddlewareFunc{
-		AdminAuthMiddleware([]string{token}),
+		AdminAuthMiddleware(NewTokenSet([]string{token}, nil)),
 	}
 	apiHandler := api.NewStrictHandler(h, middlewares)
 	mux := api.HandlerFromMux(apiHandler, http.NewServeMux())

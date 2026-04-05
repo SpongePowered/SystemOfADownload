@@ -30,6 +30,7 @@ type Config struct {
 	DatabaseURL      string
 	TemporalHostPort string
 	AdminTokens      []string
+	SyncTokens       []string
 }
 
 func NewConfig() *Config {
@@ -48,21 +49,29 @@ func NewConfig() *Config {
 		temporalHost = "localhost:7233"
 	}
 
-	var adminTokens []string
-	if raw := os.Getenv("ADMIN_API_TOKEN"); raw != "" {
-		for _, t := range strings.Split(raw, ",") {
-			if t = strings.TrimSpace(t); t != "" {
-				adminTokens = append(adminTokens, t)
-			}
-		}
-	}
+	adminTokens := splitTokens(os.Getenv("ADMIN_API_TOKEN"))
+	syncTokens := splitTokens(os.Getenv("SYNC_API_TOKEN"))
 
 	return &Config{
 		Port:             port,
 		DatabaseURL:      dbURL,
 		TemporalHostPort: temporalHost,
 		AdminTokens:      adminTokens,
+		SyncTokens:       syncTokens,
 	}
+}
+
+func splitTokens(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	var out []string
+	for _, t := range strings.Split(raw, ",") {
+		if t = strings.TrimSpace(t); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 func NewTemporalClient(lc fx.Lifecycle, cfg *Config) (client.Client, error) {
@@ -159,7 +168,7 @@ func NewOTel(lc fx.Lifecycle) *otelsetup.Result {
 
 func NewMux(h *httpapi.Handler, cfg *Config, otel *otelsetup.Result) http.Handler {
 	middlewares := []api.StrictMiddlewareFunc{
-		httpapi.AdminAuthMiddleware(cfg.AdminTokens),
+		httpapi.AdminAuthMiddleware(httpapi.NewTokenSet(cfg.AdminTokens, cfg.SyncTokens)),
 	}
 	apiHandler := api.NewStrictHandler(h, middlewares)
 	mux := http.NewServeMux()
