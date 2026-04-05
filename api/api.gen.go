@@ -235,6 +235,9 @@ type ServerInterface interface {
 	// (PUT /groups/{groupID}/artifacts/{artifactID}/schema)
 	PutArtifactSchema(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID)
 
+	// (POST /groups/{groupID}/artifacts/{artifactID}/sync)
+	TriggerSync(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID)
+
 	// (GET /groups/{groupID}/artifacts/{artifactID}/versions)
 	GetVersions(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID, params GetVersionsParams)
 
@@ -535,6 +538,40 @@ func (siw *ServerInterfaceWrapper) PutArtifactSchema(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// TriggerSync operation middleware
+func (siw *ServerInterfaceWrapper) TriggerSync(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "groupID" -------------
+	var groupID GroupID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupID", r.PathValue("groupID"), &groupID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupID", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "artifactID" -------------
+	var artifactID ArtifactID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "artifactID", r.PathValue("artifactID"), &artifactID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "artifactID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TriggerSync(w, r, groupID, artifactID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetVersions operation middleware
 func (siw *ServerInterfaceWrapper) GetVersions(w http.ResponseWriter, r *http.Request) {
 
@@ -777,6 +814,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}/latest", wrapper.GetLatestVersion)
 	m.HandleFunc("GET "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}/schema", wrapper.GetArtifactSchema)
 	m.HandleFunc("PUT "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}/schema", wrapper.PutArtifactSchema)
+	m.HandleFunc("POST "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}/sync", wrapper.TriggerSync)
 	m.HandleFunc("GET "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}/versions", wrapper.GetVersions)
 	m.HandleFunc("GET "+options.BaseURL+"/groups/{groupID}/artifacts/{artifactID}/versions/{versionID}", wrapper.GetVersionInfo)
 
@@ -1041,6 +1079,42 @@ func (response PutArtifactSchema404Response) VisitPutArtifactSchemaResponse(w ht
 	return nil
 }
 
+type TriggerSyncRequestObject struct {
+	GroupID    GroupID    `json:"groupID"`
+	ArtifactID ArtifactID `json:"artifactID"`
+}
+
+type TriggerSyncResponseObject interface {
+	VisitTriggerSyncResponse(w http.ResponseWriter) error
+}
+
+type TriggerSync200JSONResponse struct {
+	Message *string `json:"message,omitempty"`
+}
+
+func (response TriggerSync200JSONResponse) VisitTriggerSyncResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type TriggerSync404Response struct {
+}
+
+func (response TriggerSync404Response) VisitTriggerSyncResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
+	return nil
+}
+
+type TriggerSync500Response struct {
+}
+
+func (response TriggerSync500Response) VisitTriggerSyncResponse(w http.ResponseWriter) error {
+	w.WriteHeader(500)
+	return nil
+}
+
 type GetVersionsRequestObject struct {
 	GroupID    GroupID    `json:"groupID"`
 	ArtifactID ArtifactID `json:"artifactID"`
@@ -1141,6 +1215,9 @@ type StrictServerInterface interface {
 
 	// (PUT /groups/{groupID}/artifacts/{artifactID}/schema)
 	PutArtifactSchema(ctx context.Context, request PutArtifactSchemaRequestObject) (PutArtifactSchemaResponseObject, error)
+
+	// (POST /groups/{groupID}/artifacts/{artifactID}/sync)
+	TriggerSync(ctx context.Context, request TriggerSyncRequestObject) (TriggerSyncResponseObject, error)
 
 	// (GET /groups/{groupID}/artifacts/{artifactID}/versions)
 	GetVersions(ctx context.Context, request GetVersionsRequestObject) (GetVersionsResponseObject, error)
@@ -1461,6 +1538,33 @@ func (sh *strictHandler) PutArtifactSchema(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PutArtifactSchemaResponseObject); ok {
 		if err := validResponse.VisitPutArtifactSchemaResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TriggerSync operation middleware
+func (sh *strictHandler) TriggerSync(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID) {
+	var request TriggerSyncRequestObject
+
+	request.GroupID = groupID
+	request.ArtifactID = artifactID
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TriggerSync(ctx, request.(TriggerSyncRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TriggerSync")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TriggerSyncResponseObject); ok {
+		if err := validResponse.VisitTriggerSyncResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -88,7 +88,7 @@ The `DeploymentName` ("soad-worker") must match the `--deployment-name` in the P
 
 The top-level orchestrator, triggered when an artifact is registered via the HTTP API. It coordinates the entire pipeline from fetching versions through to ordering.
 
-**Trigger:** `POST /groups/{groupID}/artifacts` (fire-and-forget)
+**Trigger:** Temporal Schedule (every 2 minutes), or on-demand via `POST .../sync`
 
 **Input:** `VersionSyncInput{GroupID, ArtifactID, ForceReindex}`
 
@@ -173,14 +173,62 @@ Each artifact can have a `version_schema` stored as JSONB that defines how its v
 
 **Schema management:** The version schema is managed via `PUT /groups/{groupID}/artifacts/{artifactID}/schema`. Updating the schema triggers a `VersionOrderingWorkflow` with `TERMINATE_EXISTING` conflict policy — any in-flight ordering with stale schema is cancelled and restarted.
 
+## Periodic Version Sync (Temporal Schedules)
+
+When an artifact is registered, a Temporal Schedule is created to periodically poll Sonatype for new versions. This ensures new builds published by GitHub Actions are automatically indexed without manual intervention.
+
+**Schedule configuration:**
+- **ID:** `version-sync-{groupID}-{artifactID}`
+- **Interval:** every 2 minutes with 15s jitter
+- **Overlap policy:** `BUFFER_ONE` — if a sync is running when the next tick fires, one run is queued and starts after the current finishes
+- **Trigger immediately:** yes — the first sync runs at registration time
+
+The workflow itself (`VersionSyncWorkflow`) is idempotent: when there are no new versions, it returns early after comparing `maven-metadata.xml` against the DB.
+
+## On-Demand Sync Trigger
+
+The `POST /groups/{groupID}/artifacts/{artifactID}/sync` endpoint triggers an artifact's Temporal Schedule immediately, bypassing the 2-minute polling interval. This is useful after publishing a new version to Sonatype so SOAD indexes it right away.
+
+**Auth:** Requires the same `ADMIN_API_TOKEN` bearer token as other write operations.
+
+**Response codes:**
+- `200` — sync triggered successfully
+- `404` — no schedule found (artifact may not be registered)
+- `500` — Temporal unreachable or internal error
+
+**How it works:** The endpoint calls `ScheduleHandle.Trigger()` on the existing schedule. The schedule's `BUFFER_ONE` overlap policy means rapid repeated triggers are safe — at most one extra run is queued.
+
+### Reusable GitHub Action
+
+A reusable workflow at `.github/workflows/trigger-sync.yml` allows other SpongePowered repos to trigger a sync after publishing artifacts:
+
+```yaml
+jobs:
+  notify-soad:
+    uses: SpongePowered/SystemOfADownload/.github/workflows/trigger-sync.yml@dev
+    with:
+      group-id: org.spongepowered
+      artifact-id: spongeapi
+      api-url: https://dl-api.spongepowered.org
+    secrets:
+      admin-token: ${{ secrets.SOAD_ADMIN_TOKEN }}
+```
+
+**Setup for consuming repos:**
+1. Add a `SOAD_ADMIN_TOKEN` organization secret (or per-repo secret) containing the SOAD `ADMIN_API_TOKEN` value.
+2. Add the `uses:` job above to your release/publish workflow, after the step that pushes artifacts to Sonatype.
+
+**Note:** Sonatype replication may take a few seconds. If the sync runs before the artifact is visible in Sonatype, the next scheduled poll (within 2 minutes) will catch it.
+
 ## Workflow Conflict Policies
 
 | Trigger | Workflow | Conflict Policy | Behavior |
 |---------|----------|----------------|----------|
-| `RegisterArtifact` | VersionSyncWorkflow | `USE_EXISTING` | If already running, return handle to existing run |
+| `Schedule` (every 2m) | VersionSyncWorkflow | `BUFFER_ONE` | Queue one run if current sync still running |
+| `POST .../sync` | VersionSyncWorkflow | `BUFFER_ONE` | Same schedule, same policy — triggers immediately |
 | `PutArtifactSchema` | VersionOrderingWorkflow | `TERMINATE_EXISTING` | Cancel stale run, restart with new schema |
 
-Both use `ALLOW_DUPLICATE` reuse policy so workflows can be re-run after completion.
+The `PutArtifactSchema` trigger uses `ALLOW_DUPLICATE` reuse policy so workflows can be re-run after completion.
 
 ### CommitEnrichmentWorkflow
 

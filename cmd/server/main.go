@@ -186,6 +186,9 @@ func main() {
 			func(c client.Client) httpapi.WorkflowStarter {
 				return c
 			},
+			func(c client.Client) client.ScheduleClient {
+				return c.ScheduleClient()
+			},
 			app.NewService,
 			httpapi.NewHandler,
 			NewMux,

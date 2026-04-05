@@ -34,14 +34,15 @@ type WorkflowStarter interface {
 type Handler struct {
 	service    *app.Service
 	workflows  WorkflowStarter
+	schedules  client.ScheduleClient
 	reqCounter metric.Int64Counter
 }
 
-func NewHandler(service *app.Service, workflows WorkflowStarter) *Handler {
+func NewHandler(service *app.Service, workflows WorkflowStarter, schedules client.ScheduleClient) *Handler {
 	counter, _ := apiMeter.Int64Counter("soad.api.requests",
 		metric.WithDescription("Total API requests by operation"),
 	)
-	return &Handler{service: service, workflows: workflows, reqCounter: counter}
+	return &Handler{service: service, workflows: workflows, schedules: schedules, reqCounter: counter}
 }
 
 func (h *Handler) countRequest(ctx context.Context, operation string) {
@@ -153,20 +154,27 @@ func (h *Handler) RegisterArtifact(ctx context.Context, request api.RegisterArti
 		return nil, err
 	}
 
-	// Fire-and-forget: trigger version sync workflow
-	if h.workflows != nil {
-		workflowID := fmt.Sprintf("version-sync-%s-%s", request.GroupID, request.Body.ArtifactId)
-		_, err := h.workflows.ExecuteWorkflow(ctx, client.StartWorkflowOptions{
-			ID:                       workflowID,
-			TaskQueue:                workflow.VersionSyncTaskQueue,
-			WorkflowIDConflictPolicy: enumspb.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING,
-			WorkflowIDReusePolicy:    enumspb.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
-		}, workflow.VersionSyncWorkflow, workflow.VersionSyncInput{
-			GroupID:    request.GroupID,
-			ArtifactID: request.Body.ArtifactId,
+	// Create a Temporal Schedule for periodic version syncing.
+	// TriggerImmediately runs the first sync now; the 2-minute interval handles ongoing polling.
+	// BUFFER_ONE ensures a missed tick runs once the current sync finishes.
+	if h.schedules != nil {
+		scheduleID := fmt.Sprintf("version-sync-%s-%s", request.GroupID, request.Body.ArtifactId)
+		_, err := h.schedules.Create(ctx, client.ScheduleOptions{
+			ID: scheduleID,
+			Spec: client.ScheduleSpec{
+				Intervals: []client.ScheduleIntervalSpec{{Every: 2 * time.Minute}},
+				Jitter:    15 * time.Second,
+			},
+			Action: &client.ScheduleWorkflowAction{
+				Workflow:  workflow.VersionSyncWorkflow,
+				Args:      []any{workflow.VersionSyncInput{GroupID: request.GroupID, ArtifactID: request.Body.ArtifactId}},
+				TaskQueue: workflow.VersionSyncTaskQueue,
+			},
+			Overlap:            enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE,
+			TriggerImmediately: true,
 		})
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to start version sync workflow",
+			slog.ErrorContext(ctx, "failed to create version sync schedule",
 				"groupID", request.GroupID,
 				"artifactID", request.Body.ArtifactId,
 				"error", err)

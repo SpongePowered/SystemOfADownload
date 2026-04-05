@@ -181,7 +181,7 @@ func TestHandler(t *testing.T) {
 		artifacts: make(map[string]db.Artifact),
 	}
 	service := app.NewService(q)
-	handler := NewHandler(service, nil)
+	handler := NewHandler(service, nil, nil)
 
 	ctx := context.Background()
 
@@ -377,7 +377,7 @@ func TestGetVersions(t *testing.T) {
 		},
 	}
 	service := app.NewService(q)
-	handler := NewHandler(service, nil)
+	handler := NewHandler(service, nil, nil)
 	ctx := context.Background()
 
 	t.Run("returns versions for existing artifact", func(t *testing.T) {
@@ -556,7 +556,7 @@ func TestGetVersionInfo(t *testing.T) {
 		},
 	}
 	service := app.NewService(q)
-	handler := NewHandler(service, nil)
+	handler := NewHandler(service, nil, nil)
 	ctx := context.Background()
 
 	t.Run("returns version detail with assets, tags, and commit", func(t *testing.T) {
@@ -847,7 +847,7 @@ func TestPutArtifactSchema(t *testing.T) {
 		},
 	}
 	service := app.NewService(q)
-	handler := NewHandler(service, nil)
+	handler := NewHandler(service, nil, nil)
 	ctx := context.Background()
 
 	useMojang := true
@@ -958,7 +958,7 @@ func TestGetArtifactSchema(t *testing.T) {
 		},
 	}
 	service := app.NewService(q)
-	handler := NewHandler(service, nil)
+	handler := NewHandler(service, nil, nil)
 	ctx := context.Background()
 
 	t.Run("returns schema", func(t *testing.T) {
@@ -1010,7 +1010,7 @@ func TestUpdateArtifact(t *testing.T) {
 		},
 	}
 	service := app.NewService(q)
-	handler := NewHandler(service, nil)
+	handler := NewHandler(service, nil, nil)
 	ctx := context.Background()
 
 	t.Run("updates display name", func(t *testing.T) {
@@ -1089,7 +1089,7 @@ func TestGetVersionsHTTPOrdering(t *testing.T) {
 		},
 	}
 	service := app.NewService(q)
-	handler := NewHandler(service, nil)
+	handler := NewHandler(service, nil, nil)
 
 	// Wire through the full HTTP stack
 	apiHandler := api.NewStrictHandler(handler, nil)
