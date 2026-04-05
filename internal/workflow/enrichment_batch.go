@@ -342,6 +342,7 @@ func enrichVersionWork(ctx workflow.Context, input EnrichVersionInput) error { /
 	enriched := domain.CommitInfo{
 		Sha:        commitResult.Sha,
 		Repository: foundRepo,
+		URL:        domain.CommitURL(foundRepo, commitResult.Sha),
 		Message:    commitResult.Message,
 		Body:       commitResult.Body,
 		Author: &domain.CommitAuthor{
@@ -400,6 +401,7 @@ func enrichSubmodules(
 				settable.Set(&domain.SubmoduleCommit{
 					Repository: sub.URL,
 					Sha:        sub.Sha,
+					URL:        domain.CommitURL(sub.URL, sub.Sha),
 				}, nil)
 				return
 			}
@@ -407,6 +409,7 @@ func enrichSubmodules(
 			settable.Set(&domain.SubmoduleCommit{
 				Repository: sub.URL,
 				Sha:        detailOut.Sha,
+				URL:        domain.CommitURL(sub.URL, detailOut.Sha),
 				Message:    detailOut.Message,
 				Author: &domain.CommitAuthor{
 					Name:  detailOut.AuthorName,

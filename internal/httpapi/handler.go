@@ -725,7 +725,10 @@ func apiSchemaToDomain(schema *api.VersionSchema) *domain.VersionSchema {
 
 func commitInfoToAPICommit(info *domain.CommitInfo) api.Commit {
 	sha := info.Sha
-	link := info.Repository
+	link := info.URL
+	if link == "" && info.Repository != "" {
+		link = domain.CommitURL(info.Repository, info.Sha)
+	}
 	c := api.Commit{
 		Sha:  &sha,
 		Link: &link,
@@ -756,9 +759,13 @@ func commitInfoToAPICommit(info *domain.CommitInfo) api.Commit {
 
 func commitSummaryToAPICommit(cs *domain.CommitSummary, repo string) *api.Commit {
 	sha := cs.Sha
+	link := cs.URL
+	if link == "" {
+		link = domain.CommitURL(repo, cs.Sha)
+	}
 	c := api.Commit{
 		Sha:  &sha,
-		Link: &repo,
+		Link: &link,
 	}
 	if cs.Message != "" {
 		c.Message = &cs.Message

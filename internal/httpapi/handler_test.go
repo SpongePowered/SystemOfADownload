@@ -620,8 +620,8 @@ func TestGetVersionInfo(t *testing.T) {
 		if commitEntry.Commit == nil || *commitEntry.Commit.Sha != "abc123" {
 			t.Errorf("expected commit sha abc123")
 		}
-		if *commitEntry.Commit.Link != "https://github.com/SpongePowered/SpongeVanilla" {
-			t.Errorf("expected commit link to repository")
+		if *commitEntry.Commit.Link != "https://github.com/SpongePowered/SpongeVanilla/commit/abc123" {
+			t.Errorf("expected commit link to commit URL, got %s", *commitEntry.Commit.Link)
 		}
 	})
 
@@ -762,8 +762,8 @@ func TestGetVersionInfo(t *testing.T) {
 		if *subs[0].Sha != "sub111" {
 			t.Errorf("expected sub commit sha sub111, got %s", *subs[0].Sha)
 		}
-		if *subs[0].Link != "https://github.com/SpongePowered/SpongeAPI.git" {
-			t.Errorf("expected sub commit link to SpongeAPI repo, got %s", *subs[0].Link)
+		if *subs[0].Link != "https://github.com/SpongePowered/SpongeAPI/commit/sub111" {
+			t.Errorf("expected sub commit link to SpongeAPI commit URL, got %s", *subs[0].Link)
 		}
 	})
 

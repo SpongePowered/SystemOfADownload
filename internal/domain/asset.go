@@ -1,5 +1,10 @@
 package domain
 
+import (
+	"fmt"
+	"strings"
+)
+
 // AssetInfo represents a single asset from a Sonatype Nexus repository search.
 type AssetInfo struct {
 	DownloadURL string
@@ -27,6 +32,7 @@ type CommitInfo struct {
 	Sha        string `json:"sha"`
 	Repository string `json:"repository,omitempty"`
 	Branch     string `json:"branch,omitempty"`
+	URL        string `json:"url,omitempty"` // GitHub commit URL
 
 	// Enrichment fields (populated by CommitEnrichmentWorkflow)
 	Message    string            `json:"message,omitempty"`
@@ -52,6 +58,7 @@ type CommitAuthor struct {
 type SubmoduleCommit struct {
 	Repository string        `json:"repository"`
 	Sha        string        `json:"sha"`
+	URL        string        `json:"url,omitempty"`
 	Message    string        `json:"message,omitempty"`
 	Author     *CommitAuthor `json:"author,omitempty"`
 	CommitDate string        `json:"commitDate,omitempty"`
@@ -67,7 +74,15 @@ type Changelog struct {
 // CommitSummary is a condensed commit record used in changelogs.
 type CommitSummary struct {
 	Sha        string        `json:"sha"`
+	URL        string        `json:"url,omitempty"`
 	Message    string        `json:"message"`
 	Author     *CommitAuthor `json:"author,omitempty"`
 	CommitDate string        `json:"commitDate,omitempty"`
+}
+
+// CommitURL builds a GitHub commit URL from a repository URL and SHA.
+func CommitURL(repoURL, sha string) string {
+	base := strings.TrimRight(repoURL, "/")
+	base = strings.TrimSuffix(base, ".git")
+	return fmt.Sprintf("%s/commit/%s", base, sha)
 }

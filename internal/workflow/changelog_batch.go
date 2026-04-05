@@ -299,7 +299,7 @@ func changelogVersionWork(ctx workflow.Context, input ChangelogVersionInput) err
 			// Git log failed (e.g., unrelated histories). Store changelog without main commits.
 			mainCommits = nil
 		} else {
-			mainCommits = toCommitSummaries(changelogOut.Commits)
+			mainCommits = toCommitSummaries(changelogOut.Commits, currentRepo)
 		}
 	}
 
@@ -486,7 +486,7 @@ func computeSubmoduleChangelogsWithDepth(
 		if len(changelogOut.Commits) > 0 {
 			subChangelog := &domain.Changelog{
 				PreviousVersion: prevSHA,
-				Commits:         toCommitSummaries(changelogOut.Commits),
+				Commits:         toCommitSummaries(changelogOut.Commits, sub.URL),
 			}
 
 			// Recursively resolve nested submodules for this submodule repo
@@ -538,11 +538,12 @@ func computeSubmoduleChangelogsWithDepth(
 	return result
 }
 
-func toCommitSummaries(commits []activity.ChangelogCommit) []domain.CommitSummary {
+func toCommitSummaries(commits []activity.ChangelogCommit, repoURL string) []domain.CommitSummary {
 	summaries := make([]domain.CommitSummary, len(commits))
 	for i, c := range commits {
 		summaries[i] = domain.CommitSummary{
 			Sha:     c.Sha,
+			URL:     domain.CommitURL(repoURL, c.Sha),
 			Message: c.Message,
 			Author: &domain.CommitAuthor{
 				Name:  c.AuthorName,
