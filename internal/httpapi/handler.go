@@ -429,11 +429,12 @@ func (h *Handler) GetLatestVersion(ctx context.Context, request api.GetLatestVer
 	}
 
 	result, err := h.service.GetVersions(ctx, repository.VersionQueryParams{
-		GroupID:    request.GroupID,
-		ArtifactID: request.ArtifactID,
-		Tags:       tags,
-		Limit:      1,
-		Offset:     0,
+		GroupID:     request.GroupID,
+		ArtifactID:  request.ArtifactID,
+		Recommended: request.Params.Recommended,
+		Tags:        tags,
+		Limit:       1,
+		Offset:      0,
 	})
 	if err != nil {
 		if errors.Is(err, app.ErrArtifactNotFound) {

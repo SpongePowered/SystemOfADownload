@@ -243,6 +243,12 @@ paths:
       parameters:
         - $ref: '#/components/parameters/GroupID'
         - $ref: '#/components/parameters/ArtifactID'
+        - name: recommended
+          required: false
+          in: query
+          schema:
+            type: boolean
+            description: If true, only consider versions marked as recommended.
         - name: tags
           required: false
           in: query

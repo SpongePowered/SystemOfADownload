@@ -183,7 +183,8 @@ type UpdateArtifactJSONBody struct {
 
 // GetLatestVersionParams defines parameters for GetLatestVersion.
 type GetLatestVersionParams struct {
-	Tags *string `form:"tags,omitempty" json:"tags,omitempty"`
+	Recommended *bool   `form:"recommended,omitempty" json:"recommended,omitempty"`
+	Tags        *string `form:"tags,omitempty" json:"tags,omitempty"`
 }
 
 // GetVersionsParams defines parameters for GetVersions.
@@ -472,6 +473,14 @@ func (siw *ServerInterfaceWrapper) GetLatestVersion(w http.ResponseWriter, r *ht
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetLatestVersionParams
+
+	// ------------- Optional query parameter "recommended" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "recommended", r.URL.Query(), &params.Recommended)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "recommended", Err: err})
+		return
+	}
 
 	// ------------- Optional query parameter "tags" -------------
 
