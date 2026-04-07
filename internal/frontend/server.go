@@ -9,7 +9,7 @@ import (
 	"github.com/spongepowered/systemofadownload/internal/app"
 )
 
-//go:embed static/css/* static/fonts/*
+//go:embed static/css/* static/fonts/* static/favicon.ico
 var staticFS embed.FS
 
 // Server holds the frontend HTTP handlers and their dependencies.
@@ -37,9 +37,12 @@ func NewServer(service *app.Service) (*Server, error) {
 // Specific routes (/healthz, /settings, /assets/) must be registered before
 // the catch-all /{project} wildcard to avoid conflicts.
 func (s *Server) RegisterRoutes(mux *http.ServeMux, metricsHandler http.Handler) {
-	// Static assets (CSS, images) — embedded in the binary
+	// Static assets (CSS, fonts) — embedded in the binary
 	staticSub, _ := fs.Sub(staticFS, "static")
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(staticSub))))
+
+	// Favicon at the conventional root path, served from the embedded static FS.
+	mux.Handle("GET /favicon.ico", http.FileServer(http.FS(staticSub)))
 
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
 	mux.Handle("GET /metrics", metricsHandler)
