@@ -96,14 +96,14 @@ internal/frontend/
 - [ ] Pre-release MC version filtering in dropdown
 
 ### Phase 3: Sponsors
-- [ ] Read sponsor manifest from `SPONSORS_CONFIG_PATH` at startup (JSON matching legacy `SpongeDownloads/sponsors.json` shape: `name`, `images[]`, `link`, `additionalText`, `weight`)
-- [ ] Graceful fallback when `SPONSORS_CONFIG_PATH` is unset or the file is missing/invalid — render pages without a sponsor block, log a warning, do not crash. Required for local dev and first boot before IaC applies.
-- [ ] Serve sponsor images from `SPONSORS_ASSETS_DIR` at `/assets/sponsors/*` (separate from the embedded `/assets/css/*` and `/assets/fonts/*` routes)
-- [ ] Normalize image paths in the manifest to bare basenames resolved against `SPONSORS_ASSETS_DIR`
-- [ ] Inject sponsor list into the page as `<script type="application/json">` for client-side weighted-random selection (CDN-friendly)
-- [ ] Client-side sponsor picker JS with `<picture>/<source>` rendering and `additionalText`
+- [x] Read sponsor manifest from `SPONSORS_CONFIG_PATH` at startup (JSON matching legacy `SpongeDownloads/sponsors.json` shape: `name`, `images[]`, `link`, `additionalText`, `weight`)
+- [x] Graceful fallback when `SPONSORS_CONFIG_PATH` is unset or the file is missing/invalid — render pages without a sponsor block, log a warning, do not crash. Required for local dev and first boot before IaC applies.
+- [x] Serve sponsor images from `SPONSORS_ASSETS_DIR` at `/assets/sponsors/*` (separate from the embedded `/assets/css/*` and `/assets/fonts/*` routes)
+- [x] Reject non-basename image paths in the manifest (must resolve flat against `SPONSORS_ASSETS_DIR`)
+- [x] Inject sponsor list into the page as `<script type="application/json">` for client-side weighted-random selection (CDN-friendly)
+- [x] Client-side sponsor picker JS with `<picture>/<source>` rendering and `additionalText`
 - [ ] Quiet `/assets/sponsors/*` in the request log alongside `/healthz` and `/metrics`
-- [ ] Cache-Control headers per route (sponsors: `public, max-age=3600`)
+- [ ] Cache-Control headers per route (sponsors: `public, max-age=3600`) — owned by Traefik IngressRoute, not the binary
 
 **Ownership:** `sponsors.json` and the sponsor image files live in the **Infrastructure IaC repo**, not in this repo. They are delivered to the pod as read-only mounts (ConfigMap today) driven by IaC. Updates are a PR to the IaC repo followed by a rolling restart of the frontend Deployment — **no SIGHUP or fsnotify reload is implemented or required**. Do not commit sponsor JSON or imagery to this repo; do not add a placeholder manifest.
 

@@ -60,14 +60,19 @@ type PageData struct {
 	Year      int
 	Page      any
 	ActiveNav string // path segment: "" for overview, platform ID, or "settings"
+	// Sponsors is the pre-marshaled JSON manifest injected into the page
+	// for the client-side picker. Empty when no manifest is configured or
+	// the manifest contains no valid entries; the layout suppresses the
+	// script tags entirely in that case.
+	Sponsors template.JS
 }
 
 // RenderOverview renders the overview page.
-func (t *Templates) RenderOverview(w io.Writer, data PageData) error {
+func (t *Templates) RenderOverview(w io.Writer, data *PageData) error {
 	return t.overview.ExecuteTemplate(w, "layout", data)
 }
 
 // RenderDownloads renders the downloads page.
-func (t *Templates) RenderDownloads(w io.Writer, data PageData) error {
+func (t *Templates) RenderDownloads(w io.Writer, data *PageData) error {
 	return t.downloads.ExecuteTemplate(w, "layout", data)
 }

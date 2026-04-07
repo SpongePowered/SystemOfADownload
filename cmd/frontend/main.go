@@ -25,8 +25,10 @@ import (
 )
 
 type Config struct {
-	Port        string
-	DatabaseURL string
+	Port              string
+	DatabaseURL       string
+	SponsorsCfgPath   string
+	SponsorsAssetsDir string
 }
 
 func NewConfig() *Config {
@@ -41,9 +43,21 @@ func NewConfig() *Config {
 	}
 
 	return &Config{
-		Port:        port,
-		DatabaseURL: dbURL,
+		Port:              port,
+		DatabaseURL:       dbURL,
+		SponsorsCfgPath:   os.Getenv("SPONSORS_CONFIG_PATH"),
+		SponsorsAssetsDir: os.Getenv("SPONSORS_ASSETS_DIR"),
 	}
+}
+
+// NewFrontendServer adapts the cmd-level Config into the frontend.ServerConfig
+// the package constructor expects, so the env-var read stays in main.go and
+// the frontend package remains free of os.Getenv calls.
+func NewFrontendServer(cfg *Config, service *app.Service) (*frontend.Server, error) {
+	return frontend.NewServer(service, frontend.ServerConfig{
+		SponsorsCfgPath:   cfg.SponsorsCfgPath,
+		SponsorsAssetsDir: cfg.SponsorsAssetsDir,
+	})
 }
 
 func NewDBPool(lc fx.Lifecycle, cfg *Config) (*pgxpool.Pool, error) {
@@ -161,7 +175,7 @@ func main() {
 			NewDBPool,
 			repository.NewRepository,
 			app.NewService,
-			frontend.NewServer,
+			NewFrontendServer,
 			NewMux,
 			NewHTTPServer,
 		),

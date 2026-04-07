@@ -15,12 +15,13 @@ import (
 	"github.com/spongepowered/systemofadownload/internal/repository"
 )
 
-func (s *Server) pageData(activeNav string, page any) PageData {
-	return PageData{
+func (s *Server) pageData(activeNav string, page any) *PageData {
+	return &PageData{
 		Platforms: s.platforms,
 		Year:      time.Now().Year(),
 		Page:      page,
 		ActiveNav: activeNav,
+		Sponsors:  s.sponsorsJSON,
 	}
 }
 

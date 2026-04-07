@@ -57,6 +57,13 @@
     {{template "content" .}}
   </main>
 
+  {{if .Sponsors}}
+  {{/* Sponsor data + client-side weighted picker. The picker only acts on
+       pages that include a #sponsor placeholder (currently downloads.gohtml). */}}
+  <script type="application/json" id="sponsors-data">{{.Sponsors}}</script>
+  <script src="/assets/js/sponsors.js"></script>
+  {{end}}
+
   {{/* Footer */}}
   <footer>
     <div class="container">
