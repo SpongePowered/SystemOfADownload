@@ -371,6 +371,158 @@ func (_c *MockReads_GetArtifactVersionSchema_Call) RunAndReturn(run func(ctx con
 	return _c
 }
 
+// GetDefaultTagValue provides a mock function for the type MockReads
+func (_mock *MockReads) GetDefaultTagValue(ctx context.Context, groupID string, artifactID string, tagKey string) (string, error) {
+	ret := _mock.Called(ctx, groupID, artifactID, tagKey)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDefaultTagValue")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (string, error)); ok {
+		return returnFunc(ctx, groupID, artifactID, tagKey)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) string); ok {
+		r0 = returnFunc(ctx, groupID, artifactID, tagKey)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = returnFunc(ctx, groupID, artifactID, tagKey)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockReads_GetDefaultTagValue_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDefaultTagValue'
+type MockReads_GetDefaultTagValue_Call struct {
+	*mock.Call
+}
+
+// GetDefaultTagValue is a helper method to define mock.On call
+//   - ctx context.Context
+//   - groupID string
+//   - artifactID string
+//   - tagKey string
+func (_e *MockReads_Expecter) GetDefaultTagValue(ctx interface{}, groupID interface{}, artifactID interface{}, tagKey interface{}) *MockReads_GetDefaultTagValue_Call {
+	return &MockReads_GetDefaultTagValue_Call{Call: _e.mock.On("GetDefaultTagValue", ctx, groupID, artifactID, tagKey)}
+}
+
+func (_c *MockReads_GetDefaultTagValue_Call) Run(run func(ctx context.Context, groupID string, artifactID string, tagKey string)) *MockReads_GetDefaultTagValue_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockReads_GetDefaultTagValue_Call) Return(s string, err error) *MockReads_GetDefaultTagValue_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *MockReads_GetDefaultTagValue_Call) RunAndReturn(run func(ctx context.Context, groupID string, artifactID string, tagKey string) (string, error)) *MockReads_GetDefaultTagValue_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetDistinctTagValues provides a mock function for the type MockReads
+func (_mock *MockReads) GetDistinctTagValues(ctx context.Context, groupID string, artifactID string) (map[string][]string, error) {
+	ret := _mock.Called(ctx, groupID, artifactID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDistinctTagValues")
+	}
+
+	var r0 map[string][]string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (map[string][]string, error)); ok {
+		return returnFunc(ctx, groupID, artifactID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) map[string][]string); ok {
+		r0 = returnFunc(ctx, groupID, artifactID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string][]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, groupID, artifactID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockReads_GetDistinctTagValues_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDistinctTagValues'
+type MockReads_GetDistinctTagValues_Call struct {
+	*mock.Call
+}
+
+// GetDistinctTagValues is a helper method to define mock.On call
+//   - ctx context.Context
+//   - groupID string
+//   - artifactID string
+func (_e *MockReads_Expecter) GetDistinctTagValues(ctx interface{}, groupID interface{}, artifactID interface{}) *MockReads_GetDistinctTagValues_Call {
+	return &MockReads_GetDistinctTagValues_Call{Call: _e.mock.On("GetDistinctTagValues", ctx, groupID, artifactID)}
+}
+
+func (_c *MockReads_GetDistinctTagValues_Call) Run(run func(ctx context.Context, groupID string, artifactID string)) *MockReads_GetDistinctTagValues_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockReads_GetDistinctTagValues_Call) Return(stringToStrings map[string][]string, err error) *MockReads_GetDistinctTagValues_Call {
+	_c.Call.Return(stringToStrings, err)
+	return _c
+}
+
+func (_c *MockReads_GetDistinctTagValues_Call) RunAndReturn(run func(ctx context.Context, groupID string, artifactID string) (map[string][]string, error)) *MockReads_GetDistinctTagValues_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetGroup provides a mock function for the type MockReads
 func (_mock *MockReads) GetGroup(ctx context.Context, mavenID string) (db.Group, error) {
 	ret := _mock.Called(ctx, mavenID)
@@ -1373,6 +1525,74 @@ func (_c *MockReads_ListVersionsNeedingEnrichment_Call) Return(artifactVersions 
 }
 
 func (_c *MockReads_ListVersionsNeedingEnrichment_Call) RunAndReturn(run func(ctx context.Context, arg db.ListVersionsNeedingEnrichmentParams) ([]db.ArtifactVersion, error)) *MockReads_ListVersionsNeedingEnrichment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVersionsWithAssets provides a mock function for the type MockReads
+func (_mock *MockReads) ListVersionsWithAssets(ctx context.Context, params repository.VersionQueryParams) (*repository.VersionsWithAssetsResult, error) {
+	ret := _mock.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVersionsWithAssets")
+	}
+
+	var r0 *repository.VersionsWithAssetsResult
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) (*repository.VersionsWithAssetsResult, error)); ok {
+		return returnFunc(ctx, params)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) *repository.VersionsWithAssetsResult); ok {
+		r0 = returnFunc(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*repository.VersionsWithAssetsResult)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repository.VersionQueryParams) error); ok {
+		r1 = returnFunc(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockReads_ListVersionsWithAssets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVersionsWithAssets'
+type MockReads_ListVersionsWithAssets_Call struct {
+	*mock.Call
+}
+
+// ListVersionsWithAssets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params repository.VersionQueryParams
+func (_e *MockReads_Expecter) ListVersionsWithAssets(ctx interface{}, params interface{}) *MockReads_ListVersionsWithAssets_Call {
+	return &MockReads_ListVersionsWithAssets_Call{Call: _e.mock.On("ListVersionsWithAssets", ctx, params)}
+}
+
+func (_c *MockReads_ListVersionsWithAssets_Call) Run(run func(ctx context.Context, params repository.VersionQueryParams)) *MockReads_ListVersionsWithAssets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repository.VersionQueryParams
+		if args[1] != nil {
+			arg1 = args[1].(repository.VersionQueryParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockReads_ListVersionsWithAssets_Call) Return(versionsWithAssetsResult *repository.VersionsWithAssetsResult, err error) *MockReads_ListVersionsWithAssets_Call {
+	_c.Call.Return(versionsWithAssetsResult, err)
+	return _c
+}
+
+func (_c *MockReads_ListVersionsWithAssets_Call) RunAndReturn(run func(ctx context.Context, params repository.VersionQueryParams) (*repository.VersionsWithAssetsResult, error)) *MockReads_ListVersionsWithAssets_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2888,6 +3108,158 @@ func (_c *MockTx_GetArtifactVersionSchema_Call) RunAndReturn(run func(ctx contex
 	return _c
 }
 
+// GetDefaultTagValue provides a mock function for the type MockTx
+func (_mock *MockTx) GetDefaultTagValue(ctx context.Context, groupID string, artifactID string, tagKey string) (string, error) {
+	ret := _mock.Called(ctx, groupID, artifactID, tagKey)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDefaultTagValue")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (string, error)); ok {
+		return returnFunc(ctx, groupID, artifactID, tagKey)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) string); ok {
+		r0 = returnFunc(ctx, groupID, artifactID, tagKey)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = returnFunc(ctx, groupID, artifactID, tagKey)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTx_GetDefaultTagValue_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDefaultTagValue'
+type MockTx_GetDefaultTagValue_Call struct {
+	*mock.Call
+}
+
+// GetDefaultTagValue is a helper method to define mock.On call
+//   - ctx context.Context
+//   - groupID string
+//   - artifactID string
+//   - tagKey string
+func (_e *MockTx_Expecter) GetDefaultTagValue(ctx interface{}, groupID interface{}, artifactID interface{}, tagKey interface{}) *MockTx_GetDefaultTagValue_Call {
+	return &MockTx_GetDefaultTagValue_Call{Call: _e.mock.On("GetDefaultTagValue", ctx, groupID, artifactID, tagKey)}
+}
+
+func (_c *MockTx_GetDefaultTagValue_Call) Run(run func(ctx context.Context, groupID string, artifactID string, tagKey string)) *MockTx_GetDefaultTagValue_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_GetDefaultTagValue_Call) Return(s string, err error) *MockTx_GetDefaultTagValue_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *MockTx_GetDefaultTagValue_Call) RunAndReturn(run func(ctx context.Context, groupID string, artifactID string, tagKey string) (string, error)) *MockTx_GetDefaultTagValue_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetDistinctTagValues provides a mock function for the type MockTx
+func (_mock *MockTx) GetDistinctTagValues(ctx context.Context, groupID string, artifactID string) (map[string][]string, error) {
+	ret := _mock.Called(ctx, groupID, artifactID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDistinctTagValues")
+	}
+
+	var r0 map[string][]string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (map[string][]string, error)); ok {
+		return returnFunc(ctx, groupID, artifactID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) map[string][]string); ok {
+		r0 = returnFunc(ctx, groupID, artifactID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string][]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, groupID, artifactID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTx_GetDistinctTagValues_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDistinctTagValues'
+type MockTx_GetDistinctTagValues_Call struct {
+	*mock.Call
+}
+
+// GetDistinctTagValues is a helper method to define mock.On call
+//   - ctx context.Context
+//   - groupID string
+//   - artifactID string
+func (_e *MockTx_Expecter) GetDistinctTagValues(ctx interface{}, groupID interface{}, artifactID interface{}) *MockTx_GetDistinctTagValues_Call {
+	return &MockTx_GetDistinctTagValues_Call{Call: _e.mock.On("GetDistinctTagValues", ctx, groupID, artifactID)}
+}
+
+func (_c *MockTx_GetDistinctTagValues_Call) Run(run func(ctx context.Context, groupID string, artifactID string)) *MockTx_GetDistinctTagValues_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_GetDistinctTagValues_Call) Return(stringToStrings map[string][]string, err error) *MockTx_GetDistinctTagValues_Call {
+	_c.Call.Return(stringToStrings, err)
+	return _c
+}
+
+func (_c *MockTx_GetDistinctTagValues_Call) RunAndReturn(run func(ctx context.Context, groupID string, artifactID string) (map[string][]string, error)) *MockTx_GetDistinctTagValues_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetGroup provides a mock function for the type MockTx
 func (_mock *MockTx) GetGroup(ctx context.Context, mavenID string) (db.Group, error) {
 	ret := _mock.Called(ctx, mavenID)
@@ -3894,6 +4266,74 @@ func (_c *MockTx_ListVersionsNeedingEnrichment_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
+// ListVersionsWithAssets provides a mock function for the type MockTx
+func (_mock *MockTx) ListVersionsWithAssets(ctx context.Context, params repository.VersionQueryParams) (*repository.VersionsWithAssetsResult, error) {
+	ret := _mock.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVersionsWithAssets")
+	}
+
+	var r0 *repository.VersionsWithAssetsResult
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) (*repository.VersionsWithAssetsResult, error)); ok {
+		return returnFunc(ctx, params)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) *repository.VersionsWithAssetsResult); ok {
+		r0 = returnFunc(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*repository.VersionsWithAssetsResult)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repository.VersionQueryParams) error); ok {
+		r1 = returnFunc(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTx_ListVersionsWithAssets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVersionsWithAssets'
+type MockTx_ListVersionsWithAssets_Call struct {
+	*mock.Call
+}
+
+// ListVersionsWithAssets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params repository.VersionQueryParams
+func (_e *MockTx_Expecter) ListVersionsWithAssets(ctx interface{}, params interface{}) *MockTx_ListVersionsWithAssets_Call {
+	return &MockTx_ListVersionsWithAssets_Call{Call: _e.mock.On("ListVersionsWithAssets", ctx, params)}
+}
+
+func (_c *MockTx_ListVersionsWithAssets_Call) Run(run func(ctx context.Context, params repository.VersionQueryParams)) *MockTx_ListVersionsWithAssets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repository.VersionQueryParams
+		if args[1] != nil {
+			arg1 = args[1].(repository.VersionQueryParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_ListVersionsWithAssets_Call) Return(versionsWithAssetsResult *repository.VersionsWithAssetsResult, err error) *MockTx_ListVersionsWithAssets_Call {
+	_c.Call.Return(versionsWithAssetsResult, err)
+	return _c
+}
+
+func (_c *MockTx_ListVersionsWithAssets_Call) RunAndReturn(run func(ctx context.Context, params repository.VersionQueryParams) (*repository.VersionsWithAssetsResult, error)) *MockTx_ListVersionsWithAssets_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateArtifactFields provides a mock function for the type MockTx
 func (_mock *MockTx) UpdateArtifactFields(ctx context.Context, arg db.UpdateArtifactFieldsParams) (db.Artifact, error) {
 	ret := _mock.Called(ctx, arg)
@@ -4486,6 +4926,158 @@ func (_c *MockRepository_GetArtifactVersionSchema_Call) Return(bytes []byte, err
 }
 
 func (_c *MockRepository_GetArtifactVersionSchema_Call) RunAndReturn(run func(ctx context.Context, arg db.GetArtifactVersionSchemaParams) ([]byte, error)) *MockRepository_GetArtifactVersionSchema_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetDefaultTagValue provides a mock function for the type MockRepository
+func (_mock *MockRepository) GetDefaultTagValue(ctx context.Context, groupID string, artifactID string, tagKey string) (string, error) {
+	ret := _mock.Called(ctx, groupID, artifactID, tagKey)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDefaultTagValue")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (string, error)); ok {
+		return returnFunc(ctx, groupID, artifactID, tagKey)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) string); ok {
+		r0 = returnFunc(ctx, groupID, artifactID, tagKey)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = returnFunc(ctx, groupID, artifactID, tagKey)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_GetDefaultTagValue_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDefaultTagValue'
+type MockRepository_GetDefaultTagValue_Call struct {
+	*mock.Call
+}
+
+// GetDefaultTagValue is a helper method to define mock.On call
+//   - ctx context.Context
+//   - groupID string
+//   - artifactID string
+//   - tagKey string
+func (_e *MockRepository_Expecter) GetDefaultTagValue(ctx interface{}, groupID interface{}, artifactID interface{}, tagKey interface{}) *MockRepository_GetDefaultTagValue_Call {
+	return &MockRepository_GetDefaultTagValue_Call{Call: _e.mock.On("GetDefaultTagValue", ctx, groupID, artifactID, tagKey)}
+}
+
+func (_c *MockRepository_GetDefaultTagValue_Call) Run(run func(ctx context.Context, groupID string, artifactID string, tagKey string)) *MockRepository_GetDefaultTagValue_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_GetDefaultTagValue_Call) Return(s string, err error) *MockRepository_GetDefaultTagValue_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *MockRepository_GetDefaultTagValue_Call) RunAndReturn(run func(ctx context.Context, groupID string, artifactID string, tagKey string) (string, error)) *MockRepository_GetDefaultTagValue_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetDistinctTagValues provides a mock function for the type MockRepository
+func (_mock *MockRepository) GetDistinctTagValues(ctx context.Context, groupID string, artifactID string) (map[string][]string, error) {
+	ret := _mock.Called(ctx, groupID, artifactID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDistinctTagValues")
+	}
+
+	var r0 map[string][]string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (map[string][]string, error)); ok {
+		return returnFunc(ctx, groupID, artifactID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) map[string][]string); ok {
+		r0 = returnFunc(ctx, groupID, artifactID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string][]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, groupID, artifactID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_GetDistinctTagValues_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDistinctTagValues'
+type MockRepository_GetDistinctTagValues_Call struct {
+	*mock.Call
+}
+
+// GetDistinctTagValues is a helper method to define mock.On call
+//   - ctx context.Context
+//   - groupID string
+//   - artifactID string
+func (_e *MockRepository_Expecter) GetDistinctTagValues(ctx interface{}, groupID interface{}, artifactID interface{}) *MockRepository_GetDistinctTagValues_Call {
+	return &MockRepository_GetDistinctTagValues_Call{Call: _e.mock.On("GetDistinctTagValues", ctx, groupID, artifactID)}
+}
+
+func (_c *MockRepository_GetDistinctTagValues_Call) Run(run func(ctx context.Context, groupID string, artifactID string)) *MockRepository_GetDistinctTagValues_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_GetDistinctTagValues_Call) Return(stringToStrings map[string][]string, err error) *MockRepository_GetDistinctTagValues_Call {
+	_c.Call.Return(stringToStrings, err)
+	return _c
+}
+
+func (_c *MockRepository_GetDistinctTagValues_Call) RunAndReturn(run func(ctx context.Context, groupID string, artifactID string) (map[string][]string, error)) *MockRepository_GetDistinctTagValues_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -5492,6 +6084,74 @@ func (_c *MockRepository_ListVersionsNeedingEnrichment_Call) Return(artifactVers
 }
 
 func (_c *MockRepository_ListVersionsNeedingEnrichment_Call) RunAndReturn(run func(ctx context.Context, arg db.ListVersionsNeedingEnrichmentParams) ([]db.ArtifactVersion, error)) *MockRepository_ListVersionsNeedingEnrichment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVersionsWithAssets provides a mock function for the type MockRepository
+func (_mock *MockRepository) ListVersionsWithAssets(ctx context.Context, params repository.VersionQueryParams) (*repository.VersionsWithAssetsResult, error) {
+	ret := _mock.Called(ctx, params)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVersionsWithAssets")
+	}
+
+	var r0 *repository.VersionsWithAssetsResult
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) (*repository.VersionsWithAssetsResult, error)); ok {
+		return returnFunc(ctx, params)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.VersionQueryParams) *repository.VersionsWithAssetsResult); ok {
+		r0 = returnFunc(ctx, params)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*repository.VersionsWithAssetsResult)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repository.VersionQueryParams) error); ok {
+		r1 = returnFunc(ctx, params)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_ListVersionsWithAssets_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVersionsWithAssets'
+type MockRepository_ListVersionsWithAssets_Call struct {
+	*mock.Call
+}
+
+// ListVersionsWithAssets is a helper method to define mock.On call
+//   - ctx context.Context
+//   - params repository.VersionQueryParams
+func (_e *MockRepository_Expecter) ListVersionsWithAssets(ctx interface{}, params interface{}) *MockRepository_ListVersionsWithAssets_Call {
+	return &MockRepository_ListVersionsWithAssets_Call{Call: _e.mock.On("ListVersionsWithAssets", ctx, params)}
+}
+
+func (_c *MockRepository_ListVersionsWithAssets_Call) Run(run func(ctx context.Context, params repository.VersionQueryParams)) *MockRepository_ListVersionsWithAssets_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 repository.VersionQueryParams
+		if args[1] != nil {
+			arg1 = args[1].(repository.VersionQueryParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_ListVersionsWithAssets_Call) Return(versionsWithAssetsResult *repository.VersionsWithAssetsResult, err error) *MockRepository_ListVersionsWithAssets_Call {
+	_c.Call.Return(versionsWithAssetsResult, err)
+	return _c
+}
+
+func (_c *MockRepository_ListVersionsWithAssets_Call) RunAndReturn(run func(ctx context.Context, params repository.VersionQueryParams) (*repository.VersionsWithAssetsResult, error)) *MockRepository_ListVersionsWithAssets_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -1,0 +1,1 @@
+CREATE INDEX idx_versioned_assets_version_id ON artifact_versioned_assets(artifact_version_id);

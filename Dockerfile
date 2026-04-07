@@ -16,7 +16,9 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -ldflags "-s -w -X main.Version=${VERSION}" -o /out/server ./cmd/server && \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -ldflags "-s -w -X main.Version=${VERSION}" -o /out/worker ./cmd/worker
+    go build -ldflags "-s -w -X main.Version=${VERSION}" -o /out/worker ./cmd/worker && \
+    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -ldflags "-s -w -X main.Version=${VERSION}" -o /out/frontend ./cmd/frontend
 
 # --- App image (default target) ---
 FROM alpine:3.23 AS app
@@ -25,6 +27,7 @@ RUN apk add --no-cache ca-certificates git tzdata
 
 COPY --from=builder /out/server /app/server
 COPY --from=builder /out/worker /app/worker
+COPY --from=builder /out/frontend /app/frontend
 
 ENTRYPOINT ["/app/server"]
 

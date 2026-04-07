@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/httplog/v2"
 	"github.com/go-slog/otelslog"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/spongepowered/systemofadownload/internal/logging"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.temporal.io/sdk/client"
 	"go.uber.org/fx"
@@ -141,7 +142,7 @@ func NewHTTPServer(lc fx.Lifecycle, cfg *Config, handler http.Handler, s fx.Shut
 	return srv
 }
 
-func NewOTel(lc fx.Lifecycle) *otelsetup.Result {
+func NewOTel(lc fx.Lifecycle, logs *logging.Result) *otelsetup.Result {
 	result, err := otelsetup.Setup(context.Background(), "soad-server")
 	if err != nil {
 		slog.Error("failed to initialize OpenTelemetry", "error", err)
@@ -151,15 +152,13 @@ func NewOTel(lc fx.Lifecycle) *otelsetup.Result {
 		}
 	}
 
-	// Set traced slog as default so all log output includes trace/span IDs.
-	// Use a fresh TextHandler writing directly to stderr to avoid a deadlock:
-	// slog.SetDefault redirects log.Default() through the new handler, so
-	// wrapping the original defaultHandler would create a circular chain.
-	slog.SetDefault(slog.New(otelslog.NewHandler(slog.NewTextHandler(os.Stderr, nil))))
+	// Layer OTel trace/span IDs on top of the logging handler.
+	slog.SetDefault(slog.New(otelslog.NewHandler(logs.Handler)))
 
 	lc.Append(fx.Hook{
 		OnStop: func(ctx context.Context) error {
 			slog.InfoContext(ctx, "shutting down OpenTelemetry")
+			_ = logs.Closer.Close()
 			return result.Shutdown(ctx)
 		},
 	})
@@ -181,8 +180,10 @@ func NewMux(h *httpapi.Handler, cfg *Config, otel *otelsetup.Result) http.Handle
 
 	logger := httplog.NewLogger("soad-server", httplog.Options{
 		LogLevel:        slog.LevelInfo,
+		JSON:            true,
 		Concise:         true,
 		RequestHeaders:  true,
+		Writer:          os.Stderr,
 		QuietDownRoutes: []string{"/healthz", "/metrics"},
 		QuietDownPeriod: 10 * time.Second,
 	})
@@ -192,8 +193,16 @@ func NewMux(h *httpapi.Handler, cfg *Config, otel *otelsetup.Result) http.Handle
 }
 
 func main() {
+	logs, err := logging.Setup()
+	if err != nil {
+		slog.Error("failed to initialize logging", "error", err)
+		os.Exit(1)
+	}
+
 	fx.New(
+		fx.WithLogger(logging.FxLogger),
 		fx.StartTimeout(60*time.Second),
+		fx.Supply(logs),
 		fx.Provide(
 			NewConfig,
 			NewOTel,

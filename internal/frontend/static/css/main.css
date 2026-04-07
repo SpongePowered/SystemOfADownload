@@ -1,0 +1,383 @@
+/* Sponge Downloads — SSR Frontend
+   Matches the Bootstrap 4 Flatly + Sponge SPA production appearance. */
+
+/* ── Palette ─────────────────────────────────────────────────────────── */
+:root {
+  /* Brand */
+  --sponge-yellow:    #f7cf0d;
+  --sponge-yellow-lt: #fbe478;  /* tint 50 % */
+  --sponge-yellow-bg: #f9ed9e;  /* nav hover  */
+
+  /* Greys (Bootstrap Flatly primary = #333) */
+  --grey-900: #212529;  /* body text   */
+  --grey-800: #333333;  /* primary     */
+  --grey-750: #2b2b2b;  /* primary-dk  */
+  --grey-700: #474a54;  /* dropdown fg */
+  --grey-600: #999999;  /* secondary   */
+  --grey-400: #d0d0d0;  /* borders     */
+  --grey-200: #f5f5f5;  /* light bg    */
+  --grey-150: #ecf0f1;  /* breadcrumb  */
+  --grey-100: #fbfbfb;  /* alt row     */
+
+  /* Platform badges */
+  --clr-vanilla: #917300;
+  --clr-forge:   #910020;
+  --clr-neo:     #cc6f2f;
+  --clr-api:     #009172;
+
+  /* Semantic */
+  --clr-success: #18bc9c;
+  --clr-warning: #f39c12;
+  --clr-danger:  #e74c3c;
+  --clr-link:    #18bc9c;
+  --clr-link-dk: #0f7864;
+
+  /* Type */
+  --ff-heading: 'Montserrat', 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --ff-body:    'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* Layout */
+  --topbar-h:      63px;
+  --container-max: 1140px;
+}
+
+/* ── Reset & Base ────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  padding-top: var(--topbar-h);
+  font-family: var(--ff-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--grey-900);
+  text-align: left;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+main { flex: 1 0 auto; }
+
+a { color: var(--clr-link); text-decoration: none; }
+a:hover { color: var(--clr-link-dk); text-decoration: underline; }
+
+p { margin-top: 0; margin-bottom: 1rem; }
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--ff-heading);
+  text-transform: uppercase;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 0.5rem;
+}
+h1 { font-size: 3rem; }
+h2 { font-size: 2.5rem; }
+h3 { font-size: 2rem; font-weight: 600; }
+h4 { font-size: 1.5rem; font-weight: 500; }
+h5, h6 { font-weight: 500; }
+
+pre {
+  font-size: 0.875rem;
+  background: var(--grey-200);
+  padding: 0.75rem 1rem;
+  border-radius: 0.25rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.clearfix::after { content: ""; display: table; clear: both; }
+.text-center { text-align: center; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+
+/* ── Layout ──────────────────────────────────────────────────────────── */
+.container { max-width: var(--container-max); margin: 0 auto; padding: 0 15px; }
+.row { display: flex; flex-wrap: wrap; margin: 0 -15px; }
+.col { flex: 1; padding: 0 15px; }
+
+/* ── Topbar ──────────────────────────────────────────────────────────── */
+#topbar {
+  position: fixed; top: 0; z-index: 9999; width: 100%; padding: 0;
+  background: var(--grey-800);
+  box-shadow: 0 2px 4px -1px rgba(0,0,0,.25);
+  line-height: 19px;
+}
+#topbar a { text-decoration: none; }
+#topbar .container { position: relative; padding: 0; }
+
+/* ── Sponge Logo + Dropdown ──────────────────────────────────────────── */
+#sp-logo-container { display: inline-block; margin-left: -20px; cursor: pointer; }
+
+#sp-logo-container .logo {
+  display: block; width: 200px; height: var(--topbar-h);
+  padding: 11px 0 0 20px;
+  font-family: var(--ff-heading); font-weight: 700; text-transform: uppercase;
+  color: var(--sponge-yellow);
+}
+#sp-logo-container .logo * { display: inline-block; vertical-align: middle; }
+#sp-logo-container .logo img { height: 40px; }
+#sp-logo-container .logo span { margin-left: 0.5rem; font-size: 23px; }
+.sp-chevron { color: gray; }
+#sp-logo-container:hover { background: #2a2a2a; }
+#sp-logo-container:hover #sp-logo-menu { display: block; }
+
+#sp-logo-menu {
+  display: none; position: absolute;
+  top: var(--topbar-h); left: -20px; width: 200px;
+}
+
+#sp-logo-dropdown {
+  margin: 0; padding: 10px 0 4px; list-style: none;
+  background: #fff; border: 1px solid #e4e4e4; border-radius: 0 0 4px 4px;
+}
+#sp-logo-dropdown li { padding: 0; }
+#sp-logo-dropdown li, #sp-logo-dropdown a { display: block; }
+#sp-logo-dropdown a { padding: 10px 20px 10px 10px; color: var(--grey-700); }
+#sp-logo-dropdown a:hover { background: rgba(0,0,0,.1); }
+#sp-logo-dropdown li.active { position: relative; left: -1px; width: 200px; background: var(--sponge-yellow); }
+
+.ore-nav { display: inline-block; width: 15px; height: auto; margin: 0; padding: 0 12px 4px 7px; vertical-align: middle; }
+
+/* ── Right Nav ───────────────────────────────────────────────────────── */
+#main-navbar-collapse { float: right; }
+.navbar-nav { list-style: none; margin: 0; padding: 0; display: flex; align-items: center; height: var(--topbar-h); }
+.navbar-nav li { margin: 0 5px; }
+
+.navbar-toggle {
+  display: none; float: right; margin: 6px 24px 0 0; padding: 10px;
+  font-size: 32px; color: var(--sponge-yellow); background: none; border: none; cursor: pointer;
+}
+.nav-toggle-input { display: none; }
+
+@media (min-width: 768px) {
+  .navbar-nav li { background: var(--sponge-yellow); }
+  .nav-link { display: block; color: var(--grey-750); padding: 6px 12px; text-decoration: none; }
+  .nav-link:hover { background: var(--sponge-yellow-bg); text-decoration: none; color: var(--grey-750); }
+}
+#main-navbar-collapse ul li .active { font-weight: 700; }
+
+@media (max-width: 767px) {
+  #sp-logo-container { margin-left: 0; }
+  #sp-logo-menu { left: 0; }
+  .navbar-toggle { display: block; }
+  #main-navbar-collapse { display: none; float: none; width: 100%; clear: both; }
+  .nav-toggle-input:checked ~ #main-navbar-collapse { display: block; }
+  .navbar-nav { flex-direction: column; height: auto; padding: 0.5rem 0; }
+  .navbar-nav li { margin: 0; width: 100%; }
+  .nav-link { display: block; color: rgba(255,255,255,.75); padding: 0.5rem 1rem; text-decoration: none; }
+  .nav-link:hover { color: var(--sponge-yellow); text-decoration: none; }
+}
+
+/* ── Header ──────────────────────────────────────────────────────────── */
+header {
+  background: linear-gradient(to right, var(--sponge-yellow) 0%, var(--sponge-yellow-lt) 50%, var(--sponge-yellow) 100%);
+  background: url('https://www.spongepowered.org/assets/img/backgrounds/sponsors-content.jpg') center;
+  background-size: cover;
+  border-bottom: 1px solid rgba(0,0,0,.1);
+  padding: 20px 0;
+}
+header h2 { margin-bottom: 0; }
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+footer { background: var(--grey-750); color: #fff; text-align: center; font-size: 75%; padding: 10px; }
+
+/* ── Platform Logo ───────────────────────────────────────────────────── */
+.platform-logo h2 { margin-bottom: 0; }
+.platform-logo h2 > div,
+.platform-logo > div { display: inline-flex; align-items: center; }
+.sponge-platform { margin-right: 0.2em; }
+
+.subplatform {
+  display: inline-block; width: 6em; padding: 0.2em;
+  border-radius: 2px; color: #fff; font-size: 0.5em; font-weight: 500; text-align: center;
+}
+.subplatform.spongevanilla { background: var(--clr-vanilla); }
+.subplatform.spongeforge   { background: var(--clr-forge); }
+.subplatform.spongeneo     { background: var(--clr-neo); }
+.subplatform.spongeapi     { background: var(--clr-api); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-block; font-weight: 400; color: var(--grey-900); text-align: center;
+  vertical-align: middle; user-select: none; background: transparent;
+  border: 1px solid transparent; padding: 0.375rem 0.75rem; font-size: 1rem;
+  line-height: 1.5; border-radius: 0.25rem;
+  transition: color .15s, background-color .15s, border-color .15s;
+  text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.btn:hover { color: var(--grey-900); text-decoration: none; }
+.btn-primary { color: #fff; background: var(--grey-800); border-color: var(--grey-800); }
+.btn-primary:hover { color: #fff; background: #202020; border-color: #1a1a1a; }
+.btn-default { background: #fff; color: var(--grey-800); border-color: var(--grey-400); }
+.btn-default:hover { background: var(--grey-200); color: var(--grey-800); }
+.btn-sm { padding: 0.25rem 0.5rem; font-size: 0.88rem; line-height: 1.5; border-radius: 0.2rem; }
+
+/* ── Badges ──────────────────────────────────────────────────────────── */
+.badge {
+  display: inline-block; padding: 0.25em 0.4em; font-size: 75%; font-weight: 700;
+  line-height: 1; text-align: center; white-space: nowrap; vertical-align: baseline;
+  border-radius: 0.25rem;
+}
+.badge-success { background: var(--clr-success); color: #fff; }
+.badge-warning { background: var(--clr-warning); color: #fff; }
+
+/* ── Downloads – Breadcrumb ──────────────────────────────────────────── */
+#downloads h1 { text-align: center; }
+#downloads h3 { font-size: 1.5rem; }
+
+.breadcrumb { background: var(--grey-150); padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 0.25rem; }
+.breadcrumb h2 { font-size: 1.5em; }
+.breadcrumb .inline { display: inline-block; padding: 0 5px; }
+
+/* ── Downloads – Version Selector ────────────────────────────────────── */
+.download-category { margin: auto; text-align: center; display: inline-flex; align-items: center; }
+.download-category h3 { margin: 0 0.2em 0 0; }
+
+.btn-group { display: inline-flex; }
+.versions .btn { padding-top: 0; padding-bottom: 0; }
+
+.versions > .btn.active.sponge,
+.versions > .btn.active.sponge:active,
+.versions > .btn.active.sponge:focus {
+  color: black; background: var(--sponge-yellow); border-color: var(--grey-800);
+  border-radius: 4px 0 0 4px; cursor: default; box-shadow: none;
+}
+.versions > .btn.active.sponge:hover { background: var(--sponge-yellow-lt); border-color: var(--grey-800); }
+.versions > .btn.active.sponge h3 { margin: 0; font-size: 1.3rem; line-height: 1.5; }
+
+.version-dropdown-wrap { position: relative; }
+.versions .dropdown-toggle { border-radius: 0 0.25rem 0.25rem 0; padding: 0.4rem 0.75rem; height: 100%; }
+
+.dropdown-toggle::after {
+  content: ""; display: inline-block; width: 0; height: 0;
+  border-left: .3em solid transparent; border-right: .3em solid transparent;
+  border-top: .3em solid currentColor; vertical-align: middle;
+}
+
+.dropdown-menu {
+  display: none; position: absolute; top: 100%; right: 0;
+  background: #fff; border: 1px solid #e4e4e4; border-radius: 0 0 4px 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  min-width: 0; max-height: 400px; overflow-y: auto;
+  z-index: 1000; padding: 0.25rem 0; margin-top: -1px;
+}
+.version-dropdown-wrap.open .dropdown-menu { display: block; }
+
+.dropdown-item { display: block; padding: 0.4rem 1rem; color: var(--grey-800); text-decoration: none; font-size: 0.9rem; white-space: nowrap; }
+.dropdown-item:hover,
+.dropdown-item:focus { color: var(--grey-800); text-decoration: none; background: var(--sponge-yellow); }
+.dropdown-item.active,
+.dropdown-item:active { color: #000; background: var(--sponge-yellow); font-weight: bold; }
+
+/* ── Recommended Build ───────────────────────────────────────────────── */
+#recommended-build { font-size: 1.2rem; background: var(--grey-200); }
+#recommended-build .container { padding-top: 30px; padding-bottom: 10px; }
+
+/* ── Build List ──────────────────────────────────────────────────────── */
+.builds { list-style: none; padding: 0; }
+@media (min-width: 576px) { .builds { padding-left: 20px; } }
+
+.build { display: block; padding: 10px 20px; border-radius: 2px; }
+.build:nth-child(even) { background: var(--grey-100); }
+
+.build h4 { font-size: 1.1em; float: left; margin: 0; line-height: 1.4; word-break: break-all; }
+
+.build-labels { margin-left: 0.25rem; }
+.build-labels > * { vertical-align: middle; margin-left: 4px; font-size: 70%; padding: 0.3em 0.5em; }
+@media (max-width: 575px) { .build-labels { display: block; margin: 2px 0 0; } }
+
+.artifacts { float: right; margin-bottom: 10px; white-space: nowrap; overflow: hidden; }
+.artifacts .btn { margin-left: 2px; }
+@media (max-width: 576px) { .artifacts { float: left; clear: left; margin-top: 10px; } }
+
+/* ── Changelog / Commits ─────────────────────────────────────────────── */
+.changelog { clear: left; padding-left: 20px; font-size: 1rem; }
+@media (max-width: 767px) { .changelog { padding-left: 0; padding-top: 10px; } }
+
+.commit-processing { border-left: solid 3px var(--clr-danger); }
+.processing { color: var(--grey-600); }
+.processing-icon { color: var(--clr-danger); margin-right: 5px; }
+
+.commits { list-style: none; padding: 0; }
+.commit { margin-bottom: 5px; }
+.commit > a { color: var(--grey-750); font-weight: bold; word-wrap: break-word; overflow-wrap: break-word; text-decoration: underline; }
+.commit > a:hover { color: var(--clr-vanilla); }
+
+.changelog-comment { color: var(--grey-600); font-size: 0.9rem; font-style: italic; }
+
+.more-commits,
+.fewer-commits { cursor: pointer; }
+.more-commits a,
+.fewer-commits a { color: var(--clr-link); cursor: pointer; }
+.more-commits a:hover,
+.fewer-commits a:hover { color: var(--clr-link-dk); }
+
+/* Submodule changelogs */
+.submodule-changelog { margin: 0.5rem 0 0 1.5rem; padding-left: 0.75rem; border-left: 2px solid var(--grey-400); }
+.submodule-changelog h5 { font-size: 0.9rem; margin-bottom: 0.25rem; color: var(--grey-600); }
+.submodule-commits { padding-left: 0; }
+.submodule-commits .commit { font-size: 0.9rem; }
+
+/* Ellipsis button */
+.ellipsis-btn {
+  display: inline-block; height: 12px; padding: 0 5px 5px; margin-left: 5px;
+  vertical-align: middle; border: 0; border-radius: 1px;
+  color: #555; font-size: 12px; font-weight: bold; line-height: 6px;
+  background: rgba(0,0,0,.1); cursor: pointer; list-style: none; user-select: none;
+}
+.ellipsis-btn:hover { background: rgba(0,0,0,.2); }
+.ellipsis-btn::-webkit-details-marker { display: none; }
+.ellipsis-btn::marker { display: none; content: ""; }
+.commit details { display: inline; }
+.commit-message { white-space: pre-wrap; word-wrap: break-word; }
+
+/* ── Sponsor ─────────────────────────────────────────────────────────── */
+#sponsor { text-align: center; }
+#sponsor img { height: 90px; width: auto; }
+#sponsor .additonalText { color: var(--grey-800); }
+@media (max-width: 768px) { #sponsor img { height: 50px; } }
+
+/* ── Pagination ──────────────────────────────────────────────────────── */
+.navigation { margin-bottom: 20px; display: flex; justify-content: center; }
+.pagination { list-style: none; display: flex; padding: 0; margin: 0; }
+.page-item { margin-right: 2px; }
+
+.page-link {
+  display: block; padding: 0.5rem 0.75rem; line-height: 1.25;
+  color: #fff; background: var(--clr-success); border: 0; text-decoration: none;
+}
+.page-link:hover { color: #fff; background: var(--clr-link-dk); text-decoration: none; }
+.page-item.active .page-link { background: var(--clr-link-dk); }
+
+/* Downloads page overrides pagination to grey */
+.navigation .page-item > a.page-link { background: var(--grey-600); }
+.navigation .page-item > a.page-link:hover { background: #6b6b6b; }
+.navigation .page-item.active > .page-link { background: var(--grey-800); }
+
+/* ── Section Headings ────────────────────────────────────────────────── */
+#all-builds h3 { margin-top: 1.5rem; margin-bottom: 1rem; }
+#no-builds h3 { margin-bottom: 30px; }
+
+/* ── Overview – Platforms ─────────────────────────────────────────────── */
+.platforms { margin-top: 20px; font-size: 1.2rem; }
+.platforms h3 { font-size: 3rem; }
+h2.category { margin-bottom: 10px; }
+.center { text-align: center; }
+
+.platform-entry { cursor: pointer; background: var(--grey-200); padding: 0 15px; }
+.platform-entry:hover { background: var(--grey-400); }
+.platform-row:nth-child(odd) .platform-entry { background: #fafafa; }
+.platform-row:nth-child(odd) .platform-entry:hover { background: var(--grey-400); }
+
+
+.float-right { float: right; }
+.buttons { text-align: center; margin-bottom: 0.2em; }
+
+.btn-secondary { color: #fff; background: var(--grey-600); border-color: var(--grey-600); }
+.btn-secondary:hover { color: #fff; background: #868686; border-color: gray; }
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+@media (max-width: 576px) { header h2 { font-size: 2.5rem; } }

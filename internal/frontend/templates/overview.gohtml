@@ -1,0 +1,38 @@
+{{define "content"}}
+    <div class="container platforms">
+        <div class="row">
+            <div class="col center">
+                <h2 class="category">Sponge Server Downloads</h2>
+            </div>
+        </div>
+        {{range .Platforms}}
+            {{if .Featured}}
+                <div class="row platform-row">
+                    <div class="col">
+                        <div class="platform-entry" onclick="window.location.href='/{{.ID}}'">
+                            <div class="row">
+                                <div class="col">
+                                    <h3>
+                                        <div class="platform-logo">
+                                            <h2><div><span class="sponge-platform">Sponge </span><span
+                                                        class="subplatform {{.ID}}">{{.Suffix}}</span></div></h2>
+                                        </div>
+                                    </h3>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <div class="float-right buttons">
+                                        <a href="/{{.ID}}" class="btn btn-secondary"><i class="fas fa-download"></i>
+                                            View Builds</a>
+                                    </div>
+                                    <p class="description">{{.Description}}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {{end}}
+        {{end}}
+    </div>
+{{end}}

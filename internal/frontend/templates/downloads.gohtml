@@ -1,0 +1,205 @@
+{{define "content"}}
+{{with .Page}}
+<main id="downloads">
+
+  {{/* Breadcrumb — platform logo + version selector */}}
+  <section class="breadcrumb">
+    <div class="container">
+      <div class="row">
+        <div class="col">
+          <div class="inline">
+            <div class="platform-logo">
+              <h2>
+                <div><span class="sponge-platform">Sponge </span><span class="subplatform {{.Platform.ID}}">{{.Platform.Suffix}}</span></div>
+              </h2>
+            </div>
+          </div>
+          {{if .MCVersions}}
+          <div class="download-category">
+            <h3>for Minecraft version</h3>
+            <div class="btn-group versions">
+              <button type="button" class="btn btn-primary active sponge"><h3>{{.SelectedMC}}</h3></button>
+              <div class="version-dropdown-wrap">
+                <button type="button" class="btn btn-primary dropdown-toggle" onclick="this.parentElement.classList.toggle('open')">
+                  <span class="sr-only">Toggle Dropdown</span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                  {{range .MCVersions}}
+                  <a href="?minecraft={{.}}" class="dropdown-item {{if eq . $.Page.SelectedMC}}active{{end}}">{{.}}</a>
+                  {{end}}
+                </div>
+              </div>
+            </div>
+          </div>
+          {{end}}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {{/* Builds section */}}
+  <section id="builds">
+
+    {{/* Recommended build */}}
+    {{if .Recommended}}
+    <div id="recommended-build">
+      <div class="container">
+        <h3>Latest Recommended Build</h3>
+        <ol class="builds">
+          <li class="build">
+            <h4>{{.Recommended.Version}}
+              <span class="build-labels">
+                <span class="badge badge-success">Recommended</span>
+                {{if .Recommended.Experimental}}
+                <span class="badge badge-warning">Experimental</span>
+                {{end}}
+              </span>
+            </h4>
+            <div class="artifacts">
+              {{range .Recommended.Assets}}
+              <a href="{{.URL}}" class="btn {{if .Primary}}btn-primary{{else}}btn-default{{end}}">{{.Name}}</a>
+              {{end}}
+            </div>
+            <div class="clearfix"></div>
+          </li>
+        </ol>
+      </div>
+    </div>
+    {{end}}
+
+    {{/* Sponsor */}}
+    <div id="sponsor">
+      <div class="container text-center">
+      </div>
+    </div>
+
+    {{/* All builds + pagination */}}
+    <div class="container">
+      {{if .Builds}}
+      <div id="all-builds">
+        <h3>All builds</h3>
+        <ol class="builds">
+          {{range .Builds}}
+          <li class="build">
+            <h4>{{.Version}}
+              <span class="build-labels">
+                {{if .Recommended}}<span class="badge badge-success">Recommended</span>{{end}}
+                {{if .Experimental}}<span class="badge badge-warning">Experimental</span>{{end}}
+              </span>
+            </h4>
+            <div class="artifacts">
+              {{range .Assets}}
+              <a href="{{.URL}}" class="btn btn-sm {{if .Primary}}btn-primary{{else}}btn-default{{end}}">{{.Name}}</a>
+              {{end}}
+            </div>
+
+            {{/* Changelog */}}
+            <div class="changelog {{if .Processing}}commit-processing{{end}}">
+              {{if .Processing}}
+              <div class="processing">
+                <span class="processing-icon">&#9888;</span>
+                {{if .Commits}}
+                <span>We're generating the changelog for this build, the following may be incomplete.</span>
+                {{else}}
+                <span>We're generating the changelog for this build, check back later for commit information.</span>
+                {{end}}
+              </div>
+              {{end}}
+
+              {{if .Commits}}
+              <ol class="commits">
+                {{range $i, $c := .Commits}}
+                <li class="commit" {{if ge $i 5}}hidden{{end}}>
+                  {{if $c.Link}}<a href="{{$c.Link}}" target="_blank">{{$c.Message}}</a>
+                  {{else}}{{$c.Message}}{{end}}
+                  {{if $c.HasBody}}
+                  <details>
+                    <summary class="ellipsis-btn">&hellip;</summary>
+                    <pre class="commit-message">{{$c.Body}}</pre>
+                  </details>
+                  {{end}}
+                  <div>{{$c.Author}}{{if $c.RelativeTime}} - <small title="{{$c.AbsoluteTime}}">{{$c.RelativeTime}}</small>{{end}}</div>
+                </li>
+                {{end}}
+                {{if gt (len .Commits) 5}}
+                <li class="more-commits">
+                  <a class="show-more" onclick="var ol=this.closest('ol');ol.querySelectorAll('.commit[hidden]').forEach(function(e){e.hidden=false});this.parentElement.hidden=true;ol.querySelector('.fewer-commits').hidden=false;return false">
+                    Show {{len .Commits | subtract 5}} older commits.
+                  </a>
+                </li>
+                <li class="fewer-commits" hidden>
+                  <a onclick="var ol=this.closest('ol');var items=ol.querySelectorAll('.commit');for(var i=5;i<items.length;i++){items[i].hidden=true};this.parentElement.hidden=true;ol.querySelector('.more-commits').hidden=false;return false">
+                    Collapse commits.
+                  </a>
+                </li>
+                {{end}}
+              </ol>
+
+              {{/* Submodule changelogs */}}
+              {{range .Submodules}}
+              <div class="submodule-changelog">
+                <h5>{{.Name}}</h5>
+                <ol class="commits submodule-commits">
+                  {{range .Commits}}
+                  <li class="commit">
+                    {{if .Link}}<a href="{{.Link}}" target="_blank">{{.Message}}</a>
+                    {{else}}{{.Message}}{{end}}
+                    <div>{{.Author}}{{if .RelativeTime}} - <small title="{{.AbsoluteTime}}">{{.RelativeTime}}</small>{{end}}</div>
+                  </li>
+                  {{end}}
+                </ol>
+              </div>
+              {{end}}
+
+              {{else if not .Processing}}
+              <div class="changelog-comment">
+                <span>No changelog is available for this build.</span>
+              </div>
+              {{end}}
+            </div>
+
+            <div class="clearfix"></div>
+          </li>
+          {{end}}
+        </ol>
+      </div>
+
+      {{else if not .Recommended}}
+      <div id="no-builds">
+        <h3>No builds available for the current selection</h3>
+      </div>
+      {{end}}
+
+      {{/* Pagination */}}
+      {{if gt .Pagination.TotalPages 1}}
+      <div class="navigation">
+        <ul class="pagination">
+          {{if .Pagination.HasPrev}}
+          <li class="page-item">
+            <a href="?minecraft={{$.Page.SelectedMC}}&offset={{.Pagination.PrevOffset}}" class="page-link">&laquo; Newer</a>
+          </li>
+          {{end}}
+          {{range .Pagination.Pages}}
+          <li class="page-item {{if .Active}}active{{end}}">
+            {{if .Active}}
+            <span class="page-link">{{.Number}}</span>
+            {{else}}
+            <a href="?minecraft={{$.Page.SelectedMC}}&offset={{.Offset}}" class="page-link">{{.Number}}</a>
+            {{end}}
+          </li>
+          {{end}}
+          {{if .Pagination.HasNext}}
+          <li class="page-item">
+            <a href="?minecraft={{$.Page.SelectedMC}}&offset={{.Pagination.NextOffset}}" class="page-link">Older &raquo;</a>
+          </li>
+          {{end}}
+        </ul>
+      </div>
+      {{end}}
+    </div>
+
+  </section>
+
+</main>
+{{end}}
+{{end}}

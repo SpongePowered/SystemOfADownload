@@ -179,6 +179,18 @@ func (m *mockQuerier) ListVersionsFiltered(ctx context.Context, params repositor
 	return filtered, nil
 }
 
+func (m *mockQuerier) ListVersionsWithAssets(_ context.Context, _ repository.VersionQueryParams) (*repository.VersionsWithAssetsResult, error) {
+	return &repository.VersionsWithAssetsResult{}, nil
+}
+
+func (m *mockQuerier) GetDistinctTagValues(_ context.Context, _, _ string) (map[string][]string, error) {
+	return nil, nil
+}
+
+func (m *mockQuerier) GetDefaultTagValue(_ context.Context, _, _, _ string) (string, error) {
+	return "", nil
+}
+
 func TestHandler(t *testing.T) {
 	q := &mockQuerier{
 		groups:    make(map[string]db.Group),

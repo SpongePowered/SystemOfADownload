@@ -1,0 +1,67 @@
+{{define "layout"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sponge Downloads</title>
+  <link rel="stylesheet" href="/assets/css/fonts.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+  {{/* Navbar — #topbar */}}
+  <nav id="topbar">
+    <div class="container">
+      <div id="sp-logo-container">
+        <a class="logo" href="#top"><img src="https://spongepowered.org/assets/img/icons/spongie-mark.svg" alt="" style="height: 40px"><span>Sponge</span><i class="fas fa-chevron-down fa-fw sp-chevron"></i></a>
+        <div id="sp-logo-menu">
+          <ul id="sp-logo-dropdown">
+            <li><a href="https://spongepowered.org"><i class="fas fa-house fa-fw"></i> Homepage</a></li>
+            <li><a href="https://forums.spongepowered.org"><i class="fas fa-comments fa-fw"></i> Forums</a></li>
+            <li><a href="https://github.com/SpongePowered"><i class="fas fa-code fa-fw"></i> Code</a></li>
+            <li><a href="https://docs.spongepowered.org"><i class="fas fa-book fa-fw"></i> Docs</a></li>
+            <li><a href="https://jd.spongepowered.org"><i class="fas fa-graduation-cap fa-fw"></i> Javadocs</a></li>
+            <li><a href="https://ore.spongepowered.org/"><img src="https://spongepowered.org/assets/img/icons/ore.svg" alt="" class="ore-nav"> Plugins (Ore)</a></li>
+            <li class="active"><a href="/"><i class="fas fa-download fa-fw"></i> Downloads</a></li>
+            <li><a href="https://discord.gg/sponge"><i class="fab fa-discord fa-fw"></i> Discord</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <input type="checkbox" id="nav-toggle" class="nav-toggle-input">
+      <label for="nav-toggle" class="navbar-toggle">&#9776;</label>
+
+      <div id="main-navbar-collapse">
+        <ul class="navbar-nav">
+          <li><a href="/" class="nav-link{{if eq .ActiveNav ""}} active{{end}}">Downloads</a></li>
+          {{range .Platforms}}
+          <li><a href="/{{.ID}}" class="nav-link{{if eq $.ActiveNav .ID}} active{{end}}">{{.Name}}</a></li>
+          {{end}}
+          <li><a href="/settings" class="nav-link{{if eq .ActiveNav "settings"}} active{{end}}">Settings</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  {{/* Header */}}
+  <header>
+    <div class="container">
+      <h2>Sponge Downloads</h2>
+    </div>
+  </header>
+
+  {{/* Main content */}}
+  <main>
+    {{template "content" .}}
+  </main>
+
+  {{/* Footer */}}
+  <footer>
+    <div class="container">
+      <span>Copyright &copy; SpongePowered 2014-{{currentYear}}</span>
+    </div>
+  </footer>
+</body>
+</html>
+{{end}}

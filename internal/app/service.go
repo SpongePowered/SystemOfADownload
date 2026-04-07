@@ -235,6 +235,22 @@ type VersionDetail struct {
 	Assets      []VersionAsset
 }
 
+// GetVersionsWithAssets is a frontend-optimized method that returns paginated versions
+// with their assets pre-loaded in a single database round-trip.
+func (s *Service) GetVersionsWithAssets(ctx context.Context, params repository.VersionQueryParams) (*repository.VersionsWithAssetsResult, error) {
+	return s.repo.ListVersionsWithAssets(ctx, params)
+}
+
+// GetDistinctTagValues returns the distinct tag values for an artifact, keyed by tag name.
+func (s *Service) GetDistinctTagValues(ctx context.Context, groupID, artifactID string) (map[string][]string, error) {
+	return s.repo.GetDistinctTagValues(ctx, groupID, artifactID)
+}
+
+// GetDefaultTagValue returns a tag value from the latest recommended version of an artifact.
+func (s *Service) GetDefaultTagValue(ctx context.Context, groupID, artifactID, tagKey string) (string, error) {
+	return s.repo.GetDefaultTagValue(ctx, groupID, artifactID, tagKey)
+}
+
 func (s *Service) GetVersionInfo(ctx context.Context, groupID, artifactID, version string) (*VersionDetail, error) {
 	av, err := s.repo.GetArtifactVersion(ctx, db.GetArtifactVersionParams{
 		GroupID:    groupID,
