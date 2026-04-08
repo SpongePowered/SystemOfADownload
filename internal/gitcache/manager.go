@@ -11,7 +11,55 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
+	"time"
 )
+
+// gitNetworkTimeout caps network-bound git operations (clone, fetch) so a
+// half-open TCP connection cannot wedge a worker slot indefinitely.
+const gitNetworkTimeout = 10 * time.Minute
+
+// gitLocalTimeout caps local-only git operations (show, log, ls-tree). These
+// should be fast; anything beyond this is a hung filesystem or a bug.
+const gitLocalTimeout = 2 * time.Minute
+
+// gitWaitDelay is how long Go will wait after killing a git process before
+// forcibly closing inherited stdout/stderr pipes. This is what actually reaps
+// zombies when a grandchild (git-remote-https) still holds the pipe open —
+// see golang/go#23019.
+const gitWaitDelay = 5 * time.Second
+
+// gitCommand builds an *exec.Cmd for a git invocation that is safe against
+// the zombie/pipe-inheritance trap:
+//
+//   - Setpgid puts git in its own process group so Cancel can SIGKILL the
+//     whole group (including git-remote-https), not just the direct child.
+//   - Cancel overrides CommandContext's default behavior (which only kills
+//     the direct child) to kill the entire process group.
+//   - WaitDelay ensures Output/CombinedOutput returns even if a grandchild
+//     is still holding the stdout pipe open after git itself has been killed.
+//   - GIT_TERMINAL_PROMPT=0 prevents git from ever blocking on a credential
+//     prompt. GIT_HTTP_LOW_SPEED_LIMIT/TIME makes libcurl abort connections
+//     that stall below 1 KB/s for 60s, which is the usual symptom of a
+//     half-open connection to github.com.
+func gitCommand(ctx context.Context, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.WaitDelay = gitWaitDelay
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return nil
+		}
+		// Negative pid targets the whole process group.
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}
+	cmd.Env = append(os.Environ(),
+		"GIT_TERMINAL_PROMPT=0",
+		"GIT_HTTP_LOW_SPEED_LIMIT=1000",
+		"GIT_HTTP_LOW_SPEED_TIME=60",
+	)
+	return cmd
+}
 
 // CommitDetails holds full metadata for a single git commit.
 type CommitDetails struct {
@@ -79,18 +127,21 @@ func (m *Manager) EnsureCloned(ctx context.Context, repoURL string) (string, err
 	mu.Lock()
 	defer mu.Unlock()
 
+	netCtx, cancel := context.WithTimeout(ctx, gitNetworkTimeout)
+	defer cancel()
+
 	if _, err := os.Stat(filepath.Join(localPath, "HEAD")); os.IsNotExist(err) {
 		// Clone bare
 		if err := os.MkdirAll(filepath.Dir(localPath), 0o755); err != nil {
 			return "", fmt.Errorf("creating parent directory: %w", err)
 		}
-		cmd := exec.CommandContext(ctx, "git", "clone", "--bare", repoURL, localPath)
+		cmd := gitCommand(netCtx, "clone", "--bare", repoURL, localPath)
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return "", fmt.Errorf("cloning %s: %w\n%s", repoURL, err, out)
 		}
 	} else {
 		// Fetch all
-		cmd := exec.CommandContext(ctx, "git", "-C", localPath, "fetch", "--all", "--prune")
+		cmd := gitCommand(netCtx, "-C", localPath, "fetch", "--all", "--prune")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return "", fmt.Errorf("fetching %s: %w\n%s", repoURL, err, out)
 		}
@@ -102,7 +153,7 @@ func (m *Manager) EnsureCloned(ctx context.Context, repoURL string) (string, err
 // ResolveRepo returns the local path for an already-cloned repo without
 // fetching. Returns an error if the repo hasn't been cloned yet. Use this
 // for read-only operations when the repo is known to be up-to-date.
-func (m *Manager) ResolveRepo(ctx context.Context, repoURL string) (string, error) {
+func (m *Manager) ResolveRepo(_ context.Context, repoURL string) (string, error) {
 	localPath, err := m.repoPath(repoURL)
 	if err != nil {
 		return "", err
@@ -117,9 +168,12 @@ func (m *Manager) ResolveRepo(ctx context.Context, repoURL string) (string, erro
 
 // GetCommitDetails reads full commit metadata for the given SHA.
 func (m *Manager) GetCommitDetails(ctx context.Context, repoPath, sha string) (*CommitDetails, error) {
+	localCtx, cancel := context.WithTimeout(ctx, gitLocalTimeout)
+	defer cancel()
+
 	// Format: SHA\nsubject\nauthor name\nauthor email\ndate\n\nbody
 	format := "%H%n%s%n%aN%n%aE%n%aI"
-	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "show", "-s", "--format="+format, sha)
+	cmd := gitCommand(localCtx, "-C", repoPath, "show", "-s", "--format="+format, sha)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("git show %s: %w", sha, err)
@@ -131,7 +185,7 @@ func (m *Manager) GetCommitDetails(ctx context.Context, repoPath, sha string) (*
 	}
 
 	// Get the body separately (everything after the subject line)
-	bodyCmd := exec.CommandContext(ctx, "git", "-C", repoPath, "show", "-s", "--format=%b", sha)
+	bodyCmd := gitCommand(localCtx, "-C", repoPath, "show", "-s", "--format=%b", sha)
 	bodyOut, err := bodyCmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("git show body %s: %w", sha, err)
@@ -150,8 +204,11 @@ func (m *Manager) GetCommitDetails(ctx context.Context, repoPath, sha string) (*
 // ResolveSubmodules parses .gitmodules and git ls-tree at the given SHA to
 // find submodule URLs and their pinned commit SHAs.
 func (m *Manager) ResolveSubmodules(ctx context.Context, repoPath, sha string) ([]SubmoduleRef, error) {
+	localCtx, cancel := context.WithTimeout(ctx, gitLocalTimeout)
+	defer cancel()
+
 	// Try to read .gitmodules at the given commit
-	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "show", sha+":.gitmodules")
+	cmd := gitCommand(localCtx, "-C", repoPath, "show", sha+":.gitmodules")
 	gitmodulesOut, err := cmd.Output()
 	if err != nil {
 		// No .gitmodules at this commit — not an error, just no submodules
@@ -165,7 +222,7 @@ func (m *Manager) ResolveSubmodules(ctx context.Context, repoPath, sha string) (
 	}
 
 	// Use git ls-tree to get the commit SHAs for each submodule path
-	lsCmd := exec.CommandContext(ctx, "git", "-C", repoPath, "ls-tree", sha)
+	lsCmd := gitCommand(localCtx, "-C", repoPath, "ls-tree", sha)
 	lsOut, err := lsCmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("git ls-tree %s: %w", sha, err)
@@ -217,7 +274,9 @@ func (m *Manager) ComputeChangelog(ctx context.Context, repoPath, fromSHA, toSHA
 	rangeSpec := fromSHA + ".." + toSHA
 	// Request one extra to detect truncation
 	maxCount := fmt.Sprintf("--max-count=%d", MaxChangelogCommits+1)
-	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "log", maxCount, "--format="+format, rangeSpec)
+	localCtx, cancel := context.WithTimeout(ctx, gitLocalTimeout)
+	defer cancel()
+	cmd := gitCommand(localCtx, "-C", repoPath, "log", maxCount, "--format="+format, rangeSpec)
 	out, outErr := cmd.Output()
 	if outErr != nil {
 		return nil, false, fmt.Errorf("git log %s: %w", rangeSpec, outErr)
