@@ -80,7 +80,15 @@ INSERT INTO artifact_versions (artifact_id, version, sort_order, commit_body)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (artifact_id, version) DO UPDATE SET
     sort_order = EXCLUDED.sort_order,
-    commit_body = EXCLUDED.commit_body
+    commit_body = CASE
+        WHEN EXCLUDED.commit_body IS NULL THEN artifact_versions.commit_body
+        WHEN artifact_versions.commit_body IS NULL THEN EXCLUDED.commit_body
+        WHEN (EXCLUDED.commit_body->>'sha' IS NULL OR EXCLUDED.commit_body->>'sha' = '')
+             AND (artifact_versions.commit_body->>'sha' IS NOT NULL
+                  AND artifact_versions.commit_body->>'sha' <> '')
+            THEN artifact_versions.commit_body
+        ELSE artifact_versions.commit_body || EXCLUDED.commit_body
+    END
 RETURNING id, artifact_id, version, sort_order, recommended, commit_body
 `
 
@@ -91,6 +99,18 @@ type CreateArtifactVersionParams struct {
 	CommitBody []byte
 }
 
+// Upserts an artifact version. On conflict, sort_order is always refreshed
+// while commit_body is merged defensively so that concurrent writers from
+// different stages of the pipeline (initial indexing, enrichment, self-repair)
+// do not clobber each other. Rules, in order:
+//  1. If the incoming payload is null, keep the existing row.
+//  2. If the existing row is null, take the incoming payload wholesale.
+//  3. If the incoming payload has no usable sha but the existing row does,
+//     keep the existing row — a shallow re-index must not overwrite a good
+//     sha with an empty one (prevents concurrent-sync-vs-repair races).
+//  4. Otherwise, shallow-merge JSONB with the incoming payload winning on
+//     overlapping keys. This preserves enrichment-only fields (body, author,
+//     changelog, submodules, enrichedAt, ...) when a shallower write arrives.
 func (q *Queries) CreateArtifactVersion(ctx context.Context, arg CreateArtifactVersionParams) (ArtifactVersion, error) {
 	row := q.db.QueryRow(ctx, createArtifactVersion,
 		arg.ArtifactID,

@@ -11,6 +11,18 @@ import (
 type Querier interface {
 	CountArtifactVersions(ctx context.Context, arg CountArtifactVersionsParams) (int32, error)
 	CreateArtifact(ctx context.Context, arg CreateArtifactParams) (Artifact, error)
+	// Upserts an artifact version. On conflict, sort_order is always refreshed
+	// while commit_body is merged defensively so that concurrent writers from
+	// different stages of the pipeline (initial indexing, enrichment, self-repair)
+	// do not clobber each other. Rules, in order:
+	//   1. If the incoming payload is null, keep the existing row.
+	//   2. If the existing row is null, take the incoming payload wholesale.
+	//   3. If the incoming payload has no usable sha but the existing row does,
+	//      keep the existing row — a shallow re-index must not overwrite a good
+	//      sha with an empty one (prevents concurrent-sync-vs-repair races).
+	//   4. Otherwise, shallow-merge JSONB with the incoming payload winning on
+	//      overlapping keys. This preserves enrichment-only fields (body, author,
+	//      changelog, submodules, enrichedAt, ...) when a shallower write arrives.
 	CreateArtifactVersion(ctx context.Context, arg CreateArtifactVersionParams) (ArtifactVersion, error)
 	CreateArtifactVersionAsset(ctx context.Context, arg CreateArtifactVersionAssetParams) (ArtifactVersionedAsset, error)
 	CreateArtifactVersionTag(ctx context.Context, arg CreateArtifactVersionTagParams) (ArtifactVersionedTag, error)
