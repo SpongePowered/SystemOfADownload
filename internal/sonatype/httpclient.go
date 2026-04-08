@@ -46,18 +46,53 @@ type HTTPClient struct {
 	httpClient *http.Client
 	baseURL    string
 	repoName   string
-	onProgress ProgressFunc // called during paginated fetches (optional)
+	denyRepos  map[string]struct{} // hosted repo names whose assets should be dropped
+	onProgress ProgressFunc        // called during paginated fetches (optional)
 }
 
 // NewHTTPClient creates a new Sonatype Nexus HTTP client.
-func NewHTTPClient(baseURL, repoName string) *HTTPClient {
+//
+// denyRepos is an optional set of hosted-repository names whose assets must be
+// filtered out of SearchAssets results. This exists because maven-public is a
+// group repo that can aggregate multiple hosted repos, and some legacy hosted
+// repos (e.g. forge-proxy) return 403 on asset downloads while still being
+// indexed by component/asset search. Without filtering, duplicate assets for
+// the same GAV+classifier leak through and downstream activities may pick the
+// unreachable copy. denyRepos applies only to SearchAssets; FetchVersions is
+// unaffected so versions only present in a denied repo are still discovered.
+func NewHTTPClient(baseURL, repoName string, denyRepos ...string) *HTTPClient {
+	deny := make(map[string]struct{}, len(denyRepos))
+	for _, r := range denyRepos {
+		r = strings.TrimSpace(r)
+		if r != "" {
+			deny[r] = struct{}{}
+		}
+	}
 	return &HTTPClient{
 		httpClient: &http.Client{
 			Transport: otelhttp.NewTransport(http.DefaultTransport),
 		},
-		baseURL:  strings.TrimRight(baseURL, "/"),
-		repoName: repoName,
+		baseURL:   strings.TrimRight(baseURL, "/"),
+		repoName:  repoName,
+		denyRepos: deny,
 	}
+}
+
+// repoNameFromDownloadURL extracts the hosted repository name from a Nexus
+// asset download URL of the form "<base>/repository/<repo>/<path>". Returns
+// empty string if the URL doesn't match that shape.
+func repoNameFromDownloadURL(downloadURL string) string {
+	const marker = "/repository/"
+	i := strings.Index(downloadURL, marker)
+	if i < 0 {
+		return ""
+	}
+	rest := downloadURL[i+len(marker):]
+	j := strings.IndexByte(rest, '/')
+	if j < 0 {
+		return rest
+	}
+	return rest[:j]
 }
 
 // WithProgress returns a copy of the client that calls fn after each page
@@ -192,6 +227,16 @@ func (c *HTTPClient) SearchAssets(ctx context.Context, groupID, artifactID, vers
 			// Skip checksum files — their extension contains a dot (e.g. "jar.md5", "pom.sha1")
 			if item.Maven2 != nil && strings.Contains(item.Maven2.Extension, ".") {
 				continue
+			}
+			// Skip assets served from denied hosted repos. maven-public aggregates
+			// several hosted repos and some legacy ones (e.g. forge-proxy) return
+			// 403 on direct download even though they're indexed.
+			if len(c.denyRepos) > 0 {
+				if hosted := repoNameFromDownloadURL(item.DownloadURL); hosted != "" {
+					if _, denied := c.denyRepos[hosted]; denied {
+						continue
+					}
+				}
 			}
 			asset := domain.AssetInfo{
 				DownloadURL: item.DownloadURL,

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/exaring/otelpgx"
@@ -30,15 +31,16 @@ import (
 )
 
 type Config struct {
-	TemporalHostPort  string
-	TemporalNamespace string
-	SonatypeBaseURL   string
-	SonatypeRepoName  string
-	DatabaseURL       string
-	GitCacheDir       string
-	MetricsPort       string
-	BuildID           string
-	PodName           string
+	TemporalHostPort     string
+	TemporalNamespace    string
+	SonatypeBaseURL      string
+	SonatypeRepoName     string
+	SonatypeRepoDenyList []string
+	DatabaseURL          string
+	GitCacheDir          string
+	MetricsPort          string
+	BuildID              string
+	PodName              string
 }
 
 func NewConfig() *Config {
@@ -57,6 +59,18 @@ func NewConfig() *Config {
 	repoName := os.Getenv("SONATYPE_REPO_NAME")
 	if repoName == "" {
 		repoName = "maven-releases"
+	}
+	// Comma-separated list of hosted repository names whose assets must be
+	// dropped from SearchAssets results. Used to suppress legacy hosted repos
+	// (e.g. forge-proxy) that are still indexed under maven-public but return
+	// 403 on direct download.
+	var repoDeny []string
+	if raw := strings.TrimSpace(os.Getenv("SONATYPE_REPO_DENY")); raw != "" {
+		for _, r := range strings.Split(raw, ",") {
+			if r = strings.TrimSpace(r); r != "" {
+				repoDeny = append(repoDeny, r)
+			}
+		}
 	}
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
@@ -77,15 +91,16 @@ func NewConfig() *Config {
 	}
 	podName := os.Getenv("POD_NAME")
 	return &Config{
-		TemporalHostPort:  hostPort,
-		TemporalNamespace: namespace,
-		SonatypeBaseURL:   sonatypeURL,
-		SonatypeRepoName:  repoName,
-		DatabaseURL:       databaseURL,
-		GitCacheDir:       gitCacheDir,
-		MetricsPort:       metricsPort,
-		BuildID:           buildID,
-		PodName:           podName,
+		TemporalHostPort:     hostPort,
+		TemporalNamespace:    namespace,
+		SonatypeBaseURL:      sonatypeURL,
+		SonatypeRepoName:     repoName,
+		SonatypeRepoDenyList: repoDeny,
+		DatabaseURL:          databaseURL,
+		GitCacheDir:          gitCacheDir,
+		MetricsPort:          metricsPort,
+		BuildID:              buildID,
+		PodName:              podName,
 	}
 }
 
@@ -257,7 +272,7 @@ func main() {
 			NewDatabasePool,
 			repository.NewRepository,
 			func(cfg *Config) sonatype.Client {
-				return sonatype.NewHTTPClient(cfg.SonatypeBaseURL, cfg.SonatypeRepoName)
+				return sonatype.NewHTTPClient(cfg.SonatypeBaseURL, cfg.SonatypeRepoName, cfg.SonatypeRepoDenyList...)
 			},
 			func(sc sonatype.Client, repo repository.Repository) *activity.VersionSyncActivities {
 				return &activity.VersionSyncActivities{SonatypeClient: sc, Repo: repo}
