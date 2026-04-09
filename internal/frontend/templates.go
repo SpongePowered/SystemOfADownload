@@ -18,18 +18,23 @@ type Templates struct {
 	settings  *template.Template
 }
 
-// templateFuncs returns the shared template function map.
-func templateFuncs() template.FuncMap {
+// templateFuncs returns the shared template function map. The asset
+// manifest is threaded in so templates can call `{{asset "/assets/..."}}`
+// to emit the content-hashed URL for a given logical path.
+func templateFuncs(assets *AssetManifest) template.FuncMap {
 	return template.FuncMap{
 		"currentYear": func() int { return time.Now().Year() },
 		"subtract":    func(a, b int) int { return a - b },
+		"asset":       func(logical string) string { return assets.URL(logical) },
 	}
 }
 
 // ParseTemplates parses all embedded templates with the shared layout.
-func ParseTemplates() (*Templates, error) {
+// The asset manifest is used by the `asset` template func to rewrite
+// logical /assets/... paths to their content-hashed URLs.
+func ParseTemplates(assets *AssetManifest) (*Templates, error) {
 	parse := func(name string) (*template.Template, error) {
-		t, err := template.New("").Funcs(templateFuncs()).ParseFS(
+		t, err := template.New("").Funcs(templateFuncs(assets)).ParseFS(
 			templateFS, "templates/layout.gohtml", "templates/"+name,
 		)
 		if err != nil {

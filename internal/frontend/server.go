@@ -31,6 +31,7 @@ type ServerConfig struct {
 type Server struct {
 	service           *app.Service
 	templates         *Templates
+	assets            *AssetManifest
 	platforms         []PlatformConfig
 	sponsorsJSON      template.JS
 	sponsorsAssetsDir string
@@ -41,7 +42,11 @@ type Server struct {
 // renders pages without a sponsor block (required for local dev and for
 // first boot before the IaC ConfigMap is applied).
 func NewServer(service *app.Service, cfg ServerConfig) (*Server, error) {
-	tmpl, err := ParseTemplates()
+	assets, err := BuildAssetManifest(staticFS, "static")
+	if err != nil {
+		return nil, fmt.Errorf("building asset manifest: %w", err)
+	}
+	tmpl, err := ParseTemplates(assets)
 	if err != nil {
 		return nil, fmt.Errorf("parsing templates: %w", err)
 	}
@@ -57,6 +62,7 @@ func NewServer(service *app.Service, cfg ServerConfig) (*Server, error) {
 	return &Server{
 		service:           service,
 		templates:         tmpl,
+		assets:            assets,
 		platforms:         defaultPlatforms(),
 		sponsorsJSON:      sponsorsJSON,
 		sponsorsAssetsDir: cfg.SponsorsAssetsDir,
@@ -67,9 +73,10 @@ func NewServer(service *app.Service, cfg ServerConfig) (*Server, error) {
 // Specific routes (/healthz, /settings, /assets/) must be registered before
 // the catch-all /{project} wildcard to avoid conflicts.
 func (s *Server) RegisterRoutes(mux *http.ServeMux, metricsHandler http.Handler) {
-	// Static assets (CSS, fonts, picker JS) — embedded in the binary
-	staticSub, _ := fs.Sub(staticFS, "static")
-	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(staticSub))))
+	// Static assets (CSS, fonts, picker JS) — embedded in the binary and
+	// served under content-hashed URLs so Cache-Control: immutable is
+	// safe. Templates must reference these through `{{asset "..."}}`.
+	mux.Handle("GET /assets/", s.assets.Handler())
 
 	// Sponsor images live on a writable mount maintained by the
 	// Infrastructure IaC repo, separate from the embedded static FS. The
@@ -83,6 +90,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux, metricsHandler http.Handler)
 	}
 
 	// Favicon at the conventional root path, served from the embedded static FS.
+	staticSub, _ := fs.Sub(staticFS, "static")
 	mux.Handle("GET /favicon.ico", http.FileServer(http.FS(staticSub)))
 
 	mux.HandleFunc("GET /healthz", s.handleHealthz)

@@ -33,6 +33,7 @@ cmd/
 ```
 internal/frontend/
   server.go           — route registration, static file serving
+  assets.go           — content-hashed asset manifest (embed FS → hashed URLs, CSS url() cascade, immutable-safe handler)
   config.go           — PlatformConfig, ArtifactType (hardcoded, YAML loading planned)
   handlers.go         — handleOverview, handleDownloads, handleSettings(+Submit)
   preferences.go      — cookie-backed prerelease/apifilter preferences
@@ -56,7 +57,7 @@ internal/frontend/
 | `GET /{project}` | `handleDownloads` | Done |
 | `GET /settings` | `handleSettings` | Done |
 | `POST /settings` | `handleSettingsSubmit` | Done |
-| `GET /assets/*` | Static file server | Done |
+| `GET /assets/*` | Content-hashed static file server (immutable) | Done |
 | `GET /healthz` | Health check | Done |
 | `GET /metrics` | Prometheus | Done |
 
@@ -143,10 +144,30 @@ Legacy classifier selection is prefix-based: MC versions starting with `1.8.`, `
 JSON format matching the existing `sponsors.json`. Selection is client-side (weighted
 random per pageview) to work with CDN caching.
 
-### Caching Strategy (planned)
+### Caching Strategy
 
 Cloudflare CDN with Cache-Control headers. All page state in URL (no `Vary: Cookie`).
-Downloads pages: 2-min TTL. Overview: 5-min TTL. CSS: immutable with cache buster.
+Downloads pages: 2-min TTL. Overview: 5-min TTL.
+
+**Embedded assets (`/assets/css/*`, `/assets/fonts/*`, `/assets/js/*`, and
+any other file under `internal/frontend/static/`):** served at content-hashed
+URLs by `AssetManifest` (`internal/frontend/assets.go`). At startup the
+manifest walks the embed FS in two passes: pass 1 hashes every non-CSS file
+and rewrites its URL from `foo.woff2` to `foo.<8-hex>.woff2`; pass 2 runs a
+regex over each CSS file, substitutes hashed URLs for any site-local
+`url(/assets/...)` reference it can resolve, then hashes the rewritten
+bytes. The cascade means changing a font automatically bumps the URL of
+every CSS file that references it, so a template never points at stale
+bytes. Templates call the hashed URL through the `{{asset "..."}}` funcmap
+entry; the handler serves with `Cache-Control: public, max-age=31536000,
+immutable`, a strong ETag, pinned Content-Type (deterministic across
+platform mime.types), and supports `If-None-Match` / HEAD. External
+`https://...` URLs inside CSS are left alone. `/assets/sponsors/*` is a
+separate writable mount — its URLs are not rewritten.
+
+Because every byte change produces a new URL, Cloudflare never serves
+stale bytes under a URL a client previously fetched. One-time CF purges
+are only needed when migrating from an earlier non-hashed state.
 
 ### User Preferences
 

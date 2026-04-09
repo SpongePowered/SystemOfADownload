@@ -6,9 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sponge Downloads</title>
   <link rel="icon" href="/favicon.ico" type="image/x-icon">
-  <link rel="stylesheet" href="/assets/css/fonts.css">
+  <link rel="stylesheet" href="{{asset "/assets/css/fonts.css"}}">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
-  <link rel="stylesheet" href="/assets/css/main.css">
+  <link rel="stylesheet" href="{{asset "/assets/css/main.css"}}">
 </head>
 <body>
   {{/* Navbar — #topbar */}}
@@ -61,7 +61,7 @@
   {{/* Sponsor data + client-side weighted picker. The picker only acts on
        pages that include a #sponsor placeholder (currently downloads.gohtml). */}}
   <script type="application/json" id="sponsors-data">{{.Sponsors}}</script>
-  <script src="/assets/js/sponsors.js"></script>
+  <script src="{{asset "/assets/js/sponsors.js"}}"></script>
   {{end}}
 
   {{/* Footer */}}
