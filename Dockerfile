@@ -23,7 +23,12 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 # --- App image (default target) ---
 FROM alpine:3.23 AS app
 
-RUN apk add --no-cache ca-certificates git tzdata
+# tini is PID 1 in every container using this image so orphaned grandchildren
+# (e.g. git subprocesses forked by git clone/fetch) get reaped instead of
+# accumulating as zombies. The Go runtime does not reap orphans it didn't
+# directly exec — only tini/dumb-init/a real init will. See cf0fcba for the
+# direct-child half of the same problem.
+RUN apk add --no-cache ca-certificates git tini tzdata
 
 COPY --from=builder /out/server /app/server
 COPY --from=builder /out/worker /app/worker
