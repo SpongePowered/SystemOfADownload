@@ -10,11 +10,14 @@ type AssetLink struct {
 }
 
 // isLegacyMC returns true if the MC version uses legacy classifiers.
-// Legacy is determined by prefix matching: MC versions starting with
-// "1.8.", "1.9.", "1.10.", "1.11.", or "1.12." are legacy.
+// A version is legacy if it exactly matches a configured prefix (e.g. "1.8"
+// from a ?minecraft=1.8 URL filter) or is a sub-version of one (e.g. "1.8.9"
+// matches prefix "1.8"). The exact-match branch is load-bearing: without it,
+// bare URL filters like "1.8" silently fall into the modern-era code path
+// and every legacy build renders with zero download buttons.
 func isLegacyMC(mcVersion string, prefixes []string) bool {
 	for _, prefix := range prefixes {
-		if strings.HasPrefix(mcVersion, prefix) {
+		if mcVersion == prefix || strings.HasPrefix(mcVersion, prefix+".") {
 			return true
 		}
 	}

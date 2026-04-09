@@ -41,7 +41,12 @@ var spongeQueryModifiers = map[string]map[string]string{
 	"1.12.2": {"api": "7"},
 }
 
-var legacyMCPrefixes = []string{"1.8.", "1.9.", "1.10.", "1.11.", "1.12."}
+// legacyMCPrefixes lists the MC version bases that use the "legacy"
+// classifier layout (empty/no classifier for the main jar). Prefixes are
+// stored without trailing dots so isLegacyMC can match both bare prefixes
+// like "1.8" (from ?minecraft=1.8 URL filters) and sub-versions like
+// "1.8.9".
+var legacyMCPrefixes = []string{"1.8", "1.9", "1.10", "1.11", "1.12"}
 
 // defaultPlatforms returns the hardcoded platform list.
 // This will be replaced by YAML config loading in a later phase.
