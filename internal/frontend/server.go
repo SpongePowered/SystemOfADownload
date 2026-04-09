@@ -88,6 +88,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux, metricsHandler http.Handler)
 	mux.HandleFunc("GET /healthz", s.handleHealthz)
 	mux.Handle("GET /metrics", metricsHandler)
 	mux.HandleFunc("GET /settings", s.handleSettings)
+	mux.HandleFunc("POST /settings", s.handleSettingsSubmit)
 	mux.HandleFunc("GET /{$}", s.handleOverview)
 	mux.HandleFunc("GET /{project}", s.handleDownloads)
 }

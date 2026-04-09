@@ -1,0 +1,80 @@
+{{define "content"}}
+{{with .Page}}
+<main id="settings">
+
+  {{/* Breadcrumb — matches downloads.gohtml visual treatment */}}
+  <section class="breadcrumb">
+    <div class="container">
+      <div class="row">
+        <div class="col">
+          <div class="inline">
+            <div class="platform-logo">
+              <h2><div>Settings</div></h2>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="container">
+    <div class="row">
+      <div class="col">
+        <p>
+          These settings control the behavior of this Downloads site on this browser
+          only, using browser cookies. They are applied automatically on every page
+          load.
+        </p>
+        {{if .Saved}}
+        <div class="settings-saved" role="status">Your preferences have been saved.</div>
+        {{end}}
+
+        <form class="settings-form" method="post" action="/settings">
+          <div class="settings-field">
+            <label for="show-pre-release" class="settings-label">
+              <input type="checkbox" id="show-pre-release" name="prerelease" value="1"
+                     {{if .ShowPreRelease}}checked{{end}}>
+              <span class="settings-label-text">
+                <span class="settings-title">Show pre-release versions of Minecraft</span>
+                <span class="settings-help">
+                  Turning this on will show <em>pre-release</em> versions of Minecraft
+                  for which Sponge builds exist in the version selector.
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div class="settings-field">
+            <label for="filter-api-versions" class="settings-label">
+              <input type="checkbox" id="filter-api-versions" name="apifilter" value="1"
+                     {{if .FilterAPI}}checked{{end}}>
+              <span class="settings-label-text">
+                <span class="settings-title">
+                  Only show builds that match the expected SpongeAPI for the given
+                  Minecraft version
+                </span>
+                <span class="settings-help">
+                  Sometimes we start development on the next version of an API on a
+                  Minecraft version that has already seen a SpongeAPI release (e.g.,
+                  there are builds of Sponge for Minecraft 1.12.2 that implement a
+                  very early version of SpongeAPI 8). Unchecking this box will show
+                  these builds.
+                  <strong>It is strongly recommended that you leave this turned on
+                  as the hidden builds are snapshots of early API prototypes and are
+                  now largely useless.</strong>
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div class="settings-actions">
+            <button type="submit" class="btn btn-primary">Save preferences</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</main>
+{{end}}
+{{end}}

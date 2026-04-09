@@ -34,7 +34,8 @@ cmd/
 internal/frontend/
   server.go           — route registration, static file serving
   config.go           — PlatformConfig, ArtifactType (hardcoded, YAML loading planned)
-  handlers.go         — handleOverview, handleDownloads, handleSettings (stub)
+  handlers.go         — handleOverview, handleDownloads, handleSettings(+Submit)
+  preferences.go      — cookie-backed prerelease/apifilter preferences
   templates.go        — embedded template parsing, PageData, render methods
   classifiers.go      — legacy vs modern classifier selection, asset matching
   commits.go          — commit body deduplication, relative time, experimental detection
@@ -45,6 +46,7 @@ internal/frontend/
     layout.gohtml     — base HTML: topbar, header, content block, footer
     overview.gohtml   — platform cards grid
     downloads.gohtml  — version selector, builds, commits, pagination
+    settings.gohtml   — preference form (prerelease + apifilter checkboxes)
 ```
 
 **Routes:**
@@ -52,7 +54,8 @@ internal/frontend/
 |---|---|---|
 | `GET /` | `handleOverview` | Done |
 | `GET /{project}` | `handleDownloads` | Done |
-| `GET /settings` | `handleSettings` | Stub |
+| `GET /settings` | `handleSettings` | Done |
+| `POST /settings` | `handleSettingsSubmit` | Done |
 | `GET /assets/*` | Static file server | Done |
 | `GET /healthz` | Health check | Done |
 | `GET /metrics` | Prometheus | Done |
@@ -90,10 +93,10 @@ internal/frontend/
 
 ### Phase 2: Config + Preferences
 - [ ] YAML platform config loader (replace hardcoded Go structs in `config.go`)
-- [ ] Query param preferences (`prerelease=1`, `apifilter=0`) + cookie defaults
-- [ ] Settings page (form with two toggles, cookie set + redirect)
-- [ ] Query modifiers (API version forcing per MC version)
-- [ ] Pre-release MC version filtering in dropdown
+- [x] Query param preferences (`prerelease=1`, `apifilter=0`) + cookie defaults
+- [x] Settings page (form with two toggles, cookie set + redirect)
+- [x] Query modifiers (API version forcing per MC version)
+- [x] Pre-release MC version filtering in dropdown
 
 ### Phase 3: Sponsors
 - [x] Read sponsor manifest from `SPONSORS_CONFIG_PATH` at startup (JSON matching legacy `SpongeDownloads/sponsors.json` shape: `name`, `images[]`, `link`, `additionalText`, `weight`)
@@ -145,10 +148,24 @@ random per pageview) to work with CDN caching.
 Cloudflare CDN with Cache-Control headers. All page state in URL (no `Vary: Cookie`).
 Downloads pages: 2-min TTL. Overview: 5-min TTL. CSS: immutable with cache buster.
 
-### User Preferences (planned)
+### User Preferences
 
-Query parameters (`prerelease`, `apifilter`) as source of truth. Cookies store defaults
-only — handler redirects to canonical URL with params on first visit.
+Two preferences are supported, matching the legacy SPA:
+
+| Name | Cookie / query | Default | Effect |
+|---|---|---|---|
+| `prerelease` | `prerelease=1\|0` | `0` (off) | Show pre-release MC versions (containing `-`) in the selector dropdown |
+| `apifilter` | `apifilter=1\|0` | `1` (on) | Apply platform `QueryModifiers` (e.g., `1.12.2` → `api=7`) so early API prototypes are hidden |
+
+Resolution order per request: query parameter → cookie → package default.
+Query parameters are honored but not required — there is no automatic
+redirect to a "canonical" URL. The `/settings` form writes cookies via a
+`POST` → `303 See Other` → `GET /settings?saved=1` (PRG pattern) so a
+browser refresh after save does not re-submit the form.
+
+Unchecked checkboxes are absent from the submitted form, so submitting
+always rewrites both cookies — the stored value mirrors exactly what the
+user sees in the UI.
 
 ---
 

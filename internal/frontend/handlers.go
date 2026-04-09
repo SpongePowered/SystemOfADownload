@@ -32,9 +32,54 @@ func (s *Server) handleOverview(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) handleSettings(w http.ResponseWriter, _ *http.Request) {
+// SettingsPage is the template context for settings.gohtml. It reflects the
+// user's currently-stored preferences (from cookies) and whether the user
+// just saved the form — the POST handler redirects back with ?saved=1 so the
+// "saved" banner survives the PRG (Post/Redirect/Get) cycle.
+type SettingsPage struct {
+	ShowPreRelease bool
+	FilterAPI      bool
+	Saved          bool
+}
+
+func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
+	prefs := ReadPreferences(r)
+	page := SettingsPage{
+		ShowPreRelease: prefs.ShowPreRelease,
+		FilterAPI:      prefs.FilterAPI,
+		Saved:          r.URL.Query().Get("saved") == "1",
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprintln(w, "Settings — coming soon.")
+	if err := s.templates.RenderSettings(w, s.pageData("settings", page)); err != nil {
+		slog.ErrorContext(r.Context(), "rendering settings", "error", err)
+	}
+}
+
+// settingsFormMaxBytes caps the settings POST body well above the real
+// payload (two checkbox fields, ~40 bytes) so memory-exhaustion attacks via
+// oversized form bodies fall on the floor before ParseForm allocates.
+const settingsFormMaxBytes = 4 * 1024
+
+// handleSettingsSubmit persists the two preference checkboxes as cookies and
+// redirects back to /settings with ?saved=1 so a browser refresh after save
+// doesn't re-submit the form (PRG pattern).
+func (s *Server) handleSettingsSubmit(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, settingsFormMaxBytes)
+	if err := r.ParseForm(); err != nil {
+		slog.ErrorContext(r.Context(), "parsing settings form", "error", err)
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	// Unchecked checkboxes are absent from the submitted form, so the
+	// absence of a field means "off" rather than "unchanged". This matches
+	// normal HTML form semantics and means the stored cookies always
+	// mirror what the user sees in the UI.
+	prefs := Preferences{
+		ShowPreRelease: r.PostForm.Get("prerelease") == "1",
+		FilterAPI:      r.PostForm.Get("apifilter") == "1",
+	}
+	WritePreferences(w, prefs)
+	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
 }
 
 func (s *Server) findPlatform(id string) *PlatformConfig {
@@ -104,6 +149,10 @@ func (s *Server) handleDownloads(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Resolve user preferences: query params override cookies, which
+	// override package defaults (hide pre-release MC, filter API versions).
+	prefs := ReadPreferences(r)
+
 	// Parse query params
 	selectedMC := r.URL.Query().Get("minecraft")
 	offsetStr := r.URL.Query().Get("offset")
@@ -151,7 +200,7 @@ func (s *Server) handleDownloads(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Filter MC versions (already sorted by sort_order DESC from DB)
-	mcVersions := filterMCVersions(tags["minecraft"], false) // TODO: prerelease from query param
+	mcVersions := filterMCVersions(tags["minecraft"], prefs.ShowPreRelease)
 
 	if len(mcVersions) == 0 {
 		timing.write(w)
@@ -170,7 +219,7 @@ func (s *Server) handleDownloads(w http.ResponseWriter, r *http.Request) {
 
 	// Build tag filter
 	tagFilter := map[string]string{"minecraft": selectedMC}
-	applyQueryModifiers(platform, selectedMC, true, tagFilter) // TODO: apifilter from query param
+	applyQueryModifiers(platform, selectedMC, prefs.FilterAPI, tagFilter)
 
 	// Fetch recommended + paginated builds in parallel
 	var (

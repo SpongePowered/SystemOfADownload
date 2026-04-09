@@ -15,6 +15,7 @@ var templateFS embed.FS
 type Templates struct {
 	overview  *template.Template
 	downloads *template.Template
+	settings  *template.Template
 }
 
 // templateFuncs returns the shared template function map.
@@ -47,9 +48,15 @@ func ParseTemplates() (*Templates, error) {
 		return nil, err
 	}
 
+	settings, err := parse("settings.gohtml")
+	if err != nil {
+		return nil, err
+	}
+
 	return &Templates{
 		overview:  overview,
 		downloads: downloads,
+		settings:  settings,
 	}, nil
 }
 
@@ -75,4 +82,9 @@ func (t *Templates) RenderOverview(w io.Writer, data *PageData) error {
 // RenderDownloads renders the downloads page.
 func (t *Templates) RenderDownloads(w io.Writer, data *PageData) error {
 	return t.downloads.ExecuteTemplate(w, "layout", data)
+}
+
+// RenderSettings renders the settings page.
+func (t *Templates) RenderSettings(w io.Writer, data *PageData) error {
+	return t.settings.ExecuteTemplate(w, "layout", data)
 }
