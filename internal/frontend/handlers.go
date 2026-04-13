@@ -464,6 +464,12 @@ func parseCommitBody(raw []byte) ([]CommitEntry, []SubmoduleChangelog, bool) {
 		return nil, nil, true
 	}
 
+	// Enriched but head commit has no message (e.g., commit not found
+	// in any registered repo during enrichment) — nothing useful to show.
+	if info.Message == "" {
+		return nil, nil, false
+	}
+
 	// Enriched but no changelog — show the single commit with body
 	return []CommitEntry{buildHeadEntry()}, nil, processing
 }

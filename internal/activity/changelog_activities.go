@@ -186,7 +186,11 @@ func (a *ChangelogActivities) StoreChangelog(ctx context.Context, input StoreCha
 		}
 
 		info.Changelog = &input.Changelog
-		info.ChangelogStatus = "" // clear pending status
+		// Only clear pending_predecessor status; preserve error statuses
+		// (e.g., error_commit_not_found from Phase 1).
+		if info.ChangelogStatus == "pending_predecessor" {
+			info.ChangelogStatus = ""
+		}
 
 		data, err := json.Marshal(info)
 		if err != nil {
