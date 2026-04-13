@@ -27,6 +27,17 @@ func TestGoGitReaderContract(t *testing.T) {
 // Dual-backend comparison harness
 // ---------------------------------------------------------------------------
 
+// normalizeUTCDate is a cmp.Option that treats trailing "Z" and "+00:00" as
+// equivalent in CommitDate fields. git %aI is platform-dependent for UTC:
+// Linux emits "Z", macOS emits "+00:00". go-git always emits "+00:00" via
+// the explicit format string "2006-01-02T15:04:05-07:00".
+var normalizeUTCDate = cmp.Transformer("normalizeUTCDate", func(d CommitDetails) CommitDetails {
+	if strings.HasSuffix(d.CommitDate, "Z") {
+		d.CommitDate = d.CommitDate[:len(d.CommitDate)-1] + "+00:00"
+	}
+	return d
+})
+
 func TestDualBackendComparison(t *testing.T) {
 	repo, shas := setupBasicRepo(t)
 
@@ -50,7 +61,7 @@ func TestDualBackendComparison(t *testing.T) {
 				if err != nil {
 					t.Fatalf("gogit.GetCommitDetails: %v", err)
 				}
-				if diff := cmp.Diff(want, got); diff != "" {
+				if diff := cmp.Diff(want, got, normalizeUTCDate); diff != "" {
 					t.Errorf("GetCommitDetails mismatch (-shell +gogit):\n%s", diff)
 				}
 			})
@@ -69,7 +80,7 @@ func TestDualBackendComparison(t *testing.T) {
 		if wantTrunc != gotTrunc {
 			t.Errorf("truncated: shell=%v, gogit=%v", wantTrunc, gotTrunc)
 		}
-		if diff := cmp.Diff(wantCommits, gotCommits); diff != "" {
+		if diff := cmp.Diff(wantCommits, gotCommits, normalizeUTCDate); diff != "" {
 			t.Errorf("ComputeChangelog mismatch (-shell +gogit):\n%s", diff)
 		}
 	})
