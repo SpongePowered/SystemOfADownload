@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "dbd149afbb999fb1e919f687c36bca734e9a3af7",
+    "Message": "Update SpongeCommon for Enchantevent",
+    "Body": "",
+    "AuthorName": "Anselm Brehme",
+    "AuthorEmail": "development.anselm@breh.me",
+    "CommitDate": "2019-09-21T21:38:00+02:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "e77dd9bcb842eccc4c20a11a6a94f7c26b7ad030"
+    }
+  ]
+}

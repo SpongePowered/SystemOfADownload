@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "93e0bc4218797f9e180333584e0948a5c5c37b1e",
+    "Message": "Use implementation guava version (#3913)",
+    "Body": "",
+    "AuthorName": "Morpheus",
+    "AuthorEmail": "ImMorpheus@users.noreply.github.com",
+    "CommitDate": "2023-11-11T19:55:44+00:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "e63ce04c60b8fdcd52e1d2d983d8e14620bf9714"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "0a75cbc68804fc16f1f8fb9c636dbb54ca4846fa",
+    "Message": "Remove unnecessary entity tag snapshot in spawn transactions. Fix #4216",
+    "Body": "1. It's not supported by some mods\n2. In practise, it's unused\n3. I've searched what the purpose could have been. It would make sense if we do entity snapshots before creating the spawn event. However, the current contract of the spawn event is to lazy-init snapshots during Order.PRE.\n\nFeel free to revert this commit if you find any usage of a such snapshot. Be careful of 1. when implementing.",
+    "AuthorName": "Yeregorix",
+    "AuthorEmail": "yeregorixcraft@gmail.com",
+    "CommitDate": "2025-10-20T23:20:30+02:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "0b67e0f9b9a867d3550daa5122bdc958d8c6365e"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "d9f92c89c04def77f80f17c247a545b41d4de900",
+    "Message": "chore(git): merge upstream api-18 into update/26.1",
+    "Body": "",
+    "AuthorName": "Gabriel Harris-Rouquette",
+    "AuthorEmail": "gabizou@me.com",
+    "CommitDate": "2026-02-18T09:09:10-08:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "8c8590b894393a3dfebec41a9e7dd9c1c39875c3"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "0048a2d8556f593478735a9060b953df6161f066",
+    "Message": "update common for devJar classifier name change",
+    "Body": "",
+    "AuthorName": "simon816",
+    "AuthorEmail": "simonbarnes1@googlemail.com",
+    "CommitDate": "2016-01-21T01:09:36+00:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "cbf1de8839583c5f273933b1d77fbcbbb2754e4c"
+    }
+  ]
+}

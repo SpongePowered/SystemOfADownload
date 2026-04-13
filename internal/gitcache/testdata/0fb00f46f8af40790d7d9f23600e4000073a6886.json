@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "0fb00f46f8af40790d7d9f23600e4000073a6886",
+    "Message": "Implement ChangeBlockEvent.Pre for modded liquids. Fixes #892.",
+    "Body": "A little explanation about this addition. For starters, we now modify\nthe Forge added base classes for custom liquids, but as many know, we\ncannot mix into other mod code for implementors of IFluidBlock that do\nnot extend BlockFluidBase/Classic/Finite etc. This remains fully\nimplemented for the cases of mod blocks that do extend those classes,\nand not override the methods themselves. Due to the nature of how the\ninjections work however, a bug with Mixin's refmap generation was\ndiscovered, leading to a required addition to the legacy-long-forgotten\nextraSrg.srg file. It now contains a searge mapping for both\nBlockFluidFinite and BlockFluidClassic #updateTick method since\npreviously, the refmap would point to\nnet/minecraft/block/Block;updateTick().\n\nThis has been minimally tested with some mod fluids and a sponge audit\nto ensure that mixin application succeeds.\n\nTo keep up to date with the Mixin issue, it can be referenced here:\nSpongePowered/Mixin#326. As soon as the issue is resolved, the\nextraSrg.srg file can be removed from the project.\n\nSigned-off-by: Gabriel Harris-Rouquette \u003cgabizou@me.com\u003e",
+    "AuthorName": "Gabriel Harris-Rouquette",
+    "AuthorEmail": "gabizou@me.com",
+    "CommitDate": "2019-06-04T23:35:53-07:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "9ea4129af8d0d03cbef822e2b49812641c012904"
+    }
+  ]
+}

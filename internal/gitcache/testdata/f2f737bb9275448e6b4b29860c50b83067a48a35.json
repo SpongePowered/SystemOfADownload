@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "f2f737bb9275448e6b4b29860c50b83067a48a35",
+    "Message": "Update SpongeCommon",
+    "Body": "",
+    "AuthorName": "Aaron Hill",
+    "AuthorEmail": "aa1ronham@gmail.com",
+    "CommitDate": "2016-09-13T17:29:02-04:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "c8a6e75e8a1d4073cd14777b43afea18de275836"
+    }
+  ]
+}

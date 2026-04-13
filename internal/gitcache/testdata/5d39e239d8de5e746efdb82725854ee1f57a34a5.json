@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "5d39e239d8de5e746efdb82725854ee1f57a34a5",
+    "Message": "Reset world ref when setting world key on block snapshot",
+    "Body": "",
+    "AuthorName": "aromaa",
+    "AuthorEmail": "me@joniaromaa.fi",
+    "CommitDate": "2023-06-18T00:01:13+03:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "c87ae50ed18c565ffab2d63dabad3860a419d12d"
+    }
+  ]
+}

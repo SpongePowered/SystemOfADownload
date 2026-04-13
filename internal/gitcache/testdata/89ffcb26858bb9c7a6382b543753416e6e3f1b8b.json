@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "89ffcb26858bb9c7a6382b543753416e6e3f1b8b",
+    "Message": "Fix for bridge changes",
+    "Body": "",
+    "AuthorName": "Parker Lougheed",
+    "AuthorEmail": "parkermeronat@gmail.com",
+    "CommitDate": "2019-08-07T23:35:00-05:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "588342eee52ca48341563236e565e3ba8b911a5c"
+    }
+  ]
+}

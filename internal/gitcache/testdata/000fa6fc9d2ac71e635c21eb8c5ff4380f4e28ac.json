@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "000fa6fc9d2ac71e635c21eb8c5ff4380f4e28ac",
+    "Message": "Merge branch 'api-8' into api-9",
+    "Body": "",
+    "AuthorName": "ImMorpheus",
+    "AuthorEmail": "ImMorpheus@users.noreply.github.com",
+    "CommitDate": "2021-11-28T13:32:51+01:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "6a384fed32060579d02e5301564ab3b932e783df"
+    }
+  ]
+}

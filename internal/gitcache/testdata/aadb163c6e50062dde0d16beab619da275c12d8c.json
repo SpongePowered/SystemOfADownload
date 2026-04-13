@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "aadb163c6e50062dde0d16beab619da275c12d8c",
+    "Message": "Fixes to inventory transactions",
+    "Body": "",
+    "AuthorName": "aromaa",
+    "AuthorEmail": "me@joniaromaa.fi",
+    "CommitDate": "2025-02-03T23:29:59+02:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "5bd9f8f3a68d610e57047ebeec0dac80c9466d58"
+    }
+  ]
+}

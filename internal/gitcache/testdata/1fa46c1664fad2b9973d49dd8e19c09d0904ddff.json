@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "1fa46c1664fad2b9973d49dd8e19c09d0904ddff",
+    "Message": "Update SpongeCommon for various updates including a refined PhaseTracker with enhanced BlockTransaction processing. Along with PhaseTracker sidedness.",
+    "Body": "Signed-off-by: Gabriel Harris-Rouquette \u003cgabizou@me.com\u003e",
+    "AuthorName": "Gabriel Harris-Rouquette",
+    "AuthorEmail": "gabizou@me.com",
+    "CommitDate": "2019-03-28T00:04:36-07:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "b9ae64f9d0bd5561b39c8a095145f9d87e0429d6"
+    }
+  ]
+}

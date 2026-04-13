@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "7d1823d0a2d6dd09a351273b94e222eaab8dcad8",
+    "Message": "Bump common for hot fix with ticking riding entities.",
+    "Body": "Signed-off-by: Gabriel Harris-Rouquette \u003cgabizou@me.com\u003e",
+    "AuthorName": "Gabriel Harris-Rouquette",
+    "AuthorEmail": "gabizou@me.com",
+    "CommitDate": "2018-06-13T11:20:33-07:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "46754949af2aabd7fc9cf1051b0139b7a5488779"
+    }
+  ]
+}

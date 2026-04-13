@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "dfa2a385f684ddb13e450f10a34c4121c1e44922",
+    "Message": "Add support for working around broken mods",
+    "Body": "A large number of mods have improper network handlers. Instead of\ninteracting with the world from a task scheduled on the main thread,\nthey directly modify the world from a Netty handler. This is strictly\nincorrect, and will cause issues even when Sponge is not installed.\n\nHowever, due to the extra thread checks added by Sponge, mods which\n*seem* to work correctly without Sponge can appear to break when it is\nadded. While the ultimate solution is always for the mod to only modify\nthe world from the main thread, mod developers don't always respond\nquickly to these kinds of issues. The end result: while these kinds of\nmods are broken even without Sponge, the extra checks done by Sponge\nmeans that these mods may appear 'more broken' with Sponge installed.\n\nAs a temporary workaround to help server owners, this commit adds an\noption to forcibly reschedule mod network handlers on the main thread.\nTo avoid messing with Netty directly, only mods using Forge's 'simple\nchannel' system are handled. While Forge technically provides other\nchannel options to mods, in practice virtually all mods use the 'simple\nchannel' system. Indeed, to date all issues opened on Sponge for these\nmisbehaving mods are caused by mods using the 'simple channel' system.\n\nThe implementation of this feature is minimally invasive. One mixin substitues\na subclass of Forge's SimpleChannelHandlerWrapper when a mod registers\na 'simple channel' handler. Another mixin substitutes a subclass of\nNetty's SimpleChannelInboundHandler in place of Forge's\nNetworkEventFiringHandler.\n\nHowever, to further minimize its impact,\nthis replacement is completely off by default - not even the mixin is\napplied. Furthermore, this feature must be explicitly enabled for\nspecific mod ids via the config. Any mods not in the config will be\ncompletely untouched.",
+    "AuthorName": "Aaron Hill",
+    "AuthorEmail": "aa1ronham@gmail.com",
+    "CommitDate": "2018-07-13T16:09:36-04:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "d61b77c5ca2c074667d4a6641d7b1cce2c80a1d6"
+    }
+  ]
+}

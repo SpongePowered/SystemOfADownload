@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "9166694ba7b67dbd337749ddca8c84212d1869a7",
+    "Message": "Fix duplicated slot transactions in click event",
+    "Body": "",
+    "AuthorName": "Yeregorix",
+    "AuthorEmail": "yeregorixcraft@gmail.com",
+    "CommitDate": "2025-07-06T22:58:10+02:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "0dea7ed6c710e32b97505bbde969b3edcb145248"
+    }
+  ]
+}

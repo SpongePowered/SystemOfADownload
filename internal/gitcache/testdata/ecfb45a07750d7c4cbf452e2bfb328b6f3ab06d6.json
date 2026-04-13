@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "ecfb45a07750d7c4cbf452e2bfb328b6f3ab06d6",
+    "Message": "Fix AbstractVillager#getValues",
+    "Body": "",
+    "AuthorName": "aromaa",
+    "AuthorEmail": "me@joniaromaa.fi",
+    "CommitDate": "2025-01-27T19:43:52+02:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "5d8207c6981be3ad527b91529cf45bc135490013"
+    }
+  ]
+}

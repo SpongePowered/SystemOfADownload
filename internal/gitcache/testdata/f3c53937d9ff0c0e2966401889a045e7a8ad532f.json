@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "f3c53937d9ff0c0e2966401889a045e7a8ad532f",
+    "Message": "Temp workaround for block placement change tracker",
+    "Body": "",
+    "AuthorName": "aromaa",
+    "AuthorEmail": "me@joniaromaa.fi",
+    "CommitDate": "2023-11-23T20:06:44+02:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "e63ce04c60b8fdcd52e1d2d983d8e14620bf9714"
+    }
+  ]
+}

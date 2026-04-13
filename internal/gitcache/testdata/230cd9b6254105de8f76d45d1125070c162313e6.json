@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "230cd9b6254105de8f76d45d1125070c162313e6",
+    "Message": "Fix compile issue in SpongeForgeEventFactory.",
+    "Body": "",
+    "AuthorName": "bloodshot",
+    "AuthorEmail": "jdroque@gmail.com",
+    "CommitDate": "2016-05-15T02:18:03-04:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "6321e1574a7e21ac2cea9002003fab795d41a2b8"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "222b0406ebf0e168057ec5aafad9bffff2025b3a",
+    "Message": "Add sun.* to ignored packages of STDOUT tracing",
+    "Body": "- Update SpongeCommon",
+    "AuthorName": "Minecrell",
+    "AuthorEmail": "dev@minecrell.net",
+    "CommitDate": "2016-01-23T20:09:41+01:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "638b43b343605e80df177c5e0af8bfd2ef6f0120"
+    }
+  ]
+}

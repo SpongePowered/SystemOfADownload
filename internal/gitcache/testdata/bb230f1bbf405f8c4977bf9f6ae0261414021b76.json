@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "bb230f1bbf405f8c4977bf9f6ae0261414021b76",
+    "Message": "Update SpongeCommon for InteractItemEvent refactor.",
+    "Body": "",
+    "AuthorName": "bloodshot",
+    "AuthorEmail": "jdroque@gmail.com",
+    "CommitDate": "2016-11-25T16:55:46-05:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "2db30ee54c4226eacbf80986087ae08cd4036023"
+    }
+  ]
+}

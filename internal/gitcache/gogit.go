@@ -152,9 +152,16 @@ func (r *GoGitReader) ComputeChangelog(ctx context.Context, repoHandle, fromSHA,
 	fromHash := plumbing.NewHash(fromSHA)
 	toHash := plumbing.NewHash(toSHA)
 
-	// Build the exclusion set: all commits reachable from fromSHA.
-	// Bounded at MaxChangelogCommits * 2 to keep memory finite while
-	// covering any reasonable traversal window.
+	// Build the exclusion set: ALL commits reachable from fromSHA.
+	// This must be unbounded (like `git log A..B` internally) because the
+	// common ancestor between fromSHA and toSHA can be arbitrarily deep.
+	// A capped exclusion set (e.g. 1000 commits) misses shared history
+	// when the merge-base is deeper, causing the toSHA walk to include
+	// thousands of old commits that should be excluded.
+	//
+	// Memory safety: 20-byte hash × 100k commits ≈ 4 MB — acceptable for
+	// any repo we index. If a repo somehow exceeds this, the walk stops
+	// and we degrade to the capped behavior (which will truncate).
 	excludeSet := make(map[plumbing.Hash]struct{})
 	fromIter, err := repo.Log(&git.LogOptions{
 		From:  fromHash,
@@ -164,19 +171,18 @@ func (r *GoGitReader) ComputeChangelog(ctx context.Context, repoHandle, fromSHA,
 		r.recordOp(start, "compute_changelog", repoHandle, "error")
 		return nil, false, fmt.Errorf("building exclusion set from %s: %w", fromSHA, err)
 	}
-	const excludeLimit = MaxChangelogCommits * 2
+	const excludeSafetyLimit = 100_000
 	_ = fromIter.ForEach(func(c *object.Commit) error {
 		excludeSet[c.Hash] = struct{}{}
-		if len(excludeSet) >= excludeLimit {
+		if len(excludeSet) >= excludeSafetyLimit {
 			return storer.ErrStop
 		}
 		return nil
 	})
 
 	// Walk from toSHA, collecting commits not in the exclusion set.
-	// Do NOT return ErrStop when hitting an excluded commit -- there may
-	// be other reachable commits via a different parent path that are not
-	// in the exclusion set.
+	// This mirrors `git log fromSHA..toSHA`: commits reachable from
+	// toSHA but not from fromSHA.
 	toIter, err := repo.Log(&git.LogOptions{
 		From:  toHash,
 		Order: git.LogOrderCommitterTime,
@@ -187,8 +193,8 @@ func (r *GoGitReader) ComputeChangelog(ctx context.Context, repoHandle, fromSHA,
 	}
 
 	// walkLimit caps total commits visited (not just collected) to prevent
-	// unbounded traversal when fromSHA and toSHA are on unrelated histories.
-	const walkLimit = MaxChangelogCommits * 4
+	// unbounded traversal when fromSHA and toSHA share no common history.
+	const walkLimit = excludeSafetyLimit
 	var result []CommitDetails
 	visited := 0
 	_ = toIter.ForEach(func(c *object.Commit) error {

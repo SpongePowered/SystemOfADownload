@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "08a827e50de8f621c0229c5838be6cf6d9915205",
+    "Message": "Implement BlockEntityVolume methods for chunk (#3664)",
+    "Body": "",
+    "AuthorName": "tyhdefu",
+    "AuthorEmail": "57567095+tyhdefu@users.noreply.github.com",
+    "CommitDate": "2022-06-05T16:46:11+00:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "acc155c6fdf8809cccb9086704a10975bffc1d82"
+    }
+  ]
+}

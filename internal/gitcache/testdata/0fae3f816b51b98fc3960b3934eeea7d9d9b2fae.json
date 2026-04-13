@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "0fae3f816b51b98fc3960b3934eeea7d9d9b2fae",
+    "Message": "Merge branch 'api-16' into api-17",
+    "Body": "# Conflicts:\n#\tSpongeAPI\n#\tsrc/mixins/java/org/spongepowered/common/mixin/core/world/entity/EntityMixin.java",
+    "AuthorName": "Yeregorix",
+    "AuthorEmail": "yeregorixcraft@gmail.com",
+    "CommitDate": "2025-11-28T13:02:39+01:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "717e4605585983a323fa2860962850f5dd17fb74"
+    }
+  ]
+}

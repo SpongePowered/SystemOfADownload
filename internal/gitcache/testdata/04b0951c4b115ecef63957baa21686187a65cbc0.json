@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "04b0951c4b115ecef63957baa21686187a65cbc0",
+    "Message": "Bump common for fixes with custom biome registrations as populator types. Fixes #2695.",
+    "Body": "Signed-off-by: Gabriel Harris-Rouquette \u003cgabizou@me.com\u003e",
+    "AuthorName": "Gabriel Harris-Rouquette",
+    "AuthorEmail": "gabizou@me.com",
+    "CommitDate": "2019-04-18T11:59:35-07:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "3598d4525cb004d50579ab390bf8c0a2445396d7"
+    }
+  ]
+}

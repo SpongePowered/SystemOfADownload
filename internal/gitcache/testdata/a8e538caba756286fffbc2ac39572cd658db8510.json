@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "a8e538caba756286fffbc2ac39572cd658db8510",
+    "Message": "Update SpongeCommon for tracking fixes when not capturing blocks.",
+    "Body": "",
+    "AuthorName": "bloodshot",
+    "AuthorEmail": "jdroque@gmail.com",
+    "CommitDate": "2017-01-11T02:47:01-05:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "16552a07c5a82c0b6095f9b6d75803d22095c01f"
+    }
+  ]
+}

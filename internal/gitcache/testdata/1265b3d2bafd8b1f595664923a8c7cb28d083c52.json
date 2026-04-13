@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "1265b3d2bafd8b1f595664923a8c7cb28d083c52",
+    "Message": "chore(git): merge upstream changes",
+    "Body": "Signed-off-by: Gabriel Harris-Rouquette \u003cgabizou@me.com\u003e",
+    "AuthorName": "Gabriel Harris-Rouquette",
+    "AuthorEmail": "gabizou@me.com",
+    "CommitDate": "2026-03-28T13:58:59-07:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "84b580bd70672df56f6bab5a8c8176c56bf86aa6"
+    }
+  ]
+}

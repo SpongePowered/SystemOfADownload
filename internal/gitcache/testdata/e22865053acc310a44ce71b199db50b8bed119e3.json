@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "e22865053acc310a44ce71b199db50b8bed119e3",
+    "Message": "chore(release): New recommended version",
+    "Body": "",
+    "AuthorName": "Yeregorix",
+    "AuthorEmail": "yeregorixcraft@gmail.com",
+    "CommitDate": "2026-01-10T09:45:30+01:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "9f78107af57e7e4182c3972cc52f9c950eda86dc"
+    }
+  ]
+}

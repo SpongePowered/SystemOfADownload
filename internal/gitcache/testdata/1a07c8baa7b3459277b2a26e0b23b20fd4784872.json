@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "1a07c8baa7b3459277b2a26e0b23b20fd4784872",
+    "Message": "Ensure sponge:human is always registered last, to avoid holes in numeric ids from client pov",
+    "Body": "",
+    "AuthorName": "Yeregorix",
+    "AuthorEmail": "yeregorixcraft@gmail.com",
+    "CommitDate": "2025-02-20T21:57:26+01:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "df823f2d33aea2f22594df1bfb7b24a0c854d97d"
+    }
+  ]
+}

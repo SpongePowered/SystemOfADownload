@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "081bd3fb20ca5dd1769465ab493b6e0a1bb480f0",
+    "Message": "Actually check for a null world... Not sure why there is a null world event being thrown, but it is....",
+    "Body": "Signed-off-by: Gabriel Harris-Rouquette \u003cgabizou@me.com\u003e",
+    "AuthorName": "Gabriel Harris-Rouquette",
+    "AuthorEmail": "gabizou@me.com",
+    "CommitDate": "2018-06-19T15:09:12-07:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "d05b375618ccc38b980ddbbdef01a03f32a6a037"
+    }
+  ]
+}

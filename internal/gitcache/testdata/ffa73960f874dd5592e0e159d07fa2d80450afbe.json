@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "ffa73960f874dd5592e0e159d07fa2d80450afbe",
+    "Message": "chore(git): merge tracking persistence fixes",
+    "Body": "Signed-off-by: Gabriel Harris-Rouquette \u003cgabizou@me.com\u003e",
+    "AuthorName": "Gabriel Harris-Rouquette",
+    "AuthorEmail": "gabizou@me.com",
+    "CommitDate": "2026-03-19T22:56:53-07:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "b5103878e57d18db233c0d0df8fb0aa5e96c7473"
+    }
+  ]
+}

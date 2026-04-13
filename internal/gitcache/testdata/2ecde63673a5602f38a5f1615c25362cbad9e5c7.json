@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "2ecde63673a5602f38a5f1615c25362cbad9e5c7",
+    "Message": "Update common for PlainPagedData additions.",
+    "Body": "Signed-off-by: Gabriel Harris-Rouquette \u003cgabizou@me.com\u003e",
+    "AuthorName": "Gabriel Harris-Rouquette",
+    "AuthorEmail": "gabizou@me.com",
+    "CommitDate": "2018-10-19T17:53:31-07:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "3cec3099acb091df20ce07e82c402506d21c97a5"
+    }
+  ]
+}

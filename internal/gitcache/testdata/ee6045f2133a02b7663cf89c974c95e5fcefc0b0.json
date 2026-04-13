@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "ee6045f2133a02b7663cf89c974c95e5fcefc0b0",
+    "Message": "Remove invalid overwrite in MixinWorldManager.",
+    "Body": "",
+    "AuthorName": "bloodshot",
+    "AuthorEmail": "jdroque@gmail.com",
+    "CommitDate": "2016-09-10T13:58:46-04:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "35f0ffbe2891d8efe045c30739f74eba017b404f"
+    }
+  ]
+}

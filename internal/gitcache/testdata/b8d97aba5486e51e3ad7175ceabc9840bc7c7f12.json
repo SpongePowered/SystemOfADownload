@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "b8d97aba5486e51e3ad7175ceabc9840bc7c7f12",
+    "Message": "Fix problems with anonymous classes in production",
+    "Body": "",
+    "AuthorName": "Minecrell",
+    "AuthorEmail": "dev@minecrell.net",
+    "CommitDate": "2016-01-19T22:31:20+01:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "3881411bdf2051fa154818ae484da137f3f45c09"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "ba60aa5e3bed0a2cc9a90049ef90756d1c99d261",
+    "Message": "chore(git): update from upstream api-15",
+    "Body": "",
+    "AuthorName": "Gabriel Harris-Rouquette",
+    "AuthorEmail": "gabizou@me.com",
+    "CommitDate": "2026-02-20T00:36:31-08:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "9b792c43a801cb61260050c78b95694ee3a6b4e6"
+    }
+  ]
+}

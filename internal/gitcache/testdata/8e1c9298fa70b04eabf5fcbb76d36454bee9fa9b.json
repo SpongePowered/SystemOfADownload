@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "8e1c9298fa70b04eabf5fcbb76d36454bee9fa9b",
+    "Message": "Bump SpongeCommon for pagination fix",
+    "Body": "",
+    "AuthorName": "Daniel Naylor",
+    "AuthorEmail": "git@drnaylor.co.uk",
+    "CommitDate": "2017-05-14T14:11:20+01:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "b2245f230355b740c5d6928b63b71821b15b6852"
+    }
+  ]
+}

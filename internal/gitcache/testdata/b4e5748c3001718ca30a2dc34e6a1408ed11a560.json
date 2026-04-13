@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "b4e5748c3001718ca30a2dc34e6a1408ed11a560",
+    "Message": "Don't call setPos after movement event when position hasn't changed (#3797)",
+    "Body": "",
+    "AuthorName": "Yeregorix",
+    "AuthorEmail": "yeregorixcraft@gmail.com",
+    "CommitDate": "2023-01-08T02:28:47+01:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "7e6c50f6d5248bc9326a45b38d935d7bc34aa23e"
+    }
+  ]
+}

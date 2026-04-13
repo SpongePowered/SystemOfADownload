@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "61ea292e0c2e131bef6213ce2b97f9b8dee8048e",
+    "Message": "chore(git): merge api-18 tracking and data fixes",
+    "Body": "Merges upstream api-18 fixes including:\n- Creator/notifier tracking persistence fixes (notifier restored on\n  block entity load, serialization efficiency, UUID cleanup asymmetry)\n- Villager profession/type data provider fixes\n- INameable data provider additions\n- Player interact phase improvements\n- Inventory slot adapter and shared inventory fixes\n- LibraryManager and ListenerClassVisitor updates\n\nConflict resolution: ServerLevelDataMixin_API kept 26.1 world clocks\nimplementation for dayTime/setDayTime, dropped api-18's synchronizeTime\napproach. Removed synchronizeTime @Invoker from MinecraftServerAccessor\nas the method no longer exists in 26.1.\n\nSigned-off-by: Gabriel Harris-Rouquette \u003cgabizou@me.com\u003e",
+    "AuthorName": "Gabriel Harris-Rouquette",
+    "AuthorEmail": "gabizou@me.com",
+    "CommitDate": "2026-03-20T00:54:43-07:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "38ec73c181f85132c50f08ec1c86740b3976270b"
+    }
+  ]
+}

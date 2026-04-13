@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "8b4cf4e28e95e4a5034bdf4ebdb1f1f5f47e9ed0",
+    "Message": "Optimize ChangeBlockEvent.Post transaction building",
+    "Body": "",
+    "AuthorName": "aromaa",
+    "AuthorEmail": "me@joniaromaa.fi",
+    "CommitDate": "2024-09-23T01:55:41+03:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "91e3e5f9ae07f8edfb62a9ac7118d716bdf5632c"
+    }
+  ]
+}

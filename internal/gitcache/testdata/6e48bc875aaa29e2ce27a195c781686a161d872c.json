@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "6e48bc875aaa29e2ce27a195c781686a161d872c",
+    "Message": "Rework custom_model_data representation for 1.21.4 changes (#4172)",
+    "Body": "",
+    "AuthorName": "Ossi Erkkilä",
+    "AuthorEmail": "52257907+avaruus1@users.noreply.github.com",
+    "CommitDate": "2025-01-29T19:49:12+02:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "5586e8b6a4191952199a92301176754e3902a83d"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "2b2cadd489e27cd18395874ac81ef6cee35f4a22",
+    "Message": "Revert Keys.COLOR supports removal in 59f1841",
+    "Body": "",
+    "AuthorName": "aromaa",
+    "AuthorEmail": "me@joniaromaa.fi",
+    "CommitDate": "2025-10-25T19:09:21+03:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "34622032e7bda623d9eff36cd00e7d1503cb2af6"
+    }
+  ]
+}

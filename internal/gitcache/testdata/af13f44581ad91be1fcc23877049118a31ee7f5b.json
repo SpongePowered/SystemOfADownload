@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "af13f44581ad91be1fcc23877049118a31ee7f5b",
+    "Message": "Merge pull request #3951 from MrHell228/api-8-fix2",
+    "Body": "",
+    "AuthorName": "Gabriel Harris-Rouquette",
+    "AuthorEmail": "github@gabizou.com",
+    "CommitDate": "2024-02-29T07:00:57-08:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "bb18e0cdf92136112e5ffecc1195a6101371f42e"
+    }
+  ]
+}

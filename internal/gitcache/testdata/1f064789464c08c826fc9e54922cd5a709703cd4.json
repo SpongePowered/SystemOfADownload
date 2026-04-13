@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "1f064789464c08c826fc9e54922cd5a709703cd4",
+    "Message": "Fix login plugin messages \u0026 IP forwarding (#3928)",
+    "Body": "* Fix plugin messages \u0026 modern forwarding\r\n\r\n* Improve legacy forwarding fix\r\n\r\n---------\r\n\r\nCo-authored-by: Joni Aromaa \u003cme@joniaromaa.fi\u003e",
+    "AuthorName": "Ossi Erkkilä",
+    "AuthorEmail": "52257907+avaruus1@users.noreply.github.com",
+    "CommitDate": "2023-11-24T18:36:01+02:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "f578181b04ae1f908a2a6ada21fcf74378414407"
+    }
+  ]
+}

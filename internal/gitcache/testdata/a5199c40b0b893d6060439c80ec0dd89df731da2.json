@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "a5199c40b0b893d6060439c80ec0dd89df731da2",
+    "Message": "Fix InventoryMenu missing viewer",
+    "Body": "",
+    "AuthorName": "aromaa",
+    "AuthorEmail": "me@joniaromaa.fi",
+    "CommitDate": "2025-09-23T00:03:10+03:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "0b67e0f9b9a867d3550daa5122bdc958d8c6365e"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "4bccb658603343c555d110a84b2d24189a2c6c8c",
+    "Message": "Fix world save and unload events not being fired on shutdown.",
+    "Body": "Fixes #751\n\n* Update SpongeCommon for shutdown world save fix.",
+    "AuthorName": "bloodshot",
+    "AuthorEmail": "jdroque@gmail.com",
+    "CommitDate": "2016-07-27T15:58:10-04:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "8439c7bef417bb647bafa08eae7a92ef70f3f7fd"
+    }
+  ]
+}

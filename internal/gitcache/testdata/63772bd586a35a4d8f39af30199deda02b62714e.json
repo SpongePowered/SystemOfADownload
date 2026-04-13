@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "63772bd586a35a4d8f39af30199deda02b62714e",
+    "Message": "Merge remote-tracking branch 'lolnetnz/stable-7' into stable-7",
+    "Body": "",
+    "AuthorName": "Aaron Hill",
+    "AuthorEmail": "aa1ronham@gmail.com",
+    "CommitDate": "2019-01-12T20:34:49-05:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeCommon",
+      "URL": "https://github.com/SpongePowered/SpongeCommon.git",
+      "Sha": "a6693ee184be6797133161dd7bc4459f35b1fdbe"
+    }
+  ]
+}

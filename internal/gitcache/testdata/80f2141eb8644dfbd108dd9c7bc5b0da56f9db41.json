@@ -1,0 +1,17 @@
+{
+  "commit": {
+    "Sha": "80f2141eb8644dfbd108dd9c7bc5b0da56f9db41",
+    "Message": "Fix passengers desyncing on dismounting from players",
+    "Body": "",
+    "AuthorName": "aromaa",
+    "AuthorEmail": "me@joniaromaa.fi",
+    "CommitDate": "2025-05-06T22:15:31+03:00"
+  },
+  "submodules": [
+    {
+      "Path": "SpongeAPI",
+      "URL": "https://github.com/SpongePowered/SpongeAPI.git",
+      "Sha": "d683ef787f29aa3126f5dcb6d8d708e533f64b3f"
+    }
+  ]
+}
