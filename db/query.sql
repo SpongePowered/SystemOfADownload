@@ -163,6 +163,17 @@ WHERE a.group_id = $1 AND a.artifact_id = $2
   AND av.sort_order > 0
 ORDER BY av.sort_order ASC;
 
+-- name: ListEnrichedVersions :many
+SELECT av.*
+FROM artifact_versions av
+JOIN artifacts a ON av.artifact_id = a.id
+WHERE a.group_id = $1 AND a.artifact_id = $2
+  AND av.commit_body IS NOT NULL
+  AND av.commit_body->>'sha' IS NOT NULL
+  AND av.commit_body->>'enrichedAt' IS NOT NULL
+  AND av.sort_order > 0
+ORDER BY av.sort_order ASC;
+
 -- name: GetPreviousVersion :one
 SELECT av.*
 FROM artifact_versions av

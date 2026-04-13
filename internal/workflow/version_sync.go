@@ -17,9 +17,10 @@ const (
 
 // VersionSyncInput is the input payload for the VersionSyncWorkflow.
 type VersionSyncInput struct {
-	GroupID      string
-	ArtifactID   string
-	ForceReindex bool
+	GroupID        string
+	ArtifactID     string
+	ForceReindex   bool
+	ForceChangelog bool // skip indexing/enrichment, only re-compute changelogs
 }
 
 // VersionSyncOutput is the result of the VersionSyncWorkflow.
@@ -48,6 +49,12 @@ func VersionSyncWorkflow(ctx workflow.Context, input VersionSyncInput) (*Version
 		},
 	}
 	ctx = workflow.WithActivityOptions(ctx, activityOptions)
+
+	// ForceChangelog: skip the entire fetch/store/index pipeline and only
+	// re-compute changelogs for already-enriched versions.
+	if input.ForceChangelog {
+		return forceChangelogOnly(ctx, input)
+	}
 
 	var activities *activity.VersionSyncActivities
 
@@ -159,4 +166,47 @@ func VersionSyncWorkflow(ctx workflow.Context, input VersionSyncInput) (*Version
 		output.OldestVersion = storeResult.NewVersions[0].Version
 	}
 	return output, nil
+}
+
+// forceChangelogOnly fetches already-enriched versions and re-computes only
+// the changelog phase (Phase 2), skipping Sonatype fetch, JAR indexing, and
+// commit enrichment entirely.
+func forceChangelogOnly(ctx workflow.Context, input VersionSyncInput) (*VersionSyncOutput, error) {
+	logger := workflow.GetLogger(ctx)
+
+	var changelogActs *activity.ChangelogActivities
+
+	var fetchResult activity.FetchVersionsForEnrichmentOutput
+	err := workflow.ExecuteActivity(ctx, changelogActs.FetchEnrichedVersions, activity.FetchVersionsForEnrichmentInput{
+		GroupID:    input.GroupID,
+		ArtifactID: input.ArtifactID,
+	}).Get(ctx, &fetchResult)
+	if err != nil {
+		return nil, fmt.Errorf("fetching enriched versions: %w", err)
+	}
+
+	logger.Info("ForceChangelog: fetched enriched versions", "count", len(fetchResult.Versions))
+
+	if len(fetchResult.Versions) == 0 {
+		return &VersionSyncOutput{}, nil
+	}
+
+	parentID := workflow.GetInfo(ctx).WorkflowExecution.ID
+	changelogOpts := workflow.ChildWorkflowOptions{
+		WorkflowID: fmt.Sprintf("%s/changelog-batch", parentID),
+	}
+	changelogCtx := workflow.WithChildOptions(ctx, changelogOpts)
+
+	var changelogs int
+	err = workflow.ExecuteChildWorkflow(changelogCtx, ChangelogBatchWorkflow, ChangelogBatchInput{
+		Versions:        fetchResult.Versions,
+		GitRepositories: fetchResult.GitRepositories,
+		WindowSize:      changelogBatchDefaultWindowSize,
+	}).Get(ctx, &changelogs)
+	if err != nil {
+		return nil, fmt.Errorf("changelog batch: %w", err)
+	}
+
+	logger.Info("ForceChangelog: complete", "changelogs", changelogs)
+	return &VersionSyncOutput{}, nil
 }

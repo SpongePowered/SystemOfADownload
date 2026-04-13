@@ -44,6 +44,7 @@ type Querier interface {
 	ListArtifactVersionsPaginated(ctx context.Context, arg ListArtifactVersionsPaginatedParams) ([]ArtifactVersion, error)
 	ListArtifactsByGroup(ctx context.Context, groupID string) ([]Artifact, error)
 	ListDistinctTagsByArtifact(ctx context.Context, arg ListDistinctTagsByArtifactParams) ([]ListDistinctTagsByArtifactRow, error)
+	ListEnrichedVersions(ctx context.Context, arg ListEnrichedVersionsParams) ([]ArtifactVersion, error)
 	ListGroups(ctx context.Context) ([]Group, error)
 	ListTagsForVersions(ctx context.Context, dollar_1 []int64) ([]ArtifactVersionedTag, error)
 	ListVersionsNeedingChangelog(ctx context.Context, arg ListVersionsNeedingChangelogParams) ([]ArtifactVersion, error)

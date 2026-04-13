@@ -46,6 +46,7 @@ type Reads interface {
 	GetDistinctTagValues(ctx context.Context, groupID, artifactID string) (map[string][]string, error)
 	GetDefaultTagValue(ctx context.Context, groupID, artifactID, tagKey string) (string, error)
 	ListVersionsNeedingEnrichment(ctx context.Context, arg db.ListVersionsNeedingEnrichmentParams) ([]db.ArtifactVersion, error)
+	ListEnrichedVersions(ctx context.Context, arg db.ListEnrichedVersionsParams) ([]db.ArtifactVersion, error)
 	ListVersionsNeedingChangelog(ctx context.Context, arg db.ListVersionsNeedingChangelogParams) ([]db.ArtifactVersion, error)
 }
 

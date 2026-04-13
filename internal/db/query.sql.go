@@ -649,6 +649,50 @@ func (q *Queries) ListDistinctTagsByArtifact(ctx context.Context, arg ListDistin
 	return items, nil
 }
 
+const listEnrichedVersions = `-- name: ListEnrichedVersions :many
+SELECT av.id, av.artifact_id, av.version, av.sort_order, av.recommended, av.commit_body
+FROM artifact_versions av
+JOIN artifacts a ON av.artifact_id = a.id
+WHERE a.group_id = $1 AND a.artifact_id = $2
+  AND av.commit_body IS NOT NULL
+  AND av.commit_body->>'sha' IS NOT NULL
+  AND av.commit_body->>'enrichedAt' IS NOT NULL
+  AND av.sort_order > 0
+ORDER BY av.sort_order ASC
+`
+
+type ListEnrichedVersionsParams struct {
+	GroupID    string
+	ArtifactID string
+}
+
+func (q *Queries) ListEnrichedVersions(ctx context.Context, arg ListEnrichedVersionsParams) ([]ArtifactVersion, error) {
+	rows, err := q.db.Query(ctx, listEnrichedVersions, arg.GroupID, arg.ArtifactID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ArtifactVersion
+	for rows.Next() {
+		var i ArtifactVersion
+		if err := rows.Scan(
+			&i.ID,
+			&i.ArtifactID,
+			&i.Version,
+			&i.SortOrder,
+			&i.Recommended,
+			&i.CommitBody,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listGroups = `-- name: ListGroups :many
 SELECT maven_id, name, website FROM groups
 `

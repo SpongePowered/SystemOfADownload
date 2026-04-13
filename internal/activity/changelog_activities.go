@@ -92,6 +92,59 @@ func (a *ChangelogActivities) FetchVersionsForEnrichment(ctx context.Context, in
 	}, nil
 }
 
+// FetchEnrichedVersions returns all versions that have already been enriched,
+// along with the artifact's registered git repositories. Used by ForceChangelog
+// to re-compute changelogs without re-running the full enrichment pipeline.
+func (a *ChangelogActivities) FetchEnrichedVersions(ctx context.Context, input FetchVersionsForEnrichmentInput) (*FetchVersionsForEnrichmentOutput, error) {
+	artifact, err := a.Repo.GetArtifactByGroupAndId(ctx, db.GetArtifactByGroupAndIdParams{
+		GroupID:    input.GroupID,
+		ArtifactID: input.ArtifactID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("looking up artifact: %w", err)
+	}
+
+	var gitRepos []string
+	if err := json.Unmarshal(artifact.GitRepositories, &gitRepos); err != nil {
+		return nil, fmt.Errorf("unmarshaling git_repositories: %w", err)
+	}
+
+	versions, err := a.Repo.ListEnrichedVersions(ctx, db.ListEnrichedVersionsParams{
+		GroupID:    input.GroupID,
+		ArtifactID: input.ArtifactID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing enriched versions: %w", err)
+	}
+
+	result := make([]VersionForEnrichment, 0, len(versions))
+	for _, v := range versions {
+		var info domain.CommitInfo
+		if v.CommitBody != nil {
+			if err := json.Unmarshal(v.CommitBody, &info); err != nil {
+				continue
+			}
+		}
+		if info.Sha == "" {
+			continue
+		}
+		result = append(result, VersionForEnrichment{
+			ID:         v.ID,
+			ArtifactID: v.ArtifactID,
+			Version:    v.Version,
+			SortOrder:  v.SortOrder,
+			CommitSha:  info.Sha,
+			Repository: info.Repository,
+			Branch:     info.Branch,
+		})
+	}
+
+	return &FetchVersionsForEnrichmentOutput{
+		Versions:        result,
+		GitRepositories: gitRepos,
+	}, nil
+}
+
 // GetPreviousVersionCommitInput is the input for GetPreviousVersionCommit.
 type GetPreviousVersionCommitInput struct {
 	ArtifactID int64
