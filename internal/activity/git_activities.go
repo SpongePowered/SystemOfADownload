@@ -10,7 +10,7 @@ import (
 // These must be registered as local activities on the Temporal worker
 // since they depend on worker-local filesystem state (the git cache).
 type GitActivities struct {
-	Cache *gitcache.Manager
+	Cache gitcache.RepoReader
 }
 
 // EnsureRepoClonedInput is the input for EnsureRepoCloned.

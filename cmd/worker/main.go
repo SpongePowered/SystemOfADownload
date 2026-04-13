@@ -286,7 +286,7 @@ func main() {
 				return gitcache.NewManager(cfg.GitCacheDir)
 			},
 			func(cache *gitcache.Manager) *activity.GitActivities {
-				return &activity.GitActivities{Cache: cache}
+				return &activity.GitActivities{Cache: gitcache.NewGoGitReader(cache)}
 			},
 			NewTemporalWorker,
 		),

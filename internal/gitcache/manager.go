@@ -140,8 +140,11 @@ func (m *Manager) EnsureCloned(ctx context.Context, repoURL string) (string, err
 			return "", fmt.Errorf("cloning %s: %w\n%s", repoURL, err, out)
 		}
 	} else {
-		// Fetch all
-		cmd := gitCommand(netCtx, "-C", localPath, "fetch", "--all", "--prune")
+		// Fetch all branches and tags with explicit refspec.
+		// git clone --bare does not set remote.origin.fetch, so
+		// "fetch --all" without a refspec is effectively a no-op.
+		cmd := gitCommand(netCtx, "-C", localPath, "fetch", "origin",
+			"+refs/heads/*:refs/heads/*", "+refs/tags/*:refs/tags/*", "--prune")
 		if out, err := cmd.CombinedOutput(); err != nil {
 			return "", fmt.Errorf("fetching %s: %w\n%s", repoURL, err, out)
 		}
