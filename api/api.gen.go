@@ -492,7 +492,7 @@ func (siw *ServerInterfaceWrapper) GetLatestVersion(w http.ResponseWriter, r *ht
 
 	// ------------- Optional query parameter "recommended" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "recommended", r.URL.Query(), &params.Recommended)
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "recommended", r.URL.Query(), &params.Recommended, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "recommended", Err: err})
 		return
@@ -599,7 +599,7 @@ func (siw *ServerInterfaceWrapper) TriggerSync(w http.ResponseWriter, r *http.Re
 	// ------------- Path parameter "groupID" -------------
 	var groupID GroupID
 
-	err = runtime.BindStyledParameterWithOptions("simple", "groupID", r.PathValue("groupID"), &groupID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "groupID", r.PathValue("groupID"), &groupID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupID", Err: err})
 		return
@@ -608,7 +608,7 @@ func (siw *ServerInterfaceWrapper) TriggerSync(w http.ResponseWriter, r *http.Re
 	// ------------- Path parameter "artifactID" -------------
 	var artifactID ArtifactID
 
-	err = runtime.BindStyledParameterWithOptions("simple", "artifactID", r.PathValue("artifactID"), &artifactID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	err = runtime.BindStyledParameterWithOptions("simple", "artifactID", r.PathValue("artifactID"), &artifactID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "artifactID", Err: err})
 		return
