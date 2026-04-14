@@ -129,14 +129,29 @@ type PaginationData struct {
 	NextOffset  int
 }
 
-// PageLink is a single pagination page button.
+// PageLink is a single pagination page button. Ellipsis entries carry
+// Number == 0 and Ellipsis == true; the template renders them as a
+// disabled gap between the windowed page numbers and the first/last page.
 type PageLink struct {
-	Number int
-	Offset int
-	Active bool
+	Number   int
+	Offset   int
+	Active   bool
+	Ellipsis bool
 }
 
-const buildsPerPage = 10
+const (
+	buildsPerPage = 10
+
+	// paginationWindow is the count of numbered page buttons shown around
+	// the current page. Matches BootstrapVue's default `limit` of 5, which
+	// is what the legacy SpongeDownloads frontend rendered with
+	// <b-pagination-nav first-number last-number>.
+	paginationWindow = 5
+
+	// paginationEllipsisThreshold is the smallest window size that still
+	// shows ellipsis; below this BootstrapVue skips the dots entirely.
+	paginationEllipsisThreshold = 3
+)
 
 func (s *Server) handleDownloads(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -550,22 +565,111 @@ func computePagination(offset, total int) PaginationData {
 	currentPage := (offset / buildsPerPage) + 1
 	totalPages := (total + buildsPerPage - 1) / buildsPerPage
 
-	var pages []PageLink
-	for i := 1; i <= totalPages; i++ {
-		pages = append(pages, PageLink{
-			Number: i,
-			Offset: (i - 1) * buildsPerPage,
-			Active: i == currentPage,
-		})
-	}
-
 	return PaginationData{
 		CurrentPage: currentPage,
 		TotalPages:  totalPages,
-		Pages:       pages,
+		Pages:       buildPageList(currentPage, totalPages),
 		HasPrev:     currentPage > 1,
 		HasNext:     currentPage < totalPages,
 		PrevOffset:  (currentPage - 2) * buildsPerPage,
 		NextOffset:  currentPage * buildsPerPage,
 	}
+}
+
+// buildPageList ports BootstrapVue's <b-pagination-nav first-number last-number>
+// window algorithm (node_modules/bootstrap-vue/src/mixins/pagination.js,
+// `paginationParams` + render) so SSR output matches the legacy Vue frontend:
+// page 1 and the last page are always shown, with ellipsis gaps around a
+// sliding window of paginationWindow numbers centered on currentPage.
+func buildPageList(currentPage, totalPages int) []PageLink {
+	if totalPages <= 0 {
+		return nil
+	}
+
+	var (
+		showFirstDots bool
+		showLastDots  bool
+		numberOfLinks int
+		startNumber   = 1
+	)
+
+	switch {
+	case totalPages <= paginationWindow:
+		numberOfLinks = totalPages
+	case currentPage < paginationWindow-1 && paginationWindow > paginationEllipsisThreshold:
+		// Near the start: window anchored at 1, ellipsis before the last page.
+		showLastDots = true
+		numberOfLinks = paginationWindow
+	case totalPages-currentPage+2 < paginationWindow && paginationWindow > paginationEllipsisThreshold:
+		// Near the end: window anchored at totalPages, ellipsis after page 1.
+		showFirstDots = true
+		numberOfLinks = paginationWindow
+		startNumber = totalPages - numberOfLinks + 1
+	default:
+		// Middle: current page centered, ellipsis on both sides.
+		numberOfLinks = paginationWindow - 2
+		showFirstDots = true
+		showLastDots = true
+		startNumber = currentPage - numberOfLinks/2
+	}
+
+	if startNumber < 1 {
+		startNumber = 1
+		showFirstDots = false
+	} else if startNumber > totalPages-numberOfLinks {
+		startNumber = totalPages - numberOfLinks + 1
+		showLastDots = false
+	}
+
+	// Collapse a first ellipsis that would sit next to page 1: rendering
+	// "1 … 3 4 5" wastes a slot, so absorb those pages into the window.
+	if showFirstDots && startNumber < 4 {
+		numberOfLinks += 2
+		startNumber = 1
+		showFirstDots = false
+	}
+
+	// Same collapse on the right edge.
+	lastPageNumber := startNumber + numberOfLinks - 1
+	if showLastDots && lastPageNumber > totalPages-3 {
+		if lastPageNumber == totalPages-2 {
+			numberOfLinks += 2
+		} else {
+			numberOfLinks += 3
+		}
+		showLastDots = false
+	}
+
+	if numberOfLinks > totalPages-startNumber+1 {
+		numberOfLinks = totalPages - startNumber + 1
+	}
+
+	windowEnd := startNumber + numberOfLinks - 1
+
+	pages := make([]PageLink, 0, numberOfLinks+4)
+	makeLink := func(n int) PageLink {
+		return PageLink{
+			Number: n,
+			Offset: (n - 1) * buildsPerPage,
+			Active: n == currentPage,
+		}
+	}
+
+	if startNumber != 1 {
+		pages = append(pages, makeLink(1))
+	}
+	if showFirstDots {
+		pages = append(pages, PageLink{Ellipsis: true})
+	}
+	for n := startNumber; n <= windowEnd; n++ {
+		pages = append(pages, makeLink(n))
+	}
+	if showLastDots {
+		pages = append(pages, PageLink{Ellipsis: true})
+	}
+	if windowEnd != totalPages {
+		pages = append(pages, makeLink(totalPages))
+	}
+
+	return pages
 }

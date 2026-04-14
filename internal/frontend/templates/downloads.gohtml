@@ -180,6 +180,11 @@
           </li>
           {{end}}
           {{range .Pagination.Pages}}
+          {{if .Ellipsis}}
+          <li class="page-item disabled" aria-disabled="true" role="separator">
+            <span class="page-link">&hellip;</span>
+          </li>
+          {{else}}
           <li class="page-item {{if .Active}}active{{end}}">
             {{if .Active}}
             <span class="page-link">{{.Number}}</span>
@@ -187,6 +192,7 @@
             <a href="?minecraft={{$.Page.SelectedMC}}&offset={{.Offset}}" class="page-link">{{.Number}}</a>
             {{end}}
           </li>
+          {{end}}
           {{end}}
           {{if .Pagination.HasNext}}
           <li class="page-item">

@@ -20,6 +20,9 @@ indent_size = 2
 
 [*.go]
 
+[*.{gohtml,gocss}]
+indent_size = 2
+
 
 [.editorconfig]
 ij_editorconfig_align_group_field_declarations = false

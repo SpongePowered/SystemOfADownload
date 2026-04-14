@@ -26,11 +26,12 @@
   --clr-api:     #009172;
 
   /* Semantic */
-  --clr-success: #18bc9c;
-  --clr-warning: #f39c12;
-  --clr-danger:  #e74c3c;
-  --clr-link:    #18bc9c;
-  --clr-link-dk: #0f7864;
+  --clr-success:    #18bc9c;
+  --clr-success-lt: #3be6c4;
+  --clr-warning:    #f39c12;
+  --clr-danger:     #e74c3c;
+  --clr-link:       #18bc9c;
+  --clr-link-dk:    #0f7864;
 
   /* Type */
   --ff-heading: 'Montserrat', 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -341,21 +342,44 @@ footer { background: var(--grey-750); color: #fff; text-align: center; font-size
 @media (max-width: 768px) { #sponsor img { height: 50px; } }
 
 /* ── Pagination ──────────────────────────────────────────────────────── */
+/* Base rules match bootswatch-flatly (teal) for any pagination outside the
+   downloads `.navigation` wrapper; the `.navigation`-scoped overrides below
+   reproduce the legacy _downloads.scss grey treatment that wins specificity
+   on the downloads page. */
 .navigation { margin-bottom: 20px; display: flex; justify-content: center; }
 .pagination { list-style: none; display: flex; padding: 0; margin: 0; }
-.page-item { margin-right: 2px; }
 
 .page-link {
-  display: block; padding: 0.5rem 0.75rem; line-height: 1.25;
-  color: #fff; background: var(--clr-success); border: 0; text-decoration: none;
+  position: relative; display: block; padding: 0.5rem 0.75rem;
+  margin-left: 0; line-height: 1.25;
+  color: #fff; background: var(--clr-success);
+  border: 0 solid transparent; text-decoration: none;
 }
-.page-link:hover { color: #fff; background: var(--clr-link-dk); text-decoration: none; }
-.page-item.active .page-link { background: var(--clr-link-dk); }
+.page-link:hover {
+  z-index: 2; color: #fff; background: var(--clr-link-dk);
+  border-color: transparent; text-decoration: none;
+}
+.page-item:first-child .page-link {
+  border-top-left-radius: 0.25rem; border-bottom-left-radius: 0.25rem;
+}
+.page-item:last-child .page-link {
+  border-top-right-radius: 0.25rem; border-bottom-right-radius: 0.25rem;
+}
+.page-item.active .page-link {
+  z-index: 3; color: #fff; background: var(--clr-link-dk); border-color: transparent;
+}
+.page-item.disabled .page-link {
+  color: var(--grey-150); cursor: auto; pointer-events: none;
+  background: var(--clr-success-lt); border-color: transparent;
+}
 
-/* Downloads page overrides pagination to grey */
+/* Downloads page: greyscale pagination (mirrors legacy `.navigation .page-item` SCSS).
+   $secondary = #999 (--grey-600), $primary = #333 (--grey-800).
+   Ellipsis/disabled cells use tint($secondary, 20%) = #adadad. */
 .navigation .page-item > a.page-link { background: var(--grey-600); }
-.navigation .page-item > a.page-link:hover { background: #6b6b6b; }
+.navigation .page-item > a.page-link:hover { background: #6b6b6b; } /* shade($secondary, 30%) */
 .navigation .page-item.active > .page-link { background: var(--grey-800); }
+.navigation .page-item.disabled > .page-link { color: #fff; background: #adadad; }
 
 /* ── Section Headings ────────────────────────────────────────────────── */
 #all-builds h3 { margin-top: 1.5rem; margin-bottom: 1rem; }
