@@ -115,20 +115,29 @@ func NewOTel(lc fx.Lifecycle, logs *logging.Result) *otelsetup.Result {
 func NewMux(fe *frontend.Server, otel *otelsetup.Result) http.Handler {
 	mux := http.NewServeMux()
 
-	fe.RegisterRoutes(mux, otel.MetricsHandler)
+	fe.RegisterRoutes(mux)
 
 	logger := httplog.NewLogger("soad-frontend", httplog.Options{
-		LogLevel:        slog.LevelInfo,
-		JSON:            true,
-		Concise:         true,
-		RequestHeaders:  true,
-		Writer:          os.Stderr,
-		QuietDownRoutes: []string{"/healthz", "/metrics"},
-		QuietDownPeriod: 10 * time.Second,
+		LogLevel:       slog.LevelInfo,
+		JSON:           true,
+		Concise:        true,
+		RequestHeaders: true,
+		Writer:         os.Stderr,
 	})
 
 	handler := gzhttp.GzipHandler(otelhttp.NewHandler(mux, "soad-frontend"))
-	return httplog.RequestLogger(logger)(handler)
+	loggedHandler := httplog.RequestLogger(logger)(handler)
+
+	// Outer mux: /healthz and /metrics bypass request logging.
+	outer := http.NewServeMux()
+	outer.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = fmt.Fprintln(w, "OK")
+	})
+	outer.Handle("GET /metrics", otel.MetricsHandler)
+	outer.Handle("/", loggedHandler)
+
+	return outer
 }
 
 func NewHTTPServer(lc fx.Lifecycle, cfg *Config, handler http.Handler, s fx.Shutdowner) *http.Server {

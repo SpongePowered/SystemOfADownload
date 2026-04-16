@@ -70,9 +70,11 @@ func NewServer(service *app.Service, cfg ServerConfig) (*Server, error) {
 }
 
 // RegisterRoutes mounts all frontend routes onto the given mux.
-// Specific routes (/healthz, /settings, /assets/) must be registered before
+// Specific routes (/settings, /assets/) must be registered before
 // the catch-all /{project} wildcard to avoid conflicts.
-func (s *Server) RegisterRoutes(mux *http.ServeMux, metricsHandler http.Handler) {
+// Infrastructure routes (/healthz, /metrics) are registered on a
+// separate outer mux by the caller so they bypass request logging.
+func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	// Static assets (CSS, fonts, picker JS) — embedded in the binary and
 	// served under content-hashed URLs so Cache-Control: immutable is
 	// safe. Templates must reference these through `{{asset "..."}}`.
@@ -93,15 +95,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux, metricsHandler http.Handler)
 	staticSub, _ := fs.Sub(staticFS, "static")
 	mux.Handle("GET /favicon.ico", http.FileServer(http.FS(staticSub)))
 
-	mux.HandleFunc("GET /healthz", s.handleHealthz)
-	mux.Handle("GET /metrics", metricsHandler)
 	mux.HandleFunc("GET /settings", s.handleSettings)
 	mux.HandleFunc("POST /settings", s.handleSettingsSubmit)
 	mux.HandleFunc("GET /{$}", s.handleOverview)
 	mux.HandleFunc("GET /{project}", s.handleDownloads)
-}
-
-func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	_, _ = fmt.Fprintln(w, "OK")
 }
