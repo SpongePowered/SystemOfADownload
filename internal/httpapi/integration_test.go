@@ -3,8 +3,11 @@ package httpapi_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -338,16 +341,23 @@ func TestIntegration_GroupAndArtifactLifecycle(t *testing.T) {
 		}
 	})
 
-	// Step 13: GetVersions returns 400 for invalid limit
-	t.Run("get versions with invalid limit returns 400", func(t *testing.T) {
+	// Step 13: GetVersions clamps over-max limit to the advertised maximum
+	t.Run("get versions clamps over-max limit", func(t *testing.T) {
 		resp, err := client.Get(baseURL + "/groups/org.spongepowered/artifacts/spongevanilla/versions?limit=50")
 		if err != nil {
 			t.Fatalf("failed to get versions: %v", err)
 		}
 		defer func() { _ = resp.Body.Close() }()
 
-		if resp.StatusCode != http.StatusBadRequest {
-			t.Fatalf("expected status 400, got %d", resp.StatusCode)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected status 200, got %d", resp.StatusCode)
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("failed to read body: %v", err)
+		}
+		if !strings.Contains(string(body), fmt.Sprintf(`"limit":%d`, httpapi.MaxVersionsPageLimit)) {
+			t.Fatalf("expected clamped limit=%d in body, got %s", httpapi.MaxVersionsPageLimit, body)
 		}
 	})
 

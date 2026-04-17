@@ -428,18 +428,22 @@ func TestGetVersions(t *testing.T) {
 		}
 	})
 
-	t.Run("returns 400 for invalid limit", func(t *testing.T) {
-		badLimit := 50
+	t.Run("clamps limit above max to 25", func(t *testing.T) {
+		overLimit := 50
 		resp, err := handler.GetVersions(ctx, api.GetVersionsRequestObject{
 			GroupID:    "org.spongepowered",
 			ArtifactID: "spongeforge",
-			Params:     api.GetVersionsParams{Limit: &badLimit},
+			Params:     api.GetVersionsParams{Limit: &overLimit},
 		})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if _, ok := resp.(*GetVersionsBadRequestError); !ok {
-			t.Errorf("expected 400, got %T", resp)
+		ordered, ok := resp.(*orderedVersionsResponse)
+		if !ok {
+			t.Fatalf("expected ordered versions response, got %T", resp)
+		}
+		if ordered.Limit != 25 {
+			t.Errorf("expected limit clamped to 25, got %d", ordered.Limit)
 		}
 	})
 
