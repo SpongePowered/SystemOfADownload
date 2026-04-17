@@ -172,24 +172,27 @@ func NewMux(h *httpapi.Handler, cfg *Config, otel *otelsetup.Result) http.Handle
 	apiHandler := api.NewStrictHandler(h, middlewares)
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = fmt.Fprintln(w, "OK")
-	})
-	mux.Handle("/metrics", otel.MetricsHandler)
-
 	logger := httplog.NewLogger("soad-server", httplog.Options{
-		LogLevel:        slog.LevelInfo,
-		JSON:            true,
-		Concise:         true,
-		RequestHeaders:  true,
-		Writer:          os.Stderr,
-		QuietDownRoutes: []string{"/healthz", "/metrics"},
-		QuietDownPeriod: 10 * time.Second,
+		LogLevel:       slog.LevelInfo,
+		JSON:           true,
+		Concise:        true,
+		RequestHeaders: true,
+		Writer:         os.Stderr,
 	})
 
 	handler := otelhttp.NewHandler(api.HandlerFromMux(apiHandler, mux), "soad-server")
-	return httplog.RequestLogger(logger)(handler)
+	loggedHandler := httplog.RequestLogger(logger)(handler)
+
+	// Outer mux: /healthz and /metrics bypass request logging.
+	outer := http.NewServeMux()
+	outer.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = fmt.Fprintln(w, "OK")
+	})
+	outer.Handle("/metrics", otel.MetricsHandler)
+	outer.Handle("/", loggedHandler)
+
+	return outer
 }
 
 func main() {

@@ -27,6 +27,10 @@ import (
 
 var apiMeter = otel.Meter("soad.httpapi")
 
+// MaxVersionsPageLimit is the maximum page size accepted for GetVersions. Larger
+// values are clamped down; the openapi spec advertises this as the maximum.
+const MaxVersionsPageLimit int32 = 25
+
 // VersionSyncScheduleID returns the Temporal Schedule ID for a given artifact's
 // periodic version sync. Used by both RegisterArtifact (schedule creation) and
 // TriggerSync (on-demand trigger).
@@ -273,11 +277,14 @@ func (h *Handler) GetArtifact(ctx context.Context, request api.GetArtifactReques
 
 func (h *Handler) GetVersions(ctx context.Context, request api.GetVersionsRequestObject) (api.GetVersionsResponseObject, error) {
 	h.countRequest(ctx, "GetVersions")
-	limit := int32(25)
+	limit := MaxVersionsPageLimit
 	if request.Params.Limit != nil {
 		l := int32(*request.Params.Limit)
-		if l < 1 || l > 25 {
-			return NewGetVersionsBadRequestError("limit must be between 1 and 25"), nil
+		if l < 1 {
+			return NewGetVersionsBadRequestError("limit must be at least 1"), nil
+		}
+		if l > MaxVersionsPageLimit {
+			l = MaxVersionsPageLimit
 		}
 		limit = l
 	}
