@@ -5,7 +5,7 @@ go 1.26.1
 require (
 	github.com/exaring/otelpgx v0.10.0
 	github.com/go-chi/httplog/v2 v2.1.1
-	github.com/go-git/go-git/v5 v5.17.2
+	github.com/go-git/go-git/v5 v5.18.0
 	github.com/go-slog/otelslog v0.3.0
 	github.com/google/go-cmp v0.7.0
 	github.com/jackc/pgx/v5 v5.9.1
