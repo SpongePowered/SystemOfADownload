@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/SpongePowered/SystemOfADownload/compare/v0.3.0...v0.3.1) (2026-04-17)
+
+
+### Bug Fixes
+
+* **api:** clamp GetVersions limit above max instead of rejecting ([c2b9ead](https://github.com/SpongePowered/SystemOfADownload/commit/c2b9ead734c89c70f815d958fb5158a42a34df0c))
+
 ## [0.3.0](https://github.com/SpongePowered/SystemOfADownload/compare/v0.2.0...v0.3.0) (2026-04-14)
 
 
