@@ -89,15 +89,21 @@ func Setup(ctx context.Context, serviceName string) (*Result, error) {
 			propagation.Baggage{},
 		))
 
-		metricExporter, err := otlpmetrichttp.New(otlpCtx)
-		if err != nil {
-			return &Result{Shutdown: shutdown, MetricsHandler: promhttp.Handler()}, err
+		// OTEL_METRICS_EXPORTER=none skips OTLP metric push while keeping trace
+		// export. Useful when the OTLP backend is traces-only (e.g. Tempo) and
+		// metrics are scraped from /metrics by Prometheus instead.
+		if os.Getenv("OTEL_METRICS_EXPORTER") == "none" {
+			slog.Info("OpenTelemetry initialized with OTLP traces only (metrics disabled)", "service", serviceName)
+		} else {
+			metricExporter, err := otlpmetrichttp.New(otlpCtx)
+			if err != nil {
+				return &Result{Shutdown: shutdown, MetricsHandler: promhttp.Handler()}, err
+			}
+			readers = append(readers, metric.WithReader(
+				metric.NewPeriodicReader(metricExporter, metric.WithInterval(30*time.Second)),
+			))
+			slog.Info("OpenTelemetry initialized with OTLP exporters", "service", serviceName)
 		}
-		readers = append(readers, metric.WithReader(
-			metric.NewPeriodicReader(metricExporter, metric.WithInterval(30*time.Second)),
-		))
-
-		slog.Info("OpenTelemetry initialized with OTLP exporters", "service", serviceName)
 	} else {
 		slog.Info("OpenTelemetry metrics enabled (Prometheus only, no OTLP)", "service", serviceName)
 	}
