@@ -68,18 +68,25 @@ jobs:
             -ldflags "-s -w -X main.Version=${VERSION}" \
             ./cmd/worker
 
+          # Build frontend
+          go build -o dist/frontend-${GOOS}-${GOARCH}${{ matrix.goos == 'windows' && '.exe' || '' }} \
+            -ldflags "-s -w -X main.Version=${VERSION}" \
+            ./cmd/frontend
+
           # Create archives
           if [ "${{ matrix.goos }}" = "windows" ]; then
             cd dist
             zip ../systemofadownload-${VERSION}-${GOOS}-${GOARCH}.zip \
               server-${GOOS}-${GOARCH}.exe \
-              worker-${GOOS}-${GOARCH}.exe
+              worker-${GOOS}-${GOARCH}.exe \
+              frontend-${GOOS}-${GOARCH}.exe
             cd ..
           else
             tar -czf systemofadownload-${VERSION}-${GOOS}-${GOARCH}.tar.gz \
               -C dist \
               server-${GOOS}-${GOARCH} \
-              worker-${GOOS}-${GOARCH}
+              worker-${GOOS}-${GOARCH} \
+              frontend-${GOOS}-${GOARCH}
           fi
 
       - name: Upload release artifacts
