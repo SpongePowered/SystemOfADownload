@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -30,29 +29,19 @@ const gitLocalTimeout = 2 * time.Minute
 const gitWaitDelay = 5 * time.Second
 
 // gitCommand builds an *exec.Cmd for a git invocation that is safe against
-// the zombie/pipe-inheritance trap:
-//
-//   - Setpgid puts git in its own process group so Cancel can SIGKILL the
-//     whole group (including git-remote-https), not just the direct child.
-//   - Cancel overrides CommandContext's default behavior (which only kills
-//     the direct child) to kill the entire process group.
-//   - WaitDelay ensures Output/CombinedOutput returns even if a grandchild
-//     is still holding the stdout pipe open after git itself has been killed.
-//   - GIT_TERMINAL_PROMPT=0 prevents git from ever blocking on a credential
-//     prompt. GIT_HTTP_LOW_SPEED_LIMIT/TIME makes libcurl abort connections
-//     that stall below 1 KB/s for 60s, which is the usual symptom of a
-//     half-open connection to github.com.
+// the zombie/pipe-inheritance trap. On Unix, configureProcessGroup puts git
+// in its own process group and overrides Cancel to SIGKILL the whole group
+// (including git-remote-https grandchildren). WaitDelay ensures Output/
+// CombinedOutput returns even if a grandchild still holds the stdout pipe
+// open after git itself has been killed (see golang/go#23019).
+// GIT_TERMINAL_PROMPT=0 prevents git from ever blocking on a credential
+// prompt. GIT_HTTP_LOW_SPEED_LIMIT/TIME makes libcurl abort connections
+// that stall below 1 KB/s for 60s, which is the usual symptom of a
+// half-open connection to github.com.
 func gitCommand(ctx context.Context, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.WaitDelay = gitWaitDelay
-	cmd.Cancel = func() error {
-		if cmd.Process == nil {
-			return nil
-		}
-		// Negative pid targets the whole process group.
-		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-	}
+	configureProcessGroup(cmd)
 	cmd.Env = append(os.Environ(),
 		"GIT_TERMINAL_PROMPT=0",
 		"GIT_HTTP_LOW_SPEED_LIMIT=1000",
