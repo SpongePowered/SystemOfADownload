@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.2](https://github.com/SpongePowered/SystemOfADownload/compare/v0.3.1...v0.3.2) (2026-04-20)
+
+
+### Bug Fixes
+
+* **gitcache:** restore Windows build by isolating POSIX process-group logic ([f410530](https://github.com/SpongePowered/SystemOfADownload/commit/f410530fa17c6066c86f864b93ac87024fcbed21))
+* **otel:** honor OTEL_METRICS_EXPORTER=none to skip OTLP metric push ([6524673](https://github.com/SpongePowered/SystemOfADownload/commit/65246739dfdafe57de9c51d786c67ff7e00fed2f))
+
 ## [0.3.1](https://github.com/SpongePowered/SystemOfADownload/compare/v0.3.0...v0.3.1) (2026-04-17)
 
 
