@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/exaring/otelpgx"
-	"github.com/go-chi/httplog/v2"
+	"github.com/go-chi/httplog/v3"
 	"github.com/go-slog/otelslog"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/klauspost/compress/gzhttp"
@@ -114,21 +114,21 @@ func NewOTel(lc fx.Lifecycle, logs *logging.Result) *otelsetup.Result {
 
 func NewMux(fe *frontend.Server, otel *otelsetup.Result) http.Handler {
 	mux := http.NewServeMux()
-
 	fe.RegisterRoutes(mux)
 
-	logger := httplog.NewLogger("soad-frontend", httplog.Options{
-		LogLevel:       slog.LevelInfo,
-		JSON:           true,
-		Concise:        true,
-		RequestHeaders: true,
-		Writer:         os.Stderr,
-	})
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil)).
+		With(slog.String("service", "soad-frontend"))
 
 	handler := gzhttp.GzipHandler(otelhttp.NewHandler(mux, "soad-frontend"))
-	loggedHandler := httplog.RequestLogger(logger)(handler)
+	loggedHandler := httplog.RequestLogger(logger, &httplog.Options{
+		Level:             slog.LevelInfo,
+		Schema:            httplog.SchemaOTEL,
+		RecoverPanics:     true,
+		LogRequestHeaders: []string{"User-Agent", "Referer"},
+	})(handler)
 
-	// Outer mux: /healthz and /metrics bypass request logging.
+	// Outer mux: /healthz and /metrics bypass tracing, gzip, and request logging
+	// to keep probe/scrape traffic off the observability pipelines.
 	outer := http.NewServeMux()
 	outer.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
