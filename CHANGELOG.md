@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.3](https://github.com/SpongePowered/SystemOfADownload/compare/v0.3.2...v0.3.3) (2026-04-22)
+
+
+### Bug Fixes
+
+* **logging:** raise 4xx HTTP log levels via httplog v3 ([f768c51](https://github.com/SpongePowered/SystemOfADownload/commit/f768c51a2e2717d8991407571e6d6cd0da819b8d))
+
+
+### Performance Improvements
+
+* **repository:** paginate before joining assets in version listing ([25e9027](https://github.com/SpongePowered/SystemOfADownload/commit/25e9027942156865d10298c21b3104b4d9934733))
+
 ## [0.3.2](https://github.com/SpongePowered/SystemOfADownload/compare/v0.3.1...v0.3.2) (2026-04-20)
 
 
