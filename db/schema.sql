@@ -46,5 +46,7 @@ CREATE TABLE artifact_versioned_tags (
 );
 
 CREATE INDEX idx_versioned_tags_key_value ON artifact_versioned_tags(tag_key, tag_value, artifact_version_id);
+CREATE INDEX idx_versioned_tags_av_key_value ON artifact_versioned_tags(artifact_version_id, tag_key, tag_value);
+CREATE INDEX idx_versioned_assets_version_id ON artifact_versioned_assets(artifact_version_id);
 CREATE INDEX idx_versions_artifact_sort ON artifact_versions(artifact_id, sort_order DESC);
 CREATE INDEX idx_versions_artifact_recommended_sort ON artifact_versions(artifact_id, recommended, sort_order DESC);

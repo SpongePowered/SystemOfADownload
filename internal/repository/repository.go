@@ -316,21 +316,20 @@ type VersionsWithAssetsResult struct {
 
 // ListVersionsWithAssets returns paginated versions with pre-aggregated assets in a single query.
 // This is a frontend-optimized query that eliminates the N+1 pattern for the downloads page.
+//
+// Shape: filter versions in a CTE, paginate, THEN join assets — so the asset
+// LEFT JOIN and jsonb_agg only run for the current page, not the whole match set.
+// Each tag is an EXISTS subquery that hits the (artifact_version_id, tag_key)
+// primary key on artifact_versioned_tags.
 func (q *querierWithConn) ListVersionsWithAssets(ctx context.Context, params VersionQueryParams) (*VersionsWithAssetsResult, error) {
 	var args []any
 	argN := 1
 
-	query := `SELECT av.id, av.version, av.recommended, av.commit_body,
-	COUNT(*) OVER() AS total_count,
-	COALESCE(jsonb_agg(jsonb_build_object(
-		'classifier', ava.classifier,
-		'download_url', ava.download_url,
-		'extension', ava.extension
-	)) FILTER (WHERE ava.id IS NOT NULL), '[]'::jsonb) AS assets_json
-FROM artifact_versions av
-JOIN artifacts a ON av.artifact_id = a.id
-LEFT JOIN artifact_versioned_assets ava ON ava.artifact_version_id = av.id
-WHERE a.group_id = $` + strconv.Itoa(argN)
+	query := `WITH filtered AS (
+	SELECT av.id, av.version, av.recommended, av.commit_body, av.sort_order
+	FROM artifact_versions av
+	JOIN artifacts a ON av.artifact_id = a.id
+	WHERE a.group_id = $` + strconv.Itoa(argN)
 	args = append(args, params.GroupID)
 	argN++
 
@@ -344,31 +343,39 @@ WHERE a.group_id = $` + strconv.Itoa(argN)
 		argN++
 	}
 
-	if len(params.Tags) > 0 {
-		query += ` AND av.id IN (SELECT t.artifact_version_id FROM artifact_versioned_tags t WHERE (`
-		i := 0
-		for key, value := range params.Tags {
-			if i > 0 {
-				query += ` OR `
-			}
-			query += `(t.tag_key = $` + strconv.Itoa(argN) +
-				` AND (t.tag_value = $` + strconv.Itoa(argN+1) +
-				` OR t.tag_value LIKE $` + strconv.Itoa(argN+2) + `))`
-			args = append(args, key, value, value+".%")
-			argN += 3
-			i++
-		}
-		query += `) GROUP BY t.artifact_version_id HAVING COUNT(DISTINCT t.tag_key) = $` + strconv.Itoa(argN) + `)`
-		args = append(args, len(params.Tags))
-		argN++
+	// Prefix matching with dot boundary: "minecraft:1.12" matches "1.12" and
+	// "1.12.2" but NOT "1.120". Each tag becomes an independent EXISTS hitting
+	// the (artifact_version_id, tag_key) PK on artifact_versioned_tags.
+	for key, value := range params.Tags {
+		query += ` AND EXISTS (SELECT 1 FROM artifact_versioned_tags` +
+			` WHERE artifact_version_id = av.id` +
+			` AND tag_key = $` + strconv.Itoa(argN) +
+			` AND (tag_value = $` + strconv.Itoa(argN+1) +
+			` OR tag_value LIKE $` + strconv.Itoa(argN+2) + `))`
+		args = append(args, key, value, value+".%")
+		argN += 3
 	}
 
-	query += ` GROUP BY av.id, av.version, av.recommended, av.commit_body, av.sort_order`
-	query += ` ORDER BY av.sort_order DESC`
-	query += ` LIMIT $` + strconv.Itoa(argN)
+	query += `
+), page AS (
+	SELECT f.*, COUNT(*) OVER() AS total_count
+	FROM filtered f
+	ORDER BY f.sort_order DESC
+	LIMIT $` + strconv.Itoa(argN)
 	args = append(args, params.Limit)
 	argN++
-	query += ` OFFSET $` + strconv.Itoa(argN)
+	query += ` OFFSET $` + strconv.Itoa(argN) + `
+)
+SELECT p.id, p.version, p.recommended, p.commit_body, p.total_count,
+	COALESCE(jsonb_agg(jsonb_build_object(
+		'classifier', ava.classifier,
+		'download_url', ava.download_url,
+		'extension', ava.extension
+	)) FILTER (WHERE ava.id IS NOT NULL), '[]'::jsonb) AS assets_json
+FROM page p
+LEFT JOIN artifact_versioned_assets ava ON ava.artifact_version_id = p.id
+GROUP BY p.id, p.version, p.recommended, p.commit_body, p.total_count, p.sort_order
+ORDER BY p.sort_order DESC`
 	args = append(args, params.Offset)
 
 	rows, err := q.conn.Query(ctx, query, args...)

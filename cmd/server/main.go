@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/exaring/otelpgx"
-	"github.com/go-chi/httplog/v2"
+	"github.com/go-chi/httplog/v3"
 	"github.com/go-slog/otelslog"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spongepowered/systemofadownload/internal/logging"
@@ -172,18 +172,19 @@ func NewMux(h *httpapi.Handler, cfg *Config, otel *otelsetup.Result) http.Handle
 	apiHandler := api.NewStrictHandler(h, middlewares)
 	mux := http.NewServeMux()
 
-	logger := httplog.NewLogger("soad-server", httplog.Options{
-		LogLevel:       slog.LevelInfo,
-		JSON:           true,
-		Concise:        true,
-		RequestHeaders: true,
-		Writer:         os.Stderr,
-	})
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil)).
+		With(slog.String("service", "soad-server"))
 
 	handler := otelhttp.NewHandler(api.HandlerFromMux(apiHandler, mux), "soad-server")
-	loggedHandler := httplog.RequestLogger(logger)(handler)
+	loggedHandler := httplog.RequestLogger(logger, &httplog.Options{
+		Level:             slog.LevelInfo,
+		Schema:            httplog.SchemaOTEL,
+		RecoverPanics:     true,
+		LogRequestHeaders: []string{"User-Agent", "Referer"},
+	})(handler)
 
-	// Outer mux: /healthz and /metrics bypass request logging.
+	// Outer mux: /healthz and /metrics bypass tracing and request logging
+	// to keep probe/scrape traffic off the observability pipelines.
 	outer := http.NewServeMux()
 	outer.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
