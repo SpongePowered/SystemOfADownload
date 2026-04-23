@@ -377,6 +377,28 @@ func (q *Queries) GroupExistsByMavenID(ctx context.Context, lower string) (bool,
 	return exists, err
 }
 
+const insertNewArtifactVersion = `-- name: InsertNewArtifactVersion :exec
+INSERT INTO artifact_versions (artifact_id, version)
+VALUES ($1, $2)
+ON CONFLICT (artifact_id, version) DO NOTHING
+`
+
+type InsertNewArtifactVersionParams struct {
+	ArtifactID int64
+	Version    string
+}
+
+// Inserts a bare artifact_versions row (no sort_order, no commit_body) and
+// does nothing on conflict. Used by the version-sync path to announce "this
+// version exists" without touching enrichment columns — overlapping sync
+// runs must not clobber each other's sort_order or commit_body. The full
+// upsert (CreateArtifactVersion) is reserved for ordering + enrichment
+// writes that intentionally refresh sort_order / merge commit_body.
+func (q *Queries) InsertNewArtifactVersion(ctx context.Context, arg InsertNewArtifactVersionParams) error {
+	_, err := q.db.Exec(ctx, insertNewArtifactVersion, arg.ArtifactID, arg.Version)
+	return err
+}
+
 const isVersionEnriched = `-- name: IsVersionEnriched :one
 SELECT COALESCE((av.commit_body->>'enrichedAt') IS NOT NULL, false)::boolean AS enriched
 FROM artifact_versions av

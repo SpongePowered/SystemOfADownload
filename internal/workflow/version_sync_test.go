@@ -37,6 +37,7 @@ func TestVersionSyncWorkflow(t *testing.T) {
 					activity.FetchVersionsInput{
 						GroupID:    "org.spongepowered",
 						ArtifactID: "spongeapi",
+						Source:     activity.VersionSourceSearch,
 					},
 				).Return(&activity.FetchVersionsOutput{
 					Versions: []domain.VersionInfo{
@@ -197,5 +198,41 @@ func TestVersionSyncWorkflow(t *testing.T) {
 				t.Errorf("expected %d new versions stored, got %d", tt.wantCount, result.NewVersionsStored)
 			}
 		})
+	}
+}
+
+// TestVersionSyncWorkflowPropagatesSource verifies the workflow passes its
+// input Source to the FetchVersions activity verbatim — including the
+// metadata source the fast schedule will request. Regression guard against
+// dropping the field during future refactors.
+func TestVersionSyncWorkflowPropagatesSource(t *testing.T) {
+	t.Parallel()
+
+	var activities *activity.VersionSyncActivities
+
+	suite := &testsuite.WorkflowTestSuite{}
+	env := suite.NewTestWorkflowEnvironment()
+
+	env.OnActivity(
+		activities.FetchVersions,
+		mock.Anything,
+		activity.FetchVersionsInput{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongeapi",
+			Source:     activity.VersionSourceMetadata,
+		},
+	).Return(&activity.FetchVersionsOutput{}, nil)
+
+	env.ExecuteWorkflow(workflow.VersionSyncWorkflow, workflow.VersionSyncInput{
+		GroupID:    "org.spongepowered",
+		ArtifactID: "spongeapi",
+		Source:     activity.VersionSourceMetadata,
+	})
+
+	if !env.IsWorkflowCompleted() {
+		t.Fatal("workflow did not complete")
+	}
+	if err := env.GetWorkflowError(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }

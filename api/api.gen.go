@@ -44,6 +44,24 @@ func (e VersionSchemaVariantsSegmentsParseAs) Valid() bool {
 	}
 }
 
+// Defines values for TriggerSyncParamsSource.
+const (
+	Metadata TriggerSyncParamsSource = "metadata"
+	Search   TriggerSyncParamsSource = "search"
+)
+
+// Valid indicates whether the value is a known member of the TriggerSyncParamsSource enum.
+func (e TriggerSyncParamsSource) Valid() bool {
+	switch e {
+	case Metadata:
+		return true
+	case Search:
+		return true
+	default:
+		return false
+	}
+}
+
 // Artifact defines model for Artifact.
 type Artifact struct {
 	Coordinates struct {
@@ -203,6 +221,18 @@ type GetLatestVersionParams struct {
 	Tags        *string `form:"tags,omitempty" json:"tags,omitempty"`
 }
 
+// TriggerSyncParams defines parameters for TriggerSync.
+type TriggerSyncParams struct {
+	// Source Which version-discovery schedule to trigger. `metadata` fires the
+	// fast 2-minute maven-metadata.xml schedule; `search` fires the
+	// hourly REST-pagination correctness backstop schedule. Defaults
+	// to `metadata` (the fast path) when omitted.
+	Source *TriggerSyncParamsSource `form:"source,omitempty" json:"source,omitempty"`
+}
+
+// TriggerSyncParamsSource defines parameters for TriggerSync.
+type TriggerSyncParamsSource string
+
 // GetVersionsParams defines parameters for GetVersions.
 type GetVersionsParams struct {
 	Recommended *bool   `form:"recommended,omitempty" json:"recommended,omitempty"`
@@ -257,7 +287,7 @@ type ServerInterface interface {
 	PutArtifactSchema(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID)
 
 	// (POST /groups/{groupID}/artifacts/{artifactID}/sync)
-	TriggerSync(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID)
+	TriggerSync(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID, params TriggerSyncParams)
 
 	// (GET /groups/{groupID}/artifacts/{artifactID}/versions)
 	GetVersions(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID, params GetVersionsParams)
@@ -620,8 +650,19 @@ func (siw *ServerInterfaceWrapper) TriggerSync(w http.ResponseWriter, r *http.Re
 
 	r = r.WithContext(ctx)
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params TriggerSyncParams
+
+	// ------------- Optional query parameter "source" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "source", r.URL.Query(), &params.Source, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "source", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.TriggerSync(w, r, groupID, artifactID)
+		siw.Handler.TriggerSync(w, r, groupID, artifactID, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1141,6 +1182,7 @@ func (response PutArtifactSchema404Response) VisitPutArtifactSchemaResponse(w ht
 type TriggerSyncRequestObject struct {
 	GroupID    GroupID    `json:"groupID"`
 	ArtifactID ArtifactID `json:"artifactID"`
+	Params     TriggerSyncParams
 }
 
 type TriggerSyncResponseObject interface {
@@ -1156,6 +1198,14 @@ func (response TriggerSync200JSONResponse) VisitTriggerSyncResponse(w http.Respo
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
+}
+
+type TriggerSync400Response struct {
+}
+
+func (response TriggerSync400Response) VisitTriggerSyncResponse(w http.ResponseWriter) error {
+	w.WriteHeader(400)
+	return nil
 }
 
 type TriggerSync404Response struct {
@@ -1605,11 +1655,12 @@ func (sh *strictHandler) PutArtifactSchema(w http.ResponseWriter, r *http.Reques
 }
 
 // TriggerSync operation middleware
-func (sh *strictHandler) TriggerSync(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID) {
+func (sh *strictHandler) TriggerSync(w http.ResponseWriter, r *http.Request, groupID GroupID, artifactID ArtifactID, params TriggerSyncParams) {
 	var request TriggerSyncRequestObject
 
 	request.GroupID = groupID
 	request.ArtifactID = artifactID
+	request.Params = params
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.TriggerSync(ctx, request.(TriggerSyncRequestObject))

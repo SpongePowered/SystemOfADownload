@@ -93,6 +93,17 @@ ON CONFLICT (artifact_id, version) DO UPDATE SET
     END
 RETURNING *;
 
+-- name: InsertNewArtifactVersion :exec
+-- Inserts a bare artifact_versions row (no sort_order, no commit_body) and
+-- does nothing on conflict. Used by the version-sync path to announce "this
+-- version exists" without touching enrichment columns — overlapping sync
+-- runs must not clobber each other's sort_order or commit_body. The full
+-- upsert (CreateArtifactVersion) is reserved for ordering + enrichment
+-- writes that intentionally refresh sort_order / merge commit_body.
+INSERT INTO artifact_versions (artifact_id, version)
+VALUES ($1, $2)
+ON CONFLICT (artifact_id, version) DO NOTHING;
+
 -- name: DeleteArtifactVersionAssets :exec
 DELETE FROM artifact_versioned_assets
 WHERE artifact_version_id = $1;

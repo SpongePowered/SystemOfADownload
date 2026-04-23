@@ -36,6 +36,13 @@ type Querier interface {
 	GetGroup(ctx context.Context, mavenID string) (Group, error)
 	GetPreviousVersion(ctx context.Context, arg GetPreviousVersionParams) (ArtifactVersion, error)
 	GroupExistsByMavenID(ctx context.Context, lower string) (bool, error)
+	// Inserts a bare artifact_versions row (no sort_order, no commit_body) and
+	// does nothing on conflict. Used by the version-sync path to announce "this
+	// version exists" without touching enrichment columns — overlapping sync
+	// runs must not clobber each other's sort_order or commit_body. The full
+	// upsert (CreateArtifactVersion) is reserved for ordering + enrichment
+	// writes that intentionally refresh sort_order / merge commit_body.
+	InsertNewArtifactVersion(ctx context.Context, arg InsertNewArtifactVersionParams) error
 	IsVersionEnriched(ctx context.Context, id int64) (bool, error)
 	ListArtifactVersionAssets(ctx context.Context, artifactVersionID int64) ([]ArtifactVersionedAsset, error)
 	ListArtifactVersionStringsByArtifactID(ctx context.Context, arg ListArtifactVersionStringsByArtifactIDParams) ([]string, error)

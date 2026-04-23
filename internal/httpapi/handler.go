@@ -19,6 +19,7 @@ import (
 	"go.temporal.io/sdk/client"
 
 	"github.com/spongepowered/systemofadownload/api"
+	"github.com/spongepowered/systemofadownload/internal/activity"
 	"github.com/spongepowered/systemofadownload/internal/app"
 	"github.com/spongepowered/systemofadownload/internal/domain"
 	"github.com/spongepowered/systemofadownload/internal/repository"
@@ -31,11 +32,104 @@ var apiMeter = otel.Meter("soad.httpapi")
 // values are clamped down; the openapi spec advertises this as the maximum.
 const MaxVersionsPageLimit int32 = 25
 
-// VersionSyncScheduleID returns the Temporal Schedule ID for a given artifact's
-// periodic version sync. Used by both RegisterArtifact (schedule creation) and
-// TriggerSync (on-demand trigger).
+// VersionSyncFastScheduleID returns the schedule ID for the 2-minute
+// maven-metadata.xml polling schedule for an artifact.
+func VersionSyncFastScheduleID(groupID, artifactID string) string {
+	return fmt.Sprintf("version-sync-fast-%s-%s", groupID, artifactID)
+}
+
+// VersionSyncFullScheduleID returns the schedule ID for the hourly REST-API
+// pagination schedule (correctness backstop) for an artifact.
+func VersionSyncFullScheduleID(groupID, artifactID string) string {
+	return fmt.Sprintf("version-sync-full-%s-%s", groupID, artifactID)
+}
+
+// VersionSyncScheduleID returns the legacy single-schedule ID, kept so the
+// migration binary can detect and delete pre-split schedules. New code should
+// use VersionSyncFastScheduleID or VersionSyncFullScheduleID.
+//
+// Deprecated: use VersionSyncFastScheduleID or VersionSyncFullScheduleID.
 func VersionSyncScheduleID(groupID, artifactID string) string {
 	return fmt.Sprintf("version-sync-%s-%s", groupID, artifactID)
+}
+
+// versionSyncWorkflowExecutionTimeout bounds each scheduled run so a wedged
+// workflow cannot hide the schedule indefinitely.
+const versionSyncWorkflowExecutionTimeout = 30 * time.Minute
+
+// NewFastVersionSyncScheduleOptions returns the ScheduleOptions for the 2m
+// maven-metadata.xml schedule. Exposed for the migration binary.
+//
+// The schedule auto-generates a unique workflow ID per fire (schedule ID +
+// timestamp). The per-schedule Overlap policy (BUFFER_ONE) handles self-
+// overlap; cross-schedule overlap with the hourly full schedule is rare
+// (~seconds-scale window during jitter alignment) and the two runs simply
+// race — idempotency comes from the DB unique constraint on
+// artifact_versions(artifact_id, version) plus the pre-insert "versions
+// already present" filter in StoreNewVersions.
+func NewFastVersionSyncScheduleOptions(groupID, artifactID string) client.ScheduleOptions {
+	return client.ScheduleOptions{
+		ID: VersionSyncFastScheduleID(groupID, artifactID),
+		Spec: client.ScheduleSpec{
+			Intervals: []client.ScheduleIntervalSpec{{Every: 2 * time.Minute}},
+			Jitter:    15 * time.Second,
+		},
+		Action: &client.ScheduleWorkflowAction{
+			Workflow: workflow.VersionSyncWorkflow,
+			Args: []any{workflow.VersionSyncInput{
+				GroupID:    groupID,
+				ArtifactID: artifactID,
+				Source:     activity.VersionSourceMetadata,
+			}},
+			TaskQueue:                workflow.VersionSyncTaskQueue,
+			WorkflowExecutionTimeout: versionSyncWorkflowExecutionTimeout,
+		},
+		Overlap:            enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE,
+		TriggerImmediately: true,
+	}
+}
+
+// NewFullVersionSyncScheduleOptions returns the ScheduleOptions for the 1h
+// REST-pagination correctness backstop schedule. Exposed for the migration
+// binary.
+//
+// SKIP on the slow path: if the hourly tick fires while a previous hourly
+// run is still going (e.g. Sonatype slow), drop the tick rather than piling
+// on — the fast path covers latency, and the next hour retries.
+func NewFullVersionSyncScheduleOptions(groupID, artifactID string) client.ScheduleOptions {
+	return client.ScheduleOptions{
+		ID: VersionSyncFullScheduleID(groupID, artifactID),
+		Spec: client.ScheduleSpec{
+			Intervals: []client.ScheduleIntervalSpec{{Every: time.Hour}},
+			Jitter:    10 * time.Minute,
+		},
+		Action: &client.ScheduleWorkflowAction{
+			Workflow: workflow.VersionSyncWorkflow,
+			Args: []any{workflow.VersionSyncInput{
+				GroupID:    groupID,
+				ArtifactID: artifactID,
+				Source:     activity.VersionSourceSearch,
+			}},
+			TaskQueue:                workflow.VersionSyncTaskQueue,
+			WorkflowExecutionTimeout: versionSyncWorkflowExecutionTimeout,
+		},
+		Overlap: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
+	}
+}
+
+// createDualVersionSyncSchedules creates both schedules for a newly registered
+// artifact. Logs (but does not fail the API call) on either schedule error —
+// the artifact is registered; an operator can re-create schedules via the
+// migration binary if one failed.
+func createDualVersionSyncSchedules(ctx context.Context, schedules client.ScheduleClient, groupID, artifactID string) {
+	if _, err := schedules.Create(ctx, NewFastVersionSyncScheduleOptions(groupID, artifactID)); err != nil {
+		slog.ErrorContext(ctx, "failed to create fast version sync schedule",
+			"groupID", groupID, "artifactID", artifactID, "error", err)
+	}
+	if _, err := schedules.Create(ctx, NewFullVersionSyncScheduleOptions(groupID, artifactID)); err != nil {
+		slog.ErrorContext(ctx, "failed to create full version sync schedule",
+			"groupID", groupID, "artifactID", artifactID, "error", err)
+	}
 }
 
 // WorkflowStarter is a narrow interface for starting Temporal workflows.
@@ -166,31 +260,16 @@ func (h *Handler) RegisterArtifact(ctx context.Context, request api.RegisterArti
 		return nil, err
 	}
 
-	// Create a Temporal Schedule for periodic version syncing.
-	// TriggerImmediately runs the first sync now; the 2-minute interval handles ongoing polling.
-	// BUFFER_ONE ensures a missed tick runs once the current sync finishes.
+	// Create two Temporal Schedules for periodic version syncing:
+	//   fast: 2m interval, maven-metadata.xml, TriggerImmediately.
+	//   full: 1h interval, REST-API pagination (correctness backstop).
+	// Each schedule auto-generates workflow IDs per fire; cross-schedule
+	// concurrent runs are possible but rare (jitter windows of 15s and 10m
+	// respectively). Idempotency against concurrent runs is provided by the
+	// UNIQUE(artifact_id, version) constraint plus the "skip already-stored"
+	// filter inside StoreNewVersions.
 	if h.schedules != nil {
-		scheduleID := VersionSyncScheduleID(request.GroupID, request.Body.ArtifactId)
-		_, err := h.schedules.Create(ctx, client.ScheduleOptions{
-			ID: scheduleID,
-			Spec: client.ScheduleSpec{
-				Intervals: []client.ScheduleIntervalSpec{{Every: 2 * time.Minute}},
-				Jitter:    15 * time.Second,
-			},
-			Action: &client.ScheduleWorkflowAction{
-				Workflow:  workflow.VersionSyncWorkflow,
-				Args:      []any{workflow.VersionSyncInput{GroupID: request.GroupID, ArtifactID: request.Body.ArtifactId}},
-				TaskQueue: workflow.VersionSyncTaskQueue,
-			},
-			Overlap:            enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE,
-			TriggerImmediately: true,
-		})
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to create version sync schedule",
-				"groupID", request.GroupID,
-				"artifactID", request.Body.ArtifactId,
-				"error", err)
-		}
+		createDualVersionSyncSchedules(ctx, h.schedules, request.GroupID, request.Body.ArtifactId)
 	}
 
 	response := api.RegisterArtifact201JSONResponse{
@@ -220,7 +299,25 @@ func (h *Handler) TriggerSync(ctx context.Context, request api.TriggerSyncReques
 		return api.TriggerSync500Response{}, nil
 	}
 
-	scheduleID := VersionSyncScheduleID(request.GroupID, request.ArtifactID)
+	// Default source: metadata (fast schedule). Explicit "search" routes to the
+	// hourly REST-pagination backstop — useful when maven-metadata.xml is
+	// suspected stale.
+	source := api.Metadata
+	if request.Params.Source != nil {
+		source = *request.Params.Source
+		if !source.Valid() {
+			return api.TriggerSync400Response{}, nil
+		}
+	}
+
+	var scheduleID string
+	switch source {
+	case api.Search:
+		scheduleID = VersionSyncFullScheduleID(request.GroupID, request.ArtifactID)
+	default:
+		scheduleID = VersionSyncFastScheduleID(request.GroupID, request.ArtifactID)
+	}
+
 	handle := h.schedules.GetHandle(ctx, scheduleID)
 	err := handle.Trigger(ctx, client.ScheduleTriggerOptions{})
 	if err != nil {
@@ -229,12 +326,14 @@ func (h *Handler) TriggerSync(ctx context.Context, request api.TriggerSyncReques
 			slog.WarnContext(ctx, "no sync schedule found",
 				"groupID", request.GroupID,
 				"artifactID", request.ArtifactID,
+				"source", source,
 			)
 			return api.TriggerSync404Response{}, nil
 		}
 		slog.ErrorContext(ctx, "failed to trigger sync schedule",
 			"groupID", request.GroupID,
 			"artifactID", request.ArtifactID,
+			"source", source,
 			"error", err,
 		)
 		return api.TriggerSync500Response{}, nil
@@ -243,6 +342,7 @@ func (h *Handler) TriggerSync(ctx context.Context, request api.TriggerSyncReques
 	slog.InfoContext(ctx, "sync triggered",
 		"groupID", request.GroupID,
 		"artifactID", request.ArtifactID,
+		"source", source,
 	)
 	msg := "sync triggered"
 	return api.TriggerSync200JSONResponse{Message: &msg}, nil

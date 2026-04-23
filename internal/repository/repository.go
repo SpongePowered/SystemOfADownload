@@ -54,6 +54,7 @@ type Reads interface {
 type Writes interface {
 	CreateArtifact(ctx context.Context, arg db.CreateArtifactParams) (db.Artifact, error)
 	CreateArtifactVersion(ctx context.Context, arg db.CreateArtifactVersionParams) (db.ArtifactVersion, error)
+	InsertNewArtifactVersion(ctx context.Context, arg db.InsertNewArtifactVersionParams) error
 	CreateArtifactVersionAsset(ctx context.Context, arg db.CreateArtifactVersionAssetParams) (db.ArtifactVersionedAsset, error)
 	CreateArtifactVersionTag(ctx context.Context, arg db.CreateArtifactVersionTagParams) (db.ArtifactVersionedTag, error)
 	CreateGroup(ctx context.Context, arg db.CreateGroupParams) (db.Group, error)

@@ -86,17 +86,26 @@ The `DeploymentName` ("soad-worker") must match the `--deployment-name` in the P
 
 ### VersionSyncWorkflow
 
-The top-level orchestrator, triggered when an artifact is registered via the HTTP API. It coordinates the entire pipeline from fetching versions through to ordering.
+The top-level orchestrator. Two Temporal Schedules are created per registered artifact:
 
-**Trigger:** Temporal Schedule (every 2 minutes), or on-demand via `POST .../sync`
+| Schedule | Interval | Source | Purpose |
+|----------|----------|--------|---------|
+| `version-sync-fast-{g}-{a}` | 2m | `metadata` | Low-latency new-version detection via `maven-metadata.xml` |
+| `version-sync-full-{g}-{a}` | 1h (±10m jitter) | `search`   | Correctness backstop via Sonatype REST component search |
 
-**Input:** `VersionSyncInput{GroupID, ArtifactID, ForceReindex}`
+Both schedules run the same `VersionSyncWorkflow`, differing only in the `Source` field they pass. The workflow dispatches `FetchVersions` on that field.
+
+**Input:** `VersionSyncInput{GroupID, ArtifactID, ForceReindex, ForceChangelog, Source}`
+
+Empty `Source` defaults to `search` for backward compatibility with any schedule actions still in flight at rollout.
 
 **Steps:**
-1. Fetch all version strings from Sonatype Nexus (`maven-metadata.xml`)
-2. Compare against DB and store only new versions
-3. Launch batch indexing for new versions (assets + commits) — or **all** versions when `ForceReindex` is true
-4. Compute version ordering and extract schema-driven tags for **all** versions
+1. Fetch candidate versions from Sonatype.
+   - `metadata`: one GET to `maven-metadata.xml` + per-new-candidate `VersionHasAssets` probe. The probe gates out versions whose POMs are listed in the metadata but whose assets aren't yet indexed (or whose only copies live in a `SONATYPE_REPO_DENY`-denied hosted repo). Without this gate the silent empty-assets return in `VersionIndexWorkflow` would leave permanent zero-asset ghost rows.
+   - `search`: paginates `/v3/search` components. Sonatype indexes components after assets, so no probe is needed.
+2. Compare against DB and store only new versions.
+3. Launch batch indexing for new versions (assets + commits) — or **all** versions when `ForceReindex` is true.
+4. Compute version ordering and extract schema-driven tags for **all** versions.
 
 The ordering step runs for all versions (not just new ones) because `sort_order` is a relative ranking that must be recomputed when new versions are inserted. The `ForceReindex` flag is useful for backfilling data after schema changes (e.g. new asset columns).
 
@@ -175,19 +184,34 @@ Each artifact can have a `version_schema` stored as JSONB that defines how its v
 
 ## Periodic Version Sync (Temporal Schedules)
 
-When an artifact is registered, a Temporal Schedule is created to periodically poll Sonatype for new versions. This ensures new builds published by GitHub Actions are automatically indexed without manual intervention.
+When an artifact is registered, **two** Temporal Schedules are created to periodically poll Sonatype. The pair splits the latency goal (fast) from the correctness goal (complete).
 
-**Schedule configuration:**
-- **ID:** `version-sync-{groupID}-{artifactID}`
+**Fast schedule** — `version-sync-fast-{groupID}-{artifactID}`
 - **Interval:** every 2 minutes with 15s jitter
+- **Source:** `metadata` — one GET to `maven-metadata.xml` plus an asset-presence probe for each candidate new version
 - **Overlap policy:** `BUFFER_ONE` — if a sync is running when the next tick fires, one run is queued and starts after the current finishes
 - **Trigger immediately:** yes — the first sync runs at registration time
 
-The workflow itself (`VersionSyncWorkflow`) is idempotent: when there are no new versions, it returns early after comparing `maven-metadata.xml` against the DB.
+**Full schedule** — `version-sync-full-{groupID}-{artifactID}`
+- **Interval:** every 1 hour with 10-minute jitter (spreads REST-API load across artifacts)
+- **Source:** `search` — paginates the REST component-search API (authoritative list)
+- **Overlap policy:** `SKIP` — if an hourly tick fires while the previous hourly run is still going, drop the tick. The fast path is already covering latency.
+
+**Workflow execution timeout:** 30 minutes on both schedules. Bounds a wedged parent.
+
+**Concurrency model:** each schedule auto-generates unique workflow IDs per fire (schedule ID + timestamp). Cross-schedule concurrent runs are possible but rare (jitter windows of 15s and 10m). Idempotency against concurrent runs relies on:
+- `UNIQUE(artifact_id, version)` in the `artifact_versions` table
+- The pre-insert "already stored" filter inside `StoreNewVersions`
+- The metadata path's probe gate (ensures we don't race REST discovery to create a ghost row)
+
+**Legacy schedule ID:** before the dual-schedule rollout, schedules were named `version-sync-{groupID}-{artifactID}`. Existing namespaces need the temporal CLI commands in the runbook section below to convert.
 
 ## On-Demand Sync Trigger
 
-The `POST /groups/{groupID}/artifacts/{artifactID}/sync` endpoint triggers an artifact's Temporal Schedule immediately, bypassing the 2-minute polling interval. This is useful after publishing a new version to Sonatype so SOAD indexes it right away.
+The `POST /groups/{groupID}/artifacts/{artifactID}/sync` endpoint triggers a schedule immediately. The query parameter `source` chooses which schedule to fire:
+
+- `?source=metadata` (default when omitted) — fires the fast schedule. Use after publishing a new version to Sonatype so SOAD indexes it right away.
+- `?source=search` — fires the full REST-pagination schedule. Use when `maven-metadata.xml` is suspected stale and you want to force the correctness backstop immediately.
 
 **Auth:** Requires the same `ADMIN_API_TOKEN` bearer token as other write operations.
 
@@ -224,11 +248,73 @@ jobs:
 
 | Trigger | Workflow | Conflict Policy | Behavior |
 |---------|----------|----------------|----------|
-| `Schedule` (every 2m) | VersionSyncWorkflow | `BUFFER_ONE` | Queue one run if current sync still running |
-| `POST .../sync` | VersionSyncWorkflow | `BUFFER_ONE` | Same schedule, same policy — triggers immediately |
+| Fast schedule (2m) | VersionSyncWorkflow | `BUFFER_ONE` | Queue one run if current sync still running |
+| Full schedule (1h) | VersionSyncWorkflow | `SKIP` | Drop the tick if a previous full run is still going |
+| `POST .../sync` | VersionSyncWorkflow | — | Fires target schedule (default: fast; `?source=search` for full) |
 | `PutArtifactSchema` | VersionOrderingWorkflow | `TERMINATE_EXISTING` | Cancel stale run, restart with new schema |
 
 The `PutArtifactSchema` trigger uses `ALLOW_DUPLICATE` reuse policy so workflows can be re-run after completion.
+
+## Migrating Legacy Schedules
+
+Namespaces that predate the dual-schedule rollout still have a single `version-sync-{g}-{a}` schedule per artifact. Convert each artifact with the temporal CLI: create the fast + full pair first, then delete the legacy schedule (same create-before-delete ordering the code uses, so at every moment the artifact has at least one schedule firing).
+
+Substitute the correct `<group>`, `<artifact>`, `<namespace>`, and `<host>` values and run per artifact:
+
+```bash
+# 1. Fast: 2m metadata
+temporal schedule create \
+  --schedule-id "version-sync-fast-<group>-<artifact>" \
+  --workflow-type VersionSyncWorkflow \
+  --task-queue version-sync \
+  --interval 2m --jitter 15s \
+  --overlap-policy BufferOne \
+  --execution-timeout 30m \
+  --input '{"GroupID":"<group>","ArtifactID":"<artifact>","Source":"metadata"}' \
+  --namespace <namespace> --address <host>
+
+# 2. Full: 1h search
+temporal schedule create \
+  --schedule-id "version-sync-full-<group>-<artifact>" \
+  --workflow-type VersionSyncWorkflow \
+  --task-queue version-sync \
+  --interval 1h --jitter 10m \
+  --overlap-policy Skip \
+  --execution-timeout 30m \
+  --input '{"GroupID":"<group>","ArtifactID":"<artifact>","Source":"search"}' \
+  --namespace <namespace> --address <host>
+
+# 3. Delete legacy (only after the two above succeed)
+temporal schedule delete \
+  --schedule-id "version-sync-<group>-<artifact>" \
+  --namespace <namespace> --address <host>
+```
+
+Notes:
+- `--workflow-type VersionSyncWorkflow` must match the name the worker registers — confirm in the Temporal UI under Task Queues → `version-sync` → Workflows before running.
+- `--input` field names must match Go struct capitalization (`GroupID`, `ArtifactID`, `Source`) since the SDK uses the default JSON payload converter.
+- If your `temporal` CLI version doesn't support `--trigger-immediately` on `schedule create`, run `temporal schedule trigger --schedule-id version-sync-fast-<g>-<a> --namespace <ns>` right after creation to kick off the first sync; otherwise the first fast tick arrives within 2 minutes.
+- Don't trigger the full schedule on rollout — staggering its first fire via jitter avoids all artifacts hammering Sonatype at once.
+
+**Rollback:** recreate the legacy schedule (same shape as the fast schedule but with `--schedule-id "version-sync-<g>-<a>"` and omit the `"Source"` field from `--input`; the activity defaults to `search`, matching pre-feature behavior), then `temporal schedule delete` the fast and full ones.
+
+**Partial-failure recovery:** if a create succeeds but a subsequent delete fails (Temporal blip mid-run), the artifact ends up with both the legacy and the new pair firing until the delete is retried. Harmless — the extra legacy run does the same work as one of the new ones; idempotency at the DB layer absorbs the overlap. Re-run the `temporal schedule delete` for the legacy ID when convenient.
+
+## Search Attributes
+
+`VersionSyncWorkflow` upserts two custom search attributes on each run:
+
+- `VersionSyncSource` (keyword) — `search` or `metadata`, the source actually dispatched.
+- `ArtifactCoordinate` (keyword) — `<groupID>:<artifactID>`, for one-click filtering in the Temporal UI.
+
+These must be registered in the namespace before first use:
+
+```
+temporal operator search-attribute create --name VersionSyncSource --type Keyword
+temporal operator search-attribute create --name ArtifactCoordinate --type Keyword
+```
+
+If unregistered, `UpsertTypedSearchAttributes` logs a warning and the workflow continues normally.
 
 ### CommitEnrichmentWorkflow
 
@@ -283,16 +369,4 @@ Two batching patterns are used:
 
 ## Running Locally
 
-Prerequisites: Docker (for PostgreSQL via testcontainers), Temporal server (`temporal server start-dev`).
-
-```bash
-# Start Temporal dev server
-temporal server start-dev
-
-# Run the devtest program (seeds real version data, executes workflows)
-go run ./cmd/devtest
-
-# Inspect workflow history at http://localhost:8233
-```
-
-The devtest program fetches real version lists from Sonatype for SpongeVanilla (~2,900 versions) and SpongeForge (~3,700 versions), seeds a testcontainers PostgreSQL instance, and executes `VersionOrderingWorkflow` for both artifacts.
+Prerequisites: Docker (for PostgreSQL), Temporal server (`temporal server start-dev`). Bring up a local Postgres with the migrations in `db/migrations/` applied, point `DATABASE_URL` at it, then run `go run ./cmd/worker` against `temporal server start-dev`. Register an artifact via the HTTP API to create schedules and kick off the pipeline; inspect workflow history at `http://localhost:8233`.

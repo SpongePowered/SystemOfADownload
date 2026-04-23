@@ -1012,6 +1012,63 @@ func (_c *MockQuerier_GroupExistsByMavenID_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
+// InsertNewArtifactVersion provides a mock function for the type MockQuerier
+func (_mock *MockQuerier) InsertNewArtifactVersion(ctx context.Context, arg db.InsertNewArtifactVersionParams) error {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InsertNewArtifactVersion")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.InsertNewArtifactVersionParams) error); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockQuerier_InsertNewArtifactVersion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertNewArtifactVersion'
+type MockQuerier_InsertNewArtifactVersion_Call struct {
+	*mock.Call
+}
+
+// InsertNewArtifactVersion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.InsertNewArtifactVersionParams
+func (_e *MockQuerier_Expecter) InsertNewArtifactVersion(ctx interface{}, arg interface{}) *MockQuerier_InsertNewArtifactVersion_Call {
+	return &MockQuerier_InsertNewArtifactVersion_Call{Call: _e.mock.On("InsertNewArtifactVersion", ctx, arg)}
+}
+
+func (_c *MockQuerier_InsertNewArtifactVersion_Call) Run(run func(ctx context.Context, arg db.InsertNewArtifactVersionParams)) *MockQuerier_InsertNewArtifactVersion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.InsertNewArtifactVersionParams
+		if args[1] != nil {
+			arg1 = args[1].(db.InsertNewArtifactVersionParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockQuerier_InsertNewArtifactVersion_Call) Return(err error) *MockQuerier_InsertNewArtifactVersion_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockQuerier_InsertNewArtifactVersion_Call) RunAndReturn(run func(ctx context.Context, arg db.InsertNewArtifactVersionParams) error) *MockQuerier_InsertNewArtifactVersion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IsVersionEnriched provides a mock function for the type MockQuerier
 func (_mock *MockQuerier) IsVersionEnriched(ctx context.Context, id int64) (bool, error) {
 	ret := _mock.Called(ctx, id)

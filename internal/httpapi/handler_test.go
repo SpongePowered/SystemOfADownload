@@ -12,13 +12,16 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	enumspb "go.temporal.io/api/enums/v1"
 	"go.temporal.io/api/serviceerror"
 	"go.temporal.io/sdk/client"
 
 	"github.com/spongepowered/systemofadownload/api"
+	"github.com/spongepowered/systemofadownload/internal/activity"
 	"github.com/spongepowered/systemofadownload/internal/app"
 	"github.com/spongepowered/systemofadownload/internal/db"
 	"github.com/spongepowered/systemofadownload/internal/repository"
+	"github.com/spongepowered/systemofadownload/internal/workflow"
 )
 
 type mockQuerier struct {
@@ -1200,10 +1203,15 @@ func (m *mockScheduleHandle) Trigger(_ context.Context, _ client.ScheduleTrigger
 }
 
 type mockScheduleClient struct {
-	handle *mockScheduleHandle
+	handle      *mockScheduleHandle
+	createdIDs  []string
+	createdOpts []client.ScheduleOptions //nolint:gocritic // test mock records full opts for assertion
+	handleReqID string
 }
 
-func (m *mockScheduleClient) Create(_ context.Context, _ client.ScheduleOptions) (client.ScheduleHandle, error) { //nolint:gocritic // test mock
+func (m *mockScheduleClient) Create(_ context.Context, opts client.ScheduleOptions) (client.ScheduleHandle, error) { //nolint:gocritic // test mock
+	m.createdIDs = append(m.createdIDs, opts.ID)
+	m.createdOpts = append(m.createdOpts, opts)
 	return m.handle, nil
 }
 
@@ -1211,7 +1219,8 @@ func (m *mockScheduleClient) List(_ context.Context, _ client.ScheduleListOption
 	return nil, nil
 }
 
-func (m *mockScheduleClient) GetHandle(_ context.Context, _ string) client.ScheduleHandle {
+func (m *mockScheduleClient) GetHandle(_ context.Context, id string) client.ScheduleHandle {
+	m.handleReqID = id
 	return m.handle
 }
 
@@ -1219,20 +1228,128 @@ func TestVersionSyncScheduleID(t *testing.T) {
 	tests := []struct {
 		groupID    string
 		artifactID string
-		want       string
+		wantLegacy string
+		wantFast   string
+		wantFull   string
 	}{
-		{"org.spongepowered", "spongeforge", "version-sync-org.spongepowered-spongeforge"},
-		{"com.example", "my-lib", "version-sync-com.example-my-lib"},
-		{"a", "b", "version-sync-a-b"},
+		{
+			"org.spongepowered", "spongeforge",
+			"version-sync-org.spongepowered-spongeforge",
+			"version-sync-fast-org.spongepowered-spongeforge",
+			"version-sync-full-org.spongepowered-spongeforge",
+		},
+		{
+			"com.example", "my-lib",
+			"version-sync-com.example-my-lib",
+			"version-sync-fast-com.example-my-lib",
+			"version-sync-full-com.example-my-lib",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.groupID+"/"+tt.artifactID, func(t *testing.T) {
-			got := VersionSyncScheduleID(tt.groupID, tt.artifactID)
-			if got != tt.want {
-				t.Errorf("VersionSyncScheduleID(%q, %q) = %q, want %q", tt.groupID, tt.artifactID, got, tt.want)
+			if got := VersionSyncScheduleID(tt.groupID, tt.artifactID); got != tt.wantLegacy {
+				t.Errorf("VersionSyncScheduleID = %q, want %q", got, tt.wantLegacy)
+			}
+			if got := VersionSyncFastScheduleID(tt.groupID, tt.artifactID); got != tt.wantFast {
+				t.Errorf("VersionSyncFastScheduleID = %q, want %q", got, tt.wantFast)
+			}
+			if got := VersionSyncFullScheduleID(tt.groupID, tt.artifactID); got != tt.wantFull {
+				t.Errorf("VersionSyncFullScheduleID = %q, want %q", got, tt.wantFull)
 			}
 		})
 	}
+}
+
+// TestRegisterArtifactCreatesDualSchedules verifies the registration path
+// creates both the fast (metadata) and full (search) schedules. This is the
+// dual-schedule invariant the whole feature rests on.
+func TestRegisterArtifactCreatesDualSchedules(t *testing.T) {
+	q := &mockQuerier{
+		groups:    map[string]db.Group{"org.spongepowered": {MavenID: "org.spongepowered", Name: "Sponge"}},
+		artifacts: make(map[string]db.Artifact),
+	}
+	service := app.NewService(q)
+	sc := &mockScheduleClient{handle: &mockScheduleHandle{}}
+	h := NewHandler(service, nil, sc)
+
+	display := "SpongeForge"
+	_, err := h.RegisterArtifact(context.Background(), api.RegisterArtifactRequestObject{
+		GroupID: "org.spongepowered",
+		Body: &api.RegisterArtifactJSONRequestBody{
+			ArtifactId:    "spongeforge",
+			DisplayName:   display,
+			GitRepository: []string{"https://github.com/SpongePowered/Sponge"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("RegisterArtifact: %v", err)
+	}
+
+	wantFast := VersionSyncFastScheduleID("org.spongepowered", "spongeforge")
+	wantFull := VersionSyncFullScheduleID("org.spongepowered", "spongeforge")
+
+	if len(sc.createdIDs) != 2 {
+		t.Fatalf("expected 2 schedules created, got %d: %v", len(sc.createdIDs), sc.createdIDs)
+	}
+
+	byID := make(map[string]client.ScheduleOptions, 2)
+	for _, opts := range sc.createdOpts {
+		byID[opts.ID] = opts
+	}
+
+	fast, ok := byID[wantFast]
+	if !ok {
+		t.Fatalf("missing fast schedule %q in %v", wantFast, sc.createdIDs)
+	}
+	full, ok := byID[wantFull]
+	if !ok {
+		t.Fatalf("missing full schedule %q in %v", wantFull, sc.createdIDs)
+	}
+
+	// Fast schedule: must carry Source=metadata in its workflow input so a
+	// swap between fast/full (say, someone refactoring NewFastVersionSyncScheduleOptions
+	// and accidentally passing search) is caught.
+	fastInput := mustVersionSyncInput(t, fast)
+	if fastInput.Source != activity.VersionSourceMetadata {
+		t.Errorf("fast schedule Source = %q, want %q", fastInput.Source, activity.VersionSourceMetadata)
+	}
+	if !fast.TriggerImmediately {
+		t.Error("fast schedule should TriggerImmediately so the first sync runs at registration time")
+	}
+	if got, want := fast.Overlap, enumspb.SCHEDULE_OVERLAP_POLICY_BUFFER_ONE; got != want {
+		t.Errorf("fast schedule Overlap = %v, want %v", got, want)
+	}
+
+	// Full schedule: Source=search, SKIP overlap (drop ticks piling up),
+	// TriggerImmediately=false (don't hammer Sonatype on every registration).
+	fullInput := mustVersionSyncInput(t, full)
+	if fullInput.Source != activity.VersionSourceSearch {
+		t.Errorf("full schedule Source = %q, want %q", fullInput.Source, activity.VersionSourceSearch)
+	}
+	if full.TriggerImmediately {
+		t.Error("full schedule should not TriggerImmediately (avoids Sonatype pileup)")
+	}
+	if got, want := full.Overlap, enumspb.SCHEDULE_OVERLAP_POLICY_SKIP; got != want {
+		t.Errorf("full schedule Overlap = %v, want %v", got, want)
+	}
+}
+
+// mustVersionSyncInput extracts the VersionSyncInput from a ScheduleOptions'
+// workflow action. Fatals on any unexpected shape.
+func mustVersionSyncInput(t *testing.T, opts client.ScheduleOptions) workflow.VersionSyncInput { //nolint:gocritic // test helper
+	t.Helper()
+	action, ok := opts.Action.(*client.ScheduleWorkflowAction)
+	if !ok {
+		t.Fatalf("expected *ScheduleWorkflowAction, got %T", opts.Action)
+	}
+	if len(action.Args) != 1 {
+		t.Fatalf("expected 1 workflow arg, got %d", len(action.Args))
+	}
+	input, ok := action.Args[0].(workflow.VersionSyncInput)
+	if !ok {
+		t.Fatalf("expected VersionSyncInput arg, got %T", action.Args[0])
+	}
+	return input
 }
 
 func TestTriggerSync(t *testing.T) {
@@ -1243,7 +1360,7 @@ func TestTriggerSync(t *testing.T) {
 	service := app.NewService(q)
 	ctx := context.Background()
 
-	t.Run("happy path", func(t *testing.T) {
+	t.Run("happy path defaults to fast schedule", func(t *testing.T) {
 		sc := &mockScheduleClient{handle: &mockScheduleHandle{}}
 		h := NewHandler(service, nil, sc)
 
@@ -1256,6 +1373,63 @@ func TestTriggerSync(t *testing.T) {
 		}
 		if _, ok := resp.(api.TriggerSync200JSONResponse); !ok {
 			t.Errorf("expected 200 response, got %T", resp)
+		}
+		if want := VersionSyncFastScheduleID("org.spongepowered", "spongeforge"); sc.handleReqID != want {
+			t.Errorf("unqualified TriggerSync should target fast schedule %q, got %q", want, sc.handleReqID)
+		}
+	})
+
+	t.Run("source=metadata targets fast schedule", func(t *testing.T) {
+		sc := &mockScheduleClient{handle: &mockScheduleHandle{}}
+		h := NewHandler(service, nil, sc)
+		s := api.Metadata
+
+		_, err := h.TriggerSync(ctx, api.TriggerSyncRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongeforge",
+			Params:     api.TriggerSyncParams{Source: &s},
+		})
+		if err != nil {
+			t.Fatalf("TriggerSync failed: %v", err)
+		}
+		if want := VersionSyncFastScheduleID("org.spongepowered", "spongeforge"); sc.handleReqID != want {
+			t.Errorf("source=metadata should target fast schedule %q, got %q", want, sc.handleReqID)
+		}
+	})
+
+	t.Run("source=search targets full schedule", func(t *testing.T) {
+		sc := &mockScheduleClient{handle: &mockScheduleHandle{}}
+		h := NewHandler(service, nil, sc)
+		s := api.Search
+
+		_, err := h.TriggerSync(ctx, api.TriggerSyncRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongeforge",
+			Params:     api.TriggerSyncParams{Source: &s},
+		})
+		if err != nil {
+			t.Fatalf("TriggerSync failed: %v", err)
+		}
+		if want := VersionSyncFullScheduleID("org.spongepowered", "spongeforge"); sc.handleReqID != want {
+			t.Errorf("source=search should target full schedule %q, got %q", want, sc.handleReqID)
+		}
+	})
+
+	t.Run("invalid source returns 400", func(t *testing.T) {
+		sc := &mockScheduleClient{handle: &mockScheduleHandle{}}
+		h := NewHandler(service, nil, sc)
+		bad := api.TriggerSyncParamsSource("sideways")
+
+		resp, err := h.TriggerSync(ctx, api.TriggerSyncRequestObject{
+			GroupID:    "org.spongepowered",
+			ArtifactID: "spongeforge",
+			Params:     api.TriggerSyncParams{Source: &bad},
+		})
+		if err != nil {
+			t.Fatalf("TriggerSync failed: %v", err)
+		}
+		if _, ok := resp.(api.TriggerSync400Response); !ok {
+			t.Errorf("expected 400 response, got %T", resp)
 		}
 	})
 

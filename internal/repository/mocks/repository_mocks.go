@@ -2136,6 +2136,63 @@ func (_c *MockWrites_DeleteArtifactVersionTags_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
+// InsertNewArtifactVersion provides a mock function for the type MockWrites
+func (_mock *MockWrites) InsertNewArtifactVersion(ctx context.Context, arg db.InsertNewArtifactVersionParams) error {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InsertNewArtifactVersion")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.InsertNewArtifactVersionParams) error); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockWrites_InsertNewArtifactVersion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertNewArtifactVersion'
+type MockWrites_InsertNewArtifactVersion_Call struct {
+	*mock.Call
+}
+
+// InsertNewArtifactVersion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.InsertNewArtifactVersionParams
+func (_e *MockWrites_Expecter) InsertNewArtifactVersion(ctx interface{}, arg interface{}) *MockWrites_InsertNewArtifactVersion_Call {
+	return &MockWrites_InsertNewArtifactVersion_Call{Call: _e.mock.On("InsertNewArtifactVersion", ctx, arg)}
+}
+
+func (_c *MockWrites_InsertNewArtifactVersion_Call) Run(run func(ctx context.Context, arg db.InsertNewArtifactVersionParams)) *MockWrites_InsertNewArtifactVersion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.InsertNewArtifactVersionParams
+		if args[1] != nil {
+			arg1 = args[1].(db.InsertNewArtifactVersionParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockWrites_InsertNewArtifactVersion_Call) Return(err error) *MockWrites_InsertNewArtifactVersion_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockWrites_InsertNewArtifactVersion_Call) RunAndReturn(run func(ctx context.Context, arg db.InsertNewArtifactVersionParams) error) *MockWrites_InsertNewArtifactVersion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateArtifactFields provides a mock function for the type MockWrites
 func (_mock *MockWrites) UpdateArtifactFields(ctx context.Context, arg db.UpdateArtifactFieldsParams) (db.Artifact, error) {
 	ret := _mock.Called(ctx, arg)
@@ -3522,6 +3579,63 @@ func (_c *MockTx_GroupExistsByMavenID_Call) Return(b bool, err error) *MockTx_Gr
 }
 
 func (_c *MockTx_GroupExistsByMavenID_Call) RunAndReturn(run func(ctx context.Context, lower string) (bool, error)) *MockTx_GroupExistsByMavenID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// InsertNewArtifactVersion provides a mock function for the type MockTx
+func (_mock *MockTx) InsertNewArtifactVersion(ctx context.Context, arg db.InsertNewArtifactVersionParams) error {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InsertNewArtifactVersion")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.InsertNewArtifactVersionParams) error); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTx_InsertNewArtifactVersion_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertNewArtifactVersion'
+type MockTx_InsertNewArtifactVersion_Call struct {
+	*mock.Call
+}
+
+// InsertNewArtifactVersion is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.InsertNewArtifactVersionParams
+func (_e *MockTx_Expecter) InsertNewArtifactVersion(ctx interface{}, arg interface{}) *MockTx_InsertNewArtifactVersion_Call {
+	return &MockTx_InsertNewArtifactVersion_Call{Call: _e.mock.On("InsertNewArtifactVersion", ctx, arg)}
+}
+
+func (_c *MockTx_InsertNewArtifactVersion_Call) Run(run func(ctx context.Context, arg db.InsertNewArtifactVersionParams)) *MockTx_InsertNewArtifactVersion_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.InsertNewArtifactVersionParams
+		if args[1] != nil {
+			arg1 = args[1].(db.InsertNewArtifactVersionParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_InsertNewArtifactVersion_Call) Return(err error) *MockTx_InsertNewArtifactVersion_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTx_InsertNewArtifactVersion_Call) RunAndReturn(run func(ctx context.Context, arg db.InsertNewArtifactVersionParams) error) *MockTx_InsertNewArtifactVersion_Call {
 	_c.Call.Return(run)
 	return _c
 }
