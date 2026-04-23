@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/SpongePowered/SystemOfADownload/compare/v0.3.3...v0.4.0) (2026-04-23)
+
+
+### Features
+
+* **sync:** split version polling into fast metadata + hourly search schedules ([e620bfa](https://github.com/SpongePowered/SystemOfADownload/commit/e620bfa6bbd0ac0e132203a341707167746c4295))
+
 ## [0.3.3](https://github.com/SpongePowered/SystemOfADownload/compare/v0.3.2...v0.3.3) (2026-04-22)
 
 
