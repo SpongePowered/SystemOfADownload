@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/exaring/otelpgx"
 	"github.com/go-slog/otelslog"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/spongepowered/systemofadownload/internal/dbpool"
 	"github.com/spongepowered/systemofadownload/internal/logging"
 	"go.temporal.io/sdk/client"
 	temporalotel "go.temporal.io/sdk/contrib/opentelemetry"
@@ -180,14 +180,9 @@ func NewTemporalClient(lc fx.Lifecycle, cfg *Config, _ *otelsetup.Result) (clien
 }
 
 func NewDatabasePool(lc fx.Lifecycle, cfg *Config) (*pgxpool.Pool, error) {
-	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("parsing database config: %w", err)
-	}
-	poolCfg.ConnConfig.Tracer = otelpgx.NewTracer()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	pool, err := dbpool.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("creating database pool: %w", err)
 	}

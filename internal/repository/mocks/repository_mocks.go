@@ -655,6 +655,86 @@ func (_c *MockReads_GetPreviousVersion_Call) RunAndReturn(run func(ctx context.C
 	return _c
 }
 
+// GetVersionDetail provides a mock function for the type MockReads
+func (_mock *MockReads) GetVersionDetail(ctx context.Context, groupID string, artifactID string, version string) (*repository.VersionDetail, error) {
+	ret := _mock.Called(ctx, groupID, artifactID, version)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVersionDetail")
+	}
+
+	var r0 *repository.VersionDetail
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (*repository.VersionDetail, error)); ok {
+		return returnFunc(ctx, groupID, artifactID, version)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) *repository.VersionDetail); ok {
+		r0 = returnFunc(ctx, groupID, artifactID, version)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*repository.VersionDetail)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = returnFunc(ctx, groupID, artifactID, version)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockReads_GetVersionDetail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVersionDetail'
+type MockReads_GetVersionDetail_Call struct {
+	*mock.Call
+}
+
+// GetVersionDetail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - groupID string
+//   - artifactID string
+//   - version string
+func (_e *MockReads_Expecter) GetVersionDetail(ctx interface{}, groupID interface{}, artifactID interface{}, version interface{}) *MockReads_GetVersionDetail_Call {
+	return &MockReads_GetVersionDetail_Call{Call: _e.mock.On("GetVersionDetail", ctx, groupID, artifactID, version)}
+}
+
+func (_c *MockReads_GetVersionDetail_Call) Run(run func(ctx context.Context, groupID string, artifactID string, version string)) *MockReads_GetVersionDetail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockReads_GetVersionDetail_Call) Return(versionDetail *repository.VersionDetail, err error) *MockReads_GetVersionDetail_Call {
+	_c.Call.Return(versionDetail, err)
+	return _c
+}
+
+func (_c *MockReads_GetVersionDetail_Call) RunAndReturn(run func(ctx context.Context, groupID string, artifactID string, version string) (*repository.VersionDetail, error)) *MockReads_GetVersionDetail_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GroupExistsByMavenID provides a mock function for the type MockReads
 func (_mock *MockReads) GroupExistsByMavenID(ctx context.Context, lower string) (bool, error) {
 	ret := _mock.Called(ctx, lower)
@@ -3517,6 +3597,86 @@ func (_c *MockTx_GetPreviousVersion_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// GetVersionDetail provides a mock function for the type MockTx
+func (_mock *MockTx) GetVersionDetail(ctx context.Context, groupID string, artifactID string, version string) (*repository.VersionDetail, error) {
+	ret := _mock.Called(ctx, groupID, artifactID, version)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVersionDetail")
+	}
+
+	var r0 *repository.VersionDetail
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (*repository.VersionDetail, error)); ok {
+		return returnFunc(ctx, groupID, artifactID, version)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) *repository.VersionDetail); ok {
+		r0 = returnFunc(ctx, groupID, artifactID, version)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*repository.VersionDetail)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = returnFunc(ctx, groupID, artifactID, version)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTx_GetVersionDetail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVersionDetail'
+type MockTx_GetVersionDetail_Call struct {
+	*mock.Call
+}
+
+// GetVersionDetail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - groupID string
+//   - artifactID string
+//   - version string
+func (_e *MockTx_Expecter) GetVersionDetail(ctx interface{}, groupID interface{}, artifactID interface{}, version interface{}) *MockTx_GetVersionDetail_Call {
+	return &MockTx_GetVersionDetail_Call{Call: _e.mock.On("GetVersionDetail", ctx, groupID, artifactID, version)}
+}
+
+func (_c *MockTx_GetVersionDetail_Call) Run(run func(ctx context.Context, groupID string, artifactID string, version string)) *MockTx_GetVersionDetail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_GetVersionDetail_Call) Return(versionDetail *repository.VersionDetail, err error) *MockTx_GetVersionDetail_Call {
+	_c.Call.Return(versionDetail, err)
+	return _c
+}
+
+func (_c *MockTx_GetVersionDetail_Call) RunAndReturn(run func(ctx context.Context, groupID string, artifactID string, version string) (*repository.VersionDetail, error)) *MockTx_GetVersionDetail_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GroupExistsByMavenID provides a mock function for the type MockTx
 func (_mock *MockTx) GroupExistsByMavenID(ctx context.Context, lower string) (bool, error) {
 	ret := _mock.Called(ctx, lower)
@@ -5460,6 +5620,86 @@ func (_c *MockRepository_GetPreviousVersion_Call) Return(artifactVersion db.Arti
 }
 
 func (_c *MockRepository_GetPreviousVersion_Call) RunAndReturn(run func(ctx context.Context, arg db.GetPreviousVersionParams) (db.ArtifactVersion, error)) *MockRepository_GetPreviousVersion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetVersionDetail provides a mock function for the type MockRepository
+func (_mock *MockRepository) GetVersionDetail(ctx context.Context, groupID string, artifactID string, version string) (*repository.VersionDetail, error) {
+	ret := _mock.Called(ctx, groupID, artifactID, version)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVersionDetail")
+	}
+
+	var r0 *repository.VersionDetail
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (*repository.VersionDetail, error)); ok {
+		return returnFunc(ctx, groupID, artifactID, version)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) *repository.VersionDetail); ok {
+		r0 = returnFunc(ctx, groupID, artifactID, version)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*repository.VersionDetail)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = returnFunc(ctx, groupID, artifactID, version)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_GetVersionDetail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVersionDetail'
+type MockRepository_GetVersionDetail_Call struct {
+	*mock.Call
+}
+
+// GetVersionDetail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - groupID string
+//   - artifactID string
+//   - version string
+func (_e *MockRepository_Expecter) GetVersionDetail(ctx interface{}, groupID interface{}, artifactID interface{}, version interface{}) *MockRepository_GetVersionDetail_Call {
+	return &MockRepository_GetVersionDetail_Call{Call: _e.mock.On("GetVersionDetail", ctx, groupID, artifactID, version)}
+}
+
+func (_c *MockRepository_GetVersionDetail_Call) Run(run func(ctx context.Context, groupID string, artifactID string, version string)) *MockRepository_GetVersionDetail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_GetVersionDetail_Call) Return(versionDetail *repository.VersionDetail, err error) *MockRepository_GetVersionDetail_Call {
+	_c.Call.Return(versionDetail, err)
+	return _c
+}
+
+func (_c *MockRepository_GetVersionDetail_Call) RunAndReturn(run func(ctx context.Context, groupID string, artifactID string, version string) (*repository.VersionDetail, error)) *MockRepository_GetVersionDetail_Call {
 	_c.Call.Return(run)
 	return _c
 }

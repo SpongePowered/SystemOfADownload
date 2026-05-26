@@ -946,6 +946,72 @@ func (_c *MockQuerier_GetPreviousVersion_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
+// GetVersionDetailRaw provides a mock function for the type MockQuerier
+func (_mock *MockQuerier) GetVersionDetailRaw(ctx context.Context, arg db.GetVersionDetailRawParams) (db.GetVersionDetailRawRow, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetVersionDetailRaw")
+	}
+
+	var r0 db.GetVersionDetailRawRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.GetVersionDetailRawParams) (db.GetVersionDetailRawRow, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.GetVersionDetailRawParams) db.GetVersionDetailRawRow); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		r0 = ret.Get(0).(db.GetVersionDetailRawRow)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.GetVersionDetailRawParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockQuerier_GetVersionDetailRaw_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetVersionDetailRaw'
+type MockQuerier_GetVersionDetailRaw_Call struct {
+	*mock.Call
+}
+
+// GetVersionDetailRaw is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.GetVersionDetailRawParams
+func (_e *MockQuerier_Expecter) GetVersionDetailRaw(ctx interface{}, arg interface{}) *MockQuerier_GetVersionDetailRaw_Call {
+	return &MockQuerier_GetVersionDetailRaw_Call{Call: _e.mock.On("GetVersionDetailRaw", ctx, arg)}
+}
+
+func (_c *MockQuerier_GetVersionDetailRaw_Call) Run(run func(ctx context.Context, arg db.GetVersionDetailRawParams)) *MockQuerier_GetVersionDetailRaw_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.GetVersionDetailRawParams
+		if args[1] != nil {
+			arg1 = args[1].(db.GetVersionDetailRawParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockQuerier_GetVersionDetailRaw_Call) Return(getVersionDetailRawRow db.GetVersionDetailRawRow, err error) *MockQuerier_GetVersionDetailRaw_Call {
+	_c.Call.Return(getVersionDetailRawRow, err)
+	return _c
+}
+
+func (_c *MockQuerier_GetVersionDetailRaw_Call) RunAndReturn(run func(ctx context.Context, arg db.GetVersionDetailRawParams) (db.GetVersionDetailRawRow, error)) *MockQuerier_GetVersionDetailRaw_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GroupExistsByMavenID provides a mock function for the type MockQuerier
 func (_mock *MockQuerier) GroupExistsByMavenID(ctx context.Context, lower string) (bool, error) {
 	ret := _mock.Called(ctx, lower)

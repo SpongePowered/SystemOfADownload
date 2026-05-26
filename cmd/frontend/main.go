@@ -9,7 +9,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/exaring/otelpgx"
 	"github.com/go-chi/httplog/v3"
 	"github.com/go-slog/otelslog"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -19,6 +18,7 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/spongepowered/systemofadownload/internal/app"
+	"github.com/spongepowered/systemofadownload/internal/dbpool"
 	"github.com/spongepowered/systemofadownload/internal/frontend"
 	"github.com/spongepowered/systemofadownload/internal/otelsetup"
 	"github.com/spongepowered/systemofadownload/internal/repository"
@@ -61,14 +61,9 @@ func NewFrontendServer(cfg *Config, service *app.Service) (*frontend.Server, err
 }
 
 func NewDBPool(lc fx.Lifecycle, cfg *Config) (*pgxpool.Pool, error) {
-	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
-	if err != nil {
-		return nil, err
-	}
-	poolCfg.ConnConfig.Tracer = otelpgx.NewTracer()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	pool, err := dbpool.Open(ctx, cfg.DatabaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("creating pool: %w", err)
 	}

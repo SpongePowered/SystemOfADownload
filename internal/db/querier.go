@@ -35,6 +35,13 @@ type Querier interface {
 	GetArtifactVersionSchema(ctx context.Context, arg GetArtifactVersionSchemaParams) ([]byte, error)
 	GetGroup(ctx context.Context, mavenID string) (Group, error)
 	GetPreviousVersion(ctx context.Context, arg GetPreviousVersionParams) (ArtifactVersion, error)
+	// Returns the artifact_version row plus its assets and tags pre-aggregated
+	// as JSON, in a single round-trip. The aggregates live in a CTE aliased
+	// `agg` so sqlc has a real `agg.assets_json` / `agg.tags_json` target for
+	// the column overrides in sqlc.yaml (which map them to
+	// dbtypes.VersionAssets / VersionTagMap). pgx's JSONB codec then scans
+	// the jsonb directly into those typed values.
+	GetVersionDetailRaw(ctx context.Context, arg GetVersionDetailRawParams) (GetVersionDetailRawRow, error)
 	GroupExistsByMavenID(ctx context.Context, lower string) (bool, error)
 	// Inserts a bare artifact_versions row (no sort_order, no commit_body) and
 	// does nothing on conflict. Used by the version-sync path to announce "this
