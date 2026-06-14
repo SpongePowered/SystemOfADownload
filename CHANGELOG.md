@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/SpongePowered/SystemOfADownload/compare/v0.4.0...v0.5.0) (2026-06-14)
+
+
+### Features
+
+* **repository:** consolidate version detail retrieval ([34e6c83](https://github.com/SpongePowered/SystemOfADownload/commit/34e6c834debc5fed8f226df3a54650625654be71))
+
 ## [0.4.0](https://github.com/SpongePowered/SystemOfADownload/compare/v0.3.3...v0.4.0) (2026-04-23)
 
 
