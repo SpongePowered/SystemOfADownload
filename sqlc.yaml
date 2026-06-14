@@ -10,3 +10,16 @@ sql:
         sql_package: "pgx/v5"
         emit_interface: true
         emit_pointers_for_null_types: true
+        overrides:
+          # Map the GetVersionDetailRaw jsonb aggregates to typed Go values
+          # so the repository layer doesn't have to hand-roll json.Unmarshal.
+          # pgx's JSONB codec scans straight into typed slices/maps via
+          # json.Unmarshal.
+          - column: "agg.assets_json"
+            go_type:
+              import: "github.com/spongepowered/systemofadownload/internal/dbtypes"
+              type: "VersionAssets"
+          - column: "agg.tags_json"
+            go_type:
+              import: "github.com/spongepowered/systemofadownload/internal/dbtypes"
+              type: "VersionTagMap"

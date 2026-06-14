@@ -20,6 +20,7 @@ import (
 	"github.com/spongepowered/systemofadownload/internal/activity"
 	"github.com/spongepowered/systemofadownload/internal/app"
 	"github.com/spongepowered/systemofadownload/internal/db"
+	"github.com/spongepowered/systemofadownload/internal/dbtypes"
 	"github.com/spongepowered/systemofadownload/internal/repository"
 	"github.com/spongepowered/systemofadownload/internal/workflow"
 )
@@ -118,6 +119,57 @@ func (m *mockQuerier) ListArtifactVersionAssets(ctx context.Context, versionID i
 
 func (m *mockQuerier) ListArtifactVersionTags(ctx context.Context, versionID int64) ([]db.ArtifactVersionedTag, error) {
 	return m.tags[versionID], nil
+}
+
+func (m *mockQuerier) GetVersionDetail(_ context.Context, groupID, artifactID, version string) (*repository.VersionDetail, error) {
+	key := groupID + ":" + artifactID
+	artifact, ok := m.artifacts[key]
+	if !ok {
+		return nil, pgx.ErrNoRows
+	}
+	var av db.ArtifactVersion
+	found := false
+	for _, v := range m.versions {
+		if v.ArtifactID == artifact.ID && v.Version == version {
+			av = v
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, pgx.ErrNoRows
+	}
+
+	deref := func(p *string) string {
+		if p == nil {
+			return ""
+		}
+		return *p
+	}
+	assets := make(dbtypes.VersionAssets, 0, len(m.assets[av.ID]))
+	for _, a := range m.assets[av.ID] {
+		assets = append(assets, dbtypes.VersionAsset{
+			Classifier:  deref(a.Classifier),
+			DownloadURL: a.DownloadUrl,
+			Md5:         deref(a.Md5),
+			Sha1:        deref(a.Sha1),
+			Sha256:      deref(a.Sha256),
+			Sha512:      deref(a.Sha512),
+			Extension:   deref(a.Extension),
+		})
+	}
+	tags := make(dbtypes.VersionTagMap, len(m.tags[av.ID]))
+	for _, t := range m.tags[av.ID] {
+		tags[t.TagKey] = t.TagValue
+	}
+	return &repository.VersionDetail{
+		ID:          av.ID,
+		Version:     av.Version,
+		Recommended: av.Recommended,
+		CommitBody:  av.CommitBody,
+		Assets:      assets,
+		Tags:        tags,
+	}, nil
 }
 
 func (m *mockQuerier) CountVersionsFiltered(ctx context.Context, params repository.VersionQueryParams) (int, error) {

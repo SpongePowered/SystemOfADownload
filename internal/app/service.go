@@ -252,53 +252,26 @@ func (s *Service) GetDefaultTagValue(ctx context.Context, groupID, artifactID, t
 }
 
 func (s *Service) GetVersionInfo(ctx context.Context, groupID, artifactID, version string) (*VersionDetail, error) {
-	av, err := s.repo.GetArtifactVersion(ctx, db.GetArtifactVersionParams{
-		GroupID:    groupID,
-		ArtifactID: artifactID,
-		Version:    version,
-	})
+	detail, err := s.repo.GetVersionDetail(ctx, groupID, artifactID, version)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrVersionNotFound
 		}
-		return nil, fmt.Errorf("getting version: %w", err)
+		return nil, fmt.Errorf("getting version detail: %w", err)
 	}
 
-	assets, err := s.repo.ListArtifactVersionAssets(ctx, av.ID)
-	if err != nil {
-		return nil, fmt.Errorf("listing assets: %w", err)
-	}
-
-	tagRows, err := s.repo.ListArtifactVersionTags(ctx, av.ID)
-	if err != nil {
-		return nil, fmt.Errorf("listing tags: %w", err)
-	}
-
-	tags := make(map[string]string, len(tagRows))
-	for _, row := range tagRows {
-		tags[row.TagKey] = row.TagValue
-	}
-
-	versionAssets := make([]VersionAsset, len(assets))
-	for i, a := range assets {
-		versionAssets[i] = VersionAsset{
-			Classifier:  deref(a.Classifier),
-			DownloadURL: a.DownloadUrl,
-			Md5:         deref(a.Md5),
-			Sha1:        deref(a.Sha1),
-			Sha256:      deref(a.Sha256),
-			Sha512:      deref(a.Sha512),
-			Extension:   deref(a.Extension),
-		}
+	versionAssets := make([]VersionAsset, len(detail.Assets))
+	for i, a := range detail.Assets {
+		versionAssets[i] = VersionAsset(a)
 	}
 
 	return &VersionDetail{
 		GroupID:     groupID,
 		ArtifactID:  artifactID,
-		Version:     av.Version,
-		Recommended: av.Recommended,
-		CommitBody:  av.CommitBody,
-		Tags:        tags,
+		Version:     detail.Version,
+		Recommended: detail.Recommended,
+		CommitBody:  detail.CommitBody,
+		Tags:        detail.Tags,
 		Assets:      versionAssets,
 	}, nil
 }
@@ -493,11 +466,4 @@ func (s *Service) UpdateArtifact(ctx context.Context, groupID, artifactID string
 		Issues:          updated.Issues,
 		GitRepositories: gitRepos,
 	}, nil
-}
-
-func deref(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
 }

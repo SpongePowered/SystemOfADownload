@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/spongepowered/systemofadownload/internal/dbtypes"
 )
 
 const countArtifactVersions = `-- name: CountArtifactVersions :one
@@ -362,6 +364,71 @@ func (q *Queries) GetPreviousVersion(ctx context.Context, arg GetPreviousVersion
 		&i.SortOrder,
 		&i.Recommended,
 		&i.CommitBody,
+	)
+	return i, err
+}
+
+const getVersionDetailRaw = `-- name: GetVersionDetailRaw :one
+WITH agg AS (
+    SELECT
+        av.id, av.version, av.recommended, av.commit_body,
+        COALESCE((
+            SELECT jsonb_agg(jsonb_build_object(
+                'classifier', ava.classifier,
+                'download_url', ava.download_url,
+                'md5', ava.md5,
+                'sha1', ava.sha1,
+                'sha256', ava.sha256,
+                'sha512', ava.sha512,
+                'extension', ava.extension
+            ))
+            FROM artifact_versioned_assets ava
+            WHERE ava.artifact_version_id = av.id
+        ), '[]'::jsonb) AS assets_json,
+        COALESCE((
+            SELECT jsonb_object_agg(t.tag_key, t.tag_value)
+            FROM artifact_versioned_tags t
+            WHERE t.artifact_version_id = av.id
+        ), '{}'::jsonb) AS tags_json
+    FROM artifact_versions av
+    JOIN artifacts a ON av.artifact_id = a.id
+    WHERE a.group_id = $1 AND a.artifact_id = $2 AND av.version = $3
+)
+SELECT id, version, recommended, commit_body, assets_json, tags_json
+FROM agg
+`
+
+type GetVersionDetailRawParams struct {
+	GroupID    string
+	ArtifactID string
+	Version    string
+}
+
+type GetVersionDetailRawRow struct {
+	ID          int64
+	Version     string
+	Recommended bool
+	CommitBody  []byte
+	AssetsJson  dbtypes.VersionAssets
+	TagsJson    dbtypes.VersionTagMap
+}
+
+// Returns the artifact_version row plus its assets and tags pre-aggregated
+// as JSON, in a single round-trip. The aggregates live in a CTE aliased
+// `agg` so sqlc has a real `agg.assets_json` / `agg.tags_json` target for
+// the column overrides in sqlc.yaml (which map them to
+// dbtypes.VersionAssets / VersionTagMap). pgx's JSONB codec then scans
+// the jsonb directly into those typed values.
+func (q *Queries) GetVersionDetailRaw(ctx context.Context, arg GetVersionDetailRawParams) (GetVersionDetailRawRow, error) {
+	row := q.db.QueryRow(ctx, getVersionDetailRaw, arg.GroupID, arg.ArtifactID, arg.Version)
+	var i GetVersionDetailRawRow
+	err := row.Scan(
+		&i.ID,
+		&i.Version,
+		&i.Recommended,
+		&i.CommitBody,
+		&i.AssetsJson,
+		&i.TagsJson,
 	)
 	return i, err
 }

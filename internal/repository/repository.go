@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spongepowered/systemofadownload/internal/db"
+	"github.com/spongepowered/systemofadownload/internal/dbtypes"
 )
 
 // VersionQueryParams holds parameters for the paginated, filterable version listing.
@@ -48,6 +49,7 @@ type Reads interface {
 	ListVersionsNeedingEnrichment(ctx context.Context, arg db.ListVersionsNeedingEnrichmentParams) ([]db.ArtifactVersion, error)
 	ListEnrichedVersions(ctx context.Context, arg db.ListEnrichedVersionsParams) ([]db.ArtifactVersion, error)
 	ListVersionsNeedingChangelog(ctx context.Context, arg db.ListVersionsNeedingChangelogParams) ([]db.ArtifactVersion, error)
+	GetVersionDetail(ctx context.Context, groupID, artifactID, version string) (*VersionDetail, error)
 }
 
 // Writes must happen in a transaction.
@@ -423,6 +425,43 @@ func (q *querierWithConn) GetDistinctTagValues(ctx context.Context, groupID, art
 		tags[row.TagKey] = append(tags[row.TagKey], row.TagValue)
 	}
 	return tags, nil
+}
+
+// VersionDetail is the full payload for the single-version endpoint: the
+// artifact_version row plus its assets and tag map, all in one round-trip.
+// Assets/Tags use the dbtypes aliases that sqlc maps the jsonb columns to
+// (see sqlc.yaml overrides + db/query.sql:GetVersionDetailRaw).
+type VersionDetail struct {
+	ID          int64
+	Version     string
+	Recommended bool
+	CommitBody  []byte
+	Assets      dbtypes.VersionAssets
+	Tags        dbtypes.VersionTagMap
+}
+
+// GetVersionDetail returns a single artifact_version with its assets and tags
+// aggregated in one query. Replaces three sequential calls (Get + ListAssets +
+// ListTags) that each took their own pool.acquire round-trip.
+//
+// Returns pgx.ErrNoRows if the version doesn't exist.
+func (q *querierWithConn) GetVersionDetail(ctx context.Context, groupID, artifactID, version string) (*VersionDetail, error) {
+	row, err := q.GetVersionDetailRaw(ctx, db.GetVersionDetailRawParams{
+		GroupID:    groupID,
+		ArtifactID: artifactID,
+		Version:    version,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &VersionDetail{
+		ID:          row.ID,
+		Version:     row.Version,
+		Recommended: row.Recommended,
+		CommitBody:  row.CommitBody,
+		Assets:      row.AssetsJson,
+		Tags:        row.TagsJson,
+	}, nil
 }
 
 // GetDefaultTagValue returns the tag value for the given key from the latest recommended
