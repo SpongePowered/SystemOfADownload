@@ -118,8 +118,9 @@ type Asset struct {
 // Commit defines model for Commit.
 type Commit struct {
 	Author *struct {
-		Email *string `json:"email,omitempty"`
-		Name  *string `json:"name,omitempty"`
+		Email          *string `json:"email,omitempty"`
+		GithubUsername *string `json:"githubUsername,omitempty"`
+		Name           *string `json:"name,omitempty"`
 	} `json:"author,omitempty"`
 	Body       *string             `json:"body,omitempty"`
 	CommitDate *openapi_types.Date `json:"commitDate,omitempty"`

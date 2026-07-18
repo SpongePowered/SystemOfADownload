@@ -24,6 +24,7 @@ import (
 
 	"github.com/spongepowered/systemofadownload/internal/activity"
 	"github.com/spongepowered/systemofadownload/internal/gitcache"
+	"github.com/spongepowered/systemofadownload/internal/githubapi"
 	"github.com/spongepowered/systemofadownload/internal/otelsetup"
 	"github.com/spongepowered/systemofadownload/internal/repository"
 	"github.com/spongepowered/systemofadownload/internal/sonatype"
@@ -38,6 +39,7 @@ type Config struct {
 	SonatypeRepoDenyList []string
 	DatabaseURL          string
 	GitCacheDir          string
+	GitHubToken          string
 	MetricsPort          string
 	BuildID              string
 	PodName              string
@@ -98,6 +100,7 @@ func NewConfig() *Config {
 		SonatypeRepoDenyList: repoDeny,
 		DatabaseURL:          databaseURL,
 		GitCacheDir:          gitCacheDir,
+		GitHubToken:          os.Getenv("GITHUB_TOKEN"),
 		MetricsPort:          metricsPort,
 		BuildID:              buildID,
 		PodName:              podName,
@@ -274,8 +277,11 @@ func main() {
 			},
 			activity.NewVersionIndexActivities,
 			activity.NewVersionOrderingActivities,
-			func(repo repository.Repository) *activity.ChangelogActivities {
-				return &activity.ChangelogActivities{Repo: repo}
+			func(cfg *Config, repo repository.Repository) *activity.ChangelogActivities {
+				return &activity.ChangelogActivities{
+					Repo:   repo,
+					GitHub: githubapi.NewClient(http.DefaultClient, cfg.GitHubToken),
+				}
 			},
 			func(cfg *Config) *gitcache.Manager {
 				return gitcache.NewManager(cfg.GitCacheDir)

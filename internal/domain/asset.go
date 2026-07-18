@@ -50,8 +50,9 @@ type CommitInfo struct {
 
 // CommitAuthor holds the name and email of a git commit author.
 type CommitAuthor struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	Name           string `json:"name"`
+	Email          string `json:"email"`
+	GitHubUsername string `json:"githubUsername,omitempty"`
 }
 
 // SubmoduleCommit holds commit details for a submodule at a specific version.

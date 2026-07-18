@@ -37,7 +37,7 @@ VersionSyncWorkflow ────────────────────
       │         ├── [per submodule, parallel]                         |
       │         │    ├── EnsureRepoCloned  (local: submodule repo)   |
       │         │    └── GetCommitDetails  (local: submodule SHA)    |
-      │         └── StoreEnrichedCommit    (DB)                      |
+      │         └── StoreEnrichedCommit    (GitHub author lookup + DB)|
       └── ChangelogBatchWorkflow   (sequential, sort_order ASC)      |
            └── ChangelogVersionWorkflow (per version)                 |
                 ├── GetPreviousVersionCommit (DB)                     |
@@ -45,7 +45,7 @@ VersionSyncWorkflow ────────────────────
                 ├── ComputeChangelog       (local: git log)           |
                 ├── [per submodule with changed pointer]              |
                 │    └── ComputeChangelog  (local: submodule log)     |
-                └── StoreChangelog         (DB)                       |
+                └── StoreChangelog         (GitHub author lookup + DB)|
 ──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -56,6 +56,7 @@ The worker uses Temporal's [Worker Deployment Versioning](https://docs.temporal.
 **Configuration (env vars):**
 - `BUILD_ID` (required) — image tag or version identifier, set by the deployment pipeline. The worker will refuse to start if this is empty.
 - `POD_NAME` (optional) — Kubernetes pod name, used as the Temporal client `Identity` for traceability in the Temporal UI.
+- `GITHUB_TOKEN` (optional) — authenticates commit-author lookups for higher API limits and private repositories. Public GitHub repositories are queried without authentication when unset.
 
 **Worker registration:**
 ```go
@@ -131,6 +132,15 @@ Processes a single version: fetches assets from Sonatype, stores them, identifie
 ### ExtractCommitBatchWorkflow / ExtractCommitWorkflow
 
 Downloads jar files and parses `META-INF/git.properties` or `META-INF/MANIFEST.MF` to extract git commit SHAs and repository URLs. Uses the same sliding window pattern as batch indexing (window size 3, page size 5).
+
+During commit and changelog persistence, GitHub-hosted commits are resolved to
+their associated GitHub username. GitHub noreply addresses are handled locally;
+other addresses use the GitHub commit API. The username is stored alongside the
+Git author name and email, while lookup failures retain the Git name fallback.
+`StoreChangelog` has a two-minute activity timeout to accommodate bounded,
+parallel lookups across large changelogs. GitHub lookups stop five seconds
+before the activity deadline so optional enrichment cannot consume the time
+needed for the database write.
 
 ### VersionOrderingWorkflow
 

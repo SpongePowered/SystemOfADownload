@@ -12,6 +12,7 @@ type CommitEntry struct {
 	Message      string
 	Body         string
 	Author       string
+	AuthorLink   string
 	RelativeTime string
 	AbsoluteTime string
 	Link         string

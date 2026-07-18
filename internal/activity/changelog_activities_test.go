@@ -1,15 +1,22 @@
 package activity_test
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/jackc/pgx/v5"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/spongepowered/systemofadownload/internal/activity"
 	"github.com/spongepowered/systemofadownload/internal/db"
 	"github.com/spongepowered/systemofadownload/internal/domain"
+	"github.com/spongepowered/systemofadownload/internal/githubapi"
+	"github.com/spongepowered/systemofadownload/internal/repository"
 	repomocks "github.com/spongepowered/systemofadownload/internal/repository/mocks"
 )
 
@@ -199,5 +206,178 @@ func TestCheckPreviousVersionEnriched(t *testing.T) {
 	}
 	if enriched {
 		t.Error("expected enriched=false for version 11")
+	}
+}
+
+func TestStoreCommitDataResolvesGitHubUsernames(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		run        func(context.Context, *activity.ChangelogActivities) error
+		mockSetup  func(*repomocks.MockRepository, *repomocks.MockTx)
+		assertBody func(*testing.T, domain.CommitInfo)
+	}{
+		{
+			name: "enriched commit and submodule",
+			run: func(ctx context.Context, acts *activity.ChangelogActivities) error {
+				return acts.StoreEnrichedCommit(ctx, activity.StoreEnrichedCommitInput{
+					VersionID: 10,
+					CommitInfo: domain.CommitInfo{
+						Sha:        "main-sha",
+						Repository: "https://github.com/SpongePowered/Sponge",
+						Author: &domain.CommitAuthor{
+							Name:  "Main Author",
+							Email: "123+main-user@users.noreply.github.com",
+						},
+						Submodules: []domain.SubmoduleCommit{{
+							Repository: "https://github.com/SpongePowered/SpongeAPI",
+							Sha:        "sub-sha",
+							Author: &domain.CommitAuthor{
+								Name:  "Sub Author",
+								Email: "sub-user@users.noreply.github.com",
+							},
+						}},
+					},
+				})
+			},
+			mockSetup: func(repo *repomocks.MockRepository, tx *repomocks.MockTx) {
+				expectCommitBodyUpdate(repo, tx)
+			},
+			assertBody: func(t *testing.T, info domain.CommitInfo) {
+				t.Helper()
+				if got := info.Author.GitHubUsername; got != "main-user" {
+					t.Errorf("main GitHub username = %q, want main-user", got)
+				}
+				if got := info.Submodules[0].Author.GitHubUsername; got != "sub-user" {
+					t.Errorf("submodule GitHub username = %q, want sub-user", got)
+				}
+			},
+		},
+		{
+			name: "main and nested changelogs",
+			run: func(ctx context.Context, acts *activity.ChangelogActivities) error {
+				return acts.StoreChangelog(ctx, activity.StoreChangelogInput{
+					VersionID: 11,
+					Changelog: domain.Changelog{
+						Commits: []domain.CommitSummary{{
+							Sha: "main-sha",
+							URL: "https://github.com/SpongePowered/Sponge/commit/main-sha",
+							Author: &domain.CommitAuthor{
+								Name:  "Main Author",
+								Email: "main-user@users.noreply.github.com",
+							},
+						}},
+						SubmoduleChangelogs: map[string]*domain.Changelog{
+							"https://github.com/SpongePowered/SpongeAPI": {
+								Commits: []domain.CommitSummary{{
+									Sha: "sub-sha",
+									Author: &domain.CommitAuthor{
+										Name:  "Sub Author",
+										Email: "123+sub-user@users.noreply.github.com",
+									},
+								}},
+							},
+						},
+					},
+				})
+			},
+			mockSetup: func(repo *repomocks.MockRepository, tx *repomocks.MockTx) {
+				tx.EXPECT().GetArtifactVersionByID(mock.Anything, int64(11)).
+					Return(db.ArtifactVersion{ID: 11, CommitBody: []byte(`{"sha":"head"}`)}, nil)
+				expectCommitBodyUpdate(repo, tx)
+			},
+			assertBody: func(t *testing.T, info domain.CommitInfo) {
+				t.Helper()
+				if got := info.Changelog.Commits[0].Author.GitHubUsername; got != "main-user" {
+					t.Errorf("changelog GitHub username = %q, want main-user", got)
+				}
+				nested := info.Changelog.SubmoduleChangelogs["https://github.com/SpongePowered/SpongeAPI"]
+				if got := nested.Commits[0].Author.GitHubUsername; got != "sub-user" {
+					t.Errorf("nested GitHub username = %q, want sub-user", got)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			repo := repomocks.NewMockRepository(t)
+			tx := repomocks.NewMockTx(t)
+			var stored domain.CommitInfo
+
+			tt.mockSetup(repo, tx)
+			tx.EXPECT().UpdateArtifactVersionCommitBody(mock.Anything, mock.MatchedBy(func(params db.UpdateArtifactVersionCommitBodyParams) bool {
+				return json.Unmarshal(params.CommitBody, &stored) == nil
+			})).Return(nil)
+
+			acts := &activity.ChangelogActivities{
+				Repo:   repo,
+				GitHub: githubapi.NewClient(nil, ""),
+			}
+			if err := tt.run(t.Context(), acts); err != nil {
+				t.Fatalf("store commit data: %v", err)
+			}
+			tt.assertBody(t, stored)
+		})
+	}
+}
+
+func expectCommitBodyUpdate(repo *repomocks.MockRepository, tx *repomocks.MockTx) {
+	repo.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
+		func(ctx context.Context, fn func(repository.Tx) error) error {
+			return fn(tx)
+		},
+	)
+}
+
+func TestStoreEnrichedCommitReservesPersistenceTime(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	repo := repomocks.NewMockRepository(t)
+	tx := repomocks.NewMockTx(t)
+	var stored domain.CommitInfo
+
+	repo.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
+		func(ctx context.Context, fn func(repository.Tx) error) error {
+			if err := ctx.Err(); err != nil {
+				t.Errorf("persistence context already canceled: %v", err)
+			}
+			return fn(tx)
+		},
+	)
+	tx.EXPECT().UpdateArtifactVersionCommitBody(mock.Anything, mock.MatchedBy(func(params db.UpdateArtifactVersionCommitBodyParams) bool {
+		return json.Unmarshal(params.CommitBody, &stored) == nil
+	})).Return(nil)
+
+	acts := &activity.ChangelogActivities{
+		Repo:   repo,
+		GitHub: githubapi.NewClientWithBaseURL(server.Client(), "", server.URL),
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 5500*time.Millisecond)
+	defer cancel()
+
+	err := acts.StoreEnrichedCommit(ctx, activity.StoreEnrichedCommitInput{
+		VersionID: 10,
+		CommitInfo: domain.CommitInfo{
+			Sha:        "abc123",
+			Repository: "https://github.com/SpongePowered/Sponge",
+			Author: &domain.CommitAuthor{
+				Name:  "Git Author",
+				Email: "author@example.com",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("StoreEnrichedCommit() error = %v", err)
+	}
+	if stored.Author.GitHubUsername != "" {
+		t.Errorf("GitHubUsername = %q, want fallback without username", stored.Author.GitHubUsername)
 	}
 }

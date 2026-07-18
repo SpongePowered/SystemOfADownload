@@ -482,6 +482,8 @@ components:
               type: string
             email:
               type: string
+            githubUsername:
+              type: string
         link:
           type: string
           format: URL

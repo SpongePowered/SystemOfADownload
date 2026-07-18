@@ -855,11 +855,15 @@ func commitInfoToAPICommit(info *domain.CommitInfo) api.Commit {
 	}
 	if info.Author != nil {
 		c.Author = &struct {
-			Email *string `json:"email,omitempty"`
-			Name  *string `json:"name,omitempty"`
+			Email          *string `json:"email,omitempty"`
+			GithubUsername *string `json:"githubUsername,omitempty"`
+			Name           *string `json:"name,omitempty"`
 		}{
 			Name:  &info.Author.Name,
 			Email: &info.Author.Email,
+		}
+		if info.Author.GitHubUsername != "" {
+			c.Author.GithubUsername = &info.Author.GitHubUsername
 		}
 	}
 	return c
@@ -886,11 +890,15 @@ func commitSummaryToAPICommit(cs *domain.CommitSummary, repo string) *api.Commit
 	}
 	if cs.Author != nil {
 		c.Author = &struct {
-			Email *string `json:"email,omitempty"`
-			Name  *string `json:"name,omitempty"`
+			Email          *string `json:"email,omitempty"`
+			GithubUsername *string `json:"githubUsername,omitempty"`
+			Name           *string `json:"name,omitempty"`
 		}{
 			Name:  &cs.Author.Name,
 			Email: &cs.Author.Email,
+		}
+		if cs.Author.GitHubUsername != "" {
+			c.Author.GithubUsername = &cs.Author.GitHubUsername
 		}
 	}
 	return &c

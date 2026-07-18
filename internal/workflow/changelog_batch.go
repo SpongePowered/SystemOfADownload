@@ -367,7 +367,7 @@ func markPendingPredecessor( //nolint:gocritic // matches workflow signature
 
 func storeChangelogOnVersion(
 	ctx workflow.Context,
-	actCtx workflow.Context,
+	_ workflow.Context,
 	acts *activity.ChangelogActivities,
 	versionID int64,
 	changelog *domain.Changelog,
@@ -390,7 +390,13 @@ func storeChangelogOnVersion(
 	// We'll need a dedicated activity to update just the changelog field.
 	// For now, use a lightweight approach: store the changelog as part of a
 	// "changelog update" that reads the current commit_body and merges.
-	return workflow.ExecuteActivity(actCtx, acts.StoreChangelog, activity.StoreChangelogInput{
+	storeCtx := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
+		StartToCloseTimeout: 2 * time.Minute,
+		RetryPolicy: &temporal.RetryPolicy{
+			MaximumAttempts: 3,
+		},
+	})
+	return workflow.ExecuteActivity(storeCtx, acts.StoreChangelog, activity.StoreChangelogInput{
 		VersionID: versionID,
 		Changelog: *changelog,
 	}).Get(ctx, nil)
