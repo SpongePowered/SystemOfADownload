@@ -29,6 +29,7 @@ type Reads interface {
 	GetArtifactVersion(ctx context.Context, arg db.GetArtifactVersionParams) (db.ArtifactVersion, error)
 	GetArtifactVersionByID(ctx context.Context, id int64) (db.ArtifactVersion, error)
 	GetArtifactVersionSchema(ctx context.Context, arg db.GetArtifactVersionSchemaParams) ([]byte, error)
+	GetGitHubUserCache(ctx context.Context, authorEmail string) (db.GithubUserCache, error)
 	GetGroup(ctx context.Context, mavenID string) (db.Group, error)
 	GetPreviousVersion(ctx context.Context, arg db.GetPreviousVersionParams) (db.ArtifactVersion, error)
 	GroupExistsByMavenID(ctx context.Context, lower string) (bool, error)
@@ -49,6 +50,7 @@ type Reads interface {
 	ListVersionsNeedingEnrichment(ctx context.Context, arg db.ListVersionsNeedingEnrichmentParams) ([]db.ArtifactVersion, error)
 	ListEnrichedVersions(ctx context.Context, arg db.ListEnrichedVersionsParams) ([]db.ArtifactVersion, error)
 	ListVersionsNeedingChangelog(ctx context.Context, arg db.ListVersionsNeedingChangelogParams) ([]db.ArtifactVersion, error)
+	ListVersionsNeedingGitHubAuthorResolution(ctx context.Context, arg db.ListVersionsNeedingGitHubAuthorResolutionParams) ([]int64, error)
 	GetVersionDetail(ctx context.Context, groupID, artifactID, version string) (*VersionDetail, error)
 }
 
@@ -62,10 +64,12 @@ type Writes interface {
 	CreateGroup(ctx context.Context, arg db.CreateGroupParams) (db.Group, error)
 	DeleteArtifactVersionAssets(ctx context.Context, artifactVersionID int64) error
 	DeleteArtifactVersionTags(ctx context.Context, artifactVersionID int64) error
+	GetArtifactVersionForUpdate(ctx context.Context, id int64) (db.ArtifactVersion, error)
 	UpdateArtifactFields(ctx context.Context, arg db.UpdateArtifactFieldsParams) (db.Artifact, error)
 	UpdateArtifactVersionCommitBody(ctx context.Context, arg db.UpdateArtifactVersionCommitBodyParams) error
 	UpdateArtifactVersionOrder(ctx context.Context, arg db.UpdateArtifactVersionOrderParams) error
 	UpdateArtifactVersionSchema(ctx context.Context, arg db.UpdateArtifactVersionSchemaParams) error
+	UpsertGitHubUserCache(ctx context.Context, arg db.UpsertGitHubUserCacheParams) (db.GithubUserCache, error)
 }
 
 // Tx provides both read and write operations within a transaction.

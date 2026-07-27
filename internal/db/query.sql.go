@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/spongepowered/systemofadownload/internal/dbtypes"
 )
 
@@ -309,6 +310,26 @@ func (q *Queries) GetArtifactVersionByID(ctx context.Context, id int64) (Artifac
 	return i, err
 }
 
+const getArtifactVersionForUpdate = `-- name: GetArtifactVersionForUpdate :one
+SELECT id, artifact_id, version, sort_order, recommended, commit_body FROM artifact_versions
+WHERE id = $1
+FOR UPDATE
+`
+
+func (q *Queries) GetArtifactVersionForUpdate(ctx context.Context, id int64) (ArtifactVersion, error) {
+	row := q.db.QueryRow(ctx, getArtifactVersionForUpdate, id)
+	var i ArtifactVersion
+	err := row.Scan(
+		&i.ID,
+		&i.ArtifactID,
+		&i.Version,
+		&i.SortOrder,
+		&i.Recommended,
+		&i.CommitBody,
+	)
+	return i, err
+}
+
 const getArtifactVersionSchema = `-- name: GetArtifactVersionSchema :one
 SELECT version_schema FROM artifacts
 WHERE group_id = $1 AND artifact_id = $2
@@ -324,6 +345,24 @@ func (q *Queries) GetArtifactVersionSchema(ctx context.Context, arg GetArtifactV
 	var version_schema []byte
 	err := row.Scan(&version_schema)
 	return version_schema, err
+}
+
+const getGitHubUserCache = `-- name: GetGitHubUserCache :one
+SELECT author_email, github_username, expires_at, updated_at FROM github_user_cache
+WHERE author_email = LOWER(BTRIM($1))
+  AND expires_at > NOW()
+`
+
+func (q *Queries) GetGitHubUserCache(ctx context.Context, authorEmail string) (GithubUserCache, error) {
+	row := q.db.QueryRow(ctx, getGitHubUserCache, authorEmail)
+	var i GithubUserCache
+	err := row.Scan(
+		&i.AuthorEmail,
+		&i.GithubUsername,
+		&i.ExpiresAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getGroup = `-- name: GetGroup :one
@@ -920,6 +959,42 @@ func (q *Queries) ListVersionsNeedingEnrichment(ctx context.Context, arg ListVer
 	return items, nil
 }
 
+const listVersionsNeedingGitHubAuthorResolution = `-- name: ListVersionsNeedingGitHubAuthorResolution :many
+SELECT id
+FROM artifact_versions
+WHERE commit_body IS NOT NULL
+  AND commit_body->>'enrichedAt' IS NOT NULL
+  AND commit_body->>'githubAuthorsResolvedAt' IS NULL
+  AND ($1::bigint IS NULL OR id < $1)
+ORDER BY id DESC
+LIMIT $2
+`
+
+type ListVersionsNeedingGitHubAuthorResolutionParams struct {
+	BeforeID *int64
+	PageSize int32
+}
+
+func (q *Queries) ListVersionsNeedingGitHubAuthorResolution(ctx context.Context, arg ListVersionsNeedingGitHubAuthorResolutionParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listVersionsNeedingGitHubAuthorResolution, arg.BeforeID, arg.PageSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateArtifactFields = `-- name: UpdateArtifactFields :one
 UPDATE artifacts SET
   name = COALESCE($3, name),
@@ -1009,4 +1084,36 @@ type UpdateArtifactVersionSchemaParams struct {
 func (q *Queries) UpdateArtifactVersionSchema(ctx context.Context, arg UpdateArtifactVersionSchemaParams) error {
 	_, err := q.db.Exec(ctx, updateArtifactVersionSchema, arg.GroupID, arg.ArtifactID, arg.VersionSchema)
 	return err
+}
+
+const upsertGitHubUserCache = `-- name: UpsertGitHubUserCache :one
+INSERT INTO github_user_cache (author_email, github_username, expires_at)
+VALUES (
+    LOWER(BTRIM($1)),
+    $2,
+    $3
+)
+ON CONFLICT (author_email) DO UPDATE SET
+    github_username = EXCLUDED.github_username,
+    expires_at = EXCLUDED.expires_at,
+    updated_at = NOW()
+RETURNING author_email, github_username, expires_at, updated_at
+`
+
+type UpsertGitHubUserCacheParams struct {
+	AuthorEmail    string
+	GithubUsername *string
+	ExpiresAt      pgtype.Timestamptz
+}
+
+func (q *Queries) UpsertGitHubUserCache(ctx context.Context, arg UpsertGitHubUserCacheParams) (GithubUserCache, error) {
+	row := q.db.QueryRow(ctx, upsertGitHubUserCache, arg.AuthorEmail, arg.GithubUsername, arg.ExpiresAt)
+	var i GithubUserCache
+	err := row.Scan(
+		&i.AuthorEmail,
+		&i.GithubUsername,
+		&i.ExpiresAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

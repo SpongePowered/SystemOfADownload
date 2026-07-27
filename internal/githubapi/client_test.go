@@ -1,6 +1,7 @@
 package githubapi_test
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -81,23 +82,21 @@ func TestClientResolveUsername(t *testing.T) {
 	defer server.Close()
 
 	client := githubapi.NewClientWithBaseURL(server.Client(), "test-token", server.URL)
-	for range 2 {
-		username, err := client.ResolveUsername(
-			t.Context(),
-			"https://github.com/SpongePowered/Sponge",
-			"abc123",
-			"developer@example.com",
-		)
-		if err != nil {
-			t.Fatalf("ResolveUsername() error = %v", err)
-		}
-		if username != "octocat" {
-			t.Errorf("ResolveUsername() = %q, want octocat", username)
-		}
+	username, err := client.ResolveUsername(
+		t.Context(),
+		"https://github.com/SpongePowered/Sponge",
+		"abc123",
+		"developer@example.com",
+	)
+	if err != nil {
+		t.Fatalf("ResolveUsername() error = %v", err)
+	}
+	if username != "octocat" {
+		t.Errorf("ResolveUsername() = %q, want octocat", username)
 	}
 
 	if got := requests.Load(); got != 1 {
-		t.Errorf("request count = %d, want 1 cached request", got)
+		t.Errorf("request count = %d, want 1 request", got)
 	}
 }
 
@@ -120,6 +119,9 @@ func TestClientResolveUsernameFallbacks(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if tt.name == "rate limited" {
+					w.Header().Set("X-RateLimit-Reset", "2000000000")
+				}
 				w.WriteHeader(tt.statusCode)
 				_, _ = fmt.Fprint(w, tt.body)
 			}))
@@ -137,6 +139,12 @@ func TestClientResolveUsernameFallbacks(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("ResolveUsername() = %q, want %q", got, tt.want)
+			}
+			if tt.name == "rate limited" {
+				var rateLimitErr *githubapi.RateLimitError
+				if !errors.As(err, &rateLimitErr) {
+					t.Fatalf("error = %T, want *githubapi.RateLimitError", err)
+				}
 			}
 		})
 	}

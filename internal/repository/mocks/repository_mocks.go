@@ -523,6 +523,72 @@ func (_c *MockReads_GetDistinctTagValues_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
+// GetGitHubUserCache provides a mock function for the type MockReads
+func (_mock *MockReads) GetGitHubUserCache(ctx context.Context, authorEmail string) (db.GithubUserCache, error) {
+	ret := _mock.Called(ctx, authorEmail)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetGitHubUserCache")
+	}
+
+	var r0 db.GithubUserCache
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (db.GithubUserCache, error)); ok {
+		return returnFunc(ctx, authorEmail)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) db.GithubUserCache); ok {
+		r0 = returnFunc(ctx, authorEmail)
+	} else {
+		r0 = ret.Get(0).(db.GithubUserCache)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, authorEmail)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockReads_GetGitHubUserCache_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetGitHubUserCache'
+type MockReads_GetGitHubUserCache_Call struct {
+	*mock.Call
+}
+
+// GetGitHubUserCache is a helper method to define mock.On call
+//   - ctx context.Context
+//   - authorEmail string
+func (_e *MockReads_Expecter) GetGitHubUserCache(ctx interface{}, authorEmail interface{}) *MockReads_GetGitHubUserCache_Call {
+	return &MockReads_GetGitHubUserCache_Call{Call: _e.mock.On("GetGitHubUserCache", ctx, authorEmail)}
+}
+
+func (_c *MockReads_GetGitHubUserCache_Call) Run(run func(ctx context.Context, authorEmail string)) *MockReads_GetGitHubUserCache_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockReads_GetGitHubUserCache_Call) Return(githubUserCache db.GithubUserCache, err error) *MockReads_GetGitHubUserCache_Call {
+	_c.Call.Return(githubUserCache, err)
+	return _c
+}
+
+func (_c *MockReads_GetGitHubUserCache_Call) RunAndReturn(run func(ctx context.Context, authorEmail string) (db.GithubUserCache, error)) *MockReads_GetGitHubUserCache_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetGroup provides a mock function for the type MockReads
 func (_mock *MockReads) GetGroup(ctx context.Context, mavenID string) (db.Group, error) {
 	ret := _mock.Called(ctx, mavenID)
@@ -1677,6 +1743,74 @@ func (_c *MockReads_ListVersionsNeedingEnrichment_Call) RunAndReturn(run func(ct
 	return _c
 }
 
+// ListVersionsNeedingGitHubAuthorResolution provides a mock function for the type MockReads
+func (_mock *MockReads) ListVersionsNeedingGitHubAuthorResolution(ctx context.Context, arg db.ListVersionsNeedingGitHubAuthorResolutionParams) ([]int64, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVersionsNeedingGitHubAuthorResolution")
+	}
+
+	var r0 []int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListVersionsNeedingGitHubAuthorResolutionParams) ([]int64, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListVersionsNeedingGitHubAuthorResolutionParams) []int64); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]int64)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.ListVersionsNeedingGitHubAuthorResolutionParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockReads_ListVersionsNeedingGitHubAuthorResolution_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVersionsNeedingGitHubAuthorResolution'
+type MockReads_ListVersionsNeedingGitHubAuthorResolution_Call struct {
+	*mock.Call
+}
+
+// ListVersionsNeedingGitHubAuthorResolution is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.ListVersionsNeedingGitHubAuthorResolutionParams
+func (_e *MockReads_Expecter) ListVersionsNeedingGitHubAuthorResolution(ctx interface{}, arg interface{}) *MockReads_ListVersionsNeedingGitHubAuthorResolution_Call {
+	return &MockReads_ListVersionsNeedingGitHubAuthorResolution_Call{Call: _e.mock.On("ListVersionsNeedingGitHubAuthorResolution", ctx, arg)}
+}
+
+func (_c *MockReads_ListVersionsNeedingGitHubAuthorResolution_Call) Run(run func(ctx context.Context, arg db.ListVersionsNeedingGitHubAuthorResolutionParams)) *MockReads_ListVersionsNeedingGitHubAuthorResolution_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.ListVersionsNeedingGitHubAuthorResolutionParams
+		if args[1] != nil {
+			arg1 = args[1].(db.ListVersionsNeedingGitHubAuthorResolutionParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockReads_ListVersionsNeedingGitHubAuthorResolution_Call) Return(int64s []int64, err error) *MockReads_ListVersionsNeedingGitHubAuthorResolution_Call {
+	_c.Call.Return(int64s, err)
+	return _c
+}
+
+func (_c *MockReads_ListVersionsNeedingGitHubAuthorResolution_Call) RunAndReturn(run func(ctx context.Context, arg db.ListVersionsNeedingGitHubAuthorResolutionParams) ([]int64, error)) *MockReads_ListVersionsNeedingGitHubAuthorResolution_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListVersionsWithAssets provides a mock function for the type MockReads
 func (_mock *MockReads) ListVersionsWithAssets(ctx context.Context, params repository.VersionQueryParams) (*repository.VersionsWithAssetsResult, error) {
 	ret := _mock.Called(ctx, params)
@@ -2216,6 +2350,72 @@ func (_c *MockWrites_DeleteArtifactVersionTags_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
+// GetArtifactVersionForUpdate provides a mock function for the type MockWrites
+func (_mock *MockWrites) GetArtifactVersionForUpdate(ctx context.Context, id int64) (db.ArtifactVersion, error) {
+	ret := _mock.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetArtifactVersionForUpdate")
+	}
+
+	var r0 db.ArtifactVersion
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) (db.ArtifactVersion, error)); ok {
+		return returnFunc(ctx, id)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) db.ArtifactVersion); ok {
+		r0 = returnFunc(ctx, id)
+	} else {
+		r0 = ret.Get(0).(db.ArtifactVersion)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = returnFunc(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockWrites_GetArtifactVersionForUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetArtifactVersionForUpdate'
+type MockWrites_GetArtifactVersionForUpdate_Call struct {
+	*mock.Call
+}
+
+// GetArtifactVersionForUpdate is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+func (_e *MockWrites_Expecter) GetArtifactVersionForUpdate(ctx interface{}, id interface{}) *MockWrites_GetArtifactVersionForUpdate_Call {
+	return &MockWrites_GetArtifactVersionForUpdate_Call{Call: _e.mock.On("GetArtifactVersionForUpdate", ctx, id)}
+}
+
+func (_c *MockWrites_GetArtifactVersionForUpdate_Call) Run(run func(ctx context.Context, id int64)) *MockWrites_GetArtifactVersionForUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockWrites_GetArtifactVersionForUpdate_Call) Return(artifactVersion db.ArtifactVersion, err error) *MockWrites_GetArtifactVersionForUpdate_Call {
+	_c.Call.Return(artifactVersion, err)
+	return _c
+}
+
+func (_c *MockWrites_GetArtifactVersionForUpdate_Call) RunAndReturn(run func(ctx context.Context, id int64) (db.ArtifactVersion, error)) *MockWrites_GetArtifactVersionForUpdate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // InsertNewArtifactVersion provides a mock function for the type MockWrites
 func (_mock *MockWrites) InsertNewArtifactVersion(ctx context.Context, arg db.InsertNewArtifactVersionParams) error {
 	ret := _mock.Called(ctx, arg)
@@ -2506,6 +2706,72 @@ func (_c *MockWrites_UpdateArtifactVersionSchema_Call) Return(err error) *MockWr
 }
 
 func (_c *MockWrites_UpdateArtifactVersionSchema_Call) RunAndReturn(run func(ctx context.Context, arg db.UpdateArtifactVersionSchemaParams) error) *MockWrites_UpdateArtifactVersionSchema_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpsertGitHubUserCache provides a mock function for the type MockWrites
+func (_mock *MockWrites) UpsertGitHubUserCache(ctx context.Context, arg db.UpsertGitHubUserCacheParams) (db.GithubUserCache, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpsertGitHubUserCache")
+	}
+
+	var r0 db.GithubUserCache
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpsertGitHubUserCacheParams) (db.GithubUserCache, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpsertGitHubUserCacheParams) db.GithubUserCache); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		r0 = ret.Get(0).(db.GithubUserCache)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.UpsertGitHubUserCacheParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockWrites_UpsertGitHubUserCache_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpsertGitHubUserCache'
+type MockWrites_UpsertGitHubUserCache_Call struct {
+	*mock.Call
+}
+
+// UpsertGitHubUserCache is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.UpsertGitHubUserCacheParams
+func (_e *MockWrites_Expecter) UpsertGitHubUserCache(ctx interface{}, arg interface{}) *MockWrites_UpsertGitHubUserCache_Call {
+	return &MockWrites_UpsertGitHubUserCache_Call{Call: _e.mock.On("UpsertGitHubUserCache", ctx, arg)}
+}
+
+func (_c *MockWrites_UpsertGitHubUserCache_Call) Run(run func(ctx context.Context, arg db.UpsertGitHubUserCacheParams)) *MockWrites_UpsertGitHubUserCache_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.UpsertGitHubUserCacheParams
+		if args[1] != nil {
+			arg1 = args[1].(db.UpsertGitHubUserCacheParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockWrites_UpsertGitHubUserCache_Call) Return(githubUserCache db.GithubUserCache, err error) *MockWrites_UpsertGitHubUserCache_Call {
+	_c.Call.Return(githubUserCache, err)
+	return _c
+}
+
+func (_c *MockWrites_UpsertGitHubUserCache_Call) RunAndReturn(run func(ctx context.Context, arg db.UpsertGitHubUserCacheParams) (db.GithubUserCache, error)) *MockWrites_UpsertGitHubUserCache_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3245,6 +3511,72 @@ func (_c *MockTx_GetArtifactVersionByID_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// GetArtifactVersionForUpdate provides a mock function for the type MockTx
+func (_mock *MockTx) GetArtifactVersionForUpdate(ctx context.Context, id int64) (db.ArtifactVersion, error) {
+	ret := _mock.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetArtifactVersionForUpdate")
+	}
+
+	var r0 db.ArtifactVersion
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) (db.ArtifactVersion, error)); ok {
+		return returnFunc(ctx, id)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) db.ArtifactVersion); ok {
+		r0 = returnFunc(ctx, id)
+	} else {
+		r0 = ret.Get(0).(db.ArtifactVersion)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = returnFunc(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTx_GetArtifactVersionForUpdate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetArtifactVersionForUpdate'
+type MockTx_GetArtifactVersionForUpdate_Call struct {
+	*mock.Call
+}
+
+// GetArtifactVersionForUpdate is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+func (_e *MockTx_Expecter) GetArtifactVersionForUpdate(ctx interface{}, id interface{}) *MockTx_GetArtifactVersionForUpdate_Call {
+	return &MockTx_GetArtifactVersionForUpdate_Call{Call: _e.mock.On("GetArtifactVersionForUpdate", ctx, id)}
+}
+
+func (_c *MockTx_GetArtifactVersionForUpdate_Call) Run(run func(ctx context.Context, id int64)) *MockTx_GetArtifactVersionForUpdate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_GetArtifactVersionForUpdate_Call) Return(artifactVersion db.ArtifactVersion, err error) *MockTx_GetArtifactVersionForUpdate_Call {
+	_c.Call.Return(artifactVersion, err)
+	return _c
+}
+
+func (_c *MockTx_GetArtifactVersionForUpdate_Call) RunAndReturn(run func(ctx context.Context, id int64) (db.ArtifactVersion, error)) *MockTx_GetArtifactVersionForUpdate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetArtifactVersionSchema provides a mock function for the type MockTx
 func (_mock *MockTx) GetArtifactVersionSchema(ctx context.Context, arg db.GetArtifactVersionSchemaParams) ([]byte, error) {
 	ret := _mock.Called(ctx, arg)
@@ -3461,6 +3793,72 @@ func (_c *MockTx_GetDistinctTagValues_Call) Return(stringToStrings map[string][]
 }
 
 func (_c *MockTx_GetDistinctTagValues_Call) RunAndReturn(run func(ctx context.Context, groupID string, artifactID string) (map[string][]string, error)) *MockTx_GetDistinctTagValues_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetGitHubUserCache provides a mock function for the type MockTx
+func (_mock *MockTx) GetGitHubUserCache(ctx context.Context, authorEmail string) (db.GithubUserCache, error) {
+	ret := _mock.Called(ctx, authorEmail)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetGitHubUserCache")
+	}
+
+	var r0 db.GithubUserCache
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (db.GithubUserCache, error)); ok {
+		return returnFunc(ctx, authorEmail)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) db.GithubUserCache); ok {
+		r0 = returnFunc(ctx, authorEmail)
+	} else {
+		r0 = ret.Get(0).(db.GithubUserCache)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, authorEmail)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTx_GetGitHubUserCache_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetGitHubUserCache'
+type MockTx_GetGitHubUserCache_Call struct {
+	*mock.Call
+}
+
+// GetGitHubUserCache is a helper method to define mock.On call
+//   - ctx context.Context
+//   - authorEmail string
+func (_e *MockTx_Expecter) GetGitHubUserCache(ctx interface{}, authorEmail interface{}) *MockTx_GetGitHubUserCache_Call {
+	return &MockTx_GetGitHubUserCache_Call{Call: _e.mock.On("GetGitHubUserCache", ctx, authorEmail)}
+}
+
+func (_c *MockTx_GetGitHubUserCache_Call) Run(run func(ctx context.Context, authorEmail string)) *MockTx_GetGitHubUserCache_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_GetGitHubUserCache_Call) Return(githubUserCache db.GithubUserCache, err error) *MockTx_GetGitHubUserCache_Call {
+	_c.Call.Return(githubUserCache, err)
+	return _c
+}
+
+func (_c *MockTx_GetGitHubUserCache_Call) RunAndReturn(run func(ctx context.Context, authorEmail string) (db.GithubUserCache, error)) *MockTx_GetGitHubUserCache_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4676,6 +5074,74 @@ func (_c *MockTx_ListVersionsNeedingEnrichment_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
+// ListVersionsNeedingGitHubAuthorResolution provides a mock function for the type MockTx
+func (_mock *MockTx) ListVersionsNeedingGitHubAuthorResolution(ctx context.Context, arg db.ListVersionsNeedingGitHubAuthorResolutionParams) ([]int64, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVersionsNeedingGitHubAuthorResolution")
+	}
+
+	var r0 []int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListVersionsNeedingGitHubAuthorResolutionParams) ([]int64, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListVersionsNeedingGitHubAuthorResolutionParams) []int64); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]int64)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.ListVersionsNeedingGitHubAuthorResolutionParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTx_ListVersionsNeedingGitHubAuthorResolution_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVersionsNeedingGitHubAuthorResolution'
+type MockTx_ListVersionsNeedingGitHubAuthorResolution_Call struct {
+	*mock.Call
+}
+
+// ListVersionsNeedingGitHubAuthorResolution is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.ListVersionsNeedingGitHubAuthorResolutionParams
+func (_e *MockTx_Expecter) ListVersionsNeedingGitHubAuthorResolution(ctx interface{}, arg interface{}) *MockTx_ListVersionsNeedingGitHubAuthorResolution_Call {
+	return &MockTx_ListVersionsNeedingGitHubAuthorResolution_Call{Call: _e.mock.On("ListVersionsNeedingGitHubAuthorResolution", ctx, arg)}
+}
+
+func (_c *MockTx_ListVersionsNeedingGitHubAuthorResolution_Call) Run(run func(ctx context.Context, arg db.ListVersionsNeedingGitHubAuthorResolutionParams)) *MockTx_ListVersionsNeedingGitHubAuthorResolution_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.ListVersionsNeedingGitHubAuthorResolutionParams
+		if args[1] != nil {
+			arg1 = args[1].(db.ListVersionsNeedingGitHubAuthorResolutionParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_ListVersionsNeedingGitHubAuthorResolution_Call) Return(int64s []int64, err error) *MockTx_ListVersionsNeedingGitHubAuthorResolution_Call {
+	_c.Call.Return(int64s, err)
+	return _c
+}
+
+func (_c *MockTx_ListVersionsNeedingGitHubAuthorResolution_Call) RunAndReturn(run func(ctx context.Context, arg db.ListVersionsNeedingGitHubAuthorResolutionParams) ([]int64, error)) *MockTx_ListVersionsNeedingGitHubAuthorResolution_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListVersionsWithAssets provides a mock function for the type MockTx
 func (_mock *MockTx) ListVersionsWithAssets(ctx context.Context, params repository.VersionQueryParams) (*repository.VersionsWithAssetsResult, error) {
 	ret := _mock.Called(ctx, params)
@@ -4977,6 +5443,72 @@ func (_c *MockTx_UpdateArtifactVersionSchema_Call) Return(err error) *MockTx_Upd
 }
 
 func (_c *MockTx_UpdateArtifactVersionSchema_Call) RunAndReturn(run func(ctx context.Context, arg db.UpdateArtifactVersionSchemaParams) error) *MockTx_UpdateArtifactVersionSchema_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpsertGitHubUserCache provides a mock function for the type MockTx
+func (_mock *MockTx) UpsertGitHubUserCache(ctx context.Context, arg db.UpsertGitHubUserCacheParams) (db.GithubUserCache, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpsertGitHubUserCache")
+	}
+
+	var r0 db.GithubUserCache
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpsertGitHubUserCacheParams) (db.GithubUserCache, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpsertGitHubUserCacheParams) db.GithubUserCache); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		r0 = ret.Get(0).(db.GithubUserCache)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.UpsertGitHubUserCacheParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTx_UpsertGitHubUserCache_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpsertGitHubUserCache'
+type MockTx_UpsertGitHubUserCache_Call struct {
+	*mock.Call
+}
+
+// UpsertGitHubUserCache is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.UpsertGitHubUserCacheParams
+func (_e *MockTx_Expecter) UpsertGitHubUserCache(ctx interface{}, arg interface{}) *MockTx_UpsertGitHubUserCache_Call {
+	return &MockTx_UpsertGitHubUserCache_Call{Call: _e.mock.On("UpsertGitHubUserCache", ctx, arg)}
+}
+
+func (_c *MockTx_UpsertGitHubUserCache_Call) Run(run func(ctx context.Context, arg db.UpsertGitHubUserCacheParams)) *MockTx_UpsertGitHubUserCache_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.UpsertGitHubUserCacheParams
+		if args[1] != nil {
+			arg1 = args[1].(db.UpsertGitHubUserCacheParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTx_UpsertGitHubUserCache_Call) Return(githubUserCache db.GithubUserCache, err error) *MockTx_UpsertGitHubUserCache_Call {
+	_c.Call.Return(githubUserCache, err)
+	return _c
+}
+
+func (_c *MockTx_UpsertGitHubUserCache_Call) RunAndReturn(run func(ctx context.Context, arg db.UpsertGitHubUserCacheParams) (db.GithubUserCache, error)) *MockTx_UpsertGitHubUserCache_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -5488,6 +6020,72 @@ func (_c *MockRepository_GetDistinctTagValues_Call) Return(stringToStrings map[s
 }
 
 func (_c *MockRepository_GetDistinctTagValues_Call) RunAndReturn(run func(ctx context.Context, groupID string, artifactID string) (map[string][]string, error)) *MockRepository_GetDistinctTagValues_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetGitHubUserCache provides a mock function for the type MockRepository
+func (_mock *MockRepository) GetGitHubUserCache(ctx context.Context, authorEmail string) (db.GithubUserCache, error) {
+	ret := _mock.Called(ctx, authorEmail)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetGitHubUserCache")
+	}
+
+	var r0 db.GithubUserCache
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (db.GithubUserCache, error)); ok {
+		return returnFunc(ctx, authorEmail)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) db.GithubUserCache); ok {
+		r0 = returnFunc(ctx, authorEmail)
+	} else {
+		r0 = ret.Get(0).(db.GithubUserCache)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, authorEmail)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_GetGitHubUserCache_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetGitHubUserCache'
+type MockRepository_GetGitHubUserCache_Call struct {
+	*mock.Call
+}
+
+// GetGitHubUserCache is a helper method to define mock.On call
+//   - ctx context.Context
+//   - authorEmail string
+func (_e *MockRepository_Expecter) GetGitHubUserCache(ctx interface{}, authorEmail interface{}) *MockRepository_GetGitHubUserCache_Call {
+	return &MockRepository_GetGitHubUserCache_Call{Call: _e.mock.On("GetGitHubUserCache", ctx, authorEmail)}
+}
+
+func (_c *MockRepository_GetGitHubUserCache_Call) Run(run func(ctx context.Context, authorEmail string)) *MockRepository_GetGitHubUserCache_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_GetGitHubUserCache_Call) Return(githubUserCache db.GithubUserCache, err error) *MockRepository_GetGitHubUserCache_Call {
+	_c.Call.Return(githubUserCache, err)
+	return _c
+}
+
+func (_c *MockRepository_GetGitHubUserCache_Call) RunAndReturn(run func(ctx context.Context, authorEmail string) (db.GithubUserCache, error)) *MockRepository_GetGitHubUserCache_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -6642,6 +7240,74 @@ func (_c *MockRepository_ListVersionsNeedingEnrichment_Call) Return(artifactVers
 }
 
 func (_c *MockRepository_ListVersionsNeedingEnrichment_Call) RunAndReturn(run func(ctx context.Context, arg db.ListVersionsNeedingEnrichmentParams) ([]db.ArtifactVersion, error)) *MockRepository_ListVersionsNeedingEnrichment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListVersionsNeedingGitHubAuthorResolution provides a mock function for the type MockRepository
+func (_mock *MockRepository) ListVersionsNeedingGitHubAuthorResolution(ctx context.Context, arg db.ListVersionsNeedingGitHubAuthorResolutionParams) ([]int64, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListVersionsNeedingGitHubAuthorResolution")
+	}
+
+	var r0 []int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListVersionsNeedingGitHubAuthorResolutionParams) ([]int64, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListVersionsNeedingGitHubAuthorResolutionParams) []int64); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]int64)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.ListVersionsNeedingGitHubAuthorResolutionParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRepository_ListVersionsNeedingGitHubAuthorResolution_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListVersionsNeedingGitHubAuthorResolution'
+type MockRepository_ListVersionsNeedingGitHubAuthorResolution_Call struct {
+	*mock.Call
+}
+
+// ListVersionsNeedingGitHubAuthorResolution is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.ListVersionsNeedingGitHubAuthorResolutionParams
+func (_e *MockRepository_Expecter) ListVersionsNeedingGitHubAuthorResolution(ctx interface{}, arg interface{}) *MockRepository_ListVersionsNeedingGitHubAuthorResolution_Call {
+	return &MockRepository_ListVersionsNeedingGitHubAuthorResolution_Call{Call: _e.mock.On("ListVersionsNeedingGitHubAuthorResolution", ctx, arg)}
+}
+
+func (_c *MockRepository_ListVersionsNeedingGitHubAuthorResolution_Call) Run(run func(ctx context.Context, arg db.ListVersionsNeedingGitHubAuthorResolutionParams)) *MockRepository_ListVersionsNeedingGitHubAuthorResolution_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.ListVersionsNeedingGitHubAuthorResolutionParams
+		if args[1] != nil {
+			arg1 = args[1].(db.ListVersionsNeedingGitHubAuthorResolutionParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRepository_ListVersionsNeedingGitHubAuthorResolution_Call) Return(int64s []int64, err error) *MockRepository_ListVersionsNeedingGitHubAuthorResolution_Call {
+	_c.Call.Return(int64s, err)
+	return _c
+}
+
+func (_c *MockRepository_ListVersionsNeedingGitHubAuthorResolution_Call) RunAndReturn(run func(ctx context.Context, arg db.ListVersionsNeedingGitHubAuthorResolutionParams) ([]int64, error)) *MockRepository_ListVersionsNeedingGitHubAuthorResolution_Call {
 	_c.Call.Return(run)
 	return _c
 }

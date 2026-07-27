@@ -207,6 +207,7 @@ func NewTemporalWorker(
 	indexActivities *activity.VersionIndexActivities,
 	orderingActivities *activity.VersionOrderingActivities,
 	changelogActivities *activity.ChangelogActivities,
+	githubAuthorActivities *activity.GitHubAuthorResolutionActivities,
 	gitActivities *activity.GitActivities,
 ) worker.Worker {
 	w := worker.New(c, wf.VersionSyncTaskQueue, worker.Options{
@@ -230,10 +231,12 @@ func NewTemporalWorker(
 	w.RegisterWorkflow(wf.EnrichVersionWorkflow)
 	w.RegisterWorkflow(wf.ChangelogBatchWorkflow)
 	w.RegisterWorkflow(wf.ChangelogVersionWorkflow)
+	w.RegisterWorkflow(wf.GitHubAuthorResolutionWorkflow)
 	w.RegisterActivity(syncActivities)
 	w.RegisterActivity(indexActivities)
 	w.RegisterActivity(orderingActivities)
 	w.RegisterActivity(changelogActivities)
+	w.RegisterActivity(githubAuthorActivities)
 	w.RegisterActivity(gitActivities)
 
 	lc.Append(fx.Hook{
@@ -277,8 +280,11 @@ func main() {
 			},
 			activity.NewVersionIndexActivities,
 			activity.NewVersionOrderingActivities,
-			func(cfg *Config, repo repository.Repository) *activity.ChangelogActivities {
-				return &activity.ChangelogActivities{
+			func(repo repository.Repository) *activity.ChangelogActivities {
+				return &activity.ChangelogActivities{Repo: repo}
+			},
+			func(cfg *Config, repo repository.Repository) *activity.GitHubAuthorResolutionActivities {
+				return &activity.GitHubAuthorResolutionActivities{
 					Repo:   repo,
 					GitHub: githubapi.NewClient(http.DefaultClient, cfg.GitHubToken),
 				}

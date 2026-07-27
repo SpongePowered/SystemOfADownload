@@ -24,6 +24,7 @@ import (
 	"github.com/spongepowered/systemofadownload/internal/httpapi"
 	"github.com/spongepowered/systemofadownload/internal/otelsetup"
 	"github.com/spongepowered/systemofadownload/internal/repository"
+	"go.temporal.io/sdk/temporal"
 )
 
 type Config struct {
@@ -90,6 +91,21 @@ func NewTemporalClient(lc fx.Lifecycle, cfg *Config) (client.Client, error) {
 		},
 	})
 	return c, nil
+}
+
+func EnsureGitHubAuthorResolutionSchedule(
+	lc fx.Lifecycle,
+	schedules client.ScheduleClient,
+) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			_, err := schedules.Create(ctx, httpapi.NewGitHubAuthorResolutionScheduleOptions())
+			if err == nil || errors.Is(err, temporal.ErrScheduleAlreadyRunning) {
+				return nil
+			}
+			return fmt.Errorf("creating GitHub author resolution schedule: %w", err)
+		},
+	})
 }
 
 func NewDBPool(lc fx.Lifecycle, cfg *Config) (*pgxpool.Pool, error) {
@@ -219,6 +235,9 @@ func main() {
 			NewMux,
 			NewHTTPServer,
 		),
-		fx.Invoke(func(*http.Server) {}),
+		fx.Invoke(
+			func(*http.Server) {},
+			EnsureGitHubAuthorResolutionSchedule,
+		),
 	).Run()
 }

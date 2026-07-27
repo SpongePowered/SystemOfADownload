@@ -57,6 +57,25 @@ func VersionSyncScheduleID(groupID, artifactID string) string {
 // workflow cannot hide the schedule indefinitely.
 const versionSyncWorkflowExecutionTimeout = 30 * time.Minute
 
+// NewGitHubAuthorResolutionScheduleOptions returns the paused singleton
+// schedule used for durable GitHub author backfill and steady-state resolution.
+func NewGitHubAuthorResolutionScheduleOptions() client.ScheduleOptions {
+	return client.ScheduleOptions{
+		ID: workflow.GitHubAuthorResolutionScheduleID,
+		Spec: client.ScheduleSpec{
+			Intervals: []client.ScheduleIntervalSpec{{Every: 2 * time.Minute}},
+		},
+		Action: &client.ScheduleWorkflowAction{
+			Workflow:  workflow.GitHubAuthorResolutionWorkflow,
+			Args:      []any{workflow.GitHubAuthorResolutionInput{}},
+			TaskQueue: workflow.VersionSyncTaskQueue,
+		},
+		Overlap: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
+		Paused:  true,
+		Note:    "Created paused; unpause after confirming GITHUB_TOKEN is configured",
+	}
+}
+
 // NewFastVersionSyncScheduleOptions returns the ScheduleOptions for the 2m
 // maven-metadata.xml schedule. Exposed for the migration binary.
 //

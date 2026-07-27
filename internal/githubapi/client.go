@@ -9,24 +9,30 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
-	"sync"
+	"time"
 )
 
 const defaultBaseURL = "https://api.github.com"
 
 var githubUsernamePattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$`)
 
-type cacheEntry struct {
-	username string
-}
-
 // Client resolves Git commit authors to their associated GitHub usernames.
 type Client struct {
 	httpClient *http.Client
 	baseURL    string
 	token      string
-	cache      sync.Map
+}
+
+// RateLimitError reports when GitHub asks callers to wait until a reset time.
+type RateLimitError struct {
+	ResetAt time.Time
+	Message string
+}
+
+func (e *RateLimitError) Error() string {
+	return e.Message
 }
 
 // NewClient creates a GitHub API client. The token is optional for public repositories.
@@ -53,21 +59,9 @@ func (c *Client) ResolveUsername(ctx context.Context, repoURL, sha, email string
 		return username, nil
 	}
 
-	emailKey := "email:" + strings.ToLower(strings.TrimSpace(email))
-	if emailKey != "email:" {
-		if cached, ok := c.cache.Load(emailKey); ok {
-			return cached.(cacheEntry).username, nil
-		}
-	}
-
 	owner, repo, ok := ParseRepository(repoURL)
 	if !ok || strings.TrimSpace(sha) == "" {
 		return "", nil
-	}
-
-	cacheKey := strings.ToLower(owner + "/" + repo + "@" + sha)
-	if cached, ok := c.cache.Load(cacheKey); ok {
-		return cached.(cacheEntry).username, nil
 	}
 
 	endpoint := fmt.Sprintf(
@@ -97,12 +91,20 @@ func (c *Client) ResolveUsername(ctx context.Context, repoURL, sha, email string
 	}()
 
 	if resp.StatusCode == http.StatusNotFound {
-		c.cache.Store(cacheKey, cacheEntry{})
 		return "", nil
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
-		return "", fmt.Errorf("GitHub commit lookup returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
+		message := fmt.Sprintf("GitHub commit lookup returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
+		if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
+			if reset, err := strconv.ParseInt(resp.Header.Get("X-RateLimit-Reset"), 10, 64); err == nil {
+				return "", &RateLimitError{
+					ResetAt: time.Unix(reset, 0),
+					Message: message,
+				}
+			}
+		}
+		return "", fmt.Errorf("%s", message)
 	}
 
 	var result struct {
@@ -117,10 +119,6 @@ func (c *Client) ResolveUsername(ctx context.Context, repoURL, sha, email string
 	username := ""
 	if result.Author != nil {
 		username = result.Author.Login
-	}
-	c.cache.Store(cacheKey, cacheEntry{username: username})
-	if username != "" && emailKey != "email:" {
-		c.cache.Store(emailKey, cacheEntry{username: username})
 	}
 	return username, nil
 }

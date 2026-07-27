@@ -42,6 +42,8 @@ type CommitInfo struct {
 	Submodules []SubmoduleCommit `json:"submodules,omitempty"`
 	Changelog  *Changelog        `json:"changelog,omitempty"`
 	EnrichedAt string            `json:"enrichedAt,omitempty"`
+	// GitHubAuthorsResolvedAt marks completion of durable author resolution.
+	GitHubAuthorsResolvedAt string `json:"githubAuthorsResolvedAt,omitempty"`
 
 	// ChangelogStatus tracks pending changelog computation.
 	// "pending_predecessor" means N-1 was not yet enriched.

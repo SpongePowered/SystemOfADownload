@@ -1,6 +1,6 @@
 # Temporal Workflows
 
-SystemOfADownload uses [Temporal](https://temporal.io/) to orchestrate artifact version syncing, asset indexing, commit extraction, and version ordering. All workflows run on a single task queue (`version-sync`) with a single worker process.
+SystemOfADownload uses [Temporal](https://temporal.io/) to orchestrate artifact version syncing, asset indexing, commit extraction, version ordering, and GitHub author resolution. All workflows run on a single task queue (`version-sync`) with a single worker process.
 
 ## Architecture Overview
 
@@ -37,7 +37,7 @@ VersionSyncWorkflow ────────────────────
       │         ├── [per submodule, parallel]                         |
       │         │    ├── EnsureRepoCloned  (local: submodule repo)   |
       │         │    └── GetCommitDetails  (local: submodule SHA)    |
-      │         └── StoreEnrichedCommit    (GitHub author lookup + DB)|
+      │         └── StoreEnrichedCommit    (DB)                      |
       └── ChangelogBatchWorkflow   (sequential, sort_order ASC)      |
            └── ChangelogVersionWorkflow (per version)                 |
                 ├── GetPreviousVersionCommit (DB)                     |
@@ -45,9 +45,24 @@ VersionSyncWorkflow ────────────────────
                 ├── ComputeChangelog       (local: git log)           |
                 ├── [per submodule with changed pointer]              |
                 │    └── ComputeChangelog  (local: submodule log)     |
-                └── StoreChangelog         (GitHub author lookup + DB)|
+                └── StoreChangelog         (DB)                       |
 ──────────────────────────────────────────────────────────────────────┘
 ```
+
+GitHub author resolution runs independently from ingestion:
+
+```
+GitHubAuthorResolutionWorkflow (singleton schedule, every 2m)
+ ├── FetchGitHubAuthorResolutionPage (DB: newest unresolved 50 IDs)
+ ├── ResolveGitHubAuthorsBatch (one heartbeat-enabled keyset page)
+ │    ├── infer usernames from GitHub noreply email addresses
+ │    ├── read/write the persistent github_user_cache
+ │    ├── query the GitHub commit API when needed
+ │    └── lock and merge artifact_versions.commit_body (JSONB)
+ └── ContinueAsNew with the next keyset cursor
+```
+
+Keeping this workflow separate means Sonatype ingestion and git enrichment remain pure database/local-git operations. A GitHub outage or rate limit delays username resolution without delaying version ingestion, and unresolved historical rows are retried by later scheduled runs.
 
 ## Worker Deployment Versioning
 
@@ -133,15 +148,6 @@ Processes a single version: fetches assets from Sonatype, stores them, identifie
 
 Downloads jar files and parses `META-INF/git.properties` or `META-INF/MANIFEST.MF` to extract git commit SHAs and repository URLs. Uses the same sliding window pattern as batch indexing (window size 3, page size 5).
 
-During commit and changelog persistence, GitHub-hosted commits are resolved to
-their associated GitHub username. GitHub noreply addresses are handled locally;
-other addresses use the GitHub commit API. The username is stored alongside the
-Git author name and email, while lookup failures retain the Git name fallback.
-`StoreChangelog` has a two-minute activity timeout to accommodate bounded,
-parallel lookups across large changelogs. GitHub lookups stop five seconds
-before the activity deadline so optional enrichment cannot consume the time
-needed for the database write.
-
 ### VersionOrderingWorkflow
 
 Computes version sort ordering using schema-driven parsing and optionally the Mojang version manifest for correct Minecraft version placement.
@@ -216,6 +222,53 @@ When an artifact is registered, **two** Temporal Schedules are created to period
 
 **Legacy schedule ID:** before the dual-schedule rollout, schedules were named `version-sync-{groupID}-{artifactID}`. Existing namespaces need the temporal CLI commands in the runbook section below to convert.
 
+## GitHub Author Resolution
+
+`GitHubAuthorResolutionWorkflow` backfills and maintains the optional `githubUsername` fields stored inside `artifact_versions.commit_body`. The HTTP API and frontend prefer that username and link to the matching GitHub profile; the original git author name remains the fallback.
+
+The server ensures one global Temporal Schedule exists:
+
+| Setting | Value |
+|---------|-------|
+| Schedule ID | `github-author-resolution` |
+| Interval | 2 minutes |
+| Overlap policy | `SKIP` |
+| Task queue | `version-sync` |
+| Initial state | Paused |
+
+The schedule is created paused so a deployment can apply migration `000006_github_author_resolution`, configure `GITHUB_TOKEN`, and confirm the worker is running before beginning the historical backfill. Public repositories can be queried without a token, but authenticated requests have higher rate limits and can access repositories visible to that token.
+
+Unpause the schedule after rollout:
+
+```bash
+temporal schedule unpause \
+  --schedule-id github-author-resolution \
+  --namespace <namespace> \
+  --address <host>
+```
+
+Pause it again without losing progress:
+
+```bash
+temporal schedule pause \
+  --schedule-id github-author-resolution \
+  --namespace <namespace> \
+  --address <host>
+```
+
+Each workflow chain scans enriched versions newest-first in 50-row keyset pages. The page is dispatched as one batch activity, then the workflow uses `ContinueAsNew` with the oldest ID as its cursor. The chain drains the entire unresolved history and ends when it reaches an empty page; the next scheduled fire starts from the newest unresolved row again.
+
+Resolution covers the head commit, direct submodule commits, the main changelog, and recursively nested submodule changelogs. Usernames embedded in GitHub noreply email addresses are resolved locally. Other authors use the GitHub commit API and a PostgreSQL cache:
+
+- Positive cache entries expire after 30 days.
+- Negative cache entries expire after 6 hours.
+- Cache keys are normalized lowercase author email addresses.
+- Authors without an email can be resolved for the current version but are not persisted in the email cache.
+
+After all authors for a version are resolved, the activity locks that `artifact_versions` row with `SELECT ... FOR UPDATE`, re-reads the latest JSONB value, merges usernames, and sets `githubAuthorsResolvedAt`. Changelog writes use the same row lock and clear this marker because a recomputed changelog may contain new unresolved authors.
+
+The resolution activity records the next version index in a Temporal heartbeat and continues heartbeating while processing that version's authors. An activity retry resumes within the page rather than repeating completed versions. Failures retry up to three attempts; after the final attempt that version remains unmarked and the batch continues. GitHub rate-limit responses use `X-RateLimit-Reset` to set Temporal's next retry delay.
+
 ## On-Demand Sync Trigger
 
 The `POST /groups/{groupID}/artifacts/{artifactID}/sync` endpoint triggers a schedule immediately. The query parameter `source` chooses which schedule to fire:
@@ -260,6 +313,7 @@ jobs:
 |---------|----------|----------------|----------|
 | Fast schedule (2m) | VersionSyncWorkflow | `BUFFER_ONE` | Queue one run if current sync still running |
 | Full schedule (1h) | VersionSyncWorkflow | `SKIP` | Drop the tick if a previous full run is still going |
+| GitHub author schedule (2m) | GitHubAuthorResolutionWorkflow | `SKIP` | Drop the tick while the singleton backfill/resolution chain is still running |
 | `POST .../sync` | VersionSyncWorkflow | — | Fires target schedule (default: fast; `?source=search` for full) |
 | `PutArtifactSchema` | VersionOrderingWorkflow | `TERMINATE_EXISTING` | Cancel stale run, restart with new schema |
 
@@ -352,6 +406,7 @@ Activities are grouped into structs by responsibility, each with explicit depend
 | `VersionIndexActivities` | Sonatype client, Repository, HTTP client | Fetch/store assets, inspect jars, extract commits |
 | `VersionOrderingActivities` | Repository, HTTP client | Schema loading, manifest fetching, ordering, tag storage |
 | `ChangelogActivities` | Repository | Fetch versions for enrichment, store enriched commits, store changelogs |
+| `GitHubAuthorResolutionActivities` | Repository, GitHub client | Discover unresolved versions, cache author lookups, and merge usernames |
 | `GitActivities` | GitCacheManager | Local activities: clone/fetch repos, git show, resolve submodules, git log |
 
 All activity structs are registered on the worker via `w.RegisterActivity(struct)`, which auto-registers all exported methods.
@@ -366,6 +421,8 @@ All activity structs are registered on the worker via `w.RegisterActivity(struct
 | Git clone/fetch (local) | 2m | 3 | Large repos may take time to clone |
 | Git read operations (local) | 30s | 3 | git show, git log, git ls-tree |
 | Changelog DB activities | 30s | 3 | Standard DB reads/writes |
+| GitHub author page fetch | 30s | 3 | Keyset query for unresolved enriched versions |
+| GitHub author batch | 10m | 3 | Heartbeats every completed version; rate limits override the next retry delay |
 
 All use exponential backoff (initial 1-2s, coefficient 2.0, max 30s-1m).
 
