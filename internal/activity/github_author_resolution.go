@@ -25,6 +25,10 @@ const (
 	githubNegativeCacheTTL = 6 * time.Hour
 )
 
+// errUnresolvableVersion marks a version whose stored state cannot be resolved.
+// Retrying will not help, so the batch skips it without stamping the marker.
+var errUnresolvableVersion = errors.New("version cannot be resolved")
+
 type gitHubAuthorResolver interface {
 	ResolveUsername(ctx context.Context, repoURL, sha, email string) (string, error)
 }
@@ -97,28 +101,15 @@ func (a *GitHubAuthorResolutionActivities) ResolveGitHubAuthorsBatch(
 		versionID := input.VersionIDs[i]
 		resolutions, err := a.resolveVersionAuthors(ctx, versionID, i)
 		if err != nil {
-			if temporalactivity.GetInfo(ctx).Attempt < 3 {
-				var rateLimitErr *githubapi.RateLimitError
-				if errors.As(err, &rateLimitErr) {
-					delay := time.Until(rateLimitErr.ResetAt)
-					if delay < time.Second {
-						delay = time.Second
-					}
-					return temporal.NewApplicationErrorWithOptions(
-						err.Error(),
-						"GithubRateLimit",
-						temporal.ApplicationErrorOptions{NextRetryDelay: delay},
-					)
-				}
-				return temporal.NewApplicationError(err.Error(), "GithubAuthorResolution")
+			if errors.Is(err, errUnresolvableVersion) {
+				slog.WarnContext(ctx, "skipping GitHub author resolution for version",
+					"versionID", versionID,
+					"error", err,
+				)
+				temporalactivity.RecordHeartbeat(ctx, githubResolutionHeartbeat{NextIndex: i + 1})
+				continue
 			}
-
-			slog.WarnContext(ctx, "skipping GitHub author resolution after retries",
-				"versionID", versionID,
-				"error", err,
-			)
-			temporalactivity.RecordHeartbeat(ctx, githubResolutionHeartbeat{NextIndex: i + 1})
-			continue
+			return resolutionFailure(fmt.Errorf("resolving GitHub authors for version %d: %w", versionID, err))
 		}
 
 		if err := a.mergeVersionAuthors(ctx, versionID, resolutions); err != nil {
@@ -128,6 +119,22 @@ func (a *GitHubAuthorResolutionActivities) ResolveGitHubAuthorsBatch(
 	}
 
 	return nil
+}
+
+// resolutionFailure lets GitHub rate limits dictate their own retry delay while
+// leaving every other failure on the activity's default retry backoff.
+func resolutionFailure(err error) error {
+	var rateLimitErr *githubapi.RateLimitError
+	if !errors.As(err, &rateLimitErr) {
+		return err
+	}
+
+	delay := max(time.Until(rateLimitErr.ResetAt), time.Second)
+	return temporal.NewApplicationErrorWithOptions(
+		err.Error(),
+		"GithubRateLimit",
+		temporal.ApplicationErrorOptions{NextRetryDelay: delay},
+	)
 }
 
 type githubAuthorReference struct {
@@ -143,12 +150,15 @@ func (a *GitHubAuthorResolutionActivities) resolveVersionAuthors(
 ) (map[string]string, error) {
 	version, err := a.Repo.GetArtifactVersionByID(ctx, versionID)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("%w: no longer exists", errUnresolvableVersion)
+		}
 		return nil, fmt.Errorf("reading version: %w", err)
 	}
 
 	var info domain.CommitInfo
 	if err := json.Unmarshal(version.CommitBody, &info); err != nil {
-		return nil, fmt.Errorf("unmarshaling commit body: %w", err)
+		return nil, fmt.Errorf("%w: unmarshaling commit body: %w", errUnresolvableVersion, err)
 	}
 	if info.GitHubAuthorsResolvedAt != "" {
 		return map[string]string{}, nil

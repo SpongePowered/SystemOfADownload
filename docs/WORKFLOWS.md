@@ -267,7 +267,7 @@ Resolution covers the head commit, direct submodule commits, the main changelog,
 
 After all authors for a version are resolved, the activity locks that `artifact_versions` row with `SELECT ... FOR UPDATE`, re-reads the latest JSONB value, merges usernames, and sets `githubAuthorsResolvedAt`. Changelog writes use the same row lock and clear this marker because a recomputed changelog may contain new unresolved authors.
 
-The resolution activity records the next version index in a Temporal heartbeat and continues heartbeating while processing that version's authors. An activity retry resumes within the page rather than repeating completed versions. Failures retry up to three attempts; after the final attempt that version remains unmarked and the batch continues. GitHub rate-limit responses use `X-RateLimit-Reset` to set Temporal's next retry delay.
+The resolution activity records the next version index in a Temporal heartbeat and continues heartbeating while processing that version's authors. An activity retry resumes within the page rather than repeating completed versions. Transient failures (database or GitHub errors) fail the activity so Temporal retries it, up to three attempts, before the run fails and the next scheduled tick starts a fresh chain. No marker is stamped, so nothing is lost. Versions that can never resolve (row deleted, or a `commit_body` that no longer parses) are logged and skipped so a single bad row cannot stall the backfill. GitHub rate-limit responses use `X-RateLimit-Reset` to set Temporal's next retry delay.
 
 ## On-Demand Sync Trigger
 

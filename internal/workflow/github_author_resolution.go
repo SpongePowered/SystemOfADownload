@@ -52,12 +52,9 @@ func GitHubAuthorResolutionWorkflow(
 
 	resolveCtx := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
 		StartToCloseTimeout: 10 * time.Minute,
-		HeartbeatTimeout:    30 * time.Second,
+		HeartbeatTimeout:    2 * time.Minute,
 		RetryPolicy: &temporal.RetryPolicy{
-			InitialInterval:    2 * time.Second,
-			BackoffCoefficient: 2,
-			MaximumInterval:    time.Minute,
-			MaximumAttempts:    3,
+			MaximumAttempts: 3,
 		},
 	})
 

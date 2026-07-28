@@ -59,6 +59,11 @@ const versionSyncWorkflowExecutionTimeout = 30 * time.Minute
 
 // NewGitHubAuthorResolutionScheduleOptions returns the paused singleton
 // schedule used for durable GitHub author backfill and steady-state resolution.
+//
+// Unlike the version sync schedules this action deliberately sets no
+// WorkflowExecutionTimeout: that timeout spans the whole continue-as-new chain,
+// so any value would truncate the backfill mid-drain. The activity timeouts plus
+// the SKIP overlap policy bound a wedged run instead.
 func NewGitHubAuthorResolutionScheduleOptions() client.ScheduleOptions {
 	return client.ScheduleOptions{
 		ID: workflow.GitHubAuthorResolutionScheduleID,
