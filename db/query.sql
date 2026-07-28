@@ -165,19 +165,21 @@ SELECT * FROM artifact_versions
 WHERE id = $1
 FOR UPDATE;
 
+-- The predicate must stay identical to idx_versions_github_authors_unresolved,
+-- including the literal schema version, or the partial index is not used.
+-- Guarded by TestAuthorResolutionSchemaMatchesSQL.
 -- name: ListVersionsNeedingGitHubAuthorResolution :many
 SELECT id
 FROM artifact_versions
-WHERE commit_body IS NOT NULL
-  AND commit_body->>'enrichedAt' IS NOT NULL
-  AND commit_body->>'githubAuthorsResolvedAt' IS NULL
+WHERE commit_body->>'enrichedAt' IS NOT NULL
+  AND (commit_body->'authorResolution'->>'schema') IS DISTINCT FROM '1'
   AND (sqlc.narg('before_id')::bigint IS NULL OR id < sqlc.narg('before_id'))
 ORDER BY id DESC
 LIMIT sqlc.arg('page_size');
 
--- name: GetGitHubUserCache :one
+-- name: GetGitHubUserCacheBatch :many
 SELECT * FROM github_user_cache
-WHERE author_email = LOWER(BTRIM(sqlc.arg('author_email')))
+WHERE author_email = ANY(sqlc.arg('author_emails')::text[])
   AND expires_at > NOW();
 
 -- name: UpsertGitHubUserCache :one

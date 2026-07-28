@@ -241,7 +241,7 @@ func (a *ChangelogActivities) StoreChangelog(ctx context.Context, input StoreCha
 		info.Changelog = &input.Changelog
 		// A recomputed changelog introduces a fresh author set. Clear the
 		// marker so the durable resolver revisits this version.
-		info.GitHubAuthorsResolvedAt = ""
+		info.AuthorResolution = nil
 		// Only clear pending_predecessor status; preserve error statuses
 		// (e.g., error_commit_not_found from Phase 1).
 		if info.ChangelogStatus == "pending_predecessor" {

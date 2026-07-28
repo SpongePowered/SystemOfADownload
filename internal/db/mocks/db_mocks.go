@@ -880,53 +880,55 @@ func (_c *MockQuerier_GetArtifactVersionSchema_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
-// GetGitHubUserCache provides a mock function for the type MockQuerier
-func (_mock *MockQuerier) GetGitHubUserCache(ctx context.Context, authorEmail string) (db.GithubUserCache, error) {
-	ret := _mock.Called(ctx, authorEmail)
+// GetGitHubUserCacheBatch provides a mock function for the type MockQuerier
+func (_mock *MockQuerier) GetGitHubUserCacheBatch(ctx context.Context, authorEmails []string) ([]db.GithubUserCache, error) {
+	ret := _mock.Called(ctx, authorEmails)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetGitHubUserCache")
+		panic("no return value specified for GetGitHubUserCacheBatch")
 	}
 
-	var r0 db.GithubUserCache
+	var r0 []db.GithubUserCache
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (db.GithubUserCache, error)); ok {
-		return returnFunc(ctx, authorEmail)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) ([]db.GithubUserCache, error)); ok {
+		return returnFunc(ctx, authorEmails)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) db.GithubUserCache); ok {
-		r0 = returnFunc(ctx, authorEmail)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) []db.GithubUserCache); ok {
+		r0 = returnFunc(ctx, authorEmails)
 	} else {
-		r0 = ret.Get(0).(db.GithubUserCache)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]db.GithubUserCache)
+		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, authorEmail)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = returnFunc(ctx, authorEmails)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// MockQuerier_GetGitHubUserCache_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetGitHubUserCache'
-type MockQuerier_GetGitHubUserCache_Call struct {
+// MockQuerier_GetGitHubUserCacheBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetGitHubUserCacheBatch'
+type MockQuerier_GetGitHubUserCacheBatch_Call struct {
 	*mock.Call
 }
 
-// GetGitHubUserCache is a helper method to define mock.On call
+// GetGitHubUserCacheBatch is a helper method to define mock.On call
 //   - ctx context.Context
-//   - authorEmail string
-func (_e *MockQuerier_Expecter) GetGitHubUserCache(ctx interface{}, authorEmail interface{}) *MockQuerier_GetGitHubUserCache_Call {
-	return &MockQuerier_GetGitHubUserCache_Call{Call: _e.mock.On("GetGitHubUserCache", ctx, authorEmail)}
+//   - authorEmails []string
+func (_e *MockQuerier_Expecter) GetGitHubUserCacheBatch(ctx interface{}, authorEmails interface{}) *MockQuerier_GetGitHubUserCacheBatch_Call {
+	return &MockQuerier_GetGitHubUserCacheBatch_Call{Call: _e.mock.On("GetGitHubUserCacheBatch", ctx, authorEmails)}
 }
 
-func (_c *MockQuerier_GetGitHubUserCache_Call) Run(run func(ctx context.Context, authorEmail string)) *MockQuerier_GetGitHubUserCache_Call {
+func (_c *MockQuerier_GetGitHubUserCacheBatch_Call) Run(run func(ctx context.Context, authorEmails []string)) *MockQuerier_GetGitHubUserCacheBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 []string
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].([]string)
 		}
 		run(
 			arg0,
@@ -936,12 +938,12 @@ func (_c *MockQuerier_GetGitHubUserCache_Call) Run(run func(ctx context.Context,
 	return _c
 }
 
-func (_c *MockQuerier_GetGitHubUserCache_Call) Return(githubUserCache db.GithubUserCache, err error) *MockQuerier_GetGitHubUserCache_Call {
-	_c.Call.Return(githubUserCache, err)
+func (_c *MockQuerier_GetGitHubUserCacheBatch_Call) Return(githubUserCaches []db.GithubUserCache, err error) *MockQuerier_GetGitHubUserCacheBatch_Call {
+	_c.Call.Return(githubUserCaches, err)
 	return _c
 }
 
-func (_c *MockQuerier_GetGitHubUserCache_Call) RunAndReturn(run func(ctx context.Context, authorEmail string) (db.GithubUserCache, error)) *MockQuerier_GetGitHubUserCache_Call {
+func (_c *MockQuerier_GetGitHubUserCacheBatch_Call) RunAndReturn(run func(ctx context.Context, authorEmails []string) ([]db.GithubUserCache, error)) *MockQuerier_GetGitHubUserCacheBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }

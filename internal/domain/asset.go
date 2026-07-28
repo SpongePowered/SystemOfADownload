@@ -42,8 +42,8 @@ type CommitInfo struct {
 	Submodules []SubmoduleCommit `json:"submodules,omitempty"`
 	Changelog  *Changelog        `json:"changelog,omitempty"`
 	EnrichedAt string            `json:"enrichedAt,omitempty"`
-	// GitHubAuthorsResolvedAt marks completion of durable author resolution.
-	GitHubAuthorsResolvedAt string `json:"githubAuthorsResolvedAt,omitempty"`
+	// AuthorResolution marks completion of durable GitHub author resolution.
+	AuthorResolution *AuthorResolution `json:"authorResolution,omitempty"`
 
 	// ChangelogStatus tracks pending changelog computation.
 	// "pending_predecessor" means N-1 was not yet enriched.
@@ -55,6 +55,24 @@ type CommitAuthor struct {
 	Name           string `json:"name"`
 	Email          string `json:"email"`
 	GitHubUsername string `json:"githubUsername,omitempty"`
+}
+
+// AuthorResolutionSchema is the current GitHub author resolution logic version.
+// Versions carrying an older schema are treated as stale and resolved again.
+//
+// Bumping this requires a migration that replaces
+// idx_versions_github_authors_unresolved, because the partial index predicate
+// hard-codes the value so the keyset scan stays indexed.
+// TestAuthorResolutionSchemaMatchesSQL enforces this.
+const AuthorResolutionSchema = 1
+
+// AuthorResolution records the outcome of a GitHub author resolution pass over
+// a version's commit body.
+type AuthorResolution struct {
+	At string `json:"at"`
+	// Unresolved counts author entries with no associated GitHub account.
+	Unresolved int `json:"unresolved"`
+	Schema     int `json:"schema"`
 }
 
 // SubmoduleCommit holds commit details for a submodule at a specific version.

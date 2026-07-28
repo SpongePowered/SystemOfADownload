@@ -57,7 +57,9 @@ CREATE INDEX idx_versioned_tags_av_key_value ON artifact_versioned_tags(artifact
 CREATE INDEX idx_versioned_assets_version_id ON artifact_versioned_assets(artifact_version_id);
 CREATE INDEX idx_versions_artifact_sort ON artifact_versions(artifact_id, sort_order DESC);
 CREATE INDEX idx_versions_artifact_recommended_sort ON artifact_versions(artifact_id, recommended, sort_order DESC);
-CREATE INDEX idx_github_user_cache_expires_at ON github_user_cache(expires_at);
+-- The literal schema version is duplicated by
+-- ListVersionsNeedingGitHubAuthorResolution and guarded by
+-- TestAuthorResolutionSchemaMatchesSQL.
 CREATE INDEX idx_versions_github_authors_unresolved ON artifact_versions(id DESC)
 WHERE commit_body->>'enrichedAt' IS NOT NULL
-  AND commit_body->>'githubAuthorsResolvedAt' IS NULL;
+  AND (commit_body->'authorResolution'->>'schema') IS DISTINCT FROM '1';

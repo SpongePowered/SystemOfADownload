@@ -34,40 +34,50 @@ func GitHubAuthorResolutionWorkflow(
 		},
 	})
 
-	var page activity.FetchGitHubAuthorResolutionPageOutput
+	var versionIDs []int64
 	err := workflow.ExecuteActivity(
 		fetchCtx,
-		activities.FetchGitHubAuthorResolutionPage,
-		activity.FetchGitHubAuthorResolutionPageInput{
+		activities.FetchVersionsNeedingAuthorResolution,
+		activity.FetchVersionsNeedingAuthorResolutionInput{
 			BeforeID: input.BeforeID,
 			PageSize: githubAuthorResolutionPageSize,
 		},
-	).Get(ctx, &page)
+	).Get(ctx, &versionIDs)
 	if err != nil {
 		return fmt.Errorf("fetching GitHub author resolution page: %w", err)
 	}
-	if len(page.VersionIDs) == 0 {
+	if len(versionIDs) == 0 {
 		return nil
 	}
 
 	resolveCtx := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
-		StartToCloseTimeout: 10 * time.Minute,
-		HeartbeatTimeout:    2 * time.Minute,
+		StartToCloseTimeout:    time.Minute,
+		ScheduleToCloseTimeout: 10 * time.Minute,
+		HeartbeatTimeout:       30 * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
-			MaximumAttempts: 3,
+			MaximumAttempts: 5,
 		},
 	})
 
+	var resolved activity.ResolveGitHubAuthorsBatchOutput
 	err = workflow.ExecuteActivity(
 		resolveCtx,
 		activities.ResolveGitHubAuthorsBatch,
-		activity.ResolveGitHubAuthorsBatchInput{VersionIDs: page.VersionIDs},
-	).Get(ctx, nil)
+		activity.ResolveGitHubAuthorsBatchInput{VersionIDs: versionIDs},
+	).Get(ctx, &resolved)
 	if err != nil {
 		return fmt.Errorf("resolving GitHub authors: %w", err)
 	}
+	workflow.GetLogger(ctx).Info("resolved GitHub author page",
+		"versionsStamped", resolved.VersionsStamped,
+		"authorsResolved", resolved.AuthorsResolved,
+		"authorsUnresolved", resolved.AuthorsUnresolved,
+	)
 
+	// Resolved rows leave the unresolved index, but skipped ones do not, so the
+	// cursor is what guarantees the scan keeps moving toward older versions.
+	nextBeforeID := versionIDs[len(versionIDs)-1]
 	return workflow.NewContinueAsNewError(ctx, GitHubAuthorResolutionWorkflow, GitHubAuthorResolutionInput{
-		BeforeID: page.NextBeforeID,
+		BeforeID: &nextBeforeID,
 	})
 }

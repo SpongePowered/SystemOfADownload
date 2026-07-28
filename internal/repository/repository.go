@@ -29,7 +29,7 @@ type Reads interface {
 	GetArtifactVersion(ctx context.Context, arg db.GetArtifactVersionParams) (db.ArtifactVersion, error)
 	GetArtifactVersionByID(ctx context.Context, id int64) (db.ArtifactVersion, error)
 	GetArtifactVersionSchema(ctx context.Context, arg db.GetArtifactVersionSchemaParams) ([]byte, error)
-	GetGitHubUserCache(ctx context.Context, authorEmail string) (db.GithubUserCache, error)
+	GetGitHubUserCacheBatch(ctx context.Context, authorEmails []string) ([]db.GithubUserCache, error)
 	GetGroup(ctx context.Context, mavenID string) (db.Group, error)
 	GetPreviousVersion(ctx context.Context, arg db.GetPreviousVersionParams) (db.ArtifactVersion, error)
 	GroupExistsByMavenID(ctx context.Context, lower string) (bool, error)

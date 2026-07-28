@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/spongepowered/systemofadownload/internal/activity"
@@ -33,7 +32,7 @@ func (f *fakeGitHubAuthorResolver) ResolveUsername(
 	return f.username, f.err
 }
 
-func TestFetchGitHubAuthorResolutionPage(t *testing.T) {
+func TestFetchVersionsNeedingAuthorResolution(t *testing.T) {
 	t.Parallel()
 
 	repo := repomocks.NewMockRepository(t)
@@ -47,18 +46,18 @@ func TestFetchGitHubAuthorResolutionPage(t *testing.T) {
 	).Return([]int64{90, 80}, nil)
 
 	activities := &activity.GitHubAuthorResolutionActivities{Repo: repo}
-	got, err := activities.FetchGitHubAuthorResolutionPage(
+	got, err := activities.FetchVersionsNeedingAuthorResolution(
 		t.Context(),
-		activity.FetchGitHubAuthorResolutionPageInput{
+		activity.FetchVersionsNeedingAuthorResolutionInput{
 			BeforeID: &beforeID,
 			PageSize: 50,
 		},
 	)
 	if err != nil {
-		t.Fatalf("FetchGitHubAuthorResolutionPage() error = %v", err)
+		t.Fatalf("FetchVersionsNeedingAuthorResolution() error = %v", err)
 	}
-	if len(got.VersionIDs) != 2 || got.NextBeforeID == nil || *got.NextBeforeID != 80 {
-		t.Fatalf("FetchGitHubAuthorResolutionPage() = %#v", got)
+	if len(got) != 2 || got[len(got)-1] != 80 {
+		t.Fatalf("FetchVersionsNeedingAuthorResolution() = %#v", got)
 	}
 }
 
@@ -105,11 +104,11 @@ func TestResolveGitHubAuthorsBatchUsesPersistentCacheAndLocksVersion(t *testing.
 	resolver := &fakeGitHubAuthorResolver{}
 	repo.EXPECT().GetArtifactVersionByID(mock.Anything, int64(10)).
 		Return(db.ArtifactVersion{ID: 10, CommitBody: body}, nil)
-	repo.EXPECT().GetGitHubUserCache(mock.Anything, "cached@example.com").
-		Return(db.GithubUserCache{
+	repo.EXPECT().GetGitHubUserCacheBatch(mock.Anything, []string{"cached@example.com"}).
+		Return([]db.GithubUserCache{{
 			AuthorEmail:    "cached@example.com",
 			GithubUsername: &cachedUsername,
-		}, nil)
+		}}, nil)
 	repo.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
 		func(ctx context.Context, fn func(repository.Tx) error) error {
 			return fn(tx)
@@ -127,7 +126,8 @@ func TestResolveGitHubAuthorsBatchUsesPersistentCacheAndLocksVersion(t *testing.
 			return updated.Author.GitHubUsername == "cached-user" &&
 				updated.Changelog.Commits[0].Author.GitHubUsername == "cached-user" &&
 				nested.Commits[0].Author.GitHubUsername == "noreply-user" &&
-				updated.GitHubAuthorsResolvedAt != ""
+				updated.AuthorResolution != nil &&
+				updated.AuthorResolution.Schema == domain.AuthorResolutionSchema
 		},
 	)).Return(nil)
 
@@ -168,8 +168,8 @@ func TestResolveGitHubAuthorsBatchUsesGitHubOnCacheMiss(t *testing.T) {
 	resolver := &fakeGitHubAuthorResolver{username: "octocat"}
 	repo.EXPECT().GetArtifactVersionByID(mock.Anything, int64(10)).
 		Return(db.ArtifactVersion{ID: 10, CommitBody: body}, nil)
-	repo.EXPECT().GetGitHubUserCache(mock.Anything, "author@example.com").
-		Return(db.GithubUserCache{}, pgx.ErrNoRows)
+	repo.EXPECT().GetGitHubUserCacheBatch(mock.Anything, []string{"author@example.com"}).
+		Return(nil, nil)
 	repo.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
 		func(ctx context.Context, fn func(repository.Tx) error) error {
 			return fn(tx)
@@ -257,8 +257,8 @@ func TestResolveGitHubAuthorsBatchRetriesTransientFailure(t *testing.T) {
 	resolver := &fakeGitHubAuthorResolver{err: errors.New("github unavailable")}
 	repo.EXPECT().GetArtifactVersionByID(mock.Anything, int64(10)).
 		Return(db.ArtifactVersion{ID: 10, CommitBody: body}, nil)
-	repo.EXPECT().GetGitHubUserCache(mock.Anything, "author@example.com").
-		Return(db.GithubUserCache{}, pgx.ErrNoRows)
+	repo.EXPECT().GetGitHubUserCacheBatch(mock.Anything, []string{"author@example.com"}).
+		Return(nil, nil)
 
 	activities := &activity.GitHubAuthorResolutionActivities{Repo: repo, GitHub: resolver}
 	env := newActivityEnv(t)
@@ -278,17 +278,15 @@ func TestResolveGitHubAuthorsBatchRetriesTransientFailure(t *testing.T) {
 func TestResolveGitHubAuthorsBatchResumesFromHeartbeat(t *testing.T) {
 	t.Parallel()
 
-	info := domain.CommitInfo{
-		EnrichedAt:              "2026-07-27T00:00:00Z",
-		GitHubAuthorsResolvedAt: "2026-07-27T01:00:00Z",
-	}
-	body, err := json.Marshal(info)
+	// No authors, so the version needs no lookups but must still be stamped.
+	body, err := json.Marshal(domain.CommitInfo{EnrichedAt: "2026-07-27T00:00:00Z"})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	repo := repomocks.NewMockRepository(t)
 	tx := repomocks.NewMockTx(t)
+	// Version 10 precedes the heartbeat index and must never be touched.
 	repo.EXPECT().GetArtifactVersionByID(mock.Anything, int64(20)).
 		Return(db.ArtifactVersion{ID: 20, CommitBody: body}, nil)
 	repo.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
@@ -298,6 +296,7 @@ func TestResolveGitHubAuthorsBatchResumesFromHeartbeat(t *testing.T) {
 	)
 	tx.EXPECT().GetArtifactVersionForUpdate(mock.Anything, int64(20)).
 		Return(db.ArtifactVersion{ID: 20, CommitBody: body}, nil)
+	tx.EXPECT().UpdateArtifactVersionCommitBody(mock.Anything, mock.Anything).Return(nil)
 
 	activities := &activity.GitHubAuthorResolutionActivities{Repo: repo}
 	env := newActivityEnv(t)
@@ -310,6 +309,36 @@ func TestResolveGitHubAuthorsBatchResumesFromHeartbeat(t *testing.T) {
 		activity.ResolveGitHubAuthorsBatchInput{VersionIDs: []int64{10, 20}},
 	)
 	if err != nil {
+		t.Fatalf("ResolveGitHubAuthorsBatch() error = %v", err)
+	}
+}
+
+func TestResolveGitHubAuthorsBatchSkipsVersionAlreadyAtCurrentSchema(t *testing.T) {
+	t.Parallel()
+
+	body, err := json.Marshal(domain.CommitInfo{
+		EnrichedAt: "2026-07-27T00:00:00Z",
+		AuthorResolution: &domain.AuthorResolution{
+			At:     "2026-07-27T01:00:00Z",
+			Schema: domain.AuthorResolutionSchema,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	repo := repomocks.NewMockRepository(t)
+	repo.EXPECT().GetArtifactVersionByID(mock.Anything, int64(20)).
+		Return(db.ArtifactVersion{ID: 20, CommitBody: body}, nil)
+
+	activities := &activity.GitHubAuthorResolutionActivities{Repo: repo}
+	env := newActivityEnv(t)
+	env.RegisterActivity(activities.ResolveGitHubAuthorsBatch)
+	// No WithTx expectation: an up-to-date marker must not be rewritten.
+	if _, err := env.ExecuteActivity(
+		activities.ResolveGitHubAuthorsBatch,
+		activity.ResolveGitHubAuthorsBatchInput{VersionIDs: []int64{20}},
+	); err != nil {
 		t.Fatalf("ResolveGitHubAuthorsBatch() error = %v", err)
 	}
 }

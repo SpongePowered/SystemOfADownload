@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -20,10 +21,9 @@ import (
 	"github.com/spongepowered/systemofadownload/internal/repository"
 )
 
-const (
-	githubPositiveCacheTTL = 30 * 24 * time.Hour
-	githubNegativeCacheTTL = 6 * time.Hour
-)
+// githubUserCacheTTL applies to hits and misses alike; a commit that GitHub has
+// no account for is a stable answer worth remembering for as long as a hit.
+const githubUserCacheTTL = 30 * 24 * time.Hour
 
 // errUnresolvableVersion marks a version whose stored state cannot be resolved.
 // Retrying will not help, so the batch skips it without stamping the marker.
@@ -39,23 +39,19 @@ type GitHubAuthorResolutionActivities struct {
 	GitHub gitHubAuthorResolver
 }
 
-// FetchGitHubAuthorResolutionPageInput selects one newest-first keyset page.
-type FetchGitHubAuthorResolutionPageInput struct {
+// FetchVersionsNeedingAuthorResolutionInput selects one newest-first keyset page.
+type FetchVersionsNeedingAuthorResolutionInput struct {
 	BeforeID *int64
 	PageSize int32
 }
 
-// FetchGitHubAuthorResolutionPageOutput contains version IDs and the next cursor.
-type FetchGitHubAuthorResolutionPageOutput struct {
-	VersionIDs   []int64
-	NextBeforeID *int64
-}
-
-// FetchGitHubAuthorResolutionPage discovers enriched versions that still need resolution.
-func (a *GitHubAuthorResolutionActivities) FetchGitHubAuthorResolutionPage(
+// FetchVersionsNeedingAuthorResolution returns enriched versions whose author
+// resolution marker is missing or stale, newest first. Only IDs cross the
+// activity boundary; commit bodies never enter workflow history.
+func (a *GitHubAuthorResolutionActivities) FetchVersionsNeedingAuthorResolution(
 	ctx context.Context,
-	input FetchGitHubAuthorResolutionPageInput,
-) (*FetchGitHubAuthorResolutionPageOutput, error) {
+	input FetchVersionsNeedingAuthorResolutionInput,
+) ([]int64, error) {
 	ids, err := a.Repo.ListVersionsNeedingGitHubAuthorResolution(
 		ctx,
 		db.ListVersionsNeedingGitHubAuthorResolutionParams{
@@ -66,13 +62,7 @@ func (a *GitHubAuthorResolutionActivities) FetchGitHubAuthorResolutionPage(
 	if err != nil {
 		return nil, fmt.Errorf("listing versions needing GitHub author resolution: %w", err)
 	}
-
-	output := &FetchGitHubAuthorResolutionPageOutput{VersionIDs: ids}
-	if len(ids) > 0 {
-		next := ids[len(ids)-1]
-		output.NextBeforeID = &next
-	}
-	return output, nil
+	return ids, nil
 }
 
 // ResolveGitHubAuthorsBatchInput is one page of artifact version IDs.
@@ -80,45 +70,192 @@ type ResolveGitHubAuthorsBatchInput struct {
 	VersionIDs []int64
 }
 
+// ResolveGitHubAuthorsBatchOutput reports counts only, never commit payloads.
+type ResolveGitHubAuthorsBatchOutput struct {
+	VersionsStamped   int
+	AuthorsResolved   int
+	AuthorsUnresolved int
+}
+
 type githubResolutionHeartbeat struct {
 	NextIndex int
 }
 
-// ResolveGitHubAuthorsBatch resolves and persists authors for one page.
+// pendingVersion is a version awaiting the merge phase.
+type pendingVersion struct {
+	Index      int
+	VersionID  int64
+	References []githubAuthorReference
+}
+
+// ResolveGitHubAuthorsBatch resolves and persists authors for one page. GitHub
+// lookups are deduplicated across the whole page and served from a shared cache
+// first, so a page usually costs no API calls at all.
 func (a *GitHubAuthorResolutionActivities) ResolveGitHubAuthorsBatch(
 	ctx context.Context,
 	input ResolveGitHubAuthorsBatchInput,
-) error {
+) (*ResolveGitHubAuthorsBatchOutput, error) {
 	start := 0
 	var heartbeat githubResolutionHeartbeat
 	if temporalactivity.HasHeartbeatDetails(ctx) {
 		if err := temporalactivity.GetHeartbeatDetails(ctx, &heartbeat); err == nil {
-			start = heartbeat.NextIndex
+			start = min(max(heartbeat.NextIndex, 0), len(input.VersionIDs))
 		}
 	}
 
-	for i := start; i < len(input.VersionIDs); i++ {
-		versionID := input.VersionIDs[i]
-		resolutions, err := a.resolveVersionAuthors(ctx, versionID, i)
+	pending, references, err := a.collectPageAuthors(ctx, input.VersionIDs, start)
+	if err != nil {
+		return nil, err
+	}
+
+	resolutions, err := a.resolvePageAuthors(ctx, references, start)
+	if err != nil {
+		return nil, err
+	}
+
+	output := &ResolveGitHubAuthorsBatchOutput{}
+	for _, version := range pending {
+		merged, err := a.mergeVersionAuthors(ctx, version.VersionID, resolutions)
+		if err != nil {
+			return nil, fmt.Errorf("merging GitHub authors for version %d: %w", version.VersionID, err)
+		}
+		if merged.Stamped {
+			output.VersionsStamped++
+			output.AuthorsResolved += merged.Resolved
+			output.AuthorsUnresolved += merged.Unresolved
+		}
+		temporalactivity.RecordHeartbeat(ctx, githubResolutionHeartbeat{NextIndex: version.Index + 1})
+	}
+	return output, nil
+}
+
+// collectPageAuthors reads every version in the page without locking and
+// deduplicates their authors, so the GitHub phase never holds a row lock.
+func (a *GitHubAuthorResolutionActivities) collectPageAuthors(
+	ctx context.Context,
+	versionIDs []int64,
+	start int,
+) ([]pendingVersion, map[string]githubAuthorReference, error) {
+	var pending []pendingVersion
+	references := make(map[string]githubAuthorReference)
+
+	for i := start; i < len(versionIDs); i++ {
+		versionID := versionIDs[i]
+		info, err := a.loadCommitInfo(ctx, versionID)
 		if err != nil {
 			if errors.Is(err, errUnresolvableVersion) {
 				slog.WarnContext(ctx, "skipping GitHub author resolution for version",
 					"versionID", versionID,
 					"error", err,
 				)
-				temporalactivity.RecordHeartbeat(ctx, githubResolutionHeartbeat{NextIndex: i + 1})
 				continue
 			}
-			return resolutionFailure(fmt.Errorf("resolving GitHub authors for version %d: %w", versionID, err))
+			return nil, nil, fmt.Errorf("reading version %d: %w", versionID, err)
+		}
+		if info == nil {
+			continue
 		}
 
-		if err := a.mergeVersionAuthors(ctx, versionID, resolutions); err != nil {
-			return fmt.Errorf("merging GitHub authors for version %d: %w", versionID, err)
+		versionReferences := collectGithubAuthorReferences(info)
+		pending = append(pending, pendingVersion{
+			Index:      i,
+			VersionID:  versionID,
+			References: versionReferences,
+		})
+		for _, ref := range versionReferences {
+			references[githubAuthorKey(ref)] = ref
 		}
-		temporalactivity.RecordHeartbeat(ctx, githubResolutionHeartbeat{NextIndex: i + 1})
+	}
+	return pending, references, nil
+}
+
+// resolvePageAuthors serves the page's authors from the shared cache in one
+// query and only calls GitHub for what is left.
+func (a *GitHubAuthorResolutionActivities) resolvePageAuthors(
+	ctx context.Context,
+	references map[string]githubAuthorReference,
+	nextIndex int,
+) (map[string]string, error) {
+	resolutions, err := a.lookupCachedUsernames(ctx, references)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	keys := make([]string, 0, len(references))
+	for key := range references {
+		if _, cached := resolutions[key]; !cached {
+			keys = append(keys, key)
+		}
+	}
+	slices.Sort(keys)
+
+	for _, key := range keys {
+		username, err := a.resolveUncachedAuthor(ctx, references[key])
+		if err != nil {
+			return nil, resolutionFailure(err)
+		}
+		resolutions[key] = username
+		temporalactivity.RecordHeartbeat(ctx, githubResolutionHeartbeat{NextIndex: nextIndex})
+	}
+	return resolutions, nil
+}
+
+func (a *GitHubAuthorResolutionActivities) lookupCachedUsernames(
+	ctx context.Context,
+	references map[string]githubAuthorReference,
+) (map[string]string, error) {
+	emails := make([]string, 0, len(references))
+	for key, ref := range references {
+		email, ok := strings.CutPrefix(key, githubAuthorEmailKeyPrefix)
+		if !ok {
+			continue
+		}
+		// Noreply addresses carry the username, so they never reach the cache.
+		if githubapi.UsernameFromNoreplyEmail(normalizeAuthorEmail(ref.Author.Email)) != "" {
+			continue
+		}
+		emails = append(emails, email)
+	}
+	resolutions := make(map[string]string, len(references))
+	if len(emails) == 0 {
+		return resolutions, nil
+	}
+	slices.Sort(emails)
+
+	cached, err := a.Repo.GetGitHubUserCacheBatch(ctx, emails)
+	if err != nil {
+		return nil, fmt.Errorf("reading GitHub user cache: %w", err)
+	}
+	for _, entry := range cached {
+		username := ""
+		if entry.GithubUsername != nil {
+			username = *entry.GithubUsername
+		}
+		resolutions[githubAuthorEmailKeyPrefix+entry.AuthorEmail] = username
+	}
+	return resolutions, nil
+}
+
+func (a *GitHubAuthorResolutionActivities) resolveUncachedAuthor(
+	ctx context.Context,
+	ref githubAuthorReference,
+) (string, error) {
+	email := normalizeAuthorEmail(ref.Author.Email)
+	if username := githubapi.UsernameFromNoreplyEmail(email); username != "" {
+		return username, nil
+	}
+
+	username, err := a.GitHub.ResolveUsername(ctx, ref.Repository, ref.Sha, email)
+	if err != nil {
+		return "", fmt.Errorf("resolving GitHub author: %w", err)
+	}
+	if email == "" {
+		return username, nil
+	}
+	if err := a.storeGithubUserCache(ctx, email, username); err != nil {
+		return "", err
+	}
+	return username, nil
 }
 
 // resolutionFailure lets GitHub rate limits dictate their own retry delay while
@@ -137,93 +274,38 @@ func resolutionFailure(err error) error {
 	)
 }
 
-type githubAuthorReference struct {
-	Author     *domain.CommitAuthor
-	Repository string
-	Sha        string
-}
-
-func (a *GitHubAuthorResolutionActivities) resolveVersionAuthors(
+// loadCommitInfo returns nil when the version is already resolved at the
+// current schema and nothing needs doing.
+func (a *GitHubAuthorResolutionActivities) loadCommitInfo(
 	ctx context.Context,
 	versionID int64,
-	versionIndex int,
-) (map[string]string, error) {
+) (*domain.CommitInfo, error) {
 	version, err := a.Repo.GetArtifactVersionByID(ctx, versionID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("%w: no longer exists", errUnresolvableVersion)
 		}
-		return nil, fmt.Errorf("reading version: %w", err)
+		return nil, err
 	}
 
 	var info domain.CommitInfo
 	if err := json.Unmarshal(version.CommitBody, &info); err != nil {
 		return nil, fmt.Errorf("%w: unmarshaling commit body: %w", errUnresolvableVersion, err)
 	}
-	if info.GitHubAuthorsResolvedAt != "" {
-		return map[string]string{}, nil
+	if authorResolutionCurrent(&info) {
+		return nil, nil
 	}
-
-	references := collectGithubAuthorReferences(&info)
-	resolutions := make(map[string]string, len(references))
-	for _, ref := range references {
-		key := githubAuthorKey(ref)
-		if _, ok := resolutions[key]; ok {
-			continue
-		}
-
-		username, err := a.resolveGithubAuthor(ctx, ref)
-		if err != nil {
-			return nil, err
-		}
-		resolutions[key] = username
-		temporalactivity.RecordHeartbeat(ctx, githubResolutionHeartbeat{NextIndex: versionIndex})
-	}
-	return resolutions, nil
+	return &info, nil
 }
 
-func (a *GitHubAuthorResolutionActivities) resolveGithubAuthor(
-	ctx context.Context,
-	ref githubAuthorReference,
-) (string, error) {
-	email := normalizeAuthorEmail(ref.Author.Email)
-	if username := githubapi.UsernameFromNoreplyEmail(email); username != "" {
-		return username, nil
-	}
-
-	if email != "" {
-		cached, err := a.Repo.GetGitHubUserCache(ctx, email)
-		if err == nil {
-			if cached.GithubUsername == nil {
-				return "", nil
-			}
-			return *cached.GithubUsername, nil
-		}
-		if !errors.Is(err, pgx.ErrNoRows) {
-			return "", fmt.Errorf("reading GitHub user cache: %w", err)
-		}
-	}
-
-	username, err := a.GitHub.ResolveUsername(ctx, ref.Repository, ref.Sha, email)
-	if err != nil {
-		return "", fmt.Errorf("resolving GitHub author: %w", err)
-	}
-	if email != "" {
-		ttl := githubPositiveCacheTTL
-		if username == "" {
-			ttl = githubNegativeCacheTTL
-		}
-		if err := a.storeGithubUserCache(ctx, email, username, ttl); err != nil {
-			return "", err
-		}
-	}
-	return username, nil
+func authorResolutionCurrent(info *domain.CommitInfo) bool {
+	return info.AuthorResolution != nil &&
+		info.AuthorResolution.Schema >= domain.AuthorResolutionSchema
 }
 
 func (a *GitHubAuthorResolutionActivities) storeGithubUserCache(
 	ctx context.Context,
 	email, username string,
-	ttl time.Duration,
 ) error {
 	return a.Repo.WithTx(ctx, func(tx repository.Tx) error {
 		var usernamePtr *string
@@ -234,7 +316,7 @@ func (a *GitHubAuthorResolutionActivities) storeGithubUserCache(
 			AuthorEmail:    email,
 			GithubUsername: usernamePtr,
 			ExpiresAt: pgtype.Timestamptz{
-				Time:  time.Now().Add(ttl),
+				Time:  time.Now().Add(githubUserCacheTTL),
 				Valid: true,
 			},
 		})
@@ -242,12 +324,22 @@ func (a *GitHubAuthorResolutionActivities) storeGithubUserCache(
 	})
 }
 
+// versionMergeResult reports what a single locked merge did.
+type versionMergeResult struct {
+	Stamped    bool
+	Resolved   int
+	Unresolved int
+}
+
 func (a *GitHubAuthorResolutionActivities) mergeVersionAuthors(
 	ctx context.Context,
 	versionID int64,
 	resolutions map[string]string,
-) error {
-	return a.Repo.WithTx(ctx, func(tx repository.Tx) error {
+) (versionMergeResult, error) {
+	var result versionMergeResult
+	err := a.Repo.WithTx(ctx, func(tx repository.Tx) error {
+		result = versionMergeResult{}
+
 		version, err := tx.GetArtifactVersionForUpdate(ctx, versionID)
 		if err != nil {
 			return err
@@ -257,20 +349,30 @@ func (a *GitHubAuthorResolutionActivities) mergeVersionAuthors(
 		if err := json.Unmarshal(version.CommitBody, &info); err != nil {
 			return fmt.Errorf("unmarshaling locked commit body: %w", err)
 		}
-		if info.GitHubAuthorsResolvedAt != "" {
+		if authorResolutionCurrent(&info) {
 			return nil
 		}
 
-		references := collectGithubAuthorReferences(&info)
-		for _, ref := range references {
+		for _, ref := range collectGithubAuthorReferences(&info) {
 			username, ok := resolutions[githubAuthorKey(ref)]
 			if !ok {
+				// The body changed while we were resolving; leave the marker
+				// off so the next tick picks this version up again.
 				return nil
 			}
 			ref.Author.GitHubUsername = username
+			if username == "" {
+				result.Unresolved++
+			} else {
+				result.Resolved++
+			}
 		}
 
-		info.GitHubAuthorsResolvedAt = time.Now().UTC().Format(time.RFC3339)
+		info.AuthorResolution = &domain.AuthorResolution{
+			At:         time.Now().UTC().Format(time.RFC3339),
+			Unresolved: result.Unresolved,
+			Schema:     domain.AuthorResolutionSchema,
+		}
 		data, err := json.Marshal(info)
 		if err != nil {
 			return fmt.Errorf("marshaling resolved commit body: %w", err)
@@ -281,8 +383,19 @@ func (a *GitHubAuthorResolutionActivities) mergeVersionAuthors(
 		}); err != nil {
 			return err
 		}
+		result.Stamped = true
 		return nil
 	})
+	if err != nil {
+		return versionMergeResult{}, err
+	}
+	return result, nil
+}
+
+type githubAuthorReference struct {
+	Author     *domain.CommitAuthor
+	Repository string
+	Sha        string
 }
 
 func collectGithubAuthorReferences(info *domain.CommitInfo) []githubAuthorReference {
@@ -332,9 +445,14 @@ func appendGithubAuthorReference(
 	})
 }
 
+const githubAuthorEmailKeyPrefix = "email:"
+
+// githubAuthorKey dedupes authors across the page. Email is the shared cache
+// key; authors without one fall back to their commit, which stays local to
+// this run.
 func githubAuthorKey(ref githubAuthorReference) string {
 	if email := normalizeAuthorEmail(ref.Author.Email); email != "" {
-		return "email:" + email
+		return githubAuthorEmailKeyPrefix + email
 	}
 	return "commit:" + strings.ToLower(strings.TrimSpace(ref.Repository)) + "@" + strings.TrimSpace(ref.Sha)
 }

@@ -347,22 +347,35 @@ func (q *Queries) GetArtifactVersionSchema(ctx context.Context, arg GetArtifactV
 	return version_schema, err
 }
 
-const getGitHubUserCache = `-- name: GetGitHubUserCache :one
+const getGitHubUserCacheBatch = `-- name: GetGitHubUserCacheBatch :many
 SELECT author_email, github_username, expires_at, updated_at FROM github_user_cache
-WHERE author_email = LOWER(BTRIM($1))
+WHERE author_email = ANY($1::text[])
   AND expires_at > NOW()
 `
 
-func (q *Queries) GetGitHubUserCache(ctx context.Context, authorEmail string) (GithubUserCache, error) {
-	row := q.db.QueryRow(ctx, getGitHubUserCache, authorEmail)
-	var i GithubUserCache
-	err := row.Scan(
-		&i.AuthorEmail,
-		&i.GithubUsername,
-		&i.ExpiresAt,
-		&i.UpdatedAt,
-	)
-	return i, err
+func (q *Queries) GetGitHubUserCacheBatch(ctx context.Context, authorEmails []string) ([]GithubUserCache, error) {
+	rows, err := q.db.Query(ctx, getGitHubUserCacheBatch, authorEmails)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GithubUserCache
+	for rows.Next() {
+		var i GithubUserCache
+		if err := rows.Scan(
+			&i.AuthorEmail,
+			&i.GithubUsername,
+			&i.ExpiresAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getGroup = `-- name: GetGroup :one
@@ -962,9 +975,8 @@ func (q *Queries) ListVersionsNeedingEnrichment(ctx context.Context, arg ListVer
 const listVersionsNeedingGitHubAuthorResolution = `-- name: ListVersionsNeedingGitHubAuthorResolution :many
 SELECT id
 FROM artifact_versions
-WHERE commit_body IS NOT NULL
-  AND commit_body->>'enrichedAt' IS NOT NULL
-  AND commit_body->>'githubAuthorsResolvedAt' IS NULL
+WHERE commit_body->>'enrichedAt' IS NOT NULL
+  AND (commit_body->'authorResolution'->>'schema') IS DISTINCT FROM '1'
   AND ($1::bigint IS NULL OR id < $1)
 ORDER BY id DESC
 LIMIT $2
@@ -975,6 +987,9 @@ type ListVersionsNeedingGitHubAuthorResolutionParams struct {
 	PageSize int32
 }
 
+// The predicate must stay identical to idx_versions_github_authors_unresolved,
+// including the literal schema version, or the partial index is not used.
+// Guarded by TestAuthorResolutionSchemaMatchesSQL.
 func (q *Queries) ListVersionsNeedingGitHubAuthorResolution(ctx context.Context, arg ListVersionsNeedingGitHubAuthorResolutionParams) ([]int64, error) {
 	rows, err := q.db.Query(ctx, listVersionsNeedingGitHubAuthorResolution, arg.BeforeID, arg.PageSize)
 	if err != nil {

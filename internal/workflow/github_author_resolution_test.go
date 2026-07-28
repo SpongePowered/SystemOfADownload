@@ -17,29 +17,22 @@ func TestGitHubAuthorResolutionWorkflow(t *testing.T) {
 	var activities *activity.GitHubAuthorResolutionActivities
 	tests := []struct {
 		name         string
-		page         activity.FetchGitHubAuthorResolutionPageOutput
+		versionIDs   []int64
 		setup        func(*testsuite.TestWorkflowEnvironment)
 		wantContinue bool
 	}{
 		{
 			name: "completes on empty page",
-			page: activity.FetchGitHubAuthorResolutionPageOutput{},
 		},
 		{
-			name: "resolves page and continues as new",
-			page: activity.FetchGitHubAuthorResolutionPageOutput{
-				VersionIDs: []int64{10, 9},
-				NextBeforeID: func() *int64 {
-					value := int64(9)
-					return &value
-				}(),
-			},
+			name:       "resolves page and continues as new",
+			versionIDs: []int64{10, 9},
 			setup: func(env *testsuite.TestWorkflowEnvironment) {
 				env.OnActivity(
 					activities.ResolveGitHubAuthorsBatch,
 					mock.Anything,
 					activity.ResolveGitHubAuthorsBatchInput{VersionIDs: []int64{10, 9}},
-				).Return(nil)
+				).Return(&activity.ResolveGitHubAuthorsBatchOutput{VersionsStamped: 2}, nil)
 			},
 			wantContinue: true,
 		},
@@ -51,10 +44,10 @@ func TestGitHubAuthorResolutionWorkflow(t *testing.T) {
 			var suite testsuite.WorkflowTestSuite
 			env := suite.NewTestWorkflowEnvironment()
 			env.OnActivity(
-				activities.FetchGitHubAuthorResolutionPage,
+				activities.FetchVersionsNeedingAuthorResolution,
 				mock.Anything,
-				activity.FetchGitHubAuthorResolutionPageInput{PageSize: 50},
-			).Return(&tt.page, nil)
+				activity.FetchVersionsNeedingAuthorResolutionInput{PageSize: 50},
+			).Return(tt.versionIDs, nil)
 			if tt.setup != nil {
 				tt.setup(env)
 			}

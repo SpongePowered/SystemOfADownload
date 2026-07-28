@@ -218,13 +218,13 @@ func TestStoreChangelogLocksVersionBeforeMerge(t *testing.T) {
 	tx.EXPECT().GetArtifactVersionForUpdate(mock.Anything, int64(10)).
 		Return(db.ArtifactVersion{
 			ID:         10,
-			CommitBody: []byte(`{"sha":"abc","enrichedAt":"2026-07-27T00:00:00Z","githubAuthorsResolvedAt":"2026-07-27T01:00:00Z"}`),
+			CommitBody: []byte(`{"sha":"abc","enrichedAt":"2026-07-27T00:00:00Z","authorResolution":{"at":"2026-07-27T01:00:00Z","unresolved":0,"schema":1}}`),
 		}, nil)
 	tx.EXPECT().UpdateArtifactVersionCommitBody(mock.Anything, mock.MatchedBy(
 		func(params db.UpdateArtifactVersionCommitBodyParams) bool {
 			var info domain.CommitInfo
 			return json.Unmarshal(params.CommitBody, &info) == nil &&
-				info.GitHubAuthorsResolvedAt == ""
+				info.AuthorResolution == nil
 		},
 	)).Return(nil)
 

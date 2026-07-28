@@ -57,23 +57,27 @@ func VersionSyncScheduleID(groupID, artifactID string) string {
 // workflow cannot hide the schedule indefinitely.
 const versionSyncWorkflowExecutionTimeout = 30 * time.Minute
 
+// githubAuthorResolutionExecutionTimeout bounds an entire backfill chain, which
+// drains roughly 130 pages on its first unpaused run.
+const githubAuthorResolutionExecutionTimeout = 2 * time.Hour
+
 // NewGitHubAuthorResolutionScheduleOptions returns the paused singleton
 // schedule used for durable GitHub author backfill and steady-state resolution.
-//
-// Unlike the version sync schedules this action deliberately sets no
-// WorkflowExecutionTimeout: that timeout spans the whole continue-as-new chain,
-// so any value would truncate the backfill mid-drain. The activity timeouts plus
-// the SKIP overlap policy bound a wedged run instead.
 func NewGitHubAuthorResolutionScheduleOptions() client.ScheduleOptions {
 	return client.ScheduleOptions{
 		ID: workflow.GitHubAuthorResolutionScheduleID,
 		Spec: client.ScheduleSpec{
 			Intervals: []client.ScheduleIntervalSpec{{Every: 2 * time.Minute}},
+			Jitter:    15 * time.Second,
 		},
 		Action: &client.ScheduleWorkflowAction{
 			Workflow:  workflow.GitHubAuthorResolutionWorkflow,
 			Args:      []any{workflow.GitHubAuthorResolutionInput{}},
 			TaskQueue: workflow.VersionSyncTaskQueue,
+			// Bounds the whole continue-as-new chain, so a wedged backfill is
+			// abandoned and restarted from the newest page rather than running
+			// forever behind an Overlap: SKIP that hides every later tick.
+			WorkflowExecutionTimeout: githubAuthorResolutionExecutionTimeout,
 		},
 		Overlap: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
 		Paused:  true,
