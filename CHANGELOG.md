@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/SpongePowered/SystemOfADownload/compare/v0.5.0...v0.6.0) (2026-08-24)
+
+
+### Features
+
+* add clickable GitHub profile links to contributors ([70b7250](https://github.com/SpongePowered/SystemOfADownload/commit/70b7250628da9023eff854b05f02903b9cacf25a))
+* add clickable GitHub profile links to contributors ([f37a147](https://github.com/SpongePowered/SystemOfADownload/commit/f37a147468433cbca3c7af654343fc876f70a9f7))
+
+
+### Bug Fixes
+
+* **workflow:** harden GitHub author resolution ([b74fbb8](https://github.com/SpongePowered/SystemOfADownload/commit/b74fbb81fcb54a0bb1aebabdef79cd2c5bfb3132))
+
 ## [0.5.0](https://github.com/SpongePowered/SystemOfADownload/compare/v0.4.0...v0.5.0) (2026-06-14)
 
 
