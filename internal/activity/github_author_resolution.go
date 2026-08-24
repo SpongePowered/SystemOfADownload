@@ -91,6 +91,12 @@ type pendingVersion struct {
 // ResolveGitHubAuthorsBatch resolves and persists authors for one page. GitHub
 // lookups are deduplicated across the whole page and served from a shared cache
 // first, so a page usually costs no API calls at all.
+//
+// Retry resumption is two-layered: the heartbeat index skips versions whose
+// merge already committed, while the GitHub phase resumes through
+// github_user_cache — every lookup is persisted the moment it returns, so a
+// retried attempt re-reads earlier answers instead of re-paying for them. The
+// cache, not the heartbeat, is what carries GitHub progress across attempts.
 func (a *GitHubAuthorResolutionActivities) ResolveGitHubAuthorsBatch(
 	ctx context.Context,
 	input ResolveGitHubAuthorsBatchInput,
@@ -204,25 +210,26 @@ func (a *GitHubAuthorResolutionActivities) lookupCachedUsernames(
 	ctx context.Context,
 	references map[string]githubAuthorReference,
 ) (map[string]string, error) {
-	emails := make([]string, 0, len(references))
+	cacheKeys := make([]string, 0, len(references))
 	for key, ref := range references {
-		email, ok := strings.CutPrefix(key, githubAuthorEmailKeyPrefix)
-		if !ok {
+		if email, ok := strings.CutPrefix(key, githubAuthorEmailKeyPrefix); ok {
+			// Noreply addresses carry the username, so they never reach the cache.
+			if githubapi.UsernameFromNoreplyEmail(normalizeAuthorEmail(ref.Author.Email)) != "" {
+				continue
+			}
+			cacheKeys = append(cacheKeys, email)
 			continue
 		}
-		// Noreply addresses carry the username, so they never reach the cache.
-		if githubapi.UsernameFromNoreplyEmail(normalizeAuthorEmail(ref.Author.Email)) != "" {
-			continue
-		}
-		emails = append(emails, email)
+		// Email-less authors are cached under their full commit key.
+		cacheKeys = append(cacheKeys, key)
 	}
 	resolutions := make(map[string]string, len(references))
-	if len(emails) == 0 {
+	if len(cacheKeys) == 0 {
 		return resolutions, nil
 	}
-	slices.Sort(emails)
+	slices.Sort(cacheKeys)
 
-	cached, err := a.Repo.GetGitHubUserCacheBatch(ctx, emails)
+	cached, err := a.Repo.GetGitHubUserCacheBatch(ctx, cacheKeys)
 	if err != nil {
 		return nil, fmt.Errorf("reading GitHub user cache: %w", err)
 	}
@@ -231,7 +238,11 @@ func (a *GitHubAuthorResolutionActivities) lookupCachedUsernames(
 		if entry.GithubUsername != nil {
 			username = *entry.GithubUsername
 		}
-		resolutions[githubAuthorEmailKeyPrefix+entry.AuthorEmail] = username
+		key := entry.AuthorEmail
+		if !strings.HasPrefix(key, githubAuthorCommitKeyPrefix) {
+			key = githubAuthorEmailKeyPrefix + key
+		}
+		resolutions[key] = username
 	}
 	return resolutions, nil
 }
@@ -249,10 +260,17 @@ func (a *GitHubAuthorResolutionActivities) resolveUncachedAuthor(
 	if err != nil {
 		return "", fmt.Errorf("resolving GitHub author: %w", err)
 	}
-	if email == "" {
-		return username, nil
+	cacheKey := email
+	if cacheKey == "" {
+		// Email-less authors are cached under their commit key so a retried
+		// attempt does not repeat their GitHub call. Skip refs with no sha:
+		// they never reached GitHub, so there is nothing worth remembering.
+		if strings.TrimSpace(ref.Sha) == "" {
+			return username, nil
+		}
+		cacheKey = githubAuthorKey(ref)
 	}
-	if err := a.storeGithubUserCache(ctx, email, username); err != nil {
+	if err := a.storeGithubUserCache(ctx, cacheKey, username); err != nil {
 		return "", err
 	}
 	return username, nil
@@ -445,16 +463,22 @@ func appendGithubAuthorReference(
 	})
 }
 
-const githubAuthorEmailKeyPrefix = "email:"
+const (
+	githubAuthorEmailKeyPrefix  = "email:"
+	githubAuthorCommitKeyPrefix = "commit:"
+)
 
-// githubAuthorKey dedupes authors across the page. Email is the shared cache
-// key; authors without one fall back to their commit, which stays local to
-// this run.
+// githubAuthorKey dedupes authors across the page and doubles as the
+// github_user_cache key. Email is preferred; authors without one are keyed by
+// commit. The whole key is lowercased because the cache upsert applies LOWER()
+// and lookups must match it byte for byte.
 func githubAuthorKey(ref githubAuthorReference) string {
 	if email := normalizeAuthorEmail(ref.Author.Email); email != "" {
 		return githubAuthorEmailKeyPrefix + email
 	}
-	return "commit:" + strings.ToLower(strings.TrimSpace(ref.Repository)) + "@" + strings.TrimSpace(ref.Sha)
+	return githubAuthorCommitKeyPrefix +
+		strings.ToLower(strings.TrimSpace(ref.Repository)) + "@" +
+		strings.ToLower(strings.TrimSpace(ref.Sha))
 }
 
 func normalizeAuthorEmail(email string) string {

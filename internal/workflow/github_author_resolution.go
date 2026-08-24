@@ -50,10 +50,14 @@ func GitHubAuthorResolutionWorkflow(
 		return nil
 	}
 
+	// Liveness comes from the heartbeat, so StartToClose only needs to cover an
+	// honest cold-cache page (up to ~150 sequential GitHub calls). There is
+	// deliberately no ScheduleToCloseTimeout: a rate-limited attempt sets its
+	// next retry delay to the limit's reset (up to ~an hour), and the chain's
+	// WorkflowExecutionTimeout is the backstop that bounds total waiting.
 	resolveCtx := workflow.WithActivityOptions(ctx, workflow.ActivityOptions{
-		StartToCloseTimeout:    time.Minute,
-		ScheduleToCloseTimeout: 10 * time.Minute,
-		HeartbeatTimeout:       30 * time.Second,
+		StartToCloseTimeout: 10 * time.Minute,
+		HeartbeatTimeout:    30 * time.Second,
 		RetryPolicy: &temporal.RetryPolicy{
 			MaximumAttempts: 5,
 		},

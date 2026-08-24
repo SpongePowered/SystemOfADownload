@@ -1321,8 +1321,8 @@ func TestGitHubAuthorResolutionScheduleOptions(t *testing.T) {
 	if opts.ID != workflow.GitHubAuthorResolutionScheduleID {
 		t.Errorf("ID = %q, want %q", opts.ID, workflow.GitHubAuthorResolutionScheduleID)
 	}
-	if !opts.Paused {
-		t.Error("schedule must be created paused")
+	if opts.Paused {
+		t.Error("schedule must be created running so staging picks it up on rollout")
 	}
 	if opts.Overlap != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP {
 		t.Errorf("Overlap = %v, want SKIP", opts.Overlap)

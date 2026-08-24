@@ -93,6 +93,10 @@ func NewTemporalClient(lc fx.Lifecycle, cfg *Config) (client.Client, error) {
 	return c, nil
 }
 
+// EnsureGitHubAuthorResolutionSchedule creates the singleton schedule at
+// startup. Like createDualVersionSyncSchedules, failures are logged rather
+// than fatal — the API server must not crashloop over a background schedule,
+// and the next restart (or the migration binary) can retry.
 func EnsureGitHubAuthorResolutionSchedule(
 	lc fx.Lifecycle,
 	schedules client.ScheduleClient,
@@ -100,10 +104,17 @@ func EnsureGitHubAuthorResolutionSchedule(
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			_, err := schedules.Create(ctx, httpapi.NewGitHubAuthorResolutionScheduleOptions())
-			if err == nil || errors.Is(err, temporal.ErrScheduleAlreadyRunning) {
-				return nil
+			switch {
+			case err == nil:
+				slog.InfoContext(ctx, "created GitHub author resolution schedule")
+			case errors.Is(err, temporal.ErrScheduleAlreadyRunning):
+				// Create never updates: spec changes in code do not reach an
+				// existing schedule.
+				slog.InfoContext(ctx, "GitHub author resolution schedule already exists; leaving it untouched")
+			default:
+				slog.ErrorContext(ctx, "failed to create GitHub author resolution schedule", "error", err)
 			}
-			return fmt.Errorf("creating GitHub author resolution schedule: %w", err)
+			return nil
 		},
 	})
 }

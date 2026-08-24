@@ -97,6 +97,14 @@ func (c *Client) ResolveUsername(ctx context.Context, repoURL, sha, email string
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<10))
 		message := fmt.Sprintf("GitHub commit lookup returned %s: %s", resp.Status, strings.TrimSpace(string(body)))
 		if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests {
+			// Per GitHub's guidance, Retry-After (secondary/abuse limits) takes
+			// precedence over X-RateLimit-Reset (primary limit exhaustion).
+			if seconds, err := strconv.ParseInt(resp.Header.Get("Retry-After"), 10, 64); err == nil {
+				return "", &RateLimitError{
+					ResetAt: time.Now().Add(time.Duration(seconds) * time.Second),
+					Message: message,
+				}
+			}
 			if reset, err := strconv.ParseInt(resp.Header.Get("X-RateLimit-Reset"), 10, 64); err == nil {
 				return "", &RateLimitError{
 					ResetAt: time.Unix(reset, 0),

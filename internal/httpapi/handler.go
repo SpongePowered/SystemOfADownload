@@ -80,8 +80,7 @@ func NewGitHubAuthorResolutionScheduleOptions() client.ScheduleOptions {
 			WorkflowExecutionTimeout: githubAuthorResolutionExecutionTimeout,
 		},
 		Overlap: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
-		Paused:  true,
-		Note:    "Created paused; unpause after confirming GITHUB_TOKEN is configured",
+		Note:    "Runs immediately; set GITHUB_TOKEN on the worker or resolution crawls at unauthenticated rate limits",
 	}
 }
 

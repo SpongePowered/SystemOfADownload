@@ -113,6 +113,7 @@ func TestClientResolveUsernameFallbacks(t *testing.T) {
 		{name: "unassociated commit", statusCode: http.StatusOK, body: `{"author":null}`},
 		{name: "commit not found", statusCode: http.StatusNotFound},
 		{name: "rate limited", statusCode: http.StatusForbidden, body: `{"message":"rate limit exceeded"}`, wantErr: true},
+		{name: "secondary rate limited", statusCode: http.StatusTooManyRequests, body: `{"message":"abuse detection"}`, wantErr: true},
 	}
 
 	for _, tt := range tests {
@@ -121,6 +122,10 @@ func TestClientResolveUsernameFallbacks(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				if tt.name == "rate limited" {
 					w.Header().Set("X-RateLimit-Reset", "2000000000")
+				}
+				// Secondary limits send Retry-After and no X-RateLimit-Reset.
+				if tt.name == "secondary rate limited" {
+					w.Header().Set("Retry-After", "60")
 				}
 				w.WriteHeader(tt.statusCode)
 				_, _ = fmt.Fprint(w, tt.body)
@@ -140,7 +145,7 @@ func TestClientResolveUsernameFallbacks(t *testing.T) {
 			if got != tt.want {
 				t.Errorf("ResolveUsername() = %q, want %q", got, tt.want)
 			}
-			if tt.name == "rate limited" {
+			if tt.wantErr {
 				var rateLimitErr *githubapi.RateLimitError
 				if !errors.As(err, &rateLimitErr) {
 					t.Fatalf("error = %T, want *githubapi.RateLimitError", err)

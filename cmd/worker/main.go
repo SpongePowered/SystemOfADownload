@@ -92,6 +92,11 @@ func NewConfig() *Config {
 		os.Exit(1)
 	}
 	podName := os.Getenv("POD_NAME")
+	githubToken := os.Getenv("GITHUB_TOKEN")
+	if githubToken == "" {
+		slog.Warn("GITHUB_TOKEN is not set; GitHub author resolution will use " +
+			"unauthenticated requests (60/hour), so the backfill will crawl")
+	}
 	return &Config{
 		TemporalHostPort:     hostPort,
 		TemporalNamespace:    namespace,
@@ -100,7 +105,7 @@ func NewConfig() *Config {
 		SonatypeRepoDenyList: repoDeny,
 		DatabaseURL:          databaseURL,
 		GitCacheDir:          gitCacheDir,
-		GitHubToken:          os.Getenv("GITHUB_TOKEN"),
+		GitHubToken:          githubToken,
 		MetricsPort:          metricsPort,
 		BuildID:              buildID,
 		PodName:              podName,

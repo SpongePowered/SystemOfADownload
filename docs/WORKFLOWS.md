@@ -235,22 +235,13 @@ The server ensures one global Temporal Schedule exists:
 | Overlap policy | `SKIP` |
 | Workflow execution timeout | 2 hours |
 | Task queue | `version-sync` |
-| Initial state | Paused |
+| Initial state | Running |
 
 The execution timeout bounds an entire `ContinueAsNew` chain, not a single page, so a wedged backfill is abandoned and restarted from the newest page instead of running forever behind a `SKIP` that would hide every later tick.
 
-The schedule is created paused so a deployment can apply migration `000006_github_author_resolution`, configure `GITHUB_TOKEN`, and confirm the worker is running before beginning the historical backfill. Public repositories can be queried without a token, but authenticated requests have higher rate limits and can access repositories visible to that token.
+The schedule is created running, so the backfill starts as soon as the deployment (with migration `000006_github_author_resolution` applied) rolls out. `GITHUB_TOKEN` should be configured on the worker first: public repositories can be queried without a token, but unauthenticated requests are limited to 60/hour and the worker logs a startup warning when the token is missing. Schedule creation failures at server startup are logged, not fatal, and creation never updates an existing schedule — spec changes in code require deleting and recreating it.
 
-Unpause the schedule after rollout:
-
-```bash
-temporal schedule unpause \
-  --schedule-id github-author-resolution \
-  --namespace <namespace> \
-  --address <host>
-```
-
-Pause it again without losing progress:
+Pause the schedule without losing progress:
 
 ```bash
 temporal schedule pause \
@@ -265,7 +256,7 @@ Resolution covers the head commit, direct submodule commits, the main changelog,
 
 - Cache entries expire after 30 days, hits and misses alike; "GitHub has no account for this address" is as stable an answer as a username.
 - Cache keys are normalized lowercase author email addresses.
-- Authors without an email are deduplicated by commit for the current run only, and are not persisted in the email cache.
+- Authors without an email are deduplicated and cached under a synthetic `commit:<repo>@<sha>` key in the same table, so their lookups also survive retries.
 
 Only once all GitHub work for the page is finished does the activity lock each `artifact_versions` row with `SELECT ... FOR UPDATE`, re-read the latest JSONB value, merge usernames, and stamp the marker. No row lock is ever held across a GitHub call. Changelog writes use the same row lock and clear the marker, because a recomputed changelog may contain new unresolved authors.
 
@@ -279,7 +270,7 @@ The marker is an `authorResolution` object rather than a bare timestamp:
 
 The resolution activity records the next version index in a Temporal heartbeat, so an activity retry resumes within the page rather than repeating completed versions. Every GitHub result is written to the shared cache as soon as it is known, which means a resumed attempt re-reads earlier answers from the cache instead of paying for them twice.
 
-Transient failures (database or GitHub errors) fail the activity so Temporal retries it, up to five attempts within a 10 minute schedule-to-close budget. If that is exhausted the run fails and the next scheduled tick starts a fresh chain; no marker is stamped, so nothing is lost. Versions that can never resolve (row deleted, or a `commit_body` that no longer parses) are logged and skipped, so a single bad row cannot stall the backfill. GitHub rate-limit responses use `X-RateLimit-Reset` to set Temporal's next retry delay.
+Transient failures (database or GitHub errors) fail the activity so Temporal retries it, up to five attempts with a 10 minute start-to-close budget per attempt and no schedule-to-close cap — a rate-limited attempt may wait out the reset (up to ~an hour) before retrying, with the chain's 2 hour execution timeout as the backstop. If retries are exhausted the run fails and the next scheduled tick starts a fresh chain; no marker is stamped, so nothing is lost. Versions that can never resolve (row deleted, or a `commit_body` that no longer parses) are logged and skipped, so a single bad row cannot stall the backfill. GitHub rate-limit responses use `Retry-After` (secondary/abuse limits) or `X-RateLimit-Reset` (primary limit) to set Temporal's next retry delay.
 
 The activity returns counts only — versions stamped, authors resolved, authors unresolved — so commit bodies never enter workflow history.
 
@@ -436,7 +427,7 @@ All activity structs are registered on the worker via `w.RegisterActivity(struct
 | Git read operations (local) | 30s | 3 | git show, git log, git ls-tree |
 | Changelog DB activities | 30s | 3 | Standard DB reads/writes |
 | GitHub author page fetch | 30s | 3 | Keyset query for versions whose marker is missing or stale |
-| GitHub author batch | 1m per attempt, 10m schedule-to-close | 5 | Heartbeats per resolved author and per stamped version; rate limits override the next retry delay |
+| GitHub author batch | 10m per attempt, no schedule-to-close | 5 | Heartbeats provide liveness; the persistent cache carries GitHub progress across attempts; rate limits (`Retry-After` or `X-RateLimit-Reset`) override the next retry delay |
 
 All use exponential backoff (initial 1-2s, coefficient 2.0, max 30s-1m).
 
