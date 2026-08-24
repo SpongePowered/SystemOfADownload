@@ -24,6 +24,7 @@ import (
 
 	"github.com/spongepowered/systemofadownload/internal/activity"
 	"github.com/spongepowered/systemofadownload/internal/gitcache"
+	"github.com/spongepowered/systemofadownload/internal/githubapi"
 	"github.com/spongepowered/systemofadownload/internal/otelsetup"
 	"github.com/spongepowered/systemofadownload/internal/repository"
 	"github.com/spongepowered/systemofadownload/internal/sonatype"
@@ -38,6 +39,7 @@ type Config struct {
 	SonatypeRepoDenyList []string
 	DatabaseURL          string
 	GitCacheDir          string
+	GitHubToken          string
 	MetricsPort          string
 	BuildID              string
 	PodName              string
@@ -90,6 +92,11 @@ func NewConfig() *Config {
 		os.Exit(1)
 	}
 	podName := os.Getenv("POD_NAME")
+	githubToken := os.Getenv("GITHUB_TOKEN")
+	if githubToken == "" {
+		slog.Warn("GITHUB_TOKEN is not set; GitHub author resolution will use " +
+			"unauthenticated requests (60/hour), so the backfill will crawl")
+	}
 	return &Config{
 		TemporalHostPort:     hostPort,
 		TemporalNamespace:    namespace,
@@ -98,6 +105,7 @@ func NewConfig() *Config {
 		SonatypeRepoDenyList: repoDeny,
 		DatabaseURL:          databaseURL,
 		GitCacheDir:          gitCacheDir,
+		GitHubToken:          githubToken,
 		MetricsPort:          metricsPort,
 		BuildID:              buildID,
 		PodName:              podName,
@@ -204,6 +212,7 @@ func NewTemporalWorker(
 	indexActivities *activity.VersionIndexActivities,
 	orderingActivities *activity.VersionOrderingActivities,
 	changelogActivities *activity.ChangelogActivities,
+	githubAuthorActivities *activity.GitHubAuthorResolutionActivities,
 	gitActivities *activity.GitActivities,
 ) worker.Worker {
 	w := worker.New(c, wf.VersionSyncTaskQueue, worker.Options{
@@ -227,10 +236,12 @@ func NewTemporalWorker(
 	w.RegisterWorkflow(wf.EnrichVersionWorkflow)
 	w.RegisterWorkflow(wf.ChangelogBatchWorkflow)
 	w.RegisterWorkflow(wf.ChangelogVersionWorkflow)
+	w.RegisterWorkflow(wf.GitHubAuthorResolutionWorkflow)
 	w.RegisterActivity(syncActivities)
 	w.RegisterActivity(indexActivities)
 	w.RegisterActivity(orderingActivities)
 	w.RegisterActivity(changelogActivities)
+	w.RegisterActivity(githubAuthorActivities)
 	w.RegisterActivity(gitActivities)
 
 	lc.Append(fx.Hook{
@@ -276,6 +287,12 @@ func main() {
 			activity.NewVersionOrderingActivities,
 			func(repo repository.Repository) *activity.ChangelogActivities {
 				return &activity.ChangelogActivities{Repo: repo}
+			},
+			func(cfg *Config, repo repository.Repository) *activity.GitHubAuthorResolutionActivities {
+				return &activity.GitHubAuthorResolutionActivities{
+					Repo:   repo,
+					GitHub: githubapi.NewClient(http.DefaultClient, cfg.GitHubToken),
+				}
 			},
 			func(cfg *Config) *gitcache.Manager {
 				return gitcache.NewManager(cfg.GitCacheDir)

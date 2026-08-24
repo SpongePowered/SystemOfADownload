@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -429,10 +430,12 @@ func parseCommitBody(raw []byte) ([]CommitEntry, []SubmoduleChangelog, bool) {
 		if link == "" && info.Repository != "" && info.Sha != "" {
 			link = domain.CommitURL(info.Repository, info.Sha)
 		}
+		author, authorLink := commitAuthorDisplay(info.Author)
 		entry := CommitEntry{
-			Message: info.Message,
-			Author:  commitAuthorName(info.Author),
-			Link:    link,
+			Message:    info.Message,
+			Author:     author,
+			AuthorLink: authorLink,
+			Link:       link,
 		}
 		entry.Body = deduplicateCommitBody(entry.Message, info.Body)
 		entry.HasBody = entry.Body != ""
@@ -490,10 +493,12 @@ func parseCommitBody(raw []byte) ([]CommitEntry, []SubmoduleChangelog, bool) {
 }
 
 func commitSummaryToEntry(cs *domain.CommitSummary) CommitEntry {
+	author, authorLink := commitAuthorDisplay(cs.Author)
 	entry := CommitEntry{
-		Message: cs.Message,
-		Author:  commitAuthorName(cs.Author),
-		Link:    cs.URL,
+		Message:    cs.Message,
+		Author:     author,
+		AuthorLink: authorLink,
+		Link:       cs.URL,
 	}
 	// CommitSummary doesn't have a separate body field
 	entry.HasBody = false
@@ -508,11 +513,14 @@ func commitSummaryToEntry(cs *domain.CommitSummary) CommitEntry {
 	return entry
 }
 
-func commitAuthorName(author *domain.CommitAuthor) string {
+func commitAuthorDisplay(author *domain.CommitAuthor) (name, link string) {
 	if author == nil {
-		return "Unknown"
+		return "Unknown", ""
 	}
-	return author.Name
+	if author.GitHubUsername != "" {
+		return author.GitHubUsername, "https://github.com/" + url.PathEscape(author.GitHubUsername)
+	}
+	return author.Name, ""
 }
 
 // parseSubmoduleChangelogs converts the map of repo URL -> Changelog into

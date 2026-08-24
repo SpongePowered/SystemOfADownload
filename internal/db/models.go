@@ -4,6 +4,10 @@
 
 package db
 
+import (
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
 type Artifact struct {
 	ID              int64
 	GroupID         string
@@ -40,6 +44,13 @@ type ArtifactVersionedTag struct {
 	ArtifactVersionID int64
 	TagKey            string
 	TagValue          string
+}
+
+type GithubUserCache struct {
+	AuthorEmail    string
+	GithubUsername *string
+	ExpiresAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
 }
 
 type Group struct {

@@ -1,6 +1,6 @@
 # Temporal Workflows
 
-SystemOfADownload uses [Temporal](https://temporal.io/) to orchestrate artifact version syncing, asset indexing, commit extraction, and version ordering. All workflows run on a single task queue (`version-sync`) with a single worker process.
+SystemOfADownload uses [Temporal](https://temporal.io/) to orchestrate artifact version syncing, asset indexing, commit extraction, version ordering, and GitHub author resolution. All workflows run on a single task queue (`version-sync`) with a single worker process.
 
 ## Architecture Overview
 
@@ -49,6 +49,21 @@ VersionSyncWorkflow ────────────────────
 ──────────────────────────────────────────────────────────────────────┘
 ```
 
+GitHub author resolution runs independently from ingestion:
+
+```
+GitHubAuthorResolutionWorkflow (singleton schedule, every 2m)
+ ├── FetchVersionsNeedingAuthorResolution (DB: newest 50 IDs, marker missing or stale)
+ ├── ResolveGitHubAuthorsBatch (one heartbeat-enabled keyset page)
+ │    ├── infer usernames from GitHub noreply email addresses
+ │    ├── read/write the persistent github_user_cache
+ │    ├── query the GitHub commit API when needed
+ │    └── lock and merge artifact_versions.commit_body (JSONB)
+ └── ContinueAsNew with the next keyset cursor
+```
+
+Keeping this workflow separate means Sonatype ingestion and git enrichment remain pure database/local-git operations. A GitHub outage or rate limit delays username resolution without delaying version ingestion, and unresolved historical rows are retried by later scheduled runs.
+
 ## Worker Deployment Versioning
 
 The worker uses Temporal's [Worker Deployment Versioning](https://docs.temporal.io/workers#worker-versioning) to enable safe rolling updates. Each worker binary identifies itself with a deployment name and build ID, allowing Temporal to route workflows to compatible workers.
@@ -56,6 +71,7 @@ The worker uses Temporal's [Worker Deployment Versioning](https://docs.temporal.
 **Configuration (env vars):**
 - `BUILD_ID` (required) — image tag or version identifier, set by the deployment pipeline. The worker will refuse to start if this is empty.
 - `POD_NAME` (optional) — Kubernetes pod name, used as the Temporal client `Identity` for traceability in the Temporal UI.
+- `GITHUB_TOKEN` (optional) — authenticates commit-author lookups for higher API limits and private repositories. Public GitHub repositories are queried without authentication when unset.
 
 **Worker registration:**
 ```go
@@ -206,6 +222,58 @@ When an artifact is registered, **two** Temporal Schedules are created to period
 
 **Legacy schedule ID:** before the dual-schedule rollout, schedules were named `version-sync-{groupID}-{artifactID}`. Existing namespaces need the temporal CLI commands in the runbook section below to convert.
 
+## GitHub Author Resolution
+
+`GitHubAuthorResolutionWorkflow` backfills and maintains the optional `githubUsername` fields stored inside `artifact_versions.commit_body`. The HTTP API and frontend prefer that username and link to the matching GitHub profile; the original git author name remains the fallback.
+
+The server ensures one global Temporal Schedule exists:
+
+| Setting | Value |
+|---------|-------|
+| Schedule ID | `github-author-resolution` |
+| Interval | 2 minutes (±15s jitter) |
+| Overlap policy | `SKIP` |
+| Workflow execution timeout | 2 hours |
+| Task queue | `version-sync` |
+| Initial state | Running |
+
+The execution timeout bounds an entire `ContinueAsNew` chain, not a single page, so a wedged backfill is abandoned and restarted from the newest page instead of running forever behind a `SKIP` that would hide every later tick.
+
+The schedule is created running, so the backfill starts as soon as the deployment (with migration `000006_github_author_resolution` applied) rolls out. `GITHUB_TOKEN` should be configured on the worker first: public repositories can be queried without a token, but unauthenticated requests are limited to 60/hour and the worker logs a startup warning when the token is missing. Schedule creation failures at server startup are logged, not fatal, and creation never updates an existing schedule — spec changes in code require deleting and recreating it.
+
+Pause the schedule without losing progress:
+
+```bash
+temporal schedule pause \
+  --schedule-id github-author-resolution \
+  --namespace <namespace> \
+  --address <host>
+```
+
+Each workflow chain scans enriched versions newest-first in 50-row keyset pages. The page is dispatched as one batch activity, then the workflow uses `ContinueAsNew` with the oldest ID as its cursor. The chain drains the entire unresolved history and ends when it reaches an empty page; the next scheduled fire starts from the newest unresolved row again.
+
+Resolution covers the head commit, direct submodule commits, the main changelog, and recursively nested submodule changelogs. The batch activity reads every version in the page without locking, deduplicates authors across the whole page, and serves them from `github_user_cache` in a single `WHERE author_email = ANY(...)` query. Only the remaining misses reach GitHub, so a page normally costs no API calls at all. Usernames embedded in GitHub noreply email addresses are parsed locally and never consume a lookup or a cache row.
+
+- Cache entries expire after 30 days, hits and misses alike; "GitHub has no account for this address" is as stable an answer as a username.
+- Cache keys are normalized lowercase author email addresses.
+- Authors without an email are deduplicated and cached under a synthetic `commit:<repo>@<sha>` key in the same table, so their lookups also survive retries.
+
+Only once all GitHub work for the page is finished does the activity lock each `artifact_versions` row with `SELECT ... FOR UPDATE`, re-read the latest JSONB value, merge usernames, and stamp the marker. No row lock is ever held across a GitHub call. Changelog writes use the same row lock and clear the marker, because a recomputed changelog may contain new unresolved authors.
+
+The marker is an `authorResolution` object rather than a bare timestamp:
+
+```json
+{ "at": "2026-07-27T01:00:00Z", "unresolved": 3, "schema": 1 }
+```
+
+`unresolved` counts author entries with no associated GitHub account. `schema` is the version of the resolution logic that produced the result, so the keyset query selects versions whose marker is **missing or stale**. Raising `domain.AuthorResolutionSchema` therefore re-resolves the entire history on the next unpaused run. Because a partial index predicate cannot be parameterised, the schema version is a literal in both `db/query.sql` and `idx_versions_github_authors_unresolved`; bumping it requires a migration that replaces that index, or the keyset scan silently stops being indexed.
+
+The resolution activity records the next version index in a Temporal heartbeat, so an activity retry resumes within the page rather than repeating completed versions. Every GitHub result is written to the shared cache as soon as it is known, which means a resumed attempt re-reads earlier answers from the cache instead of paying for them twice.
+
+Transient failures (database or GitHub errors) fail the activity so Temporal retries it, up to five attempts with a 10 minute start-to-close budget per attempt and no schedule-to-close cap — a rate-limited attempt may wait out the reset (up to ~an hour) before retrying, with the chain's 2 hour execution timeout as the backstop. If retries are exhausted the run fails and the next scheduled tick starts a fresh chain; no marker is stamped, so nothing is lost. Versions that can never resolve (row deleted, or a `commit_body` that no longer parses) are logged and skipped, so a single bad row cannot stall the backfill. GitHub rate-limit responses use `Retry-After` (secondary/abuse limits) or `X-RateLimit-Reset` (primary limit) to set Temporal's next retry delay.
+
+The activity returns counts only — versions stamped, authors resolved, authors unresolved — so commit bodies never enter workflow history.
+
 ## On-Demand Sync Trigger
 
 The `POST /groups/{groupID}/artifacts/{artifactID}/sync` endpoint triggers a schedule immediately. The query parameter `source` chooses which schedule to fire:
@@ -250,6 +318,7 @@ jobs:
 |---------|----------|----------------|----------|
 | Fast schedule (2m) | VersionSyncWorkflow | `BUFFER_ONE` | Queue one run if current sync still running |
 | Full schedule (1h) | VersionSyncWorkflow | `SKIP` | Drop the tick if a previous full run is still going |
+| GitHub author schedule (2m) | GitHubAuthorResolutionWorkflow | `SKIP` | Drop the tick while the singleton backfill/resolution chain is still running |
 | `POST .../sync` | VersionSyncWorkflow | — | Fires target schedule (default: fast; `?source=search` for full) |
 | `PutArtifactSchema` | VersionOrderingWorkflow | `TERMINATE_EXISTING` | Cancel stale run, restart with new schema |
 
@@ -342,6 +411,7 @@ Activities are grouped into structs by responsibility, each with explicit depend
 | `VersionIndexActivities` | Sonatype client, Repository, HTTP client | Fetch/store assets, inspect jars, extract commits |
 | `VersionOrderingActivities` | Repository, HTTP client | Schema loading, manifest fetching, ordering, tag storage |
 | `ChangelogActivities` | Repository | Fetch versions for enrichment, store enriched commits, store changelogs |
+| `GitHubAuthorResolutionActivities` | Repository, GitHub client | Discover unresolved versions, cache author lookups, and merge usernames |
 | `GitActivities` | GitCacheManager | Local activities: clone/fetch repos, git show, resolve submodules, git log |
 
 All activity structs are registered on the worker via `w.RegisterActivity(struct)`, which auto-registers all exported methods.
@@ -356,6 +426,8 @@ All activity structs are registered on the worker via `w.RegisterActivity(struct
 | Git clone/fetch (local) | 2m | 3 | Large repos may take time to clone |
 | Git read operations (local) | 30s | 3 | git show, git log, git ls-tree |
 | Changelog DB activities | 30s | 3 | Standard DB reads/writes |
+| GitHub author page fetch | 30s | 3 | Keyset query for versions whose marker is missing or stale |
+| GitHub author batch | 10m per attempt, no schedule-to-close | 5 | Heartbeats provide liveness; the persistent cache carries GitHub progress across attempts; rate limits (`Retry-After` or `X-RateLimit-Reset`) override the next retry delay |
 
 All use exponential backoff (initial 1-2s, coefficient 2.0, max 30s-1m).
 

@@ -32,7 +32,9 @@ type Querier interface {
 	GetArtifactByGroupAndId(ctx context.Context, arg GetArtifactByGroupAndIdParams) (Artifact, error)
 	GetArtifactVersion(ctx context.Context, arg GetArtifactVersionParams) (ArtifactVersion, error)
 	GetArtifactVersionByID(ctx context.Context, id int64) (ArtifactVersion, error)
+	GetArtifactVersionForUpdate(ctx context.Context, id int64) (ArtifactVersion, error)
 	GetArtifactVersionSchema(ctx context.Context, arg GetArtifactVersionSchemaParams) ([]byte, error)
+	GetGitHubUserCacheBatch(ctx context.Context, authorEmails []string) ([]GithubUserCache, error)
 	GetGroup(ctx context.Context, mavenID string) (Group, error)
 	GetPreviousVersion(ctx context.Context, arg GetPreviousVersionParams) (ArtifactVersion, error)
 	// Returns the artifact_version row plus its assets and tags pre-aggregated
@@ -63,10 +65,15 @@ type Querier interface {
 	ListTagsForVersions(ctx context.Context, dollar_1 []int64) ([]ArtifactVersionedTag, error)
 	ListVersionsNeedingChangelog(ctx context.Context, arg ListVersionsNeedingChangelogParams) ([]ArtifactVersion, error)
 	ListVersionsNeedingEnrichment(ctx context.Context, arg ListVersionsNeedingEnrichmentParams) ([]ArtifactVersion, error)
+	// The predicate must stay identical to idx_versions_github_authors_unresolved,
+	// including the literal schema version, or the partial index is not used.
+	// Guarded by TestAuthorResolutionSchemaMatchesSQL.
+	ListVersionsNeedingGitHubAuthorResolution(ctx context.Context, arg ListVersionsNeedingGitHubAuthorResolutionParams) ([]int64, error)
 	UpdateArtifactFields(ctx context.Context, arg UpdateArtifactFieldsParams) (Artifact, error)
 	UpdateArtifactVersionCommitBody(ctx context.Context, arg UpdateArtifactVersionCommitBodyParams) error
 	UpdateArtifactVersionOrder(ctx context.Context, arg UpdateArtifactVersionOrderParams) error
 	UpdateArtifactVersionSchema(ctx context.Context, arg UpdateArtifactVersionSchemaParams) error
+	UpsertGitHubUserCache(ctx context.Context, arg UpsertGitHubUserCacheParams) (GithubUserCache, error)
 }
 
 var _ Querier = (*Queries)(nil)

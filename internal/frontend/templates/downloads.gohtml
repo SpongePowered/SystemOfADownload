@@ -118,7 +118,7 @@
                     <pre class="commit-message">{{$c.Body}}</pre>
                   </details>
                   {{end}}
-                  <div>{{$c.Author}}{{if $c.RelativeTime}} - <small title="{{$c.AbsoluteTime}}">{{$c.RelativeTime}}</small>{{end}}</div>
+                  <div>{{if $c.AuthorLink}}<a href="{{$c.AuthorLink}}" target="_blank" rel="noopener noreferrer">{{$c.Author}}</a>{{else}}{{$c.Author}}{{end}}{{if $c.RelativeTime}} - <small title="{{$c.AbsoluteTime}}">{{$c.RelativeTime}}</small>{{end}}</div>
                 </li>
                 {{end}}
                 {{if gt (len .Commits) 5}}
@@ -144,7 +144,7 @@
                   <li class="commit">
                     {{if .Link}}<a href="{{.Link}}" target="_blank">{{.Message}}</a>
                     {{else}}{{.Message}}{{end}}
-                    <div>{{.Author}}{{if .RelativeTime}} - <small title="{{.AbsoluteTime}}">{{.RelativeTime}}</small>{{end}}</div>
+                    <div>{{if .AuthorLink}}<a href="{{.AuthorLink}}" target="_blank" rel="noopener noreferrer">{{.Author}}</a>{{else}}{{.Author}}{{end}}{{if .RelativeTime}} - <small title="{{.AbsoluteTime}}">{{.RelativeTime}}</small>{{end}}</div>
                   </li>
                   {{end}}
                 </ol>

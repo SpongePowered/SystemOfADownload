@@ -1,15 +1,18 @@
 package activity_test
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/jackc/pgx/v5"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/spongepowered/systemofadownload/internal/activity"
 	"github.com/spongepowered/systemofadownload/internal/db"
 	"github.com/spongepowered/systemofadownload/internal/domain"
+	"github.com/spongepowered/systemofadownload/internal/repository"
 	repomocks "github.com/spongepowered/systemofadownload/internal/repository/mocks"
 )
 
@@ -199,5 +202,40 @@ func TestCheckPreviousVersionEnriched(t *testing.T) {
 	}
 	if enriched {
 		t.Error("expected enriched=false for version 11")
+	}
+}
+
+func TestStoreChangelogLocksVersionBeforeMerge(t *testing.T) {
+	t.Parallel()
+
+	repo := repomocks.NewMockRepository(t)
+	tx := repomocks.NewMockTx(t)
+	repo.EXPECT().WithTx(mock.Anything, mock.Anything).RunAndReturn(
+		func(ctx context.Context, fn func(repository.Tx) error) error {
+			return fn(tx)
+		},
+	)
+	tx.EXPECT().GetArtifactVersionForUpdate(mock.Anything, int64(10)).
+		Return(db.ArtifactVersion{
+			ID:         10,
+			CommitBody: []byte(`{"sha":"abc","enrichedAt":"2026-07-27T00:00:00Z","authorResolution":{"at":"2026-07-27T01:00:00Z","unresolved":0,"schema":1}}`),
+		}, nil)
+	tx.EXPECT().UpdateArtifactVersionCommitBody(mock.Anything, mock.MatchedBy(
+		func(params db.UpdateArtifactVersionCommitBodyParams) bool {
+			var info domain.CommitInfo
+			return json.Unmarshal(params.CommitBody, &info) == nil &&
+				info.AuthorResolution == nil
+		},
+	)).Return(nil)
+
+	activities := &activity.ChangelogActivities{Repo: repo}
+	err := activities.StoreChangelog(t.Context(), activity.StoreChangelogInput{
+		VersionID: 10,
+		Changelog: domain.Changelog{
+			PreviousVersion: "def",
+		},
+	})
+	if err != nil {
+		t.Fatalf("StoreChangelog() error = %v", err)
 	}
 }

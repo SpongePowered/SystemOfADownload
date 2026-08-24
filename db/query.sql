@@ -160,6 +160,41 @@ UPDATE artifact_versions
 SET commit_body = $2
 WHERE id = $1;
 
+-- name: GetArtifactVersionForUpdate :one
+SELECT * FROM artifact_versions
+WHERE id = $1
+FOR UPDATE;
+
+-- The predicate must stay identical to idx_versions_github_authors_unresolved,
+-- including the literal schema version, or the partial index is not used.
+-- Guarded by TestAuthorResolutionSchemaMatchesSQL.
+-- name: ListVersionsNeedingGitHubAuthorResolution :many
+SELECT id
+FROM artifact_versions
+WHERE commit_body->>'enrichedAt' IS NOT NULL
+  AND (commit_body->'authorResolution'->>'schema') IS DISTINCT FROM '1'
+  AND (sqlc.narg('before_id')::bigint IS NULL OR id < sqlc.narg('before_id'))
+ORDER BY id DESC
+LIMIT sqlc.arg('page_size');
+
+-- name: GetGitHubUserCacheBatch :many
+SELECT * FROM github_user_cache
+WHERE author_email = ANY(sqlc.arg('author_emails')::text[])
+  AND expires_at > NOW();
+
+-- name: UpsertGitHubUserCache :one
+INSERT INTO github_user_cache (author_email, github_username, expires_at)
+VALUES (
+    LOWER(BTRIM(sqlc.arg('author_email'))),
+    sqlc.narg('github_username'),
+    sqlc.arg('expires_at')
+)
+ON CONFLICT (author_email) DO UPDATE SET
+    github_username = EXCLUDED.github_username,
+    expires_at = EXCLUDED.expires_at,
+    updated_at = NOW()
+RETURNING *;
+
 -- name: CreateArtifactVersionTag :one
 INSERT INTO artifact_versioned_tags (artifact_version_id, tag_key, tag_value)
 VALUES ($1, $2, $3)

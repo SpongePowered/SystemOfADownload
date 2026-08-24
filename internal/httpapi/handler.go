@@ -57,6 +57,33 @@ func VersionSyncScheduleID(groupID, artifactID string) string {
 // workflow cannot hide the schedule indefinitely.
 const versionSyncWorkflowExecutionTimeout = 30 * time.Minute
 
+// githubAuthorResolutionExecutionTimeout bounds an entire backfill chain, which
+// drains roughly 130 pages on its first unpaused run.
+const githubAuthorResolutionExecutionTimeout = 2 * time.Hour
+
+// NewGitHubAuthorResolutionScheduleOptions returns the paused singleton
+// schedule used for durable GitHub author backfill and steady-state resolution.
+func NewGitHubAuthorResolutionScheduleOptions() client.ScheduleOptions {
+	return client.ScheduleOptions{
+		ID: workflow.GitHubAuthorResolutionScheduleID,
+		Spec: client.ScheduleSpec{
+			Intervals: []client.ScheduleIntervalSpec{{Every: 2 * time.Minute}},
+			Jitter:    15 * time.Second,
+		},
+		Action: &client.ScheduleWorkflowAction{
+			Workflow:  workflow.GitHubAuthorResolutionWorkflow,
+			Args:      []any{workflow.GitHubAuthorResolutionInput{}},
+			TaskQueue: workflow.VersionSyncTaskQueue,
+			// Bounds the whole continue-as-new chain, so a wedged backfill is
+			// abandoned and restarted from the newest page rather than running
+			// forever behind an Overlap: SKIP that hides every later tick.
+			WorkflowExecutionTimeout: githubAuthorResolutionExecutionTimeout,
+		},
+		Overlap: enumspb.SCHEDULE_OVERLAP_POLICY_SKIP,
+		Note:    "Runs immediately; set GITHUB_TOKEN on the worker or resolution crawls at unauthenticated rate limits",
+	}
+}
+
 // NewFastVersionSyncScheduleOptions returns the ScheduleOptions for the 2m
 // maven-metadata.xml schedule. Exposed for the migration binary.
 //
@@ -855,11 +882,15 @@ func commitInfoToAPICommit(info *domain.CommitInfo) api.Commit {
 	}
 	if info.Author != nil {
 		c.Author = &struct {
-			Email *string `json:"email,omitempty"`
-			Name  *string `json:"name,omitempty"`
+			Email          *string `json:"email,omitempty"`
+			GithubUsername *string `json:"githubUsername,omitempty"`
+			Name           *string `json:"name,omitempty"`
 		}{
 			Name:  &info.Author.Name,
 			Email: &info.Author.Email,
+		}
+		if info.Author.GitHubUsername != "" {
+			c.Author.GithubUsername = &info.Author.GitHubUsername
 		}
 	}
 	return c
@@ -886,11 +917,15 @@ func commitSummaryToAPICommit(cs *domain.CommitSummary, repo string) *api.Commit
 	}
 	if cs.Author != nil {
 		c.Author = &struct {
-			Email *string `json:"email,omitempty"`
-			Name  *string `json:"name,omitempty"`
+			Email          *string `json:"email,omitempty"`
+			GithubUsername *string `json:"githubUsername,omitempty"`
+			Name           *string `json:"name,omitempty"`
 		}{
 			Name:  &cs.Author.Name,
 			Email: &cs.Author.Email,
+		}
+		if cs.Author.GitHubUsername != "" {
+			c.Author.GithubUsername = &cs.Author.GitHubUsername
 		}
 	}
 	return &c

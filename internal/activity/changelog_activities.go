@@ -226,7 +226,7 @@ type StoreChangelogInput struct {
 // and writes it back. This preserves the enrichment data already stored.
 func (a *ChangelogActivities) StoreChangelog(ctx context.Context, input StoreChangelogInput) error {
 	return a.Repo.WithTx(ctx, func(tx repository.Tx) error {
-		av, err := tx.GetArtifactVersionByID(ctx, input.VersionID)
+		av, err := tx.GetArtifactVersionForUpdate(ctx, input.VersionID)
 		if err != nil {
 			return fmt.Errorf("reading version %d: %w", input.VersionID, err)
 		}
@@ -239,6 +239,9 @@ func (a *ChangelogActivities) StoreChangelog(ctx context.Context, input StoreCha
 		}
 
 		info.Changelog = &input.Changelog
+		// A recomputed changelog introduces a fresh author set. Clear the
+		// marker so the durable resolver revisits this version.
+		info.AuthorResolution = nil
 		// Only clear pending_predecessor status; preserve error statuses
 		// (e.g., error_commit_not_found from Phase 1).
 		if info.ChangelogStatus == "pending_predecessor" {

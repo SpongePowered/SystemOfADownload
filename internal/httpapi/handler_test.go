@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	enumspb "go.temporal.io/api/enums/v1"
@@ -1297,6 +1298,7 @@ func TestVersionSyncScheduleID(t *testing.T) {
 			"version-sync-full-com.example-my-lib",
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.groupID+"/"+tt.artifactID, func(t *testing.T) {
 			if got := VersionSyncScheduleID(tt.groupID, tt.artifactID); got != tt.wantLegacy {
@@ -1309,6 +1311,38 @@ func TestVersionSyncScheduleID(t *testing.T) {
 				t.Errorf("VersionSyncFullScheduleID = %q, want %q", got, tt.wantFull)
 			}
 		})
+	}
+}
+
+func TestGitHubAuthorResolutionScheduleOptions(t *testing.T) {
+	t.Parallel()
+
+	opts := NewGitHubAuthorResolutionScheduleOptions()
+	if opts.ID != workflow.GitHubAuthorResolutionScheduleID {
+		t.Errorf("ID = %q, want %q", opts.ID, workflow.GitHubAuthorResolutionScheduleID)
+	}
+	if opts.Paused {
+		t.Error("schedule must be created running so staging picks it up on rollout")
+	}
+	if opts.Overlap != enumspb.SCHEDULE_OVERLAP_POLICY_SKIP {
+		t.Errorf("Overlap = %v, want SKIP", opts.Overlap)
+	}
+	if len(opts.Spec.Intervals) != 1 || opts.Spec.Intervals[0].Every != 2*time.Minute {
+		t.Errorf("Intervals = %#v, want one 2-minute interval", opts.Spec.Intervals)
+	}
+
+	action, ok := opts.Action.(*client.ScheduleWorkflowAction)
+	if !ok {
+		t.Fatalf("Action = %T, want *client.ScheduleWorkflowAction", opts.Action)
+	}
+	if action.TaskQueue != workflow.VersionSyncTaskQueue {
+		t.Errorf("TaskQueue = %q, want %q", action.TaskQueue, workflow.VersionSyncTaskQueue)
+	}
+	if len(action.Args) != 1 {
+		t.Fatalf("Args = %#v, want one workflow input", action.Args)
+	}
+	if _, ok := action.Args[0].(workflow.GitHubAuthorResolutionInput); !ok {
+		t.Errorf("Args[0] = %T, want GitHubAuthorResolutionInput", action.Args[0])
 	}
 }
 
