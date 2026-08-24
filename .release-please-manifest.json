@@ -1,4 +1,4 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/manifest.json",
-  ".": "0.5.0"
+  ".": "0.6.0"
 }
