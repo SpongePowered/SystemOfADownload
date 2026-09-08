@@ -2,6 +2,6 @@
 go = "1.26"
 "go:github.com/golang-migrate/migrate/v4/cmd/migrate" = { version = "latest", tags = "postgres" }
 golangci-lint = "2.11.4"
-mockery = "3.7.0"
+mockery = "3.7.4"
 oapi-codegen = "2.6.0"
 sqlc = "1.30.0"
