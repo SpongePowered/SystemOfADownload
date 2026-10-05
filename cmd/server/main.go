@@ -198,12 +198,12 @@ func NewMux(h *httpapi.Handler, cfg *Config, otel *otelsetup.Result) http.Handle
 		With(slog.String("service", "soad-server"))
 
 	handler := otelhttp.NewHandler(api.HandlerFromMux(apiHandler, mux), "soad-server")
-	loggedHandler := httplog.RequestLogger(logger, &httplog.Options{
+	loggedHandler := logging.ProxyHeaders(os.Getenv("SOAD_TRUSTED_PROXIES"))(httplog.RequestLogger(logger, &httplog.Options{
 		Level:             slog.LevelInfo,
 		Schema:            httplog.SchemaOTEL,
 		RecoverPanics:     true,
 		LogRequestHeaders: []string{"User-Agent", "Referer"},
-	})(handler)
+	})(handler))
 
 	// Outer mux: /healthz and /metrics bypass tracing and request logging
 	// to keep probe/scrape traffic off the observability pipelines.

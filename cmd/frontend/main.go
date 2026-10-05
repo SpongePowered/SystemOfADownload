@@ -115,12 +115,12 @@ func NewMux(fe *frontend.Server, otel *otelsetup.Result) http.Handler {
 		With(slog.String("service", "soad-frontend"))
 
 	handler := gzhttp.GzipHandler(otelhttp.NewHandler(mux, "soad-frontend"))
-	loggedHandler := httplog.RequestLogger(logger, &httplog.Options{
+	loggedHandler := logging.ProxyHeaders(os.Getenv("SOAD_TRUSTED_PROXIES"))(httplog.RequestLogger(logger, &httplog.Options{
 		Level:             slog.LevelInfo,
 		Schema:            httplog.SchemaOTEL,
 		RecoverPanics:     true,
 		LogRequestHeaders: []string{"User-Agent", "Referer"},
-	})(handler)
+	})(handler))
 
 	// Outer mux: /healthz and /metrics bypass tracing, gzip, and request logging
 	// to keep probe/scrape traffic off the observability pipelines.
