@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/SpongePowered/SystemOfADownload/compare/v0.6.0...v0.7.0) (2026-10-06)
+
+
+### Features
+
+* **logging:** enable proxied ip logging ([3189960](https://github.com/SpongePowered/SystemOfADownload/commit/31899603a5d9550d646b8e4d5d474614c3a3ece7))
+
 ## [0.6.0](https://github.com/SpongePowered/SystemOfADownload/compare/v0.5.0...v0.6.0) (2026-08-24)
 
 
