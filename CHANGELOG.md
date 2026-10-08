@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/SpongePowered/SystemOfADownload/compare/v0.7.0...v0.7.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **otel:** correct imoprt ([94f64f5](https://github.com/SpongePowered/SystemOfADownload/commit/94f64f55139f2aa1447dcc870e3ac12fab3f31ed))
+
 ## [0.7.0](https://github.com/SpongePowered/SystemOfADownload/compare/v0.6.0...v0.7.0) (2026-10-06)
 
 
